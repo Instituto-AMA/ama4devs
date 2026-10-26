@@ -3,6 +3,7 @@ import { panelRoutes } from '../admin/panel.ts'
 import { adminRoutes } from '../admin/routes.ts'
 import type { AppContext } from '../core/context.ts'
 import { AsaasError, unauthorized } from '../core/errors.ts'
+import { mockRoutes } from '../mock/routes.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { authenticate } from './auth.ts'
 import { registerOperations, type HandlerMap, type RegisterResult } from './register.ts'
@@ -84,6 +85,7 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
     }))
     .use(panelRoutes(ctx))
     .use(adminRoutes(ctx, deps.scheduler))
+    .use(mockRoutes(ctx))
     .use(api)
 
   return { app: app as unknown as Elysia, coverage }
