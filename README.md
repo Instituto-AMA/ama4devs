@@ -158,7 +158,7 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 ## Security Notes
 
 - **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445` and `127.0.0.1:3010`). They must never be exposed on `0.0.0.0` or public networks.
-- **Local Route Guard:** The Asaas mock includes a strict `localGuard` middleware on `/`, `/_admin/*`, and `/_mock/*`. It rejects requests with untrusted `Host` or `Origin` headers to protect against DNS rebinding and cross-site request attacks. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
+- **Local Route Guard:** Both mocks implement a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
 - **Fake Keys:** All default API keys in `.env.example` and tests are non-functional mock placeholders (e.g. `$aact_hmlg_local_master`). Never commit real credentials to this repository.
 
 ## Licenses
