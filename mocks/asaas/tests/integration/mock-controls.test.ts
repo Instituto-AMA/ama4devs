@@ -123,6 +123,23 @@ describe('/_mock/payments/:id', () => {
     expect(res.status).toBe(400)
     expect(((await res.json()) as any).errors[0].code).toBe('invalid_action')
   })
+
+  it('receive twice answers 400 in the Asaas error format, never a 500', async () => {
+    // Pix: the first receive goes straight to RECEIVED. Boleto: it goes through
+    // CONFIRMED and settles. Both end paid, and paying twice is an error.
+    for (const billingType of ['PIX', 'BOLETO'] as const) {
+      const id = await newPayment(billingType)
+      expect((await post(`/payments/${id}/receive`)).status).toBe(200)
+
+      const res = await post(`/payments/${id}/receive`)
+      const body: any = await res.json()
+
+      expect(res.status).toBe(400)
+      expect(Array.isArray(body.errors)).toBe(true)
+      expect(body.errors[0].code).toBe('invalid_action')
+      expect(body.errors[0].description).toBe('Cobrança já confirmada.')
+    }
+  })
 })
 
 describe('GET /_mock/payments', () => {
