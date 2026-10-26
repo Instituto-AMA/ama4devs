@@ -18,6 +18,7 @@
 import { sql } from 'drizzle-orm'
 import { DAY_MS } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
+import { dispatchDue } from '../webhooks/dispatcher.ts'
 
 export interface TickReport {
   /** O dia simulado deste tick: '2026-02-14'. */
@@ -72,6 +73,10 @@ export class Scheduler {
   #jobs: Job[]
   #running: Promise<unknown> | null = null
   #timer: ReturnType<typeof setInterval> | null = null
+  /** The one extra dispatch pass waiting for the mutex, if any. */
+  #queuedDispatch: Promise<void> | null = null
+  /** Every dispatch pass not yet finished (running or queued), for `idle()`. */
+  #dispatches = new Set<Promise<void>>()
   /** Congela o dispatcher de webhook — ver POST /_admin/webhooks/pause. */
   paused = false
 
@@ -97,6 +102,47 @@ export class Scheduler {
     } finally {
       this.#running = null
     }
+  }
+
+  /**
+   * Sends the deliveries already due, outside the tick. A change commits its deliveries in the same
+   * transaction as the change, so the HTTP layer calls this after the handler: the queue is the signal.
+   * Shares the tick's mutex, so it never interleaves with a tick or an advance; calls that arrive while
+   * one runs coalesce into one more pass.
+   */
+  dispatchNow(): Promise<void> {
+    if (this.#queuedDispatch) return this.#queuedDispatch
+
+    const pass = (async () => {
+      // Lets the assignment below happen before the pass can start, so same-tick calls coalesce.
+      await null
+      while (this.#running) await this.#running.catch(() => {})
+      this.#queuedDispatch = null // from here on, a new call queues the next pass
+
+      const run = this.#runDispatch()
+      this.#running = run
+      try {
+        await run
+      } finally {
+        this.#running = null
+      }
+    })()
+
+    this.#queuedDispatch = pass
+    this.#dispatches.add(pass)
+    const forget = () => void this.#dispatches.delete(pass)
+    pass.then(forget, forget)
+    return pass
+  }
+
+  /** Resolves when no dispatch pass is running or queued. For tests. */
+  async idle(): Promise<void> {
+    while (this.#dispatches.size > 0) await Promise.allSettled([...this.#dispatches])
+  }
+
+  async #runDispatch(): Promise<void> {
+    const ctx = this.#ctx
+    await dispatchDue(ctx, emptyReport(ctx.clock.today(), ctx.clock.timestamp()), this.paused)
   }
 
   async #runTick(): Promise<TickReport> {
