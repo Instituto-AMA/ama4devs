@@ -6,7 +6,7 @@ import { AsaasError, unauthorized } from '../core/errors.ts'
 import { mockRoutes } from '../mock/routes.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { authenticate } from './auth.ts'
-import { localGuard } from './local-guard.ts'
+import { localGuard, STATE_CHANGING_METHODS } from './local-guard.ts'
 import { registerOperations, type HandlerMap, type RegisterResult } from './register.ts'
 
 export interface AppDeps {
@@ -58,12 +58,11 @@ function errorHandler(ctx: AppContext) {
   }
 }
 
-const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin']
 
 /** True for a finished 2xx mutating request under the API, mock or admin routes. */
 function shouldDispatch(request: Request, status: unknown): boolean {
-  if (!MUTATING.has(request.method)) return false
+  if (!STATE_CHANGING_METHODS.has(request.method)) return false
   const code = status === undefined ? 200 : Number(status)
   if (!(code >= 200 && code < 300)) return false
   const path = new URL(request.url).pathname

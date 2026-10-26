@@ -140,8 +140,8 @@ export async function bootstrap(opts: BootstrapOptions = {}): Promise<App> {
     },
   }
 
-  const seed = await seedMasterAccount(db, config, clock, rng)
-  await seedExtraAccounts(db, config, clock, rng)
+  const seed = await seedMasterAccount({ db, config, clock, rng })
+  await seedExtraAccounts({ db, config, clock, rng })
 
   const scheduler = new Scheduler(ctx, opts.jobs ?? JOBS)
   const { app, coverage } = createApp({
