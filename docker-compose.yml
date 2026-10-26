@@ -1,0 +1,59 @@
+name: test-utils-hub
+
+services:
+  asaas:
+    build: ./mocks/asaas
+    image: test-utils-hub/asaas:local
+    profiles: [asaas]
+    ports:
+      - '127.0.0.1:${ASAAS_PORT:-45445}:45445'
+    environment:
+      PORT: 45445
+      TZ: America/Sao_Paulo
+      DATABASE_PATH: /data/asaas.db
+      # Fake key of the local mock; `$$` is compose's escape for a literal `$`.
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-$$aact_hmlg_local_master}
+      SEED_EXTRA_ACCOUNTS: ${ASAAS_SEED_EXTRA_ACCOUNTS:-}
+      CLOCK_MODE: ${ASAAS_CLOCK_MODE:-VIRTUAL_FLOWING}
+      # Inside the container "localhost" is the container itself: rewrite it to the host.
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+      MOCK_ALLOWED_HOSTS: asaas
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - asaas-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "await fetch('http://localhost:45445/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  whatsapp:
+    build: ./mocks/whatsapp
+    image: test-utils-hub/whatsapp:local
+    profiles: [whatsapp]
+    ports:
+      - '127.0.0.1:${WHATSAPP_PORT:-3010}:3010'
+    environment:
+      PORT: 3010
+      WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-}
+      WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:-}
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail --silent http://localhost:3010/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  asaas-data:
