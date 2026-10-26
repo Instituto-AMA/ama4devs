@@ -1,32 +1,20 @@
-# AGENTS.md — como trabalhar neste projeto
+# AGENTS.md — Asaas Mock Server
 
-## O que é
+This mock is maintained internally as part of `Instituto-AMA/test-utils-hub` (adapted from `theoxys/asaas-mock-server`). It runs locally in Docker alongside other provider mocks for development and testing.
 
-Um **Asaas local**: um servidor que expõe a API v3 do Asaas e roda em Docker na
-máquina do dev.
+## What it is
 
-## Por que existe
+A **local Asaas**: a server that exposes the Asaas v3 API and runs in Docker on the developer's machine, eliminating external dependencies and vendor credentials.
 
-**O sandbox do Asaas não entrega webhooks em `localhost`.** É isso. É o problema
-inteiro. Você cria a cobrança, ela é paga, e o evento nunca chega na sua máquina.
-Todo mundo contorna com ngrok, ou sobe um staging só pra testar, ou escreve um
-payload falso à mão — e nenhuma dessas coisas testa o que de fato importa: o
-prazo de crédito, o juro do atraso, o split, a retentativa do webhook.
+## Why it exists
 
-Este servidor entrega webhook em localhost. E, porque tem um **relógio virtual**,
-você avança 32 dias em milissegundos e vê o `PAYMENT_RECEIVED` do cartão chegar.
-Nenhuma suíte rodando contra o Asaas real consegue fazer isso.
+**The official Asaas sandbox does not deliver webhooks to `localhost`.** This mock delivers webhooks to localhost by rewriting loopback targets to `host.docker.internal`. Furthermore, because it includes a **virtual clock**, you can advance 32 days in milliseconds and observe the `PAYMENT_RECEIVED` webhook arrive for credit cards—something no test suite running against the real Asaas sandbox can do.
 
-## O que ele NÃO é
+## What it is NOT
 
-**Não é um mock de respostas estáticas.** Uma cobrança de cartão criada aqui fica
-`CONFIRMED`, credita em D+32, debita a taxa de R$ 0,49 + 2,99%, movimenta o split
-entre contas e gera lançamento nos dois extratos. Se você está prestes a
-devolver um JSON fixo, pare: é a única coisa que o projeto não pode fazer.
+**It is not a mock of static responses.** A credit card payment created here enters `CONFIRMED`, credits at D+32, debits the fee (R$ 0.49 + 2.99%), executes split transfers across accounts, and posts entries to both ledger statements. Never return static hardcoded JSON where business logic applies.
 
-Um mock sutilmente errado é **pior que nenhum mock**, porque produz falsa
-confiança. Quando não souber a regra real, não invente: marque com `TODO(regra)`,
-deixe configurável, e registre em `progress.md`.
+A subtly incorrect mock is **worse than no mock**, because it creates false confidence. When a real business rule is unknown, mark it with `TODO(rule)`, make it configurable via environment variables, and record it in `progress.md`.
 
 ---
 
@@ -34,161 +22,86 @@ deixe configurável, e registre em `progress.md`.
 
 Bun · Elysia · Drizzle · SQLite (`bun:sqlite`) · TypeBox · Docker
 
-## Fonte de verdade
+## Source of Truth
 
-`spec/openapi.json` — a spec OpenAPI 3.0.1 oficial do Asaas, vendorizada
-byte-a-byte. **Nunca edite esse arquivo.** Correções vão em `spec/overlays/*.json`
-como JSON Patch, com um `_why` explicando (já há uma: a spec omite o status
-`AUTHORIZED` de todos os 7 enums de status).
+`spec/openapi.json` is the official Asaas OpenAPI 3.0.1 specification, vendored byte-for-byte. **Never edit this file directly.** Corrections belong in `spec/overlays/*.json` as JSON Patch with a `_why` explaining the necessity (e.g. the spec omits the `AUTHORIZED` status from all status enums).
 
-`bun run codegen` transforma a spec em `src/generated/` — schemas TypeBox, os 74
-enums canônicos, e o **manifesto** das 213 operações.
+Running `bun run codegen` turns the specification into `src/generated/` — TypeBox schemas, 74 canonical enums, and a **manifest** of all 213 operations.
 
-### Mas a spec prova a FORMA. Só a API real prova o CONTEÚDO.
+### The specification proves form; only the real API proves content.
 
-`bun run test:parity` compara as nossas respostas com respostas **capturadas do
-sandbox real do Asaas** (`tests/golden/*.json`). Essa suíte é a autoridade máxima
-deste projeto — acima da documentação, acima da spec, e acima de qualquer comentário
-no código.
+`bun run test:parity` compares simulator responses against responses **captured from the real Asaas sandbox** (`tests/golden/*.json`). This parity suite is the ultimate authority for this mock.
 
-Leia isto antes de confiar na documentação do Asaas: **quando rodamos a captura pela
-primeira vez, ela derrubou 15 regras que tínhamos deduzido da doc.** Entre elas:
-
-- A assinatura **cria a primeira cobrança na hora** — nós tínhamos escrito, num
-  comentário em letras garrafais, que ela *não* criava, com um aviso para ninguém
-  "consertar". Nosso recurso de assinatura simplesmente não cobrava nada, e três
-  testes "provavam" que estava certo.
-- O campo do desconto chama `limitDate`; escrevíamos `limitedDate`. **A spec não
-  declara nenhum dos dois** — a validação de contrato jamais pegaria. Só a API real
-  pegou.
-
-A lição, que vale para você: **um comentário confiante e errado é pior que comentário
-nenhum, porque impede a próxima pessoa de duvidar.** Se você vai afirmar uma regra de
-negócio, prove-a com um roteiro de paridade (`tests/golden/scenarios.ts`) ou diga
-explicitamente que não está provada.
-
-Toda divergência que a paridade apontar é bug **nosso**. O Asaas é a verdade; não
-"conserte" o golden.
+Any divergence reported by the parity suite is **our bug**: Asaas is the truth; do not modify golden responses to mask discrepancies.
 
 ---
 
-## Os invariantes. Não negocie com eles.
+## Non-Negotiable Invariants
 
-### 1. `src/domain/` é PURO
+### 1. `src/domain/` is PURE
 
-Não importa `db`, `http`, `core/clock` nem `AppContext`. Toda função recebe
-`now: Date` e os valores de que precisa como **argumento**.
+It never imports `db`, `http`, `core/clock`, or `AppContext`. Every domain function receives `now: Date` and required values as **arguments**.
 
-É o que permite testar os cálculos sem subir nada, e é o que deixa dois agentes
-trabalharem em paralelo sem colidir.
+This ensures calculations can be tested in isolation without booting servers or databases.
 
-### 2. Nada de tempo ou aleatoriedade ambiente
+### 2. No Ambient Time or Randomness
 
-`Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()` e
-`CURRENT_TIMESTAMP` são **proibidos** fora de `src/core/clock.ts` e
-`src/core/rng.ts`. Use `ctx.clock` e `ctx.rng`.
+`Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()`, and `CURRENT_TIMESTAMP` are **forbidden** outside `src/core/clock.ts` and `src/core/rng.ts`. Use `ctx.clock` and `ctx.rng`.
 
-Um único vazamento e a viagem no tempo passa a gravar a data real: o determinismo
-morre em silêncio e o bug volta como teste intermitente daqui a três meses.
-`tests/unit/no-ambient-time.test.ts` faz grep no fonte e quebra o build.
+A single leak causes time travel to record real wall-clock dates, silently destroying determinism. `tests/unit/no-ambient-time.test.ts` statically checks source files and fails the build on violations.
 
-### 3. Dinheiro é inteiro em centavos
+### 3. Money is Represented as Integer Cents
 
-Sempre. Sufixo `Cents`. `R$ 1,99` → `199`.
+Always suffix monetary fields with `Cents` (e.g. `R$ 1.99` → `199`).
 
-`REAL` no SQLite é IEEE-754 e o saldo corrente acumula erro. Pior: as regras do
-Asaas são regras de **resto exato** ("a sobra vai na última parcela") e só se
-expressam em aritmética inteira. Converta para reais **só na borda**, ao
-serializar. Percentual de split tem 4 casas → escala `1e4` (`E4`). Taxa
-percentual em basis points (`Bp`).
+Floating-point numbers (`REAL`) in SQLite introduce IEEE-754 rounding drift. Asaas rules depend on exact remainder arithmetic (e.g. "installment rounding remainder goes into the final installment"). Convert to BRL only at serialization boundaries. Split percentages use `1e4` scaling (`E4`), and fee percentages use basis points (`Bp`).
 
-### 4. O status de uma cobrança só muda em UM lugar
+### 4. Payment Status Changes Only in ONE Place
 
-`applyTransition()`. Sandbox action, scheduler, captura, `receiveInCash`,
-refund — todos passam por lá.
+All transitions pass through `applyTransition()`. Sandbox actions, scheduler ticks, credit card captures, `receiveInCash`, and refunds must all invoke it.
 
-Webhook e lançamento no ledger são **efeitos da transição**, não algo que o
-handler lembra de fazer. É o que garante que eles não possam divergir. Se você
-está escrevendo `UPDATE payments SET status = …` fora do `applyTransition`, está
-introduzindo o bug que essa regra existe para prevenir.
+Webhook queueing and ledger entries are direct side-effects of `applyTransition()`. Never write `UPDATE payments SET status = ...` outside this function.
 
-### 5. Saldo só muda via `postEntries()`
+### 5. Account Balances Change Only via `postEntries()`
 
-Ele grava o lançamento e atualiza `accounts.balanceCents` na **mesma transação**.
-O invariante `balance === SUM(ledger)` é checado nos testes.
+Ledger entries and `accounts.balanceCents` updates are committed together within the **same database transaction**. The invariant `balance === SUM(ledger)` is validated in tests.
 
-### 6. Toda mutação de estado usa compare-and-swap
+### 6. State Mutations Use Compare-and-Swap
 
-`UPDATE … WHERE id = ? AND status = <esperado>`. Uma execução duplicada de job
-altera zero linhas. É a camada de idempotência que realmente salva.
+Mutations must use `UPDATE ... WHERE id = ? AND status = <expected>`. Idempotent retries will safely update zero rows without producing duplicate side-effects.
 
 ---
 
-## Como uma rota nasce
+## Implementing Operations
 
-Você **não** mexe em roteamento. O registro é dirigido pelo manifesto: todo
-`operationId` sem handler já responde `501` com o formato de erro do Asaas.
+Route registration is manifest-driven: every `operationId` without a handler automatically returns `501 Not Implemented` in Asaas error format.
 
-Para implementar uma operação:
+To implement an operation:
+1. Write the handler in `src/modules/<area>/handlers.ts`.
+2. Add it to the handler map spread in `src/modules/index.ts`.
 
-1. Escreva o handler em `src/modules/<sua-área>/handlers.ts`.
-2. Adicione ao spread em `src/modules/index.ts`.
+Routing, authentication derivation, request validation, and error shaping are wired automatically.
 
-Pronto. A rota, a autenticação, a validação de body e o formato de erro já
-existiam. `bun run coverage:ops` recalcula a cobertura sozinho.
+## API Quirks and Contract Nuances
 
-## Formato da API — detalhes que quebram integração
+- Creation returns HTTP **200**, never 201.
+- Errors always follow `{"errors":[{"code":"invalid_<field>","description":"..."}]}` (array format, even for single errors; `description` in pt-BR).
+- List endpoints: `{object:"list", hasMore, totalCount, limit, offset, data:[]}` with `limit` capped at 100.
+- Webhooks: **Only HTTP 200 is considered success**; 201 and 204 are treated as failures, reproducing official Asaas behavior.
+- Identifiers: `pay_<12digits>`, `cus_<12digits>`, `sub_<alphanumeric>`, while installment, transfer, split, webhook, and walletId use standard UUIDs.
 
-- Criação retorna **200**, nunca 201.
-- Erro é **sempre** `{"errors":[{"code":"invalid_<campo>","description":"…"}]}` —
-  array mesmo com um erro só, descrição em pt-BR.
-- Listagem: `{object:"list", hasMore, totalCount, limit, offset, data:[]}`, `limit` ≤ 100.
-- Webhook: **só HTTP 200 é sucesso**. 201 e 204 são falha. (É a regra real, e é
-  onde as integrações se queimam — por isso reproduzimos.)
-- IDs não são uniformes, e isso é de propósito: `pay_<12díg>`, `cus_<12díg>`,
-  `sub_<alfanum>`, mas installment/transfer/split/webhook/walletId são **UUID
-  puro**. Não "padronize".
+## Tests
 
-## Testes
+- `tests/unit/`: Pure domain tests, table-driven. Covers edge cases like interest calculations, rounding remainders, and fee splits.
+- `tests/integration/`: Uses `createHarness()` with in-memory SQLite, frozen clock, seeded RNG, and a real HTTP webhook sink. Contract conformance is validated automatically against the OpenAPI schema for every response. Call `h.assertLedgerBalances()` at the end of financial test cases.
+- Time travel in tests: `h.advance({days: 32})` drains webhooks for each simulated day. Use `POST /_admin/webhooks/pause` when advancing time without triggering backoff exhaustion on pending webhooks.
 
-- `tests/unit/` — `src/domain/`, puro, table-driven. É onde moram 90% dos bugs
-  reais (arredondamento, juros, divisão de parcelas).
-- `tests/integration/` — usa `createHarness()`: servidor real, SQLite em memória,
-  relógio congelado, RNG semeado, webhook sink HTTP de verdade.
-- **Contrato é de graça**: o `ApiClient` do harness valida *toda* resposta da
-  suíte contra o schema da spec. Você ganha isso escrevendo teste de feature.
-- `h.assertLedgerBalances()` no fim de todo cenário financeiro.
+## Local Webhook Forwarding
 
-Ao viajar no tempo: `h.advance({days: 32})` já drena a fila de webhooks a cada
-dia. Se precisar de viagem "pura", `POST /_admin/webhooks/pause` — senão as 15
-tentativas de backoff se esgotam sozinhas e o webhook vira `interrupted`.
+Inside Docker containers, `localhost` points at the container itself. `WEBHOOK_LOCALHOST_REWRITE` (default: `host.docker.internal`) rewrites the host in webhook URLs so events reach services running on the host machine.
 
-## A pegadinha do Docker
+## Business Rules
 
-Dentro do container, `localhost` é o container. `WEBHOOK_LOCALHOST_REWRITE`
-(default `host.docker.internal`) reescreve o host para que o webhook chegue na
-máquina do dev. É a razão de o projeto existir — não desligue sem saber por quê.
-
-## Regras de negócio
-
-Duas categorias, e a diferença importa:
-
-**PROVADAS contra o sandbox real** (`bun run test:parity`, 7 roteiros, 0
-divergências). Estão em `progress.md` → "Paridade com o Asaas real", com o que cada
-roteiro provou. Exemplos: a taxa fixa de R$ 1,99 do Pix; a sobra do arredondamento na
-última parcela; o crédito escalonado em D+32×n do cartão parcelado; a assinatura que
-cobra na criação.
-
-**Apenas PESQUISADAS na documentação** — tudo o mais. Estão em `MASTER_PLAN.md` §7 com
-as fontes, e em `progress.md` → "Regras que a documentação não define". Trate-as como
-hipóteses: já derrubamos 15 delas na primeira captura.
-
-Todo número está em `src/core/config.ts`, atrás de variável de ambiente — para que uma
-divergência de valor seja mudança de config, não de código.
-
-**Ao descobrir uma divergência com o Asaas real:**
-1. Corrija o simulador (o Asaas é a verdade — nunca "conserte" o golden).
-2. Leve a regra provada para um golden test em `tests/unit/`.
-3. Anote em `progress.md`.
-4. E **corrija os comentários que afirmavam o contrário.** Um comentário errado que
-   sobrevive à correção é uma armadilha para a próxima pessoa.
+Rules fall into two categories:
+1. **Proven Against Real Sandbox:** Verified by `bun run test:parity` (e.g. fixed R$ 1.99 Pix fee, remainder placed in last installment, staggered D+32 credit for card installments, immediate first payment on subscription creation).
+2. **Researched from Documentation:** Documented hypotheses. When resolving discrepancies with real Asaas behavior, update the simulator (Asaas is the source of truth), add a golden test, and update comments.
