@@ -5,8 +5,8 @@ sandboxes (`sandbox.env`). `scripts/env-mode.sh <profile> mock|sandbox <target-e
 keys into the app's env file. Pick one with `make setup PROFILE=<name> TARGET_ENV=<file>`.
 
 Each file is `KEY=VALUE` lines and `#` comments. Values may reference `${ASAAS_PORT}`,
-`${WHATSAPP_PORT}` (from `.env`) and, in `sandbox.env`, `${ASAAS_SANDBOX_API_KEY}` (from
-`.env.sandbox`). Nothing else is expanded.
+`${WHATSAPP_PORT}` and `${ASAAS_API_KEY}` (from `.env`) and, in `sandbox.env`,
+`${ASAAS_SANDBOX_API_KEY}` (from `.env.sandbox`). Nothing else is expanded.
 
 ## Control keys (`sandbox.env` only, never written to the target)
 
