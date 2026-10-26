@@ -4,21 +4,23 @@
  */
 import { eq } from 'drizzle-orm'
 import { toBusinessTimestamp } from '../core/clock.ts'
-import type { Clock } from '../core/clock.ts'
-import type { Config } from '../core/config.ts'
-import type { Rng } from '../core/rng.ts'
 import type { DB } from '../db/client.ts'
 import { accountDocumentGroups, accounts, apiKeys } from '../db/schema/index.ts'
 import { personTypeOf } from '../domain/cpf-cnpj.ts'
 import * as ids from '../domain/ids.ts'
 import { cents, type Cents } from '../domain/money.ts'
-import { createAccountDocuments } from '../modules/account-documents/service.ts'
+import { createAccountDocuments, type DocumentDeps } from '../modules/account-documents/service.ts'
 
 export interface SeedResult {
   created: boolean
   accountId: string
   walletId: string
   apiKey: string
+}
+
+/** Everything the seed needs from the outside world. */
+export interface SeedDeps extends DocumentDeps {
+  db: DB
 }
 
 /** The fields an account needs to be born. Master and extra accounts differ only here. */
@@ -30,6 +32,16 @@ interface RootAccountSeed {
   balanceCents: Cents
 }
 
+/** A stable slug from a name: "Clínica A" → "clinica-a". */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
 /**
  * The INSERT shared by the master account and the extra ones: a ROOT account
  * (`parentAccountId: null`), its own walletId, the API key row and the KYC
@@ -38,12 +50,10 @@ interface RootAccountSeed {
  * send.
  */
 async function insertRootAccount(
-  db: DB,
-  config: Config,
-  clock: Clock,
-  rng: Rng,
+  deps: SeedDeps,
   seed: RootAccountSeed,
 ): Promise<SeedResult> {
+  const { db, clock, rng } = deps
   const now = clock.timestamp()
   const accountId = ids.accountId(rng)
   const walletId = ids.walletId(rng)
@@ -72,7 +82,7 @@ async function insertRootAccount(
     dateCreated: now,
   })
 
-  await createAccountDocuments(db, { clock, rng, config }, {
+  await createAccountDocuments(db, deps, {
     accountId,
     name: seed.name,
     personType: personTypeOf(seed.cpfCnpj),
@@ -83,12 +93,8 @@ async function insertRootAccount(
   return { created: true, accountId, walletId, apiKey: seed.apiKey }
 }
 
-export async function seedMasterAccount(
-  db: DB,
-  config: Config,
-  clock: Clock,
-  rng: Rng,
-): Promise<SeedResult> {
+export async function seedMasterAccount(deps: SeedDeps): Promise<SeedResult> {
+  const { db, config, rng } = deps
   const existing = await db.select().from(accounts).limit(1)
   if (existing.length > 0) {
     const account = existing[0]!
@@ -107,7 +113,7 @@ export async function seedMasterAccount(
       .limit(1)
 
     if (!group) {
-      await createAccountDocuments(db, { clock, rng, config }, {
+      await createAccountDocuments(db, deps, {
         accountId: account.id,
         name: account.name,
         personType: account.personType,
@@ -125,7 +131,7 @@ export async function seedMasterAccount(
   }
 
   // If the user did not define ASAAS_API_KEY, we generate one and print it on boot.
-  return insertRootAccount(db, config, clock, rng, {
+  return insertRootAccount(deps, {
     apiKey: config.seedAccount.apiKey ?? ids.apiKey(rng),
     name: config.seedAccount.name,
     email: config.seedAccount.email,
@@ -145,12 +151,8 @@ export async function seedMasterAccount(
  * seeded and NOTHING changes — no new wallet, no new balance. The balance of a
  * fresh extra account starts at zero.
  */
-export async function seedExtraAccounts(
-  db: DB,
-  config: Config,
-  clock: Clock,
-  rng: Rng,
-): Promise<SeedResult[]> {
+export async function seedExtraAccounts(deps: SeedDeps): Promise<SeedResult[]> {
+  const { db, config } = deps
   const created: SeedResult[] = []
 
   for (const extra of config.seedExtraAccounts) {
@@ -162,17 +164,12 @@ export async function seedExtraAccounts(
     if (existing) continue
 
     created.push(
-      await insertRootAccount(db, config, clock, rng, {
+      await insertRootAccount(deps, {
         apiKey: extra.apiKey,
         name: extra.name,
         // The account needs a login email and the env format has none — derive
         // a stable one from the name ("Clinica A" → clinica-a@localhost).
-        email: `${extra.name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '')}@localhost`,
+        email: `${slugify(extra.name)}@localhost`,
         cpfCnpj: extra.cpfCnpj,
         balanceCents: cents(0),
       }),

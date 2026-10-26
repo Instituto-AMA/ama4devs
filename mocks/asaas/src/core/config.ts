@@ -81,7 +81,8 @@ function parseSeedExtraAccounts(
 
 const DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '::1', 'host.docker.internal']
 
-const list = (key: string, fallback: string[]): string[] => {
+/** The hostnames allowed to reach the key-free local routes, plus the configured ones. */
+const hostList = (key: string, fallback: string[]): string[] => {
   const extra = (process.env[key] ?? '')
     .split(',')
     .map((value) => value.trim())
@@ -204,7 +205,7 @@ export function loadConfig(): Config {
     databasePath: str('DATABASE_PATH', './data/asaas.db'),
     seed: seedRaw === undefined || seedRaw === '' ? undefined : Number(seedRaw),
     adminEnabled: bool('ADMIN_ENABLED', true),
-    allowedHosts: list('MOCK_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS),
+    allowedHosts: hostList('MOCK_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS),
     logLevel: str('LOG_LEVEL', 'info'),
     publicBaseUrl: str('PUBLIC_BASE_URL', 'https://sandbox.asaas.com'),
 

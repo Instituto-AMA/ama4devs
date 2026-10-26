@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Usage: env-mode.sh <profile> mock|sandbox [target-env-file]
 # Writes the profile's keys into the target file, or prints `export` lines when no target is given.
+# A secret without a target is printed as a comment, never as a value.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -21,14 +22,17 @@ fi
 # Only these placeholders are expanded, from .env (with defaults) and .env.sandbox.
 asaas_port="$(env_get "$ROOT_DIR/.env" ASAAS_PORT)"
 whatsapp_port="$(env_get "$ROOT_DIR/.env" WHATSAPP_PORT)"
+asaas_api_key="$(env_get "$ROOT_DIR/.env" ASAAS_API_KEY)"
 asaas_port="${asaas_port:-45445}"
 whatsapp_port="${whatsapp_port:-3010}"
+asaas_api_key="${asaas_api_key:-\$aact_hmlg_local_master}"
 sandbox_key="${ASAAS_SANDBOX_API_KEY:-$(env_get "$ROOT_DIR/.env.sandbox" ASAAS_SANDBOX_API_KEY)}"
 
 expand() {
   local v="$1"
   v="${v//'${ASAAS_PORT}'/$asaas_port}"
   v="${v//'${WHATSAPP_PORT}'/$whatsapp_port}"
+  v="${v//'${ASAAS_API_KEY}'/$asaas_api_key}"
   v="${v//'${ASAAS_SANDBOX_API_KEY}'/$sandbox_key}"
   printf '%s' "$v"
 }
@@ -62,7 +66,7 @@ for i in "${!keys[@]}"; do
     continue
   fi
   if [ "$masked" = 1 ]; then
-    printf 'export %s=••••  # from .env.sandbox\n' "$key"
+    printf '# %s is set from .env.sandbox (hidden; pass a target file to write it)\n' "$key"
     continue
   fi
   printf 'export %s=%q\n' "$key" "$value"

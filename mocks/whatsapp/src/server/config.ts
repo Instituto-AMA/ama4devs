@@ -2,6 +2,7 @@ import {
 	getWebhookMappingsFromConfig,
 	parseWebhookEntry,
 } from './configuration.ts'
+import { redactUrl } from './webhook-target.ts'
 
 export interface WebhookConfig {
 	mappings: Map<string, string>
@@ -53,7 +54,9 @@ function parseWebhookMappings(): Map<string, string> {
 			}
 
 			mappings.set(phone, url)
-			console.log(`🔗 Configured webhook URL for phone ${phone}: ${url}`)
+			console.log(
+				`🔗 Configured webhook URL for phone ${phone}: ${redactUrl(url)}`
+			)
 			i++ // Skip the next argument since we consumed it
 		}
 	}
@@ -79,14 +82,14 @@ function initializeWebhookConfig(): WebhookConfig {
 				// Environment variable contains phone:url mapping
 				cliMappings.set(parsedEnv.phone, parsedEnv.url)
 				console.log(
-					`🔗 Configured webhook URL for phone ${parsedEnv.phone} from environment: ${parsedEnv.url}`
+					`🔗 Configured webhook URL for phone ${parsedEnv.phone} from environment: ${redactUrl(parsedEnv.url)}`
 				)
 			} else {
 				// Environment variable contains fallback URL
 				fallbackUrl = parsedEnv.url
 			}
 		} else {
-			console.error(`❌ Invalid WEBHOOK_URL format: ${envWebhookUrl}`)
+			console.error('❌ Invalid WEBHOOK_URL format')
 		}
 	}
 
@@ -104,14 +107,14 @@ function initializeWebhookConfig(): WebhookConfig {
 		fallbackUrl = configMappings.fallbackUrls[0]
 		if (configMappings.fallbackUrls.length > 1) {
 			console.log(
-				`📄 Using first fallback webhook URL from config file: ${fallbackUrl}`
+				`📄 Using first fallback webhook URL from config file: ${redactUrl(fallbackUrl)}`
 			)
 			console.log(
-				`📄 Additional fallback URLs in config file: ${configMappings.fallbackUrls.slice(1).join(', ')}`
+				`📄 Additional fallback URLs in config file: ${configMappings.fallbackUrls.slice(1).map(redactUrl).join(', ')}`
 			)
 		} else {
 			console.log(
-				`📄 Using fallback webhook URL from config file: ${fallbackUrl}`
+				`📄 Using fallback webhook URL from config file: ${redactUrl(fallbackUrl)}`
 			)
 		}
 	}
@@ -124,7 +127,9 @@ function initializeWebhookConfig(): WebhookConfig {
 		const source = process.env.WEBHOOK_URL
 			? 'environment variable'
 			: 'config file'
-		console.log(`🔗 Using fallback webhook URL from ${source}: ${fallbackUrl}`)
+		console.log(
+			`🔗 Using fallback webhook URL from ${source}: ${redactUrl(fallbackUrl)}`
+		)
 	}
 
 	return {
@@ -195,4 +200,29 @@ export function setWebhookUrl(phoneNumber: string, url: string): void {
 		throw new Error(`Invalid URL format passed to setWebhookUrl: ${url}`)
 	}
 	config.mappings.set(phoneNumber, url)
+}
+
+const DEFAULT_ALLOWED_HOSTS = [
+	'localhost',
+	'127.0.0.1',
+	'::1',
+	'host.docker.internal',
+]
+
+/**
+ * Hostnames the local guard accepts: the defaults plus the comma-separated
+ * `MOCK_ALLOWED_HOSTS` (for example the compose service name).
+ */
+export function allowedHosts(): string[] {
+	const extra = (process.env.MOCK_ALLOWED_HOSTS ?? '')
+		.split(',')
+		.map((host) => host.trim().toLowerCase())
+		.filter(Boolean)
+	return [...DEFAULT_ALLOWED_HOSTS, ...extra]
+}
+
+/** Server port from `PORT` when it is a valid port number, else 3010. */
+export function serverPort(): number {
+	const port = Number(process.env.PORT)
+	return Number.isInteger(port) && port > 0 && port <= 65535 ? port : 3010
 }

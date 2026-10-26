@@ -8,15 +8,24 @@
  *
  * O botão "simular pagamento" é a única coisa aqui que não é do Asaas — e vai pela rota
  * de sandbox (`/v3/sandbox/payment/{id}/confirm`), com a chave da conta.
+ *
+ * Simulator outcome buttons (receive, overdue, refund) trigger /_mock routes to
+ * force lifecycle transitions and test corresponding webhook reactions.
  */
 import { useEffect, useState } from 'preact/hooks'
-import { v3, type Payment } from '../api.ts'
+import { mock, v3, type Payment } from '../api.ts'
 import type { PageProps } from '../app.tsx'
 import { DataTable, type Column } from '../components/DataTable.tsx'
-import { Button, Card, Empty, money, StatusBadge } from '../components/ui.tsx'
+import { Badge, Button, Card, Empty, money, StatusBadge } from '../components/ui.tsx'
 
 /** Os status em que faz sentido oferecer "pagar". Fora deles, o botão some. */
 const PAYABLE = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS'])
+
+/** Simulator outcome actions availability by payment status. */
+// CONFIRMED is left out: /receive starts with PAY, which a confirmed charge refuses (400).
+const CAN_RECEIVE = new Set(['PENDING', 'OVERDUE'])
+const CAN_OVERDUE = new Set(['PENDING'])
+const CAN_REFUND = new Set(['RECEIVED', 'CONFIRMED'])
 
 export function Payments({ store }: PageProps) {
   const [rows, setRows] = useState<Payment[] | null>(null)
@@ -34,13 +43,12 @@ export function Payments({ store }: PageProps) {
     void load()
   }, [key])
 
-  const confirm = async (p: Payment) => {
-    if (!key) return
+  const run = async (p: Payment, action: () => Promise<unknown>) => {
     setBusy(p.id)
     try {
-      await v3(`/sandbox/payment/${p.id}/confirm`, key, { method: 'POST' })
+      await action()
       await load()
-      await store.reload() // o saldo mudou, e a topbar mostra o saldo
+      await store.reload() // balance or status changed, reload list and topbar
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e))
     } finally {
@@ -106,19 +114,85 @@ export function Payments({ store }: PageProps) {
         initialSort={{ key: 'dueDate', dir: 'desc' }}
         searchPlaceholder="Buscar por id, status, tipo, referência…"
         empty='nenhuma cobrança nesta conta — use "Simular Venda" para criar uma'
-        actions={(p) =>
-          PAYABLE.has(p.status) && (
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy === p.id}
-              title="Confirma o pagamento pela rota de sandbox do Asaas — como se o cliente tivesse pago."
-              onClick={() => void confirm(p)}
-            >
-              {busy === p.id ? '…' : 'Simular pagamento'}
-            </Button>
+        actions={(p) => {
+          const canPay = PAYABLE.has(p.status) && Boolean(key)
+          const canReceive = CAN_RECEIVE.has(p.status)
+          const canOverdue = CAN_OVERDUE.has(p.status)
+          const canRefund = CAN_REFUND.has(p.status)
+          const hasMock = canReceive || canOverdue || canRefund
+
+          if (!canPay && !hasMock) return null
+
+          return (
+            <div class="row" style={{ gap: 'var(--pad-xs)', flexWrap: 'nowrap' }}>
+              {canPay && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy === p.id}
+                  title="Confirma o pagamento pela rota de sandbox do Asaas — como se o cliente tivesse pago."
+                  onClick={() =>
+                    void run(p, () =>
+                      v3(`/sandbox/payment/${p.id}/confirm`, key!, { method: 'POST' }),
+                    )
+                  }
+                >
+                  {busy === p.id ? '…' : 'Simular pagamento'}
+                </Button>
+              )}
+              {hasMock && (
+                <>
+                  <Badge tone="neutral">Simulador</Badge>
+                  {canReceive && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === p.id}
+                      title="PAYMENT_RECEIVED"
+                      onClick={() =>
+                        void run(p, () =>
+                          mock(`/payments/${p.id}/receive`, { method: 'POST' }),
+                        )
+                      }
+                    >
+                      {busy === p.id ? '…' : 'Receber'}
+                    </Button>
+                  )}
+                  {canOverdue && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === p.id}
+                      title="PAYMENT_OVERDUE"
+                      onClick={() =>
+                        void run(p, () =>
+                          mock(`/payments/${p.id}/overdue`, { method: 'POST' }),
+                        )
+                      }
+                    >
+                      {busy === p.id ? '…' : 'Vencer'}
+                    </Button>
+                  )}
+                  {canRefund && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === p.id}
+                      title="PAYMENT_REFUNDED"
+                      onClick={() =>
+                        void run(p, () =>
+                          mock(`/payments/${p.id}/refund`, { method: 'POST' }),
+                        )
+                      }
+                    >
+                      {busy === p.id ? '…' : 'Estornar'}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           )
-        }
+        }}
       />
     </Card>
   )

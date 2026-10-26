@@ -1,6 +1,13 @@
 import { Elysia } from 'elysia'
 
-const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+/** The methods that change state — the guard checks the Origin on these only. */
+export const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+/** The pt-BR description of each refusal. */
+const FORBIDDEN = {
+  forbidden_host: 'Host não permitido para rotas locais.',
+  forbidden_origin: 'Origem não permitida para rotas locais.',
+} as const
 
 function normalizeHostname(value: string): string {
   const hostname = value.trim().toLowerCase()
@@ -32,18 +39,18 @@ function hostnameFromHost(value: string): string | null {
   return normalizeHostname(host)
 }
 
-function hostnameFromUrl(value: string): string | null {
-  try {
-    return normalizeHostname(new URL(value).hostname)
-  } catch {
-    return null
-  }
-}
-
-function hostnameFromOrigin(value: string): string | null {
+/**
+ * The hostname of a URL. `httpOnly` keeps only http(s): an Origin header
+ * always carries a scheme, and any other one (file:, data:) is not a local
+ * origin.
+ */
+function hostnameOf(
+  value: string,
+  { httpOnly = false }: { httpOnly?: boolean } = {},
+): string | null {
   try {
     const url = new URL(value)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (httpOnly && url.protocol !== 'http:' && url.protocol !== 'https:') return null
     return normalizeHostname(url.hostname)
   } catch {
     return null
@@ -54,12 +61,8 @@ function isGuardedPath(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/_admin') || pathname.startsWith('/_mock')
 }
 
-function forbiddenBody(code: 'forbidden_host' | 'forbidden_origin') {
-  const description =
-    code === 'forbidden_host'
-      ? 'Host não permitido para rotas locais.'
-      : 'Origem não permitida para rotas locais.'
-  return { errors: [{ code, description }] }
+function forbiddenBody(code: keyof typeof FORBIDDEN) {
+  return { errors: [{ code, description: FORBIDDEN[code] }] }
 }
 
 /**
@@ -76,7 +79,7 @@ export function localGuard(allowedHosts: string[]) {
     if (!isGuardedPath(pathname)) return
 
     const hostHeader = request.headers.get('host')
-    const hostname = hostHeader === null ? hostnameFromUrl(request.url) : hostnameFromHost(hostHeader)
+    const hostname = hostHeader === null ? hostnameOf(request.url) : hostnameFromHost(hostHeader)
     if (!hostname || !allowed.has(hostname)) {
       set.status = 403
       return forbiddenBody('forbidden_host')
@@ -91,7 +94,7 @@ export function localGuard(allowedHosts: string[]) {
     // need a preflight. Rejecting foreign origins keeps those writes local. The
     // opaque `null` origin (a sandboxed iframe, a data: or file: page) is foreign
     // too: the panel is same-origin and never sends it.
-    const originHostname = hostnameFromOrigin(origin)
+    const originHostname = hostnameOf(origin, { httpOnly: true })
     if (!originHostname || !allowed.has(originHostname)) {
       set.status = 403
       return forbiddenBody('forbidden_origin')

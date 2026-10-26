@@ -7,6 +7,14 @@
  * receive those webhooks (for example `host.docker.internal`).
  */
 
+import { getWebhookSecret } from './configuration.ts'
+import {
+	computeHmacSignatureHeader,
+	serializeJsonWithEscapedUnicode,
+	SIGNATURE_HEADER,
+} from './middleware/hmac-signature.ts'
+import type { WebhookPayload } from './types/api-types.ts'
+
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
 /**
@@ -43,4 +51,61 @@ export function rewriteLoopback(url: string): string {
 	}
 
 	return target.toString()
+}
+
+/**
+ * URL form that is safe to log: origin and path only, since the query string
+ * can carry a token.
+ */
+export function redactUrl(url: string): string {
+	try {
+		const parsed = new URL(url)
+		return `${parsed.origin}${parsed.pathname}`
+	} catch {
+		return '[invalid url]'
+	}
+}
+
+/** Deliver a webhook payload, signing it when a secret is configured. */
+export async function sendWebhook(
+	url: string,
+	payload: WebhookPayload
+): Promise<void> {
+	// Inside a container, localhost points at the container itself: the
+	// rewrite points the delivery to the app running on the host.
+	const targetUrl = rewriteLoopback(url)
+	const logTarget = redactUrl(targetUrl)
+
+	try {
+		const body = serializeJsonWithEscapedUnicode(payload)
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'User-Agent': 'WhatsApp-Mock-Server/1.0',
+		}
+
+		// Inject HMAC-SHA256 signature when a secret is configured, mirroring
+		// what the real WhatsApp Cloud API does on outgoing webhook calls.
+		const webhookSecret = getWebhookSecret()
+		if (webhookSecret) {
+			headers[SIGNATURE_HEADER] = computeHmacSignatureHeader(
+				webhookSecret,
+				body
+			)
+		}
+
+		const response = await fetch(targetUrl, {
+			method: 'POST',
+			headers,
+			body,
+		})
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+		}
+
+		console.log(`✅ Webhook delivered successfully to ${logTarget}`)
+	} catch (error) {
+		console.error(`❌ Failed to deliver webhook to ${logTarget}:`, error)
+		throw error
+	}
 }

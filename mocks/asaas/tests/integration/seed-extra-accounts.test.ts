@@ -75,7 +75,12 @@ describe('seed-extra-accounts', () => {
     }
 
     // The same seed, again — what a restart does. Nothing new may appear.
-    const created = await seedExtraAccounts(h.app.db, h.app.config, h.app.ctx.clock, h.app.ctx.rng)
+    const created = await seedExtraAccounts({
+      db: h.app.db,
+      config: h.app.config,
+      clock: h.app.ctx.clock,
+      rng: h.app.ctx.rng,
+    })
     expect(created).toHaveLength(0)
 
     expect((await h.app.db.select().from(accounts)).length).toBe(before.accounts)

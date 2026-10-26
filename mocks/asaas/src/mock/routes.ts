@@ -25,18 +25,6 @@ export function mockRoutes(ctx: AppContext) {
 
   if (!ctx.config.adminEnabled) return app
 
-  /** Runs one transition on a payment of any account and shapes the response. */
-  const act = async (id: string, trigger: Trigger) => shape(await applyTransition(ctx, id, trigger))
-
-  const shape = async (r: TransitionResult) => {
-    return {
-      payment: await serializePayment(ctx.db, r.payment),
-      from: r.from,
-      to: r.to,
-      events: r.events,
-    }
-  }
-
   /** 404 in the Asaas error format when the id matches no payment, in any account. */
   const assertExists = async (id: string) => {
     const [row] = await ctx.db
@@ -47,18 +35,48 @@ export function mockRoutes(ctx: AppContext) {
     if (!row) throw notFound('Cobrança')
   }
 
+  /**
+   * The single shape of a mock action: the payment it ended at, the status it
+   * came from, the status it went to and the events it queued. An action with
+   * two transitions (`receive`) merges them: the first status, the last one and
+   * every event, in order.
+   */
+  const shape = async (results: TransitionResult[]) => {
+    const first = results[0]!
+    const last = results[results.length - 1]!
+    return {
+      payment: await serializePayment(ctx.db, last.payment),
+      from: first.from,
+      to: last.to,
+      events: results.flatMap((r) => r.events),
+    }
+  }
+
+  /**
+   * One action on a payment of any account: the payment must exist, the
+   * trigger comes from the body, and the answer is the single mock shape.
+   *
+   * `settle` is the second transition of the actions that need one: only
+   * `receive` has it, and only when the first transition stopped at CONFIRMED.
+   */
   const withPayment =
-    (build: (id: string, body: any) => Trigger) =>
+    (build: (body: any) => Trigger, settle?: (first: TransitionResult) => Trigger | null) =>
     async ({ params, body }: { params: { id: string }; body: any }) => {
       await assertExists(params.id)
-      return act(params.id, build(params.id, body))
+      const results = [await applyTransition(ctx, params.id, build(body))]
+
+      const second = settle?.(results[0]!)
+      if (second) results.push(await applyTransition(ctx, params.id, second))
+
+      return shape(results)
     }
 
   const today = () => ctx.clock.today()
   const params = t.Object({ id: t.String() })
 
   // `fail` is an alias of `overdue` for every billing type: the settlement
-  // failure the app sees from Asaas is the PAYMENT_OVERDUE event.
+  // failure the app sees from Asaas is the PAYMENT_OVERDUE event. The mock adds
+  // no event Asaas does not have.
   const overdue = withPayment(() => ({ kind: 'OVERDUE', on: today() }))
 
   return app
@@ -107,25 +125,21 @@ export function mockRoutes(ctx: AppContext) {
     )
     .post(
       '/payments/:id/receive',
-      async ({ params: p }) => {
-        await assertExists(p.id)
-        const paid = await applyTransition(ctx, p.id, { kind: 'PAY', on: today() })
-        if (paid.to !== 'CONFIRMED') return shape(paid)
-
+      withPayment(
+        () => ({ kind: 'PAY', on: today() }),
         // Boleto/card stop at CONFIRMED: settle now, on the payment's own credit date.
-        const settled = await applyTransition(ctx, p.id, {
-          kind: 'SETTLE',
-          on: paid.payment.creditDate ?? today(),
-        })
-        return shape({ ...settled, from: paid.from, events: [...paid.events, ...settled.events] })
-      },
+        (first) =>
+          first.to === 'CONFIRMED'
+            ? { kind: 'SETTLE', on: first.payment.creditDate ?? today() }
+            : null,
+      ),
       { params },
     )
     .post('/payments/:id/overdue', overdue, { params })
     .post('/payments/:id/fail', overdue, { params })
     .post(
       '/payments/:id/refund',
-      withPayment((_id, body) => ({
+      withPayment((body) => ({
         kind: 'REFUND',
         on: today(),
         ...(body?.value !== undefined ? { value: brlToCents(body.value) } : {}),
