@@ -13,7 +13,36 @@ export PROFILE
 SANDBOX_API="https://api-sandbox.asaas.com/v3"
 SANDBOX_ENV="$ROOT_DIR/.env.sandbox"
 PROFILE_FILE="$ROOT_DIR/profiles/$PROFILE/sandbox.env"
-EVENTS="PAYMENT_CREATED PAYMENT_UPDATED PAYMENT_CONFIRMED PAYMENT_RECEIVED PAYMENT_OVERDUE PAYMENT_DELETED PAYMENT_RESTORED PAYMENT_REFUNDED PAYMENT_RECEIVED_IN_CASH_UNDONE PAYMENT_CHARGEBACK_REQUESTED PAYMENT_BANK_SLIP_CANCELLED"
+# Every PAYMENT_* event of the webhook create schema (mocks/asaas/spec/openapi.json).
+EVENTS="PAYMENT_AUTHORIZED
+PAYMENT_AWAITING_RISK_ANALYSIS
+PAYMENT_APPROVED_BY_RISK_ANALYSIS
+PAYMENT_REPROVED_BY_RISK_ANALYSIS
+PAYMENT_CREATED
+PAYMENT_UPDATED
+PAYMENT_CONFIRMED
+PAYMENT_RECEIVED
+PAYMENT_ANTICIPATED
+PAYMENT_OVERDUE
+PAYMENT_DELETED
+PAYMENT_RESTORED
+PAYMENT_REFUNDED
+PAYMENT_REFUND_IN_PROGRESS
+PAYMENT_REFUND_DENIED
+PAYMENT_RECEIVED_IN_CASH_UNDONE
+PAYMENT_CHARGEBACK_REQUESTED
+PAYMENT_CHARGEBACK_DISPUTE
+PAYMENT_AWAITING_CHARGEBACK_REVERSAL
+PAYMENT_DUNNING_RECEIVED
+PAYMENT_DUNNING_REQUESTED
+PAYMENT_BANK_SLIP_CANCELLED
+PAYMENT_BANK_SLIP_VIEWED
+PAYMENT_CHECKOUT_VIEWED
+PAYMENT_CREDIT_CARD_CAPTURE_REFUSED
+PAYMENT_PARTIALLY_REFUNDED
+PAYMENT_SPLIT_CANCELLED
+PAYMENT_SPLIT_DIVERGENCE_BLOCK
+PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED"
 
 [ -f "$PROFILE_FILE" ] || die "profile file not found: profiles/$PROFILE/sandbox.env"
 
@@ -42,6 +71,13 @@ api() {
   status="$(curl "${args[@]}" "$SANDBOX_API$path")" || die "request to the Asaas sandbox failed ($method $path)"
   cat "$out"
   case "$status" in 2??) return 0 ;; *) return 1 ;; esac
+}
+
+# ngrok_public_url: the first https public URL of a running ngrok agent. Reads only the loopback API.
+ngrok_public_url() {
+  local tunnels
+  tunnels="$(curl -fsS --max-time 2 http://127.0.0.1:4040/api/tunnels 2>/dev/null)" || return 0
+  printf '%s' "$tunnels" | jq -r '[.tunnels[]? | select(.public_url | startswith("https://"))][0].public_url // empty' 2>/dev/null || true
 }
 
 # --- Asaas sandbox key -------------------------------------------------------------------------
@@ -77,8 +113,14 @@ if [ -n "$webhook_path" ]; then
   base_url="${SANDBOX_WEBHOOK_URL:-$(env_get "$SANDBOX_ENV" SANDBOX_WEBHOOK_URL)}"
   if [ -z "$base_url" ]; then
     [ -t 0 ] || die "SANDBOX_WEBHOOK_URL not set and no terminal to ask for it"
-    printf 'Public https base URL of your app (e.g. from cloudflared/ngrok/zrok): '
+    default_url="$(ngrok_public_url)"
+    if [ -n "$default_url" ]; then
+      printf 'Public https base URL of your app (e.g. from cloudflared/ngrok/zrok) [%s]: ' "$default_url"
+    else
+      printf 'Public https base URL of your app (e.g. from cloudflared/ngrok/zrok): '
+    fi
     read -r base_url
+    base_url="${base_url:-$default_url}"
   fi
   case "$base_url" in https://*) ;; *) die "the webhook base URL must start with https://" ;; esac
   base_url="${base_url%/}"

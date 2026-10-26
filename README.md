@@ -38,6 +38,7 @@ The repository supports two development workflows:
 - Builds and starts the containerized mocks with Docker Compose.
 - Generates `.env` from `.env.example` if not present.
 - Writes mock endpoints (e.g. `http://localhost:45445/v3` and `http://localhost:3010`) and fake master keys (`$aact_hmlg_local_master`) to `TARGET_ENV`.
+- **Webhook registration:** The app registers its webhook in the mock exactly as it does against the real Asaas (`POST /v3/webhooks`); the mock delivers each event right after the change that caused it, and `localhost` targets are rewritten to the host.
 
 ### 2. Sandbox Flow (`make setup-sandbox` or `make env-sandbox`)
 - Points `TARGET_ENV` at the official Asaas sandbox (`https://api-sandbox.asaas.com/v3`) and Meta Graph API (`https://graph.facebook.com`).
@@ -47,6 +48,7 @@ The repository supports two development workflows:
 - Automatically registers this developer's webhook in the Asaas sandbox and cleans up older webhooks previously registered by the same developer.
 - Generates a random webhook authorization token and registers the webhook in the sandbox.
 - **Credential security:** All sandbox credentials are saved exclusively to `.env.sandbox` (permission `0600`, gitignored, and never committed to the repository). Secrets are masked in console output and never passed via command-line arguments.
+- **WhatsApp is not configured by this flow:** `setup-sandbox` only switches `WHATSAPP_GRAPH_URL` to Meta's Graph API; the Meta access token and the WhatsApp webhook belong to the app.
 
 ## Makefile Targets
 
@@ -74,13 +76,13 @@ The Asaas mock provides an in-depth simulation of the Asaas payment platform.
 
 - **API Base Path:** `http://localhost:45445/v3`
 - **Dashboard Panel:** `http://localhost:45445` (inspect accounts, balances, API keys, payments, and ledger entries).
-- **Virtual Clock:** Controlled by `CLOCK_MODE` (`REAL`, `VIRTUAL_FLOWING`, or `VIRTUAL_FROZEN`).
+- **Virtual Clock:** Controlled by `ASAAS_CLOCK_MODE` (`REAL`, `VIRTUAL_FLOWING`, or `VIRTUAL_FROZEN`).
   - Advance time: `POST /_admin/clock/advance` with `{"days": 32}` to trigger D+32 credit card settlements or overdue calculations in milliseconds.
   - Set specific date: `POST /_admin/clock/set` with `{"date": "2026-08-01"}`.
   - Run tick: `POST /_admin/tick`.
 - **Seeded Accounts:**
   - The default root account is created with master key `${ASAAS_API_KEY}` (default: `$aact_hmlg_local_master`).
-  - Additional root accounts can be seeded on boot using `SEED_EXTRA_ACCOUNTS` (format: `apiKey|name|cpfCnpj` separated by `;`), allowing multiple tenants to run against the same mock instance with stable keys.
+  - Additional root accounts can be seeded on boot using `ASAAS_SEED_EXTRA_ACCOUNTS` (format: `apiKey|name|cpfCnpj` separated by `;`), allowing multiple tenants to run against the same mock instance with stable keys.
 - **Local Webhook Delivery:**
   - Inside Docker containers, `localhost` refers to the container itself. The mock uses `WEBHOOK_LOCALHOST_REWRITE=host.docker.internal` and `extra_hosts` to rewrite loopback webhook targets to reach the host machine.
   - Webhooks include the `asaas-access-token` header.
@@ -156,7 +158,7 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 ## Security Notes
 
 - **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445` and `127.0.0.1:3010`). They must never be exposed on `0.0.0.0` or public networks.
-- **Local Route Guard:** The Asaas mock includes a strict `localGuard` middleware on `/`, `/_admin/*`, and `/_mock/*`. It rejects requests with untrusted `Host` or `Origin` headers to protect against DNS rebinding and cross-site request attacks.
+- **Local Route Guard:** The Asaas mock includes a strict `localGuard` middleware on `/`, `/_admin/*`, and `/_mock/*`. It rejects requests with untrusted `Host` or `Origin` headers to protect against DNS rebinding and cross-site request attacks. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
 - **Fake Keys:** All default API keys in `.env.example` and tests are non-functional mock placeholders (e.g. `$aact_hmlg_local_master`). Never commit real credentials to this repository.
 
 ## Licenses

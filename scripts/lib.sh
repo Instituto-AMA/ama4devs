@@ -15,21 +15,29 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "'$1' not found. $2"
 }
 
-# env_get <file> <key>: prints the value of the last KEY=VALUE line, nothing if absent.
+# env_get <file> <key>: prints the value of the last KEY=VALUE line, nothing if absent. One pair of
+# surrounding quotes is dropped, as compose reads them (a single-quoted value keeps its `$`).
 env_get() {
   local file="$1" key="$2"
   [ -f "$file" ] || return 0
-  awk -v k="$key" 'index($0, k "=") == 1 { v = substr($0, length(k) + 2) } END { if (v != "") print v }' "$file"
+  awk -v k="$key" '
+    index($0, k "=") == 1 { v = substr($0, length(k) + 2) }
+    END {
+      if (v ~ /^\x27.*\x27$/ || v ~ /^".*"$/) v = substr(v, 2, length(v) - 2)
+      if (v != "") print v
+    }
+  ' "$file"
 }
 
 # env_upsert <file> <key> <value>
 # Replaces the first `KEY=...` line (or a commented `# KEY=`) or appends one. Atomic (temp file in the
-# same dir + mv), keeps every other line and the file mode. The value travels in the environment of
-# awk, never in argv, and is never echoed.
+# same dir + mv), keeps every other line and the file mode. A file it creates gets mode 600; an
+# existing file keeps its mode. The value travels in the environment of awk, never in argv, and is
+# never echoed.
 env_upsert() {
   local file="$1" key="$2" value="$3" tmp mode
   [[ "$key" =~ ^[A-Z0-9_]+$ ]] || die "refusing env key '$key': must match [A-Z0-9_]+"
-  [ -e "$file" ] || : >"$file"
+  [ -e "$file" ] || (umask 077; : >"$file")
   tmp="$(mktemp "$(dirname "$file")/.env-upsert.XXXXXX")" || die "cannot create a temp file next to $file"
   mode="$(stat -f '%Lp' "$file" 2>/dev/null || stat -c '%a' "$file" 2>/dev/null || echo 600)"
   if ! ENV_UPSERT_VALUE="$value" awk -v k="$key" '
