@@ -8,7 +8,7 @@
  */
 import { eq } from 'drizzle-orm'
 import type { Elysia } from 'elysia'
-import { seedMasterAccount, type SeedResult } from './admin/seed.ts'
+import { seedExtraAccounts, seedMasterAccount, type SeedResult } from './admin/seed.ts'
 import { createClock, type Clock } from './core/clock.ts'
 import { loadConfig, type Config } from './core/config.ts'
 import type { AppContext } from './core/context.ts'
@@ -141,6 +141,7 @@ export async function bootstrap(opts: BootstrapOptions = {}): Promise<App> {
   }
 
   const seed = await seedMasterAccount(db, config, clock, rng)
+  await seedExtraAccounts(db, config, clock, rng)
 
   const scheduler = new Scheduler(ctx, opts.jobs ?? JOBS)
   const { app, coverage } = createApp({

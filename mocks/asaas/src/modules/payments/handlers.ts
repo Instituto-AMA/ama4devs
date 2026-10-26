@@ -338,6 +338,38 @@ export const paymentHandlers: HandlerMap = {
     return serializePayment(ctx.db, r.payment)
   },
 
+  /**
+   * `POST /v3/payments/{id}/bankSlip/refund` — the refund of a PAID bank slip
+   * (`refund-bank-slip`). The Hub calls it to give a paid boleto's money back.
+   *
+   * The spec's 200 response is NOT the payment: it is a single `requestUrl`
+   * field, the "solicitar estorno" link the real Asaas returns. The payment
+   * state still moves the same way — through `applyTransition`, which emits the
+   * webhook and (when the money had already credited) reverses the ledger.
+   */
+  'refund-bank-slip': async ({ ctx, auth, params }) => {
+    const p = await findOwned(ctx, auth, params.id!)
+
+    // Bank slip gateway only. Pix and card go through `refund-payment`.
+    if (p.billingType !== 'BOLETO') {
+      throw badRequest(
+        'invalid_action',
+        'O estorno por bankSlip só é possível para cobranças do tipo BOLETO.',
+      )
+    }
+
+    // A status the machine cannot refund (PENDING, RECEIVED_IN_CASH, …) already
+    // leaves here as 400 invalid_action: `plan()` rejects and `applyTransition`
+    // converts that into the error — no need to duplicate the PAID list here.
+    await applyTransition(ctx, p.id, { kind: 'REFUND', on: ctx.clock.today() })
+
+    // Same shape as the transactionReceiptUrl built in apply.ts: the id
+    // without the `pay_` prefix, on the public base URL.
+    return {
+      requestUrl: `${ctx.config.publicBaseUrl}/solicitar-estorno/${p.id.replace('pay_', '')}`,
+    }
+  },
+
   'get-digitable-bill-line': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
     if (p.billingType !== 'BOLETO' && p.billingType !== 'UNDEFINED') {

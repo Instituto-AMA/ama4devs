@@ -25,6 +25,60 @@ const bool = (key: string, fallback: boolean): boolean => {
   return raw === 'true' || raw === '1'
 }
 
+/** One extra ROOT account, seeded on every boot. Format of a single item. */
+export interface SeedExtraAccount {
+  apiKey: string
+  name: string
+  cpfCnpj: string
+}
+
+/**
+ * Parses `SEED_EXTRA_ACCOUNTS`: items of `apiKey|name|cpfCnpj` separated by
+ * `;`. The key starts with `$`, so there is no ambiguity with other separators.
+ * Example:
+ *
+ *   $aact_hmlg_dev_tenant_a|Clinica A|12345678000195;$aact_hmlg_dev_tenant_b|Clinica B|98765432000198
+ *
+ * An empty (or whitespace-only) value means none. A malformed item is a BOOT
+ * error — the local stack would run half-seeded otherwise, and the e2e would
+ * chase a ghost. The error names the ITEM INDEX, never the key itself (the key
+ * is a secret).
+ */
+function parseSeedExtraAccounts(
+  raw: string | undefined,
+  masterKey: string | undefined,
+): SeedExtraAccount[] {
+  if (raw === undefined || raw.trim() === '') return []
+
+  const seen = new Set<string>()
+  const out: SeedExtraAccount[] = []
+
+  const items = raw.split(';')
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!.trim()
+    if (item === '') continue // stray `;` at the end of the line
+
+    const fail = (why: string): never => {
+      throw new Error(`Env SEED_EXTRA_ACCOUNTS: item ${i} is invalid — ${why}.`)
+    }
+
+    const parts = item.split('|').map((s) => s.trim())
+    if (parts.length !== 3 || parts.some((s) => s === '')) {
+      fail('expected "apiKey|name|cpfCnpj"')
+    }
+    const [apiKey, name, cpfCnpj] = parts as [string, string, string]
+
+    if (!apiKey.startsWith('$aact_')) fail('the key must start with "$aact_"')
+    if (apiKey === masterKey) fail('the key is the master account key (ASAAS_API_KEY)')
+    if (seen.has(apiKey)) fail('duplicate key')
+
+    seen.add(apiKey)
+    out.push({ apiKey, name, cpfCnpj })
+  }
+
+  return out
+}
+
 /**
  * Tabela de taxas do Asaas (tabela pública de preços).
  * Cobradas só quando a cobrança é PAGA — emitir não custa nada.
@@ -96,6 +150,9 @@ export interface Config {
     balanceCents: Cents
   }
 
+  /** Extra ROOT accounts seeded from `SEED_EXTRA_ACCOUNTS` on every boot. */
+  seedExtraAccounts: SeedExtraAccount[]
+
   webhook: {
     /**
      * Dentro do container, "localhost" é o PRÓPRIO container — o webhook nunca
@@ -129,6 +186,7 @@ export interface Config {
 
 export function loadConfig(): Config {
   const seedRaw = process.env.SEED
+  const masterApiKey = optionalStr('ASAAS_API_KEY')
   return {
     port: num('PORT', 45445),
     databasePath: str('DATABASE_PATH', './data/asaas.db'),
@@ -144,12 +202,14 @@ export function loadConfig(): Config {
     },
 
     seedAccount: {
-      apiKey: optionalStr('ASAAS_API_KEY'),
+      apiKey: masterApiKey,
       name: str('SEED_ACCOUNT_NAME', 'Conta Principal'),
       cpfCnpj: str('SEED_ACCOUNT_CPF_CNPJ', '47960950000121'),
       email: str('SEED_ACCOUNT_EMAIL', 'conta@localhost'),
       balanceCents: cents(num('SEED_ACCOUNT_BALANCE_CENTS', 0)),
     },
+
+    seedExtraAccounts: parseSeedExtraAccounts(process.env.SEED_EXTRA_ACCOUNTS, masterApiKey),
 
     webhook: {
       localhostRewrite: optionalStr('WEBHOOK_LOCALHOST_REWRITE'),
