@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { rewriteLoopback } from './webhook-target.ts'
+import { redactUrl, rewriteLoopback } from './webhook-target.ts'
 
 describe('rewriteLoopback', () => {
 	const originalRewrite = process.env.WEBHOOK_LOCALHOST_REWRITE
@@ -63,5 +63,17 @@ describe('rewriteLoopback', () => {
 
 		const url = 'not-a-url'
 		expect(rewriteLoopback(url)).toBe(url)
+	})
+})
+
+describe('redactUrl', () => {
+	test('keeps origin and path and drops the query string', () => {
+		expect(redactUrl('http://localhost:8080/whatsapp/webhook?token=abc')).toBe(
+			'http://localhost:8080/whatsapp/webhook'
+		)
+	})
+
+	test('does not echo an unparseable URL', () => {
+		expect(redactUrl('not-a-url?token=abc')).toBe('[invalid url]')
 	})
 })

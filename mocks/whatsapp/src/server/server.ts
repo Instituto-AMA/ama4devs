@@ -4,8 +4,9 @@ import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { getWebhookConfig } from './config.ts'
+import { allowedHosts, getWebhookConfig, serverPort } from './config.ts'
 import { getTemplatesConfig } from './configuration.ts'
+import { isAllowedOrigin, localGuard } from './middleware/local-guard.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { createMessagesRouter } from './routes/messages.ts'
 import { panelRouter } from './routes/panel.ts'
@@ -16,6 +17,12 @@ import { webhooksRouter } from './routes/webhooks.ts'
 import { TemplateStore } from './store/template-store.ts'
 import { TemplateResolver } from './template-resolver.ts'
 import { addClient, removeClient } from './websocket.ts'
+
+const REDACTED_HEADERS = new Set([
+	'authorization',
+	'cookie',
+	'x-hub-signature-256',
+])
 
 export function createApp(templateStore: TemplateStore) {
 	const app = new Hono()
@@ -28,7 +35,16 @@ export function createApp(templateStore: TemplateStore) {
 	})
 
 	// Middleware
-	app.use('*', cors())
+	// The guard runs first: every route is key-free, so every request needs an
+	// allowed Host (and an allowed Origin when it writes or upgrades).
+	const hosts = allowedHosts()
+	app.use('*', localGuard(hosts))
+	app.use(
+		'*',
+		cors({
+			origin: (origin) => (isAllowedOrigin(origin, hosts) ? origin : null),
+		})
+	)
 	app.use('*', logger())
 
 	// Custom logging middleware for request bodies
@@ -38,7 +54,13 @@ export function createApp(templateStore: TemplateStore) {
 		console.log(`[${new Date().toISOString()}] ${method} ${path}`)
 
 		// Log headers
-		const headerEntries = Object.entries(c.req.header())
+		const headerEntries = Object.entries(c.req.header()).map(
+			([name, value]) =>
+				[
+					name,
+					REDACTED_HEADERS.has(name.toLowerCase()) ? '[redacted]' : value,
+				] as const
+		)
 		console.log('Headers:', Object.fromEntries(headerEntries))
 
 		// Log body for POST/PUT requests
@@ -170,7 +192,7 @@ export function createApp(templateStore: TemplateStore) {
 	return { app, injectWebSocket }
 }
 
-export async function startServer(port = Number(process.env.PORT ?? 3010)) {
+export async function startServer(port = serverPort()) {
 	// Load templates configuration and create template store
 	const templatesConfig = getTemplatesConfig()
 	let templateResolver: TemplateResolver | undefined

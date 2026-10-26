@@ -17,6 +17,7 @@ services:
       CLOCK_MODE: ${ASAAS_CLOCK_MODE:-VIRTUAL_FLOWING}
       # Inside the container "localhost" is the container itself: rewrite it to the host.
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+      MOCK_ALLOWED_HOSTS: whatsapp
       MOCK_ALLOWED_HOSTS: asaas
     extra_hosts:
       - 'host.docker.internal:host-gateway'
