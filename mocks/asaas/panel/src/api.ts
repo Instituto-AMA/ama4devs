@@ -1,5 +1,5 @@
 /**
- * As duas portas do painel — e a distinção entre elas é o ponto do projeto.
+ * As portas do painel — e a distinção entre elas é o ponto do projeto.
  *
  * `v3()` é a API REAL do Asaas, chamada com a chave de uma conta. Todo botão que
  * representa algo que o Asaas de verdade faz passa por aqui: confirmar um
@@ -9,6 +9,10 @@
  * `admin()` é a introspecção do simulador — viagem no tempo, fila de entregas,
  * chaves de todas as contas. Nada disso existe no Asaas, e por isso mora fora de
  * /v3 e aparece na tela sob a marca "Simulador".
+ *
+ * `mock()` is the simulator's outcome control (/_mock/*), not Asaas, like `admin()`.
+ * It triggers payment lifecycle transitions (receive, overdue, refund) directly
+ * without account API keys, driving ledger entries and webhooks.
  *
  * Quando as duas se confundem, o painel vira uma mentira útil: você aperta um botão
  * que só existe aqui e sai achando que a sua integração funciona.
@@ -43,6 +47,16 @@ async function parse(r: Response): Promise<any> {
 export async function admin(path: string, init?: RequestInit): Promise<any> {
   return parse(
     await fetch(`/_admin${path}`, {
+      headers: { 'content-type': 'application/json' },
+      ...init,
+    }),
+  )
+}
+
+/** Simulator outcome control (/_mock/*), not Asaas, like admin(). */
+export async function mock(path: string, init?: RequestInit): Promise<any> {
+  return parse(
+    await fetch(`/_mock${path}`, {
       headers: { 'content-type': 'application/json' },
       ...init,
     }),
