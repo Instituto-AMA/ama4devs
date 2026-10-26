@@ -58,6 +58,18 @@ function errorHandler(ctx: AppContext) {
   }
 }
 
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin']
+
+/** True for a finished 2xx mutating request under the API, mock or admin routes. */
+function shouldDispatch(request: Request, status: unknown): boolean {
+  if (!MUTATING.has(request.method)) return false
+  const code = status === undefined ? 200 : Number(status)
+  if (!(code >= 200 && code < 300)) return false
+  const path = new URL(request.url).pathname
+  return DISPATCH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))
+}
+
 export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResult } {
   const { ctx } = deps
 
@@ -80,6 +92,13 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
   const app = new Elysia()
     .onError(errorHandler(ctx))
     .use(localGuard(ctx.config.allowedHosts))
+    // The change is committed by now: send its webhooks without waiting for the tick.
+    .onAfterResponse({ as: 'global' }, ({ request, set }) => {
+      if (!shouldDispatch(request, set.status)) return
+      deps.scheduler.dispatchNow().catch((err) =>
+        ctx.log('error', 'Immediate webhook dispatch failed', { error: String(err) }),
+      )
+    })
     .get('/health', () => ({
       status: 'ok',
       clock: ctx.clock.timestamp(),
