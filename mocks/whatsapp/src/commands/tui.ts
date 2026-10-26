@@ -1,11 +1,11 @@
 import { Effect } from 'effect'
-import { Command, Flag } from 'effect/unstable/cli'
+import { Command, Flag } from 'effect/cli'
 import { startTUI } from '../tui/index.tsx'
 
 export const tuiCommand = Command.make(
 	'tui',
 	{
-		serverUrl: Flag.string('server-url').pipe(
+		serverUrl: Flag.String('server-url').pipe(
 			Flag.withDefault('http://localhost:3010'),
 			Flag.withDescription('URL of the mock server')
 		),

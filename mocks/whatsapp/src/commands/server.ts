@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
-import { Command, Flag } from 'effect/unstable/cli'
+import { Command, Flag } from 'effect/cli'
 import { stopStatsInterval } from '../server/routes/status.ts'
 import { startServer } from '../server/server.ts'
 
 export const serverCommand = Command.make(
 	'server',
 	{
-		port: Flag.integer('port').pipe(
+		port: Flag.Int('port').pipe(
 			Flag.withDefault(3010),
 			Flag.withDescription('Port to run the server on')
 		),
