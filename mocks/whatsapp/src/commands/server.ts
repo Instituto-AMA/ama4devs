@@ -7,7 +7,7 @@ export const serverCommand = Command.make(
 	'server',
 	{
 		port: Flag.Int('port').pipe(
-			Flag.withDefault(3010),
+			Flag.withDefault(Number(process.env.PORT ?? 3010)),
 			Flag.withDescription('Port to run the server on')
 		),
 	},

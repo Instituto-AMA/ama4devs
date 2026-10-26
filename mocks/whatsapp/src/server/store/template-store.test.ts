@@ -1,4 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TemplateResolver } from '../template-resolver.ts'
 import { type Template, TemplateStore } from './template-store.ts'
@@ -24,7 +26,12 @@ vi.mock('chokidar', () => ({
 
 describe('TemplateStore', () => {
 	let templateStore: TemplateStore
-	const testTemplatesDir = './test-templates'
+	// Resolved from this file so the suite does not depend on the current
+	// working directory.
+	const testTemplatesDir = join(
+		dirname(fileURLToPath(import.meta.url)),
+		'test-templates'
+	)
 
 	// Sample template for testing
 	const sampleTemplate: Template = {
@@ -52,6 +59,10 @@ describe('TemplateStore', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks()
+		// Reset the mocked file system so an implementation or a queued value
+		// from a previous test cannot leak into the next one.
+		vi.mocked(readdir).mockReset()
+		vi.mocked(readFile).mockReset()
 		templateStore = new TemplateStore(testTemplatesDir)
 	})
 

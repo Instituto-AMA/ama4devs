@@ -30,7 +30,7 @@
 # Pin the Bun image to a specific minor version for reproducibility.
 # Update this tag intentionally when upgrading Bun.
 # https://hub.docker.com/r/oven/bun/tags
-ARG BUN_VERSION=1.2
+ARG BUN_VERSION=1.4.2
 
 # -----------------------------------------------------------------------------
 # Stage 1: deps
@@ -109,8 +109,9 @@ EXPOSE 3010 9229
 # a 200 means the server is alive and accepting requests.
 # curl is installed above in the runtime stage; wget is not available in
 # debian:bookworm-slim and was not installed.
+# The probe follows PORT so it works with a custom port.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl --fail --silent http://localhost:3010/health || exit 1
+    CMD curl --fail --silent "http://localhost:${PORT:-3010}/health" || exit 1
 
 # Default command runs the server with source maps and watch mode enabled.
 # Users can override with --inspect or --inspect-brk for debugging:
@@ -159,15 +160,19 @@ COPY --from=build --chown=whap:whap /app/templates ./templates
 USER whap
 
 # The mock server listens on port 3010 by default.
-# Override with the --port flag: /app/whap server --port 8080
+# Override with the PORT environment variable or the --port flag:
+#   docker run -e PORT=8080 whap
+#   docker run whap /app/whap server --port 8080
+ENV PORT=3010
 EXPOSE 3010
 
 # Health check: the /health route is registered by whap's status router.
 # a 200 means the server is alive and accepting requests.
 # curl is installed above in the runtime stage; wget is not available in
 # debian:bookworm-slim and was not installed.
+# The probe follows PORT so it works with a custom port.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl --fail --silent http://localhost:3010/health || exit 1
+    CMD curl --fail --silent "http://localhost:${PORT:-3010}/health" || exit 1
 
 # Default command starts the mock server.
 # Override at runtime:

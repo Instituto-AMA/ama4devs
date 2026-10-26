@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { validator } from 'hono/validator'
 import { getAllWebhookMappings, getWebhookUrl } from '../config.ts'
 import { getWebhookSecret } from '../configuration.ts'
@@ -14,12 +15,39 @@ import type {
 	WebhookPayload,
 	WhatsAppErrorResponse,
 } from '../types/api-types.ts'
+import { rewriteLoopback } from '../webhook-target.ts'
 
 const webhooksRouter = new Hono()
+
+/**
+ * Reject malformed JSON payloads with the Graph error shape.
+ *
+ * The raw body is cloned before it is parsed, so the validation middleware
+ * still receives the untouched request body.
+ */
+const parseJsonBody = createMiddleware(async (c, next) => {
+	try {
+		JSON.parse(await c.req.raw.clone().text())
+	} catch {
+		return c.json(
+			{
+				error: {
+					message: 'Invalid JSON body',
+					type: 'validation_error',
+					code: 400,
+				},
+			} as WhatsAppErrorResponse,
+			400
+		)
+	}
+
+	await next()
+})
 
 // Configure webhook URL for a phone number
 webhooksRouter.post(
 	'/configure',
+	parseJsonBody,
 	validator('json', (value, c) => {
 		const body = value as WebhookConfiguration
 
@@ -130,6 +158,7 @@ webhooksRouter.get('/configure', (c) => {
 // Simulate incoming message (triggers webhook)
 webhooksRouter.post(
 	'/simulate-message',
+	parseJsonBody,
 	validator('json', (value, c) => {
 		const body = value as SimulateMessageParams
 
@@ -294,7 +323,23 @@ webhooksRouter.get('/events', (c) => {
 
 // POST /webhook/trigger - Trigger a webhook
 webhooksRouter.post('/trigger', async (c) => {
-	const body = await c.req.json()
+	let body: { phone?: string; message?: string }
+
+	try {
+		body = await c.req.json()
+	} catch {
+		return c.json(
+			{
+				error: {
+					message: 'Invalid JSON body',
+					type: 'validation_error',
+					code: 400,
+				},
+			} as WhatsAppErrorResponse,
+			400
+		)
+	}
+
 	const { phone, message } = body
 
 	// Store webhook event
@@ -320,6 +365,10 @@ async function sendWebhook(
 	url: string,
 	payload: WebhookPayload
 ): Promise<void> {
+	// Inside a container, localhost points at the container itself: the
+	// rewrite points the delivery to the app running on the host.
+	const targetUrl = rewriteLoopback(url)
+
 	try {
 		const body = serializeJsonWithEscapedUnicode(payload)
 
@@ -338,7 +387,7 @@ async function sendWebhook(
 			)
 		}
 
-		const response = await fetch(url, {
+		const response = await fetch(targetUrl, {
 			method: 'POST',
 			headers,
 			body,
@@ -348,9 +397,9 @@ async function sendWebhook(
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`)
 		}
 
-		console.log(`✅ Webhook delivered successfully to ${url}`)
+		console.log(`✅ Webhook delivered successfully to ${targetUrl}`)
 	} catch (error) {
-		console.error(`❌ Failed to deliver webhook to ${url}:`, error)
+		console.error(`❌ Failed to deliver webhook to ${targetUrl}:`, error)
 		throw error
 	}
 }

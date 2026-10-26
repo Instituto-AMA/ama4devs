@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { FSWatcher } from 'chokidar'
 import type { TemplateResolver } from '../template-resolver.ts'
 import type { Template, TemplateComponent } from '../types/api-types.ts'
@@ -90,8 +90,10 @@ export class TemplateStore {
 		templatesDir = './templates',
 		templateResolver?: TemplateResolver
 	) {
-		// Resolve to absolute path to ensure consistent file watching
-		this.templatesDir = join(process.cwd(), templatesDir)
+		// Resolve to absolute path to ensure consistent file watching.
+		// Relative paths are resolved from the working directory, absolute paths
+		// are kept as they are.
+		this.templatesDir = resolve(process.cwd(), templatesDir)
 		this.templateResolver = templateResolver
 	}
 
@@ -107,7 +109,7 @@ export class TemplateStore {
 			await this.loadAllTemplates()
 
 			// Start file watcher
-			this.startWatcher()
+			await this.startWatcher()
 
 			console.log(
 				`📁 Template store initialized with ${this.templates.size} templates`
@@ -116,7 +118,7 @@ export class TemplateStore {
 	}
 
 	/** Start file watcher for hot-reload functionality */
-	private startWatcher(): void {
+	private async startWatcher(): Promise<void> {
 		if (this.isWatching) {
 			return
 		}
@@ -127,7 +129,8 @@ export class TemplateStore {
 		)
 
 		// Dynamic import chokidar to fix type issues
-		import('chokidar').then((chokidarModule) => {
+		try {
+			const chokidarModule = await import('chokidar')
 			this.watcher = chokidarModule.default.watch(this.templatesDir, {
 				ignored: /^\./,
 				persistent: true,
@@ -169,7 +172,9 @@ export class TemplateStore {
 
 			this.isWatching = true
 			console.log('👀 Started watching templates directory for changes')
-		})
+		} catch (error) {
+			console.error('❌ Failed to start template watcher:', error)
+		}
 	}
 
 	/** Load all template files from the templates directory */
