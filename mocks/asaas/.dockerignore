@@ -4,19 +4,24 @@
 # não sobreviveria ao multi-stage (o runtime copia só src/, drizzle/, spec/), mas
 # ficaria no cache do builder — e bastaria alguém trocar o COPY seletivo por um
 # `COPY --from=build /app .` para a chave sair publicada no Docker Hub.
+# .env.example stays excluded too: the image receives its environment from compose.
 .env
 .env.*
-!.env.example
 
 # Bancos locais: um asaas.db esquecido aqui viraria "estado de fábrica" da imagem.
 *.db
 *.db-shm
 *.db-wal
 
-# tests/golden NÃO entra nesta lista, por mais tentador que pareça: o build roda
-# `tsc --noEmit`, o tsconfig inclui `tests`, e a suíte de paridade importa
-# `tests/golden/scenarios.ts`. Excluí-lo quebra o build. (Os goldens são respostas
-# capturadas do sandbox e não contêm chave de API — foi verificado.)
+# The runtime does not use these directories. Codegen and its spec helper stay in
+# the context because the build stage runs `bun run codegen`; neither is copied
+# into the final image.
+data/
+tests/
+tools/*
+!tools/codegen/
+!tools/codegen/**
+!tools/spec.ts
 
 # Peso morto: 94 MB de node_modules que o estágio `deps` reinstala do zero a partir
 # do lockfile, e um .git que ninguém lê em tempo de build.
@@ -27,6 +32,7 @@ node_modules/
 # Ruído
 .DS_Store
 *.log
+*.md
 coverage/
 .vscode/
 .idea/

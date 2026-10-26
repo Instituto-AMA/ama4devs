@@ -6,6 +6,7 @@ import { AsaasError, unauthorized } from '../core/errors.ts'
 import { mockRoutes } from '../mock/routes.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { authenticate } from './auth.ts'
+import { localGuard } from './local-guard.ts'
 import { registerOperations, type HandlerMap, type RegisterResult } from './register.ts'
 
 export interface AppDeps {
@@ -78,6 +79,7 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
 
   const app = new Elysia()
     .onError(errorHandler(ctx))
+    .use(localGuard(ctx.config.allowedHosts))
     .get('/health', () => ({
       status: 'ok',
       clock: ctx.clock.timestamp(),
