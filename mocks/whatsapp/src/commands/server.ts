@@ -1,5 +1,6 @@
 import { Effect } from 'effect'
 import { Command, Flag } from 'effect/cli'
+import { serverPort } from '../server/config.ts'
 import { stopStatsInterval } from '../server/routes/status.ts'
 import { startServer } from '../server/server.ts'
 
@@ -7,7 +8,7 @@ export const serverCommand = Command.make(
 	'server',
 	{
 		port: Flag.Int('port').pipe(
-			Flag.withDefault(Number(process.env.PORT ?? 3010)),
+			Flag.withDefault(serverPort()),
 			Flag.withDescription('Port to run the server on')
 		),
 	},
