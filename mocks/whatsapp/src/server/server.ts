@@ -17,7 +17,7 @@ import { TemplateStore } from './store/template-store.ts'
 import { TemplateResolver } from './template-resolver.ts'
 import { addClient, removeClient } from './websocket.ts'
 
-function createApp(templateStore: TemplateStore) {
+export function createApp(templateStore: TemplateStore) {
 	const app = new Hono()
 
 	// Initialize webhook configuration from CLI arguments and environment
@@ -101,13 +101,12 @@ function createApp(templateStore: TemplateStore) {
 	const messagesRouter = createMessagesRouter(templateStore)
 	const templatesRouter = createTemplatesRouter(templateStore)
 
-	app.route('/v22.0', messagesRouter)
-	app.route('/v22.0', templatesRouter)
-	app.route('/v22.0', phoneRouter)
-	// Assuming 22 and 23 are the same
-	app.route('/v23.0', messagesRouter)
-	app.route('/v23.0', templatesRouter)
-	app.route('/v23.0', phoneRouter)
+	// Graph API versions are matched by pattern, so the mock keeps answering
+	// on every v<major>.<minor> release (e.g. /v22.0, /v23.0, /v25.0).
+	const versionPath = '/:version{v[0-9]+\\.[0-9]+}'
+	app.route(versionPath, messagesRouter)
+	app.route(versionPath, templatesRouter)
+	app.route(versionPath, phoneRouter)
 	// The /mock path is for internal simulation tools
 	app.route('/mock', webhooksRouter)
 	app.route('/status', statusRouter)
@@ -171,7 +170,7 @@ function createApp(templateStore: TemplateStore) {
 	return { app, injectWebSocket }
 }
 
-export async function startServer(port = 3010) {
+export async function startServer(port = Number(process.env.PORT ?? 3010)) {
 	// Load templates configuration and create template store
 	const templatesConfig = getTemplatesConfig()
 	let templateResolver: TemplateResolver | undefined

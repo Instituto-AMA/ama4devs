@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { validator } from 'hono/validator'
 import { getWebhookUrl } from '../config.ts'
 import { getWebhookSecret } from '../configuration.ts'
@@ -23,7 +24,33 @@ import {
 	validateWhatsAppMessageRequest,
 	validateWhatsAppTypingRequest,
 } from '../utils/validator.ts'
+import { rewriteLoopback } from '../webhook-target.ts'
 import { broadcast } from '../websocket.ts'
+
+/**
+ * Reject malformed JSON payloads with the Graph error shape.
+ *
+ * The raw body is cloned before it is parsed, so the validation middleware
+ * still receives the untouched request body.
+ */
+const parseJsonBody = createMiddleware(async (c, next) => {
+	try {
+		JSON.parse(await c.req.raw.clone().text())
+	} catch {
+		return c.json(
+			{
+				error: {
+					message: 'Invalid JSON body',
+					type: 'validation_error',
+					code: 400,
+				},
+			} as WhatsAppErrorResponse,
+			400
+		)
+	}
+
+	await next()
+})
 
 /** Process template with variable substitution */
 export function processTemplate(
@@ -98,6 +125,10 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 		url: string,
 		payload: WebhookPayload
 	): Promise<void> {
+		// Inside a container, localhost points at the container itself: the
+		// rewrite points the delivery to the app running on the host.
+		const targetUrl = rewriteLoopback(url)
+
 		try {
 			const body = serializeJsonWithEscapedUnicode(payload)
 			const headers: Record<string, string> = {
@@ -115,7 +146,7 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 				)
 			}
 
-			const response = await fetch(url, {
+			const response = await fetch(targetUrl, {
 				method: 'POST',
 				headers,
 				body,
@@ -125,9 +156,9 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
 			}
 
-			console.log(`✅ Webhook delivered successfully to ${url}`)
+			console.log(`✅ Webhook delivered successfully to ${targetUrl}`)
 		} catch (error) {
-			console.error(`❌ Failed to deliver webhook to ${url}:`, error)
+			console.error(`❌ Failed to deliver webhook to ${targetUrl}:`, error)
 			throw error
 		}
 	}
@@ -336,6 +367,7 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 	// POST /v22.0/{phone-number-id}/messages - Send message or typing indicator
 	messagesRouter.post(
 		'/:phoneNumberId/messages',
+		parseJsonBody,
 		validateSendMessage,
 		async (c) => {
 			const { phoneNumberId } = c.req.param()
@@ -639,12 +671,12 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 			return c.json(
 				{
 					error: {
-						message: 'Failed to process typing indicator',
-						type: 'server_error',
-						code: 500,
+						message: 'Invalid JSON body',
+						type: 'validation_error',
+						code: 400,
 					},
 				} as WhatsAppErrorResponse,
-				500
+				400
 			)
 		}
 	})

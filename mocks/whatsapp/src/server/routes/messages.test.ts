@@ -1,6 +1,8 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
 	afterAll,
 	beforeAll,
@@ -10,6 +12,7 @@ import {
 	test,
 	vi,
 } from 'vitest'
+import { createApp } from '../server.ts'
 import { mockStore, type StoredMessage } from '../store/memory-store.ts'
 import { TemplateStore } from '../store/template-store.ts'
 import type {
@@ -26,6 +29,12 @@ describe('Messages API Integration Tests', () => {
 	const baseUrl = 'http://localhost:3014'
 	const mockWebhookUrl = 'http://localhost:3015/webhook'
 	const testPhoneId = '12345678901'
+	// Resolved from this file so the suite does not depend on the current
+	// working directory.
+	const templatesDir = join(
+		dirname(fileURLToPath(import.meta.url)),
+		'../../../templates'
+	)
 
 	// Store received webhook payloads for verification
 	const receivedWebhooks: unknown[] = []
@@ -35,14 +44,14 @@ describe('Messages API Integration Tests', () => {
 		process.env.WEBHOOK_URL = mockWebhookUrl
 
 		// Create and initialize template store for testing
-		templateStore = new TemplateStore('./templates')
+		templateStore = new TemplateStore(templatesDir)
 		await templateStore.initialize()
 
 		// Set up test messages server
 		const app = new Hono()
 		app.use('*', cors())
 		const messagesRouter = createMessagesRouter(templateStore)
-		app.route('/v22.0/:phoneNumberId', messagesRouter)
+		app.route('/v22.0', messagesRouter)
 
 		server = serve({
 			fetch: app.fetch,
@@ -322,6 +331,26 @@ describe('Messages API Integration Tests', () => {
 
 			// Restore original webhook URL
 			process.env.WEBHOOK_URL = originalUrl
+		})
+	})
+
+	describe('Graph API version routing', () => {
+		test('should answer on every v<major>.<minor> version and 404 on /latest', async () => {
+			const { app: versionedApp } = createApp(templateStore)
+
+			for (const version of ['v22.0', 'v23.0', 'v25.0']) {
+				const response = await versionedApp.request(
+					`/${version}/${testPhoneId}/messages`
+				)
+
+				expect(response.status).toBe(200)
+			}
+
+			const latestResponse = await versionedApp.request(
+				`/latest/${testPhoneId}/messages`
+			)
+
+			expect(latestResponse.status).toBe(404)
 		})
 	})
 })
