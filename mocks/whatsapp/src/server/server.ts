@@ -8,6 +8,7 @@ import { getWebhookConfig } from './config.ts'
 import { getTemplatesConfig } from './configuration.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { createMessagesRouter } from './routes/messages.ts'
+import { panelRouter } from './routes/panel.ts'
 import { phoneRouter } from './routes/phone.ts'
 import { startStatsInterval, statusRouter } from './routes/status.ts'
 import { createTemplatesRouter } from './routes/templates.ts'
@@ -112,6 +113,8 @@ function createApp(templateStore: TemplateStore) {
 	app.route('/status', statusRouter)
 	app.route('/conversation', conversationRouter)
 	app.route('/webhook', webhooksRouter)
+
+	app.route('/', panelRouter)
 
 	// 404 handler
 	app.notFound((c) => {
