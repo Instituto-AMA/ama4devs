@@ -80,6 +80,9 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
 - **Pinned Bun image:** the `BUN_VERSION` build argument went from `1.2` to `1.4.2`, so the image is reproducible.
 - **Healthcheck follows `PORT`:** both healthchecks probe `http://localhost:${PORT:-3010}/health` instead of the fixed
   `3010`, and the runtime stage sets `ENV PORT=3010` as the default.
+- **The compiled binary builds:** `bun build --compile` failed on ink's optional `react-devtools-core` import, so the
+  image never built. `bun run build` now runs `scripts/build.ts`, which compiles with a plugin answering that import
+  with an empty module (ink loads devtools only with `DEV=true`).
 
 ### Documentation
 
