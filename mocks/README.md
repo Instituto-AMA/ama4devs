@@ -20,8 +20,10 @@ Every mock added to this repository must follow these standards:
    - Any outgoing webhook URLs targeting loopback (`localhost`, `127.0.0.1`, `::1`) must have their hostname rewritten to allow container-to-host callbacks.
    - Compose services must include `extra_hosts: ['host.docker.internal:host-gateway']`.
 7. **Control Routes with Local Guard:**
-   - Key-free administrative and state-manipulation routes must live under `/_mock/*`.
-   - Protected by a local guard that verifies `Host` and `Origin` headers against allowed local hostnames to prevent DNS rebinding and cross-site requests.
+   - Key-free administrative and state-manipulation routes must live under a dedicated, non-API prefix (`/_mock/*` for new mocks; the WhatsApp mock uses `/mock` and `/webhook`).
+   - Every mock must protect its key-free routes with a local guard that verifies the `Host` header on every request (DNS rebinding) and the `Origin` header on state-changing requests (cross-site requests) against an allowlist of local hostnames.
+   - Both shipped mocks implement it: the Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade.
+   - The allowlist is the loopback defaults (`localhost`, `127.0.0.1`, `::1`, `host.docker.internal`) plus the comma-separated `MOCK_ALLOWED_HOSTS` (the Compose service names belong there).
 8. **Automated Test Suite:**
    - Must include automated tests executed by `make test` (and individually via `bun test` inside the mock directory).
 9. **Upstream Documentation:**
