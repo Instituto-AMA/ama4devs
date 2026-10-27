@@ -280,6 +280,38 @@ export async function createInstallment(
 
   const id = ids.installmentId(ctx.rng) // UUID puro — NÃO tem prefixo. É de propósito.
 
+  /*
+   * The plan is written before its charges: the creation event of each charge
+   * finds the plan it belongs to (the payer is told about the plan once, on the
+   * first installment). The net value is the sum of the charges, set after them.
+   */
+  const plan: InstallmentRow = {
+    id,
+    accountId,
+    customerId: input.customerId,
+    billingType: input.billingType,
+    installmentCount: count,
+    // O valor "da parcela" é o das N−1 primeiras; a última carrega a sobra.
+    /**
+     * O Asaas real reporta em `paymentValue` o valor da ÚLTIMA parcela — a que
+     * carrega a sobra do arredondamento —, não o das outras onze.
+     *
+     * R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24, e `paymentValue` = **29,24**.
+     * Provado contra o sandbox; é contraintuitivo, e não teríamos adivinhado.
+     */
+    installmentValueCents: parts[parts.length - 1]!,
+    totalValueCents: input.totalValueCents,
+    netValueCents: 0,
+    expirationDay: Number(input.dueDate.slice(8, 10)),
+    description: input.description ?? null,
+    paymentLinkId: null,
+    checkoutSession: null,
+    transactionReceiptUrl: null,
+    deleted: false,
+    dateCreated: ctx.clock.today(),
+  }
+  await db.insert(installments).values(plan)
+
   const created: PaymentRow[] = []
   for (let i = 0; i < count; i++) {
     const row = await createPayment(ctx, db, accountId, ownWalletId, {
@@ -315,35 +347,10 @@ export async function createInstallment(
     created.push(row)
   }
 
-  const row: InstallmentRow = {
-    id,
-    accountId,
-    customerId: input.customerId,
-    billingType: input.billingType,
-    installmentCount: count,
-    // O valor "da parcela" é o das N−1 primeiras; a última carrega a sobra.
-    /**
-     * O Asaas real reporta em `paymentValue` o valor da ÚLTIMA parcela — a que
-     * carrega a sobra do arredondamento —, não o das outras onze.
-     *
-     * R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24, e `paymentValue` = **29,24**.
-     * Provado contra o sandbox; é contraintuitivo, e não teríamos adivinhado.
-     */
-    installmentValueCents: parts[parts.length - 1]!,
-    totalValueCents: input.totalValueCents,
-    netValueCents: sumCents(created.map((p) => cents(p.netValueCents))),
-    expirationDay: Number(input.dueDate.slice(8, 10)),
-    description: input.description ?? null,
-    paymentLinkId: null,
-    checkoutSession: null,
-    transactionReceiptUrl: null,
-    deleted: false,
-    dateCreated: ctx.clock.today(),
-  }
+  plan.netValueCents = sumCents(created.map((p) => cents(p.netValueCents)))
+  await db.update(installments).set({ netValueCents: plan.netValueCents }).where(eq(installments.id, id))
 
-  await db.insert(installments).values(row)
-
-  return { installment: row, payments: created }
+  return { installment: plan, payments: created }
 }
 
 /**

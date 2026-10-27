@@ -94,6 +94,27 @@ describe('payer notifications', () => {
     ])
   })
 
+  it('an installment plan is told once, whole, whatever the number of installments', async () => {
+    await boot()
+    const cus = await customer()
+    const res = await h.api.call('create-new-payment', {
+      body: { customer: cus, billingType: 'PIX', totalValue: 1000, installmentCount: 4, dueDate: '2026-01-20', description: 'Clareamento' },
+    })
+    expect(res.status).toBe(200)
+    await h.tick()
+
+    const created = (await rows()).filter((r) => r.event === 'PAYMENT_CREATED')
+    expect(created.map((r) => r.channel).sort()).toEqual(['EMAIL', 'WHATSAPP'])
+
+    const email = mail.received.find((r) => r.payload?.Subject)
+    expect(email?.payload.Subject).toBe('Conta de Teste: novo parcelamento de R$ 1.000,00 em 4x')
+    expect(email?.payload.Text).toContain('R$ 1.000,00 em 4x de R$ 250,00 (Clareamento)')
+    const wa = whatsapp.received.filter((r) => r.payload?.template)
+    expect(wa).toHaveLength(1)
+    const params = wa[0]?.payload.template.components[0].parameters.map((x: any) => x.text)
+    expect(params.slice(2, 4)).toEqual(['R$ 1.000,00 em 4x de R$ 250,00', '20/01/2026 (1ª parcela)'])
+  })
+
   it('a customer with notifications off gets nothing', async () => {
     await boot()
     await charge(await customer({ notificationDisabled: true }))

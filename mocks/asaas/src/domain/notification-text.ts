@@ -43,6 +43,15 @@ const TEMPLATE: Record<NotifiableEvent, string> = {
   PAYMENT_RECEIVED: 'asaas_pagamento_confirmado',
 }
 
+/** The plan a first installment opens: the payer hears about the N installments at once. */
+export interface InstallmentFacts {
+  count: number
+  totalCents: number
+  /** Each installment (the last may differ by the rounding). */
+  valueCents: number
+  description: string | null
+}
+
 export interface NotificationInput {
   payer: string
   merchant: string
@@ -51,6 +60,8 @@ export interface NotificationInput {
   dueDate: string
   invoiceUrl: string
   description: string | null
+  /** Set on the creation of an installment plan's first charge. */
+  installment?: InstallmentFacts
 }
 
 export interface NotificationMessage {
@@ -69,8 +80,12 @@ const escape = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 export function composeNotification(event: NotifiableEvent, i: NotificationInput): NotificationMessage {
-  const value = brl(i.valueCents)
-  const due = br(i.dueDate)
+  const plan = event === 'PAYMENT_CREATED' ? i.installment : undefined
+  // A plan is told whole: the total in N installments, and when the first one is due.
+  const value = plan
+    ? `${brl(plan.totalCents)} em ${plan.count}x de ${brl(plan.valueCents)}`
+    : brl(i.valueCents)
+  const due = plan ? `${br(i.dueDate)} (1ª parcela)` : br(i.dueDate)
   const what = i.description ? ` (${i.description})` : ''
 
   const lines: Record<NotifiableEvent, { subject: string; lead: string }> = {
@@ -96,6 +111,12 @@ export function composeNotification(event: NotifiableEvent, i: NotificationInput
     },
   }
 
+  if (plan) {
+    lines.PAYMENT_CREATED = {
+      subject: `${i.merchant}: novo parcelamento de ${brl(plan.totalCents)} em ${plan.count}x`,
+      lead: `${i.merchant} gerou um parcelamento de ${value}${what}. A 1ª parcela vence em ${br(i.dueDate)}; as demais, no mesmo dia dos meses seguintes.`,
+    }
+  }
   const { subject, lead } = lines[event]
   const cta = event === 'PAYMENT_RECEIVED' ? 'Ver comprovante' : 'Ver fatura e pagar'
   const text = `Olá, ${i.payer}.\n\n${lead}\n\n${cta}: ${i.invoiceUrl}\n\n— ${i.merchant}, via Asaas (simulador)`

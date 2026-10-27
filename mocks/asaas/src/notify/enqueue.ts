@@ -13,10 +13,18 @@ import type { Clock } from '../core/clock.ts'
 import type { Rng } from '../core/rng.ts'
 import { badRequest } from '../core/errors.ts'
 import type { DB } from '../db/client.ts'
-import { accounts, customers, notificationDeliveries, notifications } from '../db/schema/index.ts'
+import {
+  accounts,
+  customers,
+  installments,
+  notificationDeliveries,
+  notifications,
+  payments,
+} from '../db/schema/index.ts'
 import {
   composeNotification,
   whatsappNumber,
+  type InstallmentFacts,
   type NotifiableEvent,
 } from '../domain/notification-text.ts'
 
@@ -57,7 +65,7 @@ export async function enqueuePaymentNotifications(
     .limit(1)
   if (!customer) return 0
 
-  let channels: Channel[]
+  let channels: Channel[] = []
   if (args.forced) {
     channels = args.forced
     if (channels.includes('EMAIL') && !mailpitUrl) {
@@ -66,7 +74,35 @@ export async function enqueuePaymentNotifications(
     if (channels.includes('WHATSAPP') && !whatsappUrl) {
       throw badRequest('notify_not_configured', 'Envio de WhatsApp desligado: defina WHATSAPP_MOCK_URL no simulador.')
     }
-  } else {
+  }
+
+  // An installment plan creates its N charges at once, but the payer hears about
+  // the plan once: the first installment's creation tells the whole plan, the
+  // other N-1 creations stay silent. Reminders, overdue and payment notices are
+  // per installment (each has its own due date).
+  let installment: InstallmentFacts | undefined
+  if (args.event === 'PAYMENT_CREATED' && !args.forced) {
+    const [row] = await tx
+      .select({ installmentId: payments.installmentId, installmentNumber: payments.installmentNumber })
+      .from(payments)
+      .where(eq(payments.id, args.payment.id))
+      .limit(1)
+    if (row?.installmentId) {
+      if (Number(row.installmentNumber) !== 1) return 0
+      const [plan] = await tx.select().from(installments).where(eq(installments.id, row.installmentId)).limit(1)
+      if (plan) {
+        installment = {
+          count: plan.installmentCount,
+          totalCents: plan.totalValueCents,
+          // The first installment's value: the plan keeps the last one's (it carries the rounding).
+          valueCents: Math.round(args.payment.value * 100),
+          description: plan.description ?? null,
+        }
+      }
+    }
+  }
+
+  if (!args.forced) {
     if (customer.notificationDisabled) return 0
     const [setting] = await tx
       .select()
@@ -93,7 +129,8 @@ export async function enqueuePaymentNotifications(
     valueCents: Math.round(args.payment.value * 100),
     dueDate: args.payment.dueDate,
     invoiceUrl: args.payment.invoiceUrl,
-    description: args.payment.description ?? null,
+    description: installment ? installment.description : (args.payment.description ?? null),
+    installment,
   })
 
   const recipients: Record<Channel, string | null> = {
