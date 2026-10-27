@@ -84,10 +84,13 @@ function statusBadge(status: string, deleted: boolean): string {
   return `<span class="badge ${s.tone}">${esc(s.label)}</span>`
 }
 
-function pixPanel(v: InvoiceView): string {
+/** The panel of the selected method shows; the others wait for their tab. */
+const shown = (visible: boolean) => (visible ? '' : ' hidden')
+
+function pixPanel(v: InvoiceView, visible: boolean): string {
   if (!v.pix) return ''
   return `
-    <section class="method" data-method="PIX">
+    <section class="method" data-method="PIX"${shown(visible)}>
       <div class="pix">
         <img alt="QR Code Pix" src="data:image/png;base64,${esc(v.pix.image)}" width="200" height="200">
         <div class="pix-copy">
@@ -100,10 +103,10 @@ function pixPanel(v: InvoiceView): string {
     </section>`
 }
 
-function boletoPanel(v: InvoiceView): string {
+function boletoPanel(v: InvoiceView, visible: boolean): string {
   if (!v.boletoLine) return ''
   return `
-    <section class="method" data-method="BOLETO" hidden>
+    <section class="method" data-method="BOLETO"${shown(visible)}>
       <label for="boleto-line">Linha digitável</label>
       <div class="line">
         <input id="boleto-line" readonly value="${esc(v.boletoLine)}">
@@ -114,13 +117,13 @@ function boletoPanel(v: InvoiceView): string {
     </section>`
 }
 
-function cardPanel(v: InvoiceView): string {
+function cardPanel(v: InvoiceView, visible: boolean): string {
   const options = v.testCards.map(
     (c) =>
       `<option value="${esc(c.number)}">${esc(c.number.replace(/(\d{4})(?=\d)/g, '$1 '))} — ${esc(c.label)}</option>`,
   ).join('')
   return `
-    <section class="method" data-method="CREDIT_CARD" hidden>
+    <section class="method" data-method="CREDIT_CARD"${shown(visible)}>
       <form id="card-form" class="card-form">
         <label>Cartão de teste
           <select name="number">${options}</select>
@@ -178,12 +181,15 @@ function payArea(v: InvoiceView): string {
       ? `<div class="tabs" role="tablist">${v.methods
           .map(
             (m, i) =>
-              `<button type="button" role="tab" class="tab${i === 0 ? ' active' : ''}" data-tab="${m}">${METHOD_LABEL[m]}</button>`,
+              `<button type="button" role="tab" class="tab${i === 0 ? ' active' : ''}" aria-selected="${i === 0}" data-tab="${m}">${METHOD_LABEL[m]}</button>`,
           )
           .join('')}</div>`
       : ''
+  // The first method is the selected tab: its panel is the one that shows.
   const panels = v.methods
-    .map((m) => (m === 'PIX' ? pixPanel(v) : m === 'BOLETO' ? boletoPanel(v) : cardPanel(v)))
+    .map((m, i) =>
+      m === 'PIX' ? pixPanel(v, i === 0) : m === 'BOLETO' ? boletoPanel(v, i === 0) : cardPanel(v, i === 0),
+    )
     .join('')
   return `
     <section class="box">
@@ -293,7 +299,10 @@ const SCRIPT = `
   const error = document.getElementById('pay-error');
   for (const tab of document.querySelectorAll('[data-tab]')) {
     tab.addEventListener('click', () => {
-      for (const t of document.querySelectorAll('[data-tab]')) t.classList.toggle('active', t === tab);
+      for (const t of document.querySelectorAll('[data-tab]')) {
+        t.classList.toggle('active', t === tab);
+        t.setAttribute('aria-selected', String(t === tab));
+      }
       for (const m of document.querySelectorAll('[data-method]')) m.hidden = m.dataset.method !== tab.dataset.tab;
     });
   }

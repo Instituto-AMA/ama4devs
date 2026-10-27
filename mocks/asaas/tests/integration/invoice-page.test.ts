@@ -77,6 +77,17 @@ describe('invoice page', () => {
     expect(res.html).not.toContain('Pagar com cartão')
   })
 
+  it('opens on the selected tab: a boleto charge shows the boleto, not the Pix', async () => {
+    h = await createHarness()
+    const p = await charge('BOLETO', 1400)
+    const { html } = await page(tokenOf(p))
+
+    const panel = (method: string) => html.match(new RegExp(`<section class="method" data-method="${method}"( hidden)?>`))
+    expect(html).toMatch(/class="tab active" aria-selected="true" data-tab="BOLETO"/)
+    expect(panel('BOLETO')?.[1]).toBeUndefined()
+    expect(panel('PIX')?.[1]).toBe(' hidden')
+  })
+
   it('paying by Pix receives the charge, credits the balance and sends the webhook', async () => {
     h = await createHarness()
     await h.subscribeWebhook(['PAYMENT_RECEIVED'])
