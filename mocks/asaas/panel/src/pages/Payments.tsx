@@ -16,7 +16,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { mock, v3, type Payment } from '../api.ts'
 import type { PageProps } from '../app.tsx'
 import { DataTable, type Column } from '../components/DataTable.tsx'
-import { Badge, Button, Card, Empty, money, StatusBadge } from '../components/ui.tsx'
+import { BILLING_LABEL, Badge, Button, Card, Empty, money, StatusBadge } from '../components/ui.tsx'
 
 /** Os status em que faz sentido oferecer "pagar". Fora deles, o botão some. */
 const PAYABLE = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS'])
@@ -29,14 +29,25 @@ const CAN_REFUND = new Set(['RECEIVED', 'CONFIRMED'])
 
 export function Payments({ store }: PageProps) {
   const [rows, setRows] = useState<Payment[] | null>(null)
+  const [names, setNames] = useState<Map<string, { name: string; removed: boolean }>>(new Map())
   const [busy, setBusy] = useState<string | null>(null)
   const key = store.selected?.apiKey
 
   const load = async () => {
     if (!key) return
     setRows(null)
-    const r = await v3('/payments?limit=100&order=desc', key)
-    setRows(r.data)
+    // The charge carries only the customer id; its name comes from the customer
+    // lists, the removed ones included (a charge outlives its removed customer).
+    const [payments, active, removed] = await Promise.all([
+      v3('/payments?limit=100&order=desc', key),
+      v3('/customers?limit=100', key),
+      v3('/customers?limit=100&deletedOnly=true', key),
+    ])
+    const byId = new Map<string, { name: string; removed: boolean }>()
+    for (const c of active.data) byId.set(c.id, { name: c.name, removed: false })
+    for (const c of removed.data) byId.set(c.id, { name: c.name, removed: true })
+    setNames(byId)
+    setRows(payments.data)
   }
 
   useEffect(() => {
@@ -70,7 +81,26 @@ export function Payments({ store }: PageProps) {
       render: (p) => <StatusBadge status={p.status} />,
       value: (p) => p.status,
     },
-    { key: 'billingType', header: 'Tipo', render: (p) => p.billingType, value: (p) => p.billingType },
+    {
+      key: 'customer',
+      header: 'Cliente',
+      render: (p) => {
+        const c = names.get(p.customer)
+        if (!c) return <span class="mono hint">{p.customer}</span>
+        return (
+          <span>
+            {c.name} {c.removed && <Badge tone="neutral">removido</Badge>}
+          </span>
+        )
+      },
+      value: (p) => names.get(p.customer)?.name ?? p.customer,
+    },
+    {
+      key: 'billingType',
+      header: 'Tipo',
+      render: (p) => BILLING_LABEL[p.billingType] ?? p.billingType,
+      value: (p) => p.billingType,
+    },
     {
       key: 'value',
       header: 'Valor',

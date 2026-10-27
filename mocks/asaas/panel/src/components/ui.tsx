@@ -99,8 +99,38 @@ export const STATUS_TONE: Record<string, Tone> = {
   AWAITING_CHARGEBACK_REVERSAL: 'danger',
 }
 
+/** The words the Asaas dashboard uses for each status; an unknown one shows as it comes. */
+export const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Aguardando pagamento',
+  AUTHORIZED: 'Autorizada',
+  AWAITING_RISK_ANALYSIS: 'Em análise de risco',
+  CONFIRMED: 'Confirmada',
+  AWAITING_CREDIT: 'Aguardando crédito',
+  RECEIVED: 'Recebida',
+  RECEIVED_IN_CASH: 'Recebida em dinheiro',
+  OVERDUE: 'Vencida',
+  DUNNING_REQUESTED: 'Em negativação',
+  DUNNING_RECEIVED: 'Recuperada',
+  REFUND_REQUESTED: 'Estorno solicitado',
+  REFUND_IN_PROGRESS: 'Estorno em processamento',
+  REFUNDED: 'Estornada',
+  CHARGEBACK: 'Chargeback',
+  CHARGEBACK_REQUESTED: 'Chargeback recebido',
+  CHARGEBACK_DISPUTE: 'Em disputa de chargeback',
+  AWAITING_CHARGEBACK_REVERSAL: 'Aguardando reversão do chargeback',
+}
+
+/** Billing types as the dashboard names them. */
+export const BILLING_LABEL: Record<string, string> = {
+  BOLETO: 'Boleto',
+  PIX: 'Pix',
+  CREDIT_CARD: 'Cartão de crédito',
+  DEBIT_CARD: 'Cartão de débito',
+  UNDEFINED: 'Pergunte ao cliente',
+}
+
 export const StatusBadge = ({ status }: { status: string }) => (
-  <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{status}</Badge>
+  <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_LABEL[status] ?? status}</Badge>
 )
 
 // ── Copy ────────────────────────────────────────────────────────────────────

@@ -132,6 +132,28 @@ describe('painel', () => {
     await h.assertLedgerBalances()
   })
 
+  it('the summary leaves deleted charges out, as the charge list does', async () => {
+    h = await createHarness()
+
+    const customer = await h.api.call('create-new-customer', {
+      body: { name: 'Fulano', cpfCnpj: '24971563792' },
+    })
+    const kept = await h.api.call('create-new-payment', {
+      body: { customer: customer.body.id, billingType: 'BOLETO', value: 150, dueDate: '2026-12-10' },
+    })
+    const gone = await h.api.call('create-new-payment', {
+      body: { customer: customer.body.id, billingType: 'BOLETO', value: 283.66, dueDate: '2026-12-10' },
+    })
+    expect(kept.status).toBe(200)
+    await h.api.call('delete-payment', { params: { id: gone.body.id } })
+
+    const body = (await (await get(h.app, `/_admin/summary?accountId=${h.accountId}`)).json()) as any
+    const awaiting = body.groups.find((g: any) => g.group === 'AWAITING')
+    expect(awaiting.count).toBe(1)
+    expect(awaiting.value).toBe(150)
+    expect(awaiting.customers).toBe(1)
+  })
+
   it('com ADMIN_ENABLED=false, o painel some e as chaves não vazam', async () => {
     h = await createHarness({ adminEnabled: false })
 

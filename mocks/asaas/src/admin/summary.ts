@@ -10,7 +10,7 @@
  * própria, duas telas acabariam discordando sobre o que é uma cobrança "recebida"
  * — e o número que não bate é sempre o que mina a confiança no simulador inteiro.
  */
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
 import { payments } from '../db/schema/index.ts'
 
@@ -66,7 +66,9 @@ export async function paymentsSummary(
       netValueCents: payments.netValueCents,
     })
     .from(payments)
-    .where(eq(payments.accountId, accountId))
+    // A deleted charge is gone from the API's list (and from Cobranças): counting
+    // it here made the cards show charges and customers nobody could find.
+    .where(and(eq(payments.accountId, accountId), eq(payments.deleted, false)))
 
   const groups = new Map<SummaryGroup, GroupSummary>()
   const customers = new Map<SummaryGroup, Set<string>>()
