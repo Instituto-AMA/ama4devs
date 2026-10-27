@@ -115,7 +115,11 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 <table>
 <tr>
 <td width="50%"><img src="docs/img/invoice-pix.jpg" alt="The invoice page the payer opens: value, due date, description and the Pix QR code with copy and paste." /><br><sub><b>The invoice page.</b> What the payer opens (<code>invoiceUrl</code>): Pix with a real QR code, boleto with the digitable line, or card. Paying there runs the real path: status, statement, webhooks.</sub></td>
-<td width="50%"><img src="docs/panel.png" alt="Accounts with balances and API keys, charges in every state and the time travel buttons." /><br><sub><b>Accounts and time travel.</b> Every account and subaccount with its balance, wallet and API key; <code>+1</code>, <code>+7</code>, <code>+32</code> days to watch charges credit and go overdue.</sub></td>
+<td width="50%"><img src="docs/img/charges.jpg" alt="The charges list: single charges and installments with their status, customer, type, billing type, value and due date, and the Subscriptions and Installment plans tabs." /><br><sub><b>Charges.</b> Single charges, installments and subscriptions, with their status, billing type and due date. <b>New charge</b> creates any of the three.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/clock.jpg" alt="The virtual clock: the simulator's current time and mode, and the buttons to advance one day, seven days, thirty-two days, run a tick or go back to the present." /><br><sub><b>Virtual clock.</b> <code>+1 dia</code>, <code>+7 dias</code>, <code>+32 dias</code>: every simulated day runs a full tick, so subscriptions charge, unpaid charges go overdue and cards credit.</sub></td>
+<td width="50%"></td>
 </tr>
 </table>
 

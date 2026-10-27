@@ -117,7 +117,11 @@ mostra o que o Asaas não deixa você ver.
 <table>
 <tr>
 <td width="50%"><img src="docs/img/invoice-pix.jpg" alt="A página da fatura que o pagador abre: valor, vencimento, descrição e o QR code do Pix com copia e cola." /><br><sub><b>A página da fatura.</b> O que o pagador abre (<code>invoiceUrl</code>): Pix com QR code de verdade, boleto com linha digitável, ou cartão. Pagar por ela segue o caminho real: status, extrato, webhooks.</sub></td>
-<td width="50%"><img src="docs/panel.png" alt="Contas com saldo e chave de API, cobranças em todos os estados e os botões de viagem no tempo." /><br><sub><b>Contas e viagem no tempo.</b> Cada conta e subconta com saldo, carteira e chave de API; <code>+1</code>, <code>+7</code>, <code>+32</code> dias para ver cobranças creditarem e vencerem.</sub></td>
+<td width="50%"><img src="docs/img/charges.jpg" alt="A lista de cobranças: avulsas e parcelas com situação, cliente, tipo, forma de pagamento, valor e vencimento, e as abas Assinaturas e Parcelamentos." /><br><sub><b>Cobranças.</b> Avulsas, parcelas e assinaturas, com situação, forma de pagamento e vencimento. <b>Nova cobrança</b> cria qualquer uma das três.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/clock.jpg" alt="O relógio virtual: a hora e o modo do simulador, e os botões para avançar um dia, sete dias, trinta e dois dias, rodar um tick ou voltar ao presente." /><br><sub><b>Relógio virtual.</b> <code>+1 dia</code>, <code>+7 dias</code>, <code>+32 dias</code>: cada dia simulado roda um ciclo completo, então assinaturas geram cobrança, cobranças não pagas vencem e cartões creditam.</sub></td>
+<td width="50%"></td>
 </tr>
 </table>
 
