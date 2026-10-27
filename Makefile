@@ -11,7 +11,7 @@ COMPOSE  := docker compose --env-file .env -f docker-compose.yml
 
 export MOCKS PROFILE TARGET_ENV
 
-.PHONY: help env setup setup-sandbox up down restart logs ps status build env-mock env-sandbox test clean
+.PHONY: help env setup setup-sandbox up down restart logs ps status build publish env-mock env-sandbox test clean
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -54,6 +54,9 @@ status: env ## Health of each mock, one line each
 
 build: env ## Build the mock images
 	@$(COMPOSE) $(PROFILES) build
+
+publish: ## Build amd64+arm64 and push to ghcr.io/instituto-ama: make publish MOCKS=asaas (needs docker login ghcr.io; the publish-mocks workflow does this on every push to master)
+	@scripts/publish.sh $(MOCKS)
 
 env-mock: ## Write the mock env keys into TARGET_ENV (or print them)
 	@scripts/env-mode.sh $(PROFILE) mock $(TARGET_ENV)

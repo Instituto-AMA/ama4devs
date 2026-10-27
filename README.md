@@ -1,4 +1,4 @@
-# test-utils-hub
+# ama4devs
 
 Local third-party provider mocks (Asaas, WhatsApp / Meta Graph API) for development and testing.
 
@@ -65,10 +65,42 @@ The repository supports two development workflows:
 | `ps` | List the mock containers |
 | `status` | Health of each mock, one line each |
 | `build` | Build the mock images |
+| `publish` | Build `linux/amd64` + `linux/arm64` and push to GHCR: `make publish MOCKS=asaas` (needs `docker login ghcr.io`) |
 | `env-mock` | Write the mock env keys into `TARGET_ENV` (or print them) |
 | `env-sandbox` | Write the sandbox env keys into `TARGET_ENV` (or print them) |
 | `test` | Run the tests of both mocks, one after the other |
 | `clean` | Remove containers and volumes (`FORCE=1` skips the prompt) |
+
+## Published Images
+
+Each mock is published to GHCR for `linux/amd64` and `linux/arm64`, so another project runs it
+without cloning this repository:
+
+| Mock | Image |
+|---|---|
+| Asaas | `ghcr.io/instituto-ama/asaas-mock` |
+| WhatsApp | `ghcr.io/instituto-ama/whatsapp-mock` |
+
+Tags:
+
+- `<version>`: the `version` of the mock's `package.json`. It is pushed once and never moves; pin it.
+- `sha-<commit>`: every publish, immutable.
+- `latest`: the last publish.
+
+How it is published:
+
+- **The `publish-mocks` workflow** (`.github/workflows/publish-mocks.yml`) runs on every push to
+  `master` that changes `mocks/**`. `scripts/changed-mocks.sh` picks the mocks whose directory
+  changed (a change to the workflow or to `scripts/publish.sh` picks all of them), the mock's
+  tests run, then `scripts/publish.sh` builds and pushes. A mock that did not change is not
+  rebuilt. It can also be started by hand (Actions → publish-mocks → Run workflow) with the list
+  of mocks.
+- **By hand:** `docker login ghcr.io` with a token that has `write:packages`, then
+  `make publish MOCKS=asaas` (or `MOCKS="asaas whatsapp"`). It refuses a mock directory with
+  uncommitted changes, so an image always matches a commit. It builds with its own buildx
+  builder (`ama4devs`); the foreign platform runs under emulation and is slow.
+- **Releasing a version:** bump `version` in the mock's `package.json` in the change that alters
+  it. A push without a bump publishes `sha-<commit>` and `latest` only, and the workflow warns.
 
 ## The Asaas Mock
 
@@ -151,7 +183,7 @@ The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
 
 Ama-Hub integrates these mocks directly into its development lifecycle:
 
-- In Ama-Hub, `make dev` builds and starts these mock containers using Docker Compose from the sibling checkout.
+- In Ama-Hub, `make dev` starts these mocks from the published images, at the versions pinned in its `deploy/compose/docker-compose.dev.yml`. With `MOCKS_BUILD=1` it builds them from the sibling checkout instead, to try a change before it is published.
 - Running `make sandbox` in Ama-Hub configures it to communicate with the official provider sandboxes.
 - See Ama-Hub's local environment documentation at `docs/runbooks/local-environment.md` for details on how Ama-Hub orchestrates development services.
 

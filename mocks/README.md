@@ -91,7 +91,7 @@ In root `docker-compose.yml`, define the service under its profile:
 ```yaml
   email:
     build: ./mocks/email
-    image: test-utils-hub/email:local
+    image: ama4devs/email:local
     profiles: [email]
     ports:
       - '127.0.0.1:${EMAIL_PORT:-8025}:8025'

@@ -1,9 +1,9 @@
-name: test-utils-hub
+name: ama4devs
 
 services:
   asaas:
     build: ./mocks/asaas
-    image: test-utils-hub/asaas:local
+    image: ama4devs/asaas:local
     profiles: [asaas]
     ports:
       - '127.0.0.1:${ASAAS_PORT:-45445}:45445'
@@ -37,7 +37,7 @@ services:
 
   whatsapp:
     build: ./mocks/whatsapp
-    image: test-utils-hub/whatsapp:local
+    image: ama4devs/whatsapp:local
     profiles: [whatsapp]
     ports:
       - '127.0.0.1:${WHATSAPP_PORT:-3010}:3010'

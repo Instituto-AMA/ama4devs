@@ -11,7 +11,7 @@ In compliance with Section 4(b) of the Apache License, Version 2.0, notice is he
 
 ## Modifications
 
-This copy is maintained internally within `Instituto-AMA/test-utils-hub`. Every change below is relative to the
+This copy is maintained internally within `Instituto-AMA/ama4devs`. Every change below is relative to the
 vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEAD -- mocks/whatsapp`.
 
 ### Dependencies
@@ -106,7 +106,7 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
   pattern, the localhost rewriting of webhook targets, the HMAC signature and the coding conventions.
 - **Upstream CI and local tooling configs removed at import time** (in the vendoring commit, before the delta above):
   the upstream repository-specific CI workflows, Cursor rules and development configurations were dropped so the mock
-  integrates cleanly into `test-utils-hub`.
+  integrates cleanly into `ama4devs`.
 
 ### Tests
 

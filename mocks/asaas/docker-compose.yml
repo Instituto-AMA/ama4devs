@@ -4,10 +4,10 @@ services:
     # `docker compose up` aqui compila o código local e ignora o registry. O
     # `image` só dá o nome da tag resultante.
     #
-    # Para CONSUMIR o simulador em outro projeto, não copie este arquivo — copie
-    # o bloco de 12 linhas da seção "Usar em outro projeto" do README, que só tem
-    # `image:` e puxa do Docker Hub.
-    image: mpiresdev/asaas-mock-server:latest
+    # To CONSUME the simulator in another project, do not copy this file: copy the
+    # block of the README's "Use it in another project" section, which has only
+    # `image:` and pulls the published image from GHCR.
+    image: ghcr.io/instituto-ama/asaas-mock:latest
     build: .
     container_name: asaas-mock
     ports:

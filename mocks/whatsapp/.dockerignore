@@ -3,6 +3,8 @@
 # risks stale binaries shadowing a fresh build.
 dist/
 node_modules/
+# Leftovers of an interrupted `bun build --compile` (60 MB each).
+*.bun-build
 
 # Test output and coverage
 coverage/

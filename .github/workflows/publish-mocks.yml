@@ -1,0 +1,89 @@
+# Publishes the image of every mock a push to master changed to GHCR, for linux/amd64 and
+# linux/arm64: ghcr.io/instituto-ama/<mock>-mock. A mock whose directory did not change is not
+# rebuilt. The tests of a mock run before its image is built; a red suite publishes nothing.
+# Tags and the build itself live in scripts/publish.sh, which a person can run the same way.
+name: publish-mocks
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mocks/**'
+      - 'scripts/publish.sh'
+      - 'scripts/changed-mocks.sh'
+      - '.github/workflows/publish-mocks.yml'
+  workflow_dispatch:
+    inputs:
+      mocks:
+        description: 'Mocks to publish, space separated'
+        required: true
+        default: 'asaas whatsapp'
+
+permissions:
+  contents: read
+
+# Two pushes in a row publish in order; neither is cancelled halfway through a push.
+concurrency:
+  group: publish-mocks
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      mocks: ${{ steps.pick.outputs.mocks }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.mocks }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            names="$REQUESTED"
+          else
+            names="$(scripts/changed-mocks.sh "$BEFORE" "$AFTER")"
+          fi
+          for name in $names; do
+            [[ "$name" =~ ^[a-z0-9-]+$ && -f "mocks/${name}/Dockerfile" ]] || { echo "::error::unknown mock '${name}'"; exit 1; }
+          done
+          json="$(printf '%s\n' $names | jq -R . | jq -cs 'map(select(length > 0))')"
+          echo "mocks=${json}" >> "$GITHUB_OUTPUT"
+          echo "publishing: ${json}"
+
+  publish:
+    needs: changes
+    if: needs.changes.outputs.mocks != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        mock: ${{ fromJSON(needs.changes.outputs.mocks) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Test
+        working-directory: mocks/${{ matrix.mock }}
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun run test
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        env:
+          MOCK: ${{ matrix.mock }}
+        run: scripts/publish.sh "$MOCK"

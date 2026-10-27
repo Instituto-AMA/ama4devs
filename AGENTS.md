@@ -1,4 +1,4 @@
-# AGENTS.md — test-utils-hub
+# AGENTS.md — ama4devs
 
 Rules, layout map, and instructions for agents working in this repository.
 
@@ -9,7 +9,8 @@ Rules, layout map, and instructions for agents working in this repository.
 | `Makefile` | Root entrypoint (`help`, `setup`, `setup-sandbox`, `up`, `down`, `status`, `test`, `clean`, ...) |
 | `docker-compose.yml` | Compose definitions with profiles for each mock service (`asaas`, `whatsapp`) |
 | `.env.example` | Contract for root environment variables and port mappings |
-| `scripts/` | Shell helpers: `lib.sh`, `check-tools.sh`, `setup.sh`, `setup-sandbox.sh`, `env-mode.sh` |
+| `scripts/` | Shell helpers: `lib.sh`, `check-tools.sh`, `setup.sh`, `setup-sandbox.sh`, `env-mode.sh`, `publish.sh` (multi-platform build and push to GHCR), `changed-mocks.sh` (the mocks a push changed) |
+| `.github/workflows/publish-mocks.yml` | Publishes `ghcr.io/instituto-ama/<mock>-mock` on every push to master that changes a mock; only the changed mocks, after their tests |
 | `profiles/` | Environment key profiles (`generic/mock.env`, `generic/sandbox.env`) |
 | `mocks/asaas/` | Asaas mock server (Elysia, Bun, SQLite, Drizzle, TypeBox) |
 | `mocks/whatsapp/` | WhatsApp / Meta Graph API mock server (Hono, Bun, WebSockets) |
@@ -25,7 +26,8 @@ Rules, layout map, and instructions for agents working in this repository.
 4. **No Secrets in the Repository:**
    - Keys in tests, compose files, and examples must remain fake placeholders (e.g. `$aact_hmlg_local_master`).
    - Sandbox secrets belong strictly in `.env.sandbox` (gitignored, mode 0600) and must never be committed.
-5. **Deterministic Tests:** Tests run via `make test` or within each mock directory (`bun test`). Tests must never use sleep timers to wait for state changes; await the operation or event completion.
+5. **Published Images:** A change to a mock that projects should receive bumps `version` in that mock's `package.json`; the published `<version>` tag never moves, and consumers (Ama-Hub's `deploy/compose/docker-compose.dev.yml`) pin it. Never build images on the owner's machine to publish unless asked: the workflow publishes.
+6. **Deterministic Tests:** Tests run via `make test` or within each mock directory (`bun test`). Tests must never use sleep timers to wait for state changes; await the operation or event completion.
 
 ## How to Verify a Change
 

@@ -134,6 +134,18 @@ CMD ["src/index.ts", "server"]
 # -----------------------------------------------------------------------------
 FROM debian:bookworm-slim AS final
 
+# Filled by scripts/publish.sh (repository root) when the image is published to GHCR.
+# `source` links the GHCR package to this repository.
+ARG VERSION=dev
+ARG REVISION=unknown
+LABEL org.opencontainers.image.title="WhatsApp Mock Server" \
+      org.opencontainers.image.description="Local WhatsApp Cloud API (Meta Graph API) mock with a WhatsApp-Web-like console." \
+      org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
+      org.opencontainers.image.vendor="Instituto-AMA ama4devs (from fdarian/whap)" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
+
 # Install only the minimal runtime libraries needed:
 #   ca-certificates — HTTPS calls from the mock server to real webhooks
 #   curl            — used by the HEALTHCHECK to probe /health

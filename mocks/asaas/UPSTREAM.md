@@ -7,7 +7,7 @@
 
 ## Modifications
 
-This copy is maintained internally within `Instituto-AMA/test-utils-hub`. Every change below is relative to the
+This copy is maintained internally within `Instituto-AMA/ama4devs`. Every change below is relative to the
 vendored upstream commit `14fa00e` — the whole delta is `git diff 2691e7c..HEAD -- mocks/asaas`.
 
 ### Dependencies
@@ -80,7 +80,7 @@ vendored upstream commit `14fa00e` — the whole delta is `git diff 2691e7c..HEA
   with `--ignore-scripts`, and a new `prod-deps` stage installs only the production dependencies — the runtime stage
   copies that `node_modules` instead of the full development one.
 - **OCI vendor label:** `org.opencontainers.image.vendor` records that the image is maintained by
-  `Instituto-AMA/test-utils-hub` on top of `theoxys/asaas-mock-server`.
+  `Instituto-AMA/ama4devs` on top of `theoxys/asaas-mock-server`.
 - **`.dockerignore` rewrite:** `.env.example` is excluded too (the image receives its environment from Compose),
   `data/`, `tests/`, `tools/*` (except `tools/codegen`, needed by the build stage) and `*.md` are kept out of the build
   context, so no local database, no test fixtures and no documents can leak into the image.

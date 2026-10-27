@@ -133,14 +133,17 @@ if [ -n "$webhook_path" ]; then
     read -r email
   fi
 
-  name="test-utils-hub $(whoami)@$(hostname -s)"
+  name="ama4devs $(whoami)@$(hostname -s)"
+  # The repository was called test-utils-hub: webhooks registered under that name are this
+  # developer's too.
+  legacy_name="test-utils-hub $(whoami)@$(hostname -s)"
 
   # Remove only this developer's old webhooks (exact name match).
   api GET '/webhooks?limit=100' >"$TMP_DIR/list.json" || die "could not list sandbox webhooks"
   while IFS= read -r id; do
     [ -n "$id" ] || continue
     api DELETE "/webhooks/$id" >/dev/null || warn "could not delete old webhook $id"
-  done < <(jq -r --arg n "$name" '.data[]? | select(.name == $n) | .id' "$TMP_DIR/list.json")
+  done < <(jq -r --arg n "$name" --arg l "$legacy_name" '.data[]? | select(.name == $n or .name == $l) | .id' "$TMP_DIR/list.json")
 
   auth_token="$(openssl rand -hex 24)"
   events_json="$(printf '%s\n' $EVENTS | jq -R . | jq -sc .)"

@@ -1,6 +1,6 @@
 # AGENTS.md — Asaas Mock Server
 
-This mock is maintained internally as part of `Instituto-AMA/test-utils-hub` (adapted from `theoxys/asaas-mock-server`). It runs locally in Docker alongside other provider mocks for development and testing.
+This mock is maintained internally as part of `Instituto-AMA/ama4devs` (adapted from `theoxys/asaas-mock-server`). It runs locally in Docker alongside other provider mocks for development and testing.
 
 ## What it is
 

@@ -32,14 +32,16 @@ ENV TZ=America/Sao_Paulo
 # variável na mão; quem usasse `docker run` perdia os dados em silêncio.
 ENV DATABASE_PATH=/data/asaas.db
 
-# Preenchidos pelo `docker buildx bake`/`--build-arg` na hora de publicar.
+# Filled by scripts/publish.sh (repository root) when the image is published to GHCR.
 ARG VERSION=dev
 ARG REVISION=unknown
 
+# `source` links the GHCR package to this repository; the upstream stays credited in `vendor`.
+# No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
 LABEL org.opencontainers.image.title="Asaas Mock Server" \
-      org.opencontainers.image.description="Simulador local do Asaas que ENTREGA WEBHOOK EM LOCALHOST — o que o sandbox oficial não faz. Relógio virtual: 32 dias em 40ms." \
-      org.opencontainers.image.source="https://github.com/theoxys/asaas-mock-server" \
-      org.opencontainers.image.vendor="Instituto-AMA test-utils-hub (from theoxys/asaas-mock-server)" \
+      org.opencontainers.image.description="Local Asaas that delivers webhooks to localhost (the official sandbox does not). Virtual clock: 32 days in 40 ms." \
+      org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
+      org.opencontainers.image.vendor="Instituto-AMA ama4devs (from theoxys/asaas-mock-server)" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}"

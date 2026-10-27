@@ -2,7 +2,7 @@
 
 > **General Rules & Repository Guidelines:** See the root [AGENTS.md](../../AGENTS.md).
 
-This mock is maintained as part of `Instituto-AMA/test-utils-hub` (originating from `fdarian/whap`). It simulates the WhatsApp Business Cloud API (Meta Graph API) for local development and testing.
+This mock is maintained as part of `Instituto-AMA/ama4devs` (originating from `fdarian/whap`). It simulates the WhatsApp Business Cloud API (Meta Graph API) for local development and testing.
 
 ---
 

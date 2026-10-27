@@ -5,18 +5,18 @@ behavioral fidelity — and, unlike the real sandbox, it **delivers webhooks to
 `localhost`**.
 
 <p align="center">
-  <a href="https://hub.docker.com/r/mpiresdev/asaas-mock-server"><img alt="Docker Hub" src="https://img.shields.io/docker/v/mpiresdev/asaas-mock-server?logo=docker&logoColor=white&label=docker%20hub&color=0038e5"></a>
-  <a href="https://hub.docker.com/r/mpiresdev/asaas-mock-server"><img alt="Image size" src="https://img.shields.io/docker/image-size/mpiresdev/asaas-mock-server/latest?logo=docker&logoColor=white&color=0038e5"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%C2%B7%20arm64-0038e5">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-0038e5"></a>
 </p>
 
 ```bash
-docker run -p 45445:45445 mpiresdev/asaas-mock-server
+docker run -p 45445:45445 ghcr.io/instituto-ama/asaas-mock
 ```
 
-**Image:** [`mpiresdev/asaas-mock-server`](https://hub.docker.com/r/mpiresdev/asaas-mock-server)
-on Docker Hub — `linux/amd64` and `linux/arm64`.
+**Image:** [`ghcr.io/instituto-ama/asaas-mock`](https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock)
+on GHCR — `linux/amd64` and `linux/arm64`. Tags: the `package.json` version (never
+moves; pin it), `sha-<commit>` and `latest`. The `publish-mocks` workflow publishes
+it on every push to master that changes this directory; see the root README.
 
 <p align="center">
   <img src="docs/panel.png" alt="The simulator's dashboard: every account with its balance and API key, payments in every state, and the buttons that skip the clock forward." width="900">
@@ -35,7 +35,7 @@ Don't clone this repository. Paste this into your application's `docker-compose.
 ```yaml
 services:
   asaas:
-    image: mpiresdev/asaas-mock-server:latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.4.0
     ports:
       - '45445:45445'
     environment:
@@ -165,6 +165,17 @@ Open **`http://localhost:45445`**. It's not the Asaas dashboard — it's the
   real API would never hand you, and which here is the whole point: it's how you
   step into a subaccount.
 - **Create a subaccount** from a form. It's born with its own wallet and key.
+- **Profiles** (Simulador → Perfis): create and delete ROOT accounts — one per
+  tenant of your app — without a restart. A delete removes everything the
+  profile owns, subaccounts included. A profile seeded by the environment
+  (`ASAAS_API_KEY`, `SEED_EXTRA_ACCOUNTS`) comes back, empty, on the next boot.
+- **Integrações**, per account, like the Asaas dashboard: **Chaves de API**
+  (generate, rotate, disable, delete, expire on the virtual clock — the old key
+  is a 401 on the next request), **Webhooks** (add and edit with the event
+  checklist, auth token, send type and queue switch, all through the real
+  `/v3/webhooks`) and **Logs de Webhooks** (each delivery, your endpoint's
+  answer and the frozen payload). "Segurança" and "Logs de Requisições" are
+  drawn disabled: not built yet.
 - **Payments and statement per account.** Click a subaccount and see that it's
   genuinely isolated: it can't see the parent's payments, but the split credit is
   there.
@@ -234,7 +245,16 @@ Turn them off with `ADMIN_ENABLED=false`.
 | `POST /_admin/clock/advance` | `{"days": 32}` — one full tick per simulated day |
 | `POST /_admin/clock/set` | `{"date": "2026-08-01"}` |
 | `POST /_admin/tick` | runs the jobs without moving the clock |
-| `GET /_admin/webhooks/deliveries` | attempt log, with status and body |
+| `GET /_admin/accounts` | every account with balance and a key that authenticates now |
+| `POST /_admin/accounts` | `{"name", "cpfCnpj"?, "email"?, "apiKey"?}` — a new profile (root account) |
+| `DELETE /_admin/accounts/:id` | deletes a profile and everything it owns, subaccounts included |
+| `GET /_admin/accounts/:id/keys` | the account's API keys |
+| `POST /_admin/accounts/:id/keys` | `{"name"?, "expirationDate"?}` — a new key |
+| `POST /_admin/accounts/:id/keys/:keyId/rotate` | a new key in place of this one, deleted at once |
+| `PUT /_admin/accounts/:id/keys/:keyId` | `{"enabled"?, "name"?, "expirationDate"?}` |
+| `DELETE /_admin/accounts/:id/keys/:keyId` | deletes the key |
+| `GET /_admin/webhooks/events` | every event a webhook can subscribe to |
+| `GET /_admin/webhooks/deliveries` | attempt log, with status and body; `?accountId=` narrows it |
 | `POST /_admin/webhooks/pause` | freezes the dispatcher (for pure time travel) |
 | `GET /_admin/coverage` | how many operations have a business engine |
 | `GET /_admin/fees` | the fee table in effect |
