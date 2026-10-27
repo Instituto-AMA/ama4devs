@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhatsApp Cloud API mock and Asaas API mock, in Docker | ama4devs</title>
+  <meta name="description" content="Two local mock servers for development and tests: the WhatsApp Cloud API (Meta Graph API v23.0: messages, templates, media, voice calls, webhooks) and the Asaas API v3 (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost). Free Docker images on GHCR.">
+  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas api simulator, pix mock, boleto mock, payment gateway mock, webhook testing, docker, ghcr">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="WhatsApp Cloud API mock and Asaas API mock, in Docker">
+  <meta property="og:description" content="Run WhatsApp and Asaas on localhost: same paths, same bodies, same webhooks. No account, no credential, no bill.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/chat.jpg">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="img/asaas/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "WhatsApp Mock Server",
+        "alternateName": "WhatsApp Cloud API mock",
+        "description": "Local simulator of the WhatsApp Cloud API (Meta Graph API v23.0): messages, templates, media, voice calls with WebRTC, phone numbers, webhooks and a WhatsApp Web like panel.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+        "url": "https://instituto-ama.github.io/ama4devs/whatsapp/",
+        "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock",
+        "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Asaas Mock Server",
+        "alternateName": "Asaas API mock",
+        "description": "Local simulator of the Asaas API v3: customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks to localhost, payer notifications and a virtual clock.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+        "url": "https://instituto-ama.github.io/ama4devs/asaas/",
+        "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock",
+        "license": "https://opensource.org/licenses/MIT",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="./">ama4devs <span>mocks</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="whatsapp/">WhatsApp mock</a>
+        <a href="asaas/">Asaas mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="pt-br/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero">
+      <h1>WhatsApp and Asaas, running on your machine.</h1>
+      <p class="lead">Two mock servers for local development, automated tests and CI. Point your application at <code>localhost</code> instead of the real API: same paths, same bodies, same webhooks. No account, no credential, no bill.</p>
+
+      <div class="swap">
+        <p class="swap-label">WhatsApp Cloud API</p>
+        <div class="from">https://graph.facebook.com/v23.0</div>
+        <div class="to wa">http://localhost:3010/v23.0</div>
+      </div>
+      <div class="swap">
+        <p class="swap-label">Asaas API v3</p>
+        <div class="from">https://api-sandbox.asaas.com/v3</div>
+        <div class="to asaas">http://localhost:45445/v3</div>
+      </div>
+    </section>
+
+    <section id="mocks" aria-labelledby="mocks-title">
+      <h2 id="mocks-title">Two mocks, one per API</h2>
+      <p>Each one is a single Docker image for <code>linux/amd64</code> and <code>linux/arm64</code>, boots fully configured and keeps its state in a volume.</p>
+
+      <div class="tools">
+        <article class="tool" data-tool="whatsapp">
+          <figure class="shot">
+            <a href="whatsapp/"><img src="img/whatsapp/chat.jpg" width="1502" height="714" alt="The WhatsApp mock panel: a conversation with a template that has an image header, a formatted body, a footer and quick reply buttons." loading="lazy"></a>
+          </figure>
+          <h3><a href="whatsapp/">WhatsApp mock</a></h3>
+          <p class="what">The WhatsApp Cloud API of the Meta Graph API v23.0, simulated from Meta's own OpenAPI specification, plus a WhatsApp Web like panel where you are the user on the other side.</p>
+          <ul>
+            <li>Messages of every type, templates with a review, media, reactions, receipts.</li>
+            <li>Voice calls with real WebRTC audio, call permissions, voice notes.</li>
+            <li>Business, WABAs and phone numbers with the SMS code onboarding.</li>
+            <li>Webhooks signed with <code>x-hub-signature-256</code>.</li>
+          </ul>
+          <div class="code"><pre><code>docker run --rm -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+          <a class="more" href="whatsapp/">Read the WhatsApp mock docs</a>
+        </article>
+
+        <article class="tool" data-tool="asaas">
+          <figure class="shot">
+            <a href="asaas/"><img src="img/asaas/dashboard.jpg" width="1502" height="714" alt="The Asaas mock dashboard: received, confirmed, pending and overdue charges with their totals, test cards and the account's API key." loading="lazy"></a>
+          </figure>
+          <h3><a href="asaas/">Asaas mock</a></h3>
+          <p class="what">The Asaas API v3, the Brazilian payment gateway, with the business rules captured from the real sandbox and a virtual clock you move by hand.</p>
+          <ul>
+            <li>Customers, charges with Pix, boleto and credit card, installments, subscriptions.</li>
+            <li>Webhooks delivered to <code>localhost</code>, with the real retry rules.</li>
+            <li>A payer invoice page with a real Pix QR code.</li>
+            <li>Payer notifications by e-mail and WhatsApp.</li>
+          </ul>
+          <div class="code"><pre><code>docker run --rm -p 45445:45445 ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+          <a class="more" href="asaas/">Read the Asaas mock docs</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="together" aria-labelledby="together-title">
+      <h2 id="together-title">Both together</h2>
+      <p>The repository's compose file runs the two mocks and Mailpit. Every charge the Asaas mock creates tells the payer twice: an e-mail that lands in Mailpit and a WhatsApp template sent through the WhatsApp mock's Cloud API. Everything comes up configured, with no step by hand.</p>
+      <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup        <span class="c"># starts the mocks and writes their addresses into .env</span></code></pre></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Service</th><th>Address</th><th>What you open there</th></tr></thead>
+          <tbody>
+            <tr><td>WhatsApp mock</td><td><code>http://localhost:3010</code></td><td>The chat panel, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
+            <tr><td>Asaas mock</td><td><code>http://localhost:45445</code></td><td>The simulator's panel; the API at <code>/v3</code></td></tr>
+            <tr><td>Mailpit</td><td><code>http://localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>To point another application at them: <code>make setup TARGET_ENV=../my-app/.env</code>.</p>
+    </section>
+
+    <section id="images" aria-labelledby="images-title">
+      <h2 id="images-title">Images and versions</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Image</th><th>Tags</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2"><code>&lt;version&gt;</code> pushed once and never moved: pin it. <code>sha-&lt;commit&gt;</code> for every publish. <code>latest</code> for the last one.</td></tr>
+            <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The images are public: <code>docker pull</code> needs no login. A push to <code>master</code> that changes a mock runs its tests and publishes it.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p>The WhatsApp mock is Apache-2.0, the Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="llms.txt">llms.txt</a>.</p>
+      <p>Independent simulators of public APIs, not affiliated with Meta, WhatsApp or Asaas. Their names are trademarks of their owners. No payment made here is real.</p>
+    </div>
+  </footer>
+  <script src="assets/site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/whatsapp/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/asaas/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/asaas/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/"/>
+  </url>
+</urlset>

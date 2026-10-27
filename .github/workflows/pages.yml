@@ -1,0 +1,45 @@
+name: pages
+
+# Publishes the documentation site (site/ plus the mocks' screenshots) to GitHub Pages:
+# https://instituto-ama.github.io/ama4devs/
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'mocks/*/docs/img/**'
+      - 'mocks/asaas/docs/icon.svg'
+      - 'llms.txt'
+      - 'scripts/build-site.sh'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build-site.sh _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
