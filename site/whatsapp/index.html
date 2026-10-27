@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhatsApp Cloud API mock: a local Meta Graph API v23.0 in Docker | ama4devs</title>
+  <meta name="description" content="WhatsApp Cloud API mock: the Meta Graph API v23.0 on localhost. Messages, templates, media, voice calls, webhooks. Free Docker image on GHCR.">
+  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, whatsapp business api mock, whatsapp webhook testing, whatsapp template testing, whatsapp calling api, webhook testing, docker, ghcr">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/whatsapp/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/whatsapp/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="WhatsApp Cloud API mock: a local Meta Graph API v23.0 in Docker">
+  <meta property="og:description" content="The WhatsApp Cloud API on localhost: same paths, same bodies, same webhooks. No account, no credential, no bill.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/whatsapp/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/chat.jpg">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../img/asaas/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "WhatsApp Mock Server",
+    "alternateName": "WhatsApp Cloud API mock",
+    "description": "Local simulator of the WhatsApp Cloud API (Meta Graph API v23.0): messages, templates, media, voice calls with WebRTC, phone numbers, webhooks and a WhatsApp Web like panel.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+    "softwareVersion": "0.4.1",
+    "url": "https://instituto-ama.github.io/ama4devs/whatsapp/",
+    "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock",
+    "license": "https://www.apache.org/licenses/LICENSE-2.0",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body data-tool="whatsapp">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../">ama4devs <span>mocks</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../whatsapp/" aria-current="page">WhatsApp mock</a>
+        <a href="../asaas/">Asaas mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../pt-br/whatsapp/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero">
+      <h1>WhatsApp Cloud API, on localhost.</h1>
+      <p class="lead">The Meta Graph API v23.0 of the WhatsApp Business Platform, simulated operation by operation from Meta's own OpenAPI specification. Messages, templates, media, voice calls, phone numbers and webhooks, plus a WhatsApp Web like panel where you are the user on the other side of the chat.</p>
+
+      <div class="swap">
+        <div class="from">https://graph.facebook.com/v23.0</div>
+        <div class="to">http://localhost:3010/v23.0</div>
+      </div>
+      <div class="run code"><pre><code>docker run --rm -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+      <p>Open <code>http://localhost:3010</code> for the panel, and point your application's Graph base URL at <code>http://localhost:3010</code> instead of <code>https://graph.facebook.com</code>. Nothing else changes: same paths, same bodies, same answers, same error codes.</p>
+      <figure class="shot hero-shot">
+        <img src="../img/whatsapp/chat.jpg" width="1502" height="714" alt="The WhatsApp mock panel: a conversation with a template that has an image header, a formatted body, a footer and quick reply buttons, sent by the application through the Cloud API.">
+        <figcaption><strong>The panel.</strong> A conversation with a template that has an image header, a formatted body, a footer and quick reply buttons, sent by the application through the Cloud API.</figcaption>
+      </figure>
+    </section>
+
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#why">Why</a></li>
+            <li><a href="#simulates">What it simulates</a></li>
+            <li><a href="#panel">The panel</a></li>
+            <li><a href="#calls">Calls and numbers</a></li>
+            <li><a href="#use">Use it in your project</a></li>
+            <li><a href="#headers">Test headers</a></li>
+            <li><a href="#config">Configuration</a></li>
+            <li><a href="#docs">Further reading</a></li>
+            <li><a href="#license">License</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <article>
+        <section id="why" aria-labelledby="why-title">
+          <h2 id="why-title">Why</h2>
+          <p>Testing a WhatsApp integration against Meta means a real phone number, a verified business, approved templates, a public URL for the webhook and a bill per conversation. And you still cannot make the user answer, take a call or refuse a template on demand.</p>
+          <p>This mock gives you all of that on <code>localhost</code>:</p>
+          <ul>
+            <li><strong>Faithful by construction.</strong> Meta's OpenAPI file for v23.0 is vendored in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/README.md"><code>spec/v23.0</code></a>. Every request is routed and validated against it, every answer is held to its response schemas, and a contract test sends <strong>every request example in Meta's specification</strong> through the mock. Where Meta's specification contradicts Meta's own examples, the correction is written down with its reason (<a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/v23.0/errata.json"><code>errata.json</code></a>).</li>
+            <li><strong>Both sides of the conversation.</strong> Your application sends through the Cloud API; the user answers from the panel (or from your tests, with one header), and the answer reaches your webhook exactly as Meta delivers it.</li>
+            <li><strong>State that behaves.</strong> Templates go through a review (approved, rejected, paused, with the reason and the status webhook), messages move from sent to delivered to read, a number has to be registered before it sends, a call needs the user's permission.</li>
+            <li><strong>Nothing to configure.</strong> It boots with a business, a WhatsApp Business Account and a phone number already registered with calling enabled.</li>
+          </ul>
+        </section>
+
+        <section id="simulates" aria-labelledby="simulates-title">
+          <h2 id="simulates-title">What it simulates</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Area</th><th>Cloud API</th><th>What happens</th></tr></thead>
+              <tbody>
+                <tr><td>Messages</td><td><code>POST /{phone-number-id}/messages</code></td><td>Text, media, location, contacts, interactive, reactions, replies, templates (header, body, footer, buttons, carousel, limited-time offer, authentication). Receipts <code>sent → delivered → read</code>, typing indicator.</td></tr>
+                <tr><td>The user</td><td>the same call with <code>X-Mock-From</code></td><td>The user writes, replies, sends media and voice notes, gives receipts: the message enters as inbound and goes to your webhook.</td></tr>
+                <tr><td>Templates</td><td><code>/{waba-id}/message_templates</code>, <code>/{template-id}</code></td><td>Create, edit, delete, list. A review with a verdict and a wait you choose, the <code>message_template_status_update</code> webhook, Meta's send errors (<code>132001</code>, <code>132000</code>, <code>132012</code>…).</td></tr>
+                <tr><td>Media</td><td><code>/{phone-number-id}/media</code>, <code>/{media-id}</code></td><td>Upload (multipart, Meta's types and size limits), describe, download with a token, delete. Files stay on disk.</td></tr>
+                <tr><td>Phone numbers</td><td><code>/{waba-id}/phone_numbers</code>, <code>request_code</code>, <code>verify_code</code>, <code>register</code>, <code>settings</code></td><td>Business → WABAs → numbers, the onboarding of a new number (the SMS code shows in the panel), two-step PIN, calling settings. An unregistered number cannot send (<code>133010</code>).</td></tr>
+                <tr><td>Calls</td><td><code>POST /{phone-number-id}/calls</code>, <code>call_permissions</code></td><td>The Calling API with <strong>real WebRTC audio</strong>: the user calls the business or the business calls the user, with the permission request and reply, <code>pre_accept</code>, <code>accept</code>, <code>reject</code>, <code>terminate</code> and the <code>calls</code> webhooks.</td></tr>
+                <tr><td>Webhooks</td><td><code>POST /{phone-number-id}</code> (<code>webhook_configuration</code>)</td><td>Per-number override verified with <code>hub.challenge</code>, signed with <code>x-hub-signature-256</code>, an optional response delay, and a log of every attempt.</td></tr>
+                <tr><td>Everything else</td><td>the rest of the specification</td><td>Routed, validated and answered with Meta's own example (Flows, groups, business profile, QR codes…).</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="panel" aria-labelledby="panel-title">
+          <h2 id="panel-title">The panel</h2>
+          <div class="gallery">
+            <figure class="shot">
+              <img src="../img/whatsapp/templates.jpg" width="1502" height="714" alt="Template builder: header formats, body with examples, footer, buttons and carousel, next to a phone that draws the template." loading="lazy">
+              <figcaption><strong>Template builder.</strong> Header (text, image, video, document, location), body with examples, footer, every button type, carousel. The phone on the right draws it as WhatsApp does.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../img/whatsapp/call.jpg" width="1502" height="714" alt="Call screen with the timer, mute and end buttons." loading="lazy">
+              <figcaption><strong>Voice calls.</strong> Real WebRTC audio with your microphone. Call the business as the user, call the user as the business, or answer from either side.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../img/whatsapp/numbers.jpg" width="1502" height="714" alt="Accounts and numbers: a new number with the SMS code Meta would send and the steps to verify and register it." loading="lazy">
+              <figcaption><strong>Accounts and numbers.</strong> Create a number, receive the code Meta would text, verify it, register it with a PIN, turn calling on.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../img/whatsapp/api.jpg" width="1502" height="714" alt="API reference: every operation of the Cloud API with a ready curl and a table of contents." loading="lazy">
+              <figcaption><strong>API reference.</strong> Every operation of the Cloud API v23.0 with a curl ready to copy, the test headers and a table of contents that follows the reading.</figcaption>
+            </figure>
+            <figure class="shot wide">
+              <img src="../img/whatsapp/chat-buttons.jpg" width="1502" height="714" alt="A conversation: buttons with their link, phone and code, the user's reply, a location template." loading="lazy">
+              <figcaption><strong>Buttons.</strong> A conversation: buttons with their link, phone and code, the user's reply, a location template.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../img/whatsapp/phone-carousel.png" width="250" height="488" alt="The phone preview with a carousel template." loading="lazy">
+              <figcaption><strong>Carousel.</strong> The phone preview with a carousel template.</figcaption>
+            </figure>
+          </div>
+          <p>The panel speaks <strong>English and Portuguese</strong> (switch in the header) and keeps no private routes: every action is the Cloud API call your application would make, or a <code>/settings</code> call for what Meta has no endpoint for.</p>
+        </section>
+
+        <section id="calls" aria-labelledby="calls-title">
+          <h2 id="calls-title">Calls and numbers</h2>
+          <p>The phone button of the chat header calls with real WebRTC audio, the browser's microphone and speaker. The user calls the clinic (<code>POST /{phone}/calls</code> with <code>X-Mock-From</code> and the offer) and the application hears <code>calls</code> / <code>connect</code>, answering <code>pre_accept</code> / <code>accept</code> with its SDP. The business calls the user: without the user's permission it sends the <code>call_permission_request</code> first; with it, <code>POST /{phone}/calls</code> <code>connect</code> with the offer, and the user's phone rings. The permission request is a card with the user's choices — always allow, allow for 7 days, do not allow — and the answer goes to the webhook as <code>call_permission_reply</code>. Calls stay in the conversation as call log bubbles: answered with the duration, missed, declined.</p>
+          <p>The Numbers tab shows the accounts as Meta arranges them: the business, its WhatsApp Business Accounts and their numbers. The mock boots with the default number <code>1234567890</code> registered with calling on. With nothing typed, the send button is a microphone, as on the phone: it records a voice note (Ogg Opus, mono, 48 kHz, made in the page with WebCodecs) and sends it as <code>audio</code> with <code>voice: true</code>; from the user's side the webhook carries <code>mime_type: audio/ogg; codecs=opus</code>.</p>
+          <ul>
+            <li><strong>Create a number.</strong> <code>POST /{waba-id}/phone_numbers</code> with <code>cc</code>, <code>phone_number</code> and <code>verified_name</code>: it comes not verified, not registered.</li>
+            <li><strong>Ask for the code.</strong> <code>POST /{phone-number-id}/request_code</code>; the code Meta would send shows on the number and in a toast.</li>
+            <li><strong>Verify it.</strong> <code>POST /{phone-number-id}/verify_code</code>; a wrong code is <code>(#136025)</code>.</li>
+            <li><strong>Register it.</strong> <code>POST /{phone-number-id}/register</code> with the six-digit PIN; the first one is kept, another is <code>(#133005)</code>.</li>
+            <li><strong>Turn calling on.</strong> <code>POST /{phone-number-id}/settings</code> with <code>calling</code>; it needs the number registered and a webhook (<code>(#138018)</code>).</li>
+            <li><strong>Take it off the Cloud API.</strong> <code>POST /{phone-number-id}/deregister</code>. A number off the Cloud API cannot send (<code>(#133010)</code>) nor call.</li>
+          </ul>
+        </section>
+
+        <section id="use" aria-labelledby="use-title">
+          <h2 id="use-title">Use it in your project</h2>
+          <div class="code"><pre><code>services:
+  whatsapp:
+    image: ghcr.io/instituto-ama/whatsapp-mock:latest   <span class="c"># or pin a version: 0.4.1</span>
+    ports:
+      - '3010:3010'
+    environment:
+      <span class="c"># Where the mock delivers webhooks (your application).</span>
+      WEBHOOK_URL: http://host.docker.internal:4000/webhooks/whatsapp
+      <span class="c"># Signs every webhook with x-hub-signature-256, like Meta's app secret.</span>
+      WEBHOOK_SECRET: my-app-secret
+      <span class="c"># Inside the container localhost is the container: this sends it to your machine.</span>
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   <span class="c"># Linux</span>
+    volumes:
+      - whatsapp-data:/app/data               <span class="c"># conversations, templates, numbers, media</span>
+volumes:
+  whatsapp-data:</code></pre></div>
+          <p>Any <code>Authorization: Bearer &lt;token&gt;</code> is accepted, as long as there is one (Meta refuses a call without it, and so does the mock).</p>
+          <div class="code"><pre><code><span class="c"># Your application sends a template…</span>
+curl -X POST http://localhost:3010/v23.0/1234567890/messages \
+  -H 'Authorization: Bearer test' -H 'Content-Type: application/json' \
+  -d '{"messaging_product":"whatsapp","to":"5511999999999","type":"template",
+       "template":{"name":"order_confirmation","language":{"code":"en"},
+         "components":[{"type":"body","parameters":[
+           {"type":"text","text":"Maria"},{"type":"text","text":"1042"},{"type":"text","text":"29.90"}]}]}}'
+
+<span class="c"># …and the user answers (from a test, or from the panel).</span>
+curl -X POST http://localhost:3010/v23.0/1234567890/messages \
+  -H 'Authorization: Bearer test' -H 'Content-Type: application/json' \
+  -H 'X-Mock-From: 5511999999999' -H 'X-Mock-Contact-Name: Maria Souza' \
+  -d '{"messaging_product":"whatsapp","type":"text","text":{"body":"Hi!"}}'</code></pre></div>
+        </section>
+
+        <section id="headers" aria-labelledby="headers-title">
+          <h2 id="headers-title">Test headers</h2>
+          <p>What only a test needs travels in optional headers, never in the body, so the body stays what the Cloud API expects:</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Header</th><th>On</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td><code>X-Mock-From</code></td><td><code>POST /{phone}/messages</code>, <code>/calls</code></td><td>The call comes from the user's phone: a message, a receipt, a call.</td></tr>
+                <tr><td><code>X-Mock-Contact-Name</code></td><td>same</td><td>The profile name your webhook sees.</td></tr>
+                <tr><td><code>X-Mock-Message-Status</code></td><td>a read receipt with <code>X-Mock-From</code></td><td><code>delivered</code>, <code>read</code> or <code>failed</code>.</td></tr>
+                <tr><td><code>X-Mock-Template-Review</code></td><td>template create and edit</td><td><code>APPROVED</code> (default), <code>REJECTED</code>, <code>PAUSED</code>, <code>DISABLED</code>, <code>PENDING</code>.</td></tr>
+                <tr><td><code>X-Mock-Template-Review-Reason</code></td><td>same</td><td>The rejection reason.</td></tr>
+                <tr><td><code>X-Mock-Template-Review-Delay</code></td><td>same</td><td>How long the review takes, in ms.</td></tr>
+                <tr><td><code>X-Mock-Skip-Callback-Verification</code></td><td>webhook override</td><td>Accept the URL without the <code>hub.challenge</code> check.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="config" aria-labelledby="config-title">
+          <h2 id="config-title">Configuration</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Variable</th><th>Default</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td><code>PORT</code></td><td><code>3010</code></td><td>HTTP port</td></tr>
+                <tr><td><code>WEBHOOK_URL</code></td><td><em>(empty)</em></td><td>Default webhook; <code>phone:url</code> maps a number</td></tr>
+                <tr><td><code>WEBHOOK_SECRET</code></td><td><em>(empty)</em></td><td>Signs webhooks with <code>x-hub-signature-256</code></td></tr>
+                <tr><td><code>WEBHOOK_LOCALHOST_REWRITE</code></td><td><em>(empty)</em></td><td>Host that replaces <code>localhost</code> in webhook URLs (<code>host.docker.internal</code>)</td></tr>
+                <tr><td><code>MOCK_WEBHOOK_RESPONSE_DELAY_MS</code></td><td><code>5000</code></td><td>Wait before each webhook delivery (also in the panel)</td></tr>
+                <tr><td><code>MOCK_DELIVERY_MODE</code></td><td><code>auto</code></td><td><code>manual</code>: ticks only move when the user's phone gives a receipt</td></tr>
+                <tr><td><code>MOCK_TEMPLATE_REVIEW_DELAY_MS</code></td><td><code>2000</code></td><td>Default duration of a template review</td></tr>
+                <tr><td><code>WHAP_CALL_RING_MS</code></td><td><code>60000</code></td><td>How long a call rings before it ends unanswered</td></tr>
+                <tr><td><code>WHAP_DATA_DIR</code></td><td><code>./data</code> (<code>/app/data</code> in the image)</td><td>SQLite database and media files</td></tr>
+                <tr><td><code>WHAP_DB</code></td><td><em>(file)</em></td><td><code>:memory:</code> keeps nothing</td></tr>
+                <tr><td><code>MOCK_PHONE_NUMBER_ID</code> · <code>MOCK_WABA_ID</code> · <code>MOCK_BUSINESS_ID</code></td><td><code>1234567890</code> · <code>100000000000001</code> · <code>100000000000002</code></td><td>The ids of the default number, WABA and business</td></tr>
+                <tr><td><code>MOCK_ALLOWED_HOSTS</code></td><td><em>(empty)</em></td><td>Extra <code>Host</code> names accepted (a compose service name)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Templates can also be seeded from files: every JSON in <code>templates/</code> is imported at start and when it changes, and <code>templates/examples/</code> brings one example of every component Meta allows (<a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/templates.md">docs/templates.md</a>).</p>
+        </section>
+
+        <section id="docs" aria-labelledby="docs-title">
+          <h2 id="docs-title">Further reading</h2>
+          <ul>
+            <li><a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md">The panel, calls, voice notes, numbers, the <code>/settings</code> routes</a></li>
+            <li><a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/templates.md">Templates, seeds and examples</a></li>
+            <li><a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/README.md">Meta's specification and its errata</a></li>
+            <li><a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/README.md">The mock's README</a></li>
+            <li><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock">The image on GHCR</a></li>
+          </ul>
+          <h3>Development</h3>
+          <div class="code"><pre><code>bun install
+bun run src/index.ts server          <span class="c"># http://localhost:3010</span>
+bun --bun vitest run --maxWorkers=2  <span class="c"># tests, including the contract test</span>
+bun tsc --noEmit</code></pre></div>
+          <p>A new Graph version is a new <code>spec/&lt;version&gt;</code> folder and an entry in <code>src/graph/versions.ts</code>; the contract test runs every version.</p>
+        </section>
+
+        <section id="license" aria-labelledby="license-title">
+          <h2 id="license-title">License</h2>
+          <p>Apache-2.0, see <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/LICENSE">LICENSE</a>. Meta's OpenAPI specification in <code>spec/</code> is MIT, Copyright (c) Meta Platforms, Inc. and affiliates.</p>
+          <p class="note"><strong>Not affiliated with Meta or WhatsApp.</strong> This is an independent simulator of their public API for local development and testing. WhatsApp and Meta are trademarks of their respective owners.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p>The WhatsApp mock is Apache-2.0, the Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="../llms.txt">llms.txt</a>.</p>
+      <p>Independent simulators of public APIs, not affiliated with Meta, WhatsApp or Asaas. Their names are trademarks of their owners. No payment made here is real.</p>
+    </div>
+  </footer>
+  <script src="../assets/site.js" defer></script>
+</body>
+</html>
