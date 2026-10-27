@@ -49,6 +49,7 @@ import { brlToCents, cents, centsToBrl } from '../../domain/money.ts'
 import { validateSplits } from '../../domain/split.ts'
 import type { HandlerMap } from '../../http/register.ts'
 import { bookletOrder, paymentBookResponse } from '../booklet.ts'
+import { loadCardRules } from '../credit-cards/test-cards.ts'
 import { applyTransition } from '../payments/apply.ts'
 import { serializePayment, type PaymentRow } from '../payments/serializer.ts'
 import {
@@ -154,9 +155,10 @@ async function resolveCreditCard(
   const card = b.creditCard
   if (!card?.number) return null
 
+  const rules = await loadCardRules(ctx.db)
   let info
   try {
-    info = inspectCard(card, ctx.clock.now())
+    info = inspectCard(card, ctx.clock.now(), rules.table, rules.policy)
   } catch (err) {
     if (err instanceof CreditCardError) throw badRequest(err.code, err.description)
     throw err

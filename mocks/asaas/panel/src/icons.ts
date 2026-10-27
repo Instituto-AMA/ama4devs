@@ -44,4 +44,6 @@ export {
   Sun02Icon as SUN,
   UserGroupIcon as CUSTOMER,
   WebhookIcon as WEBHOOK,
+  WhatsappIcon as WHATSAPP,
+  Mail01Icon as MAIL,
 } from '@hugeicons/core-free-icons'

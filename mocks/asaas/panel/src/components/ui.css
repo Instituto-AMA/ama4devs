@@ -348,3 +348,152 @@ tbody tr:hover { background: var(--surface-soft); }
 .icon-btn:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
 .icon-btn.danger:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger-strong); }
 .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* A link that looks like a button (the invoice opens in a new tab). */
+a.btn { text-decoration: none; }
+
+.input.textarea { height: auto; padding: var(--pad-sm); resize: vertical; line-height: 1.5; }
+select.input { padding-right: var(--pad-lg); }
+
+/* A text-only toggle, for an optional block of a form. */
+.link-btn {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: 600 13px var(--font);
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+/* Two columns of key/value rows in a detail dialog. */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 var(--pad-xl);
+}
+
+/* A confirmation or a small form that opens under the button that asked for it. */
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-sm);
+  padding: var(--pad-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--surface-soft);
+}
+
+.section-title { font-size: 16px; margin: var(--pad-sm) 0 0; }
+
+.invoice-cell { flex-wrap: nowrap; gap: var(--pad-sm); }
+
+/* ── Picker (the panel's selector; see Picker.tsx) ───────────────────────── */
+.picker { position: relative; flex: 1; min-width: 0; display: flex; }
+.picker.compact { flex: none; }
+.field > .picker { flex: none; }
+.picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-xs);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.picker.compact .picker-trigger { width: auto; min-width: 72px; }
+.picker-trigger:hover:not(:disabled) { border-color: var(--text-soft); }
+.picker-trigger:disabled { cursor: not-allowed; }
+.picker-trigger.open { border-color: var(--focus); }
+.picker-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-value.placeholder { color: var(--text-soft); }
+.picker-caret { flex-shrink: 0; color: var(--text-medium); transition: transform 120ms; }
+.picker-trigger.open .picker-caret { transform: rotate(180deg); }
+.picker-hint { color: var(--text-medium); font-size: 12px; }
+
+.picker-popover {
+  position: fixed;
+  z-index: 40;
+  max-width: min(560px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 18%);
+  overflow: hidden;
+}
+.picker-popover.up { transform: translateY(-100%); }
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  padding: var(--pad-xs) var(--pad-sm);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-medium);
+}
+.picker-search input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: 400 14px var(--font);
+}
+.picker-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
+.picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-sm);
+  padding: 8px var(--pad-sm);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+}
+.picker-option.active { background: var(--surface-hover); }
+.picker-option.selected { color: var(--primary); font-weight: 600; }
+.picker-option-text { display: flex; flex-direction: column; min-width: 0; }
+.picker-option-text .picker-hint { font-weight: 400; }
+.picker-check { color: var(--primary); }
+.picker-empty { padding: var(--pad-md); color: var(--text-soft); font-size: 13px; text-align: center; }
+
+/* ── Payer notifications (PayerNotifications.tsx) ───────────────────────── */
+.notify { display: flex; flex-direction: column; gap: var(--pad-sm); padding-top: var(--pad-sm); border-top: 1px solid var(--border-soft); }
+.notify-hdr { gap: var(--pad-xs); }
+.notify-hdr .section-title { margin: 0 var(--pad-xs) 0 0; }
+.notify .picker { flex: none; min-width: 220px; }
+.notify-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--pad-xs); }
+.notify-item { display: flex; flex-direction: column; gap: 4px; padding: var(--pad-sm); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
+.notify-body { overflow-wrap: anywhere; }
+.notify-error { font-size: 12px; color: var(--danger-strong); overflow-wrap: anywhere; }
+
+/* A percentage beside its select: wide enough for "12,5". */
+.field .row > .input.pct-input { flex: none; width: 84px; min-width: 84px; }
+
+/* Three small totals over a customer's charges. */
+.summary-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--pad-md);
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--pad-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+.tile b { font-size: 20px; }
+
+/* Tabs on the left, the page's main action on the right. */
+.page-actions { align-items: flex-end; flex-wrap: nowrap; }
+.page-actions .grow { flex: 1; min-width: 0; }
+@media (max-width: 720px) { .page-actions { flex-wrap: wrap; } }
+/* A table inside a dialog, framed like a card but without its padding. */
+.flush-card { overflow: hidden; }
+
+/* The simulator's own outcome buttons, set apart from the Asaas actions. */
+.sim-actions { padding-top: var(--pad-sm); border-top: 1px dashed var(--border); }

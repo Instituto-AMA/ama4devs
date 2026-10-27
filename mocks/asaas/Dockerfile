@@ -36,12 +36,12 @@ ENV DATABASE_PATH=/data/asaas.db
 ARG VERSION=dev
 ARG REVISION=unknown
 
-# `source` links the GHCR package to this repository; the upstream stays credited in `vendor`.
+# `source` links the GHCR package to this repository.
 # No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
 LABEL org.opencontainers.image.title="Asaas Mock Server" \
       org.opencontainers.image.description="Local Asaas that delivers webhooks to localhost (the official sandbox does not). Virtual clock: 32 days in 40 ms." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
-      org.opencontainers.image.vendor="Instituto-AMA ama4devs (from theoxys/asaas-mock-server)" \
+      org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}"

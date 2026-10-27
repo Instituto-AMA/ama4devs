@@ -182,6 +182,39 @@ export interface TestCard {
   real: boolean
   brand: string
   error: AsaasError | null
+  /** Added in the panel: it can be removed. */
+  custom?: boolean
+}
+
+/** One payer notification (`/_admin/notifications`): an e-mail or a WhatsApp template. */
+export interface PayerNotification {
+  id: string
+  event: string
+  channel: 'EMAIL' | 'WHATSAPP'
+  recipient: string
+  subject: string | null
+  body: string
+  template: { name: string; language: string; params: string[] } | null
+  forced: boolean
+  status: 'PENDING' | 'SENT' | 'FAILED'
+  attempt: number
+  lastError: string | null
+  dateCreated: string
+  sentAt: string | null
+}
+
+export interface NotificationList {
+  channels: { email: boolean; whatsapp: boolean }
+  events: Array<{ event: string; label: string }>
+  data: PayerNotification[]
+}
+
+/** `GET /_admin/test-cards`. */
+export interface TestCardTable {
+  acceptAny: boolean
+  cards: TestCard[]
+  outcomes: Array<{ outcome: string; label: string }>
+  brands: string[]
 }
 
 export interface Payment {
@@ -197,4 +230,59 @@ export interface Payment {
   description: string | null
   externalReference: string | null
   invoiceUrl: string
+  invoiceNumber: string | null
+  bankSlipUrl: string | null
+  deleted: boolean
+  /** Present only on a charge of an installment plan or a subscription (Asaas omits the key otherwise). */
+  installment?: string
+  installmentNumber?: number | null
+  subscription?: string
+  clientPaymentDate?: string | null
+}
+
+/** A customer as `GET /v3/customers` returns it. */
+export interface Customer {
+  id: string
+  name: string
+  email: string | null
+  cpfCnpj: string
+  phone: string | null
+  mobilePhone: string | null
+  postalCode: string | null
+  address: string | null
+  addressNumber: string | null
+  province: string | null
+  externalReference: string | null
+  observations: string | null
+  dateCreated: string
+  deleted: boolean
+}
+
+/** A subscription as `GET /v3/subscriptions` returns it. */
+export interface Subscription {
+  id: string
+  customer: string
+  value: number
+  nextDueDate: string
+  cycle: string
+  description: string | null
+  billingType: string
+  status: string
+  endDate: string | null
+  maxPayments: number | null
+  deleted: boolean
+  dateCreated: string
+}
+
+/** An installment plan as `GET /v3/installments` returns it. */
+export interface Installment {
+  id: string
+  customer: string
+  value: number
+  netValue: number
+  installmentCount: number
+  billingType: string
+  description: string | null
+  deleted: boolean
+  dateCreated: string
 }

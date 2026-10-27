@@ -9,6 +9,8 @@ import {
   declinesOnCharge,
   declinesOnTokenize,
   detectBrand,
+  GENERATED_BRANDS,
+  generateCardNumber,
   inspectCard,
   isExpired,
   luhn,
@@ -268,3 +270,39 @@ describe('parcelamento por bandeira', () => {
     expect(maxInstallmentsForBrand('AMEX')).toBe(12)
   })
 })
+
+describe('card policy and panel cards', () => {
+  const NOW = new Date('2026-01-05T12:00:00-03:00')
+  const card = (number: string) => ({ number, holderName: 'X', expiryMonth: '12', expiryYear: '2030', ccv: '123' })
+  const UNLISTED = '4111111111111111'
+
+  it('an unlisted well-formed card approves by default and is refused when only listed cards pass', () => {
+    expect(inspectCard(card(UNLISTED), NOW).outcome).toBe('APPROVE')
+    expect(inspectCard(card(UNLISTED), NOW, TEST_CARDS, { acceptAny: false }).outcome).toBe('DECLINE')
+  })
+
+  it('a listed card keeps its outcome whatever the policy', () => {
+    const strict = { acceptAny: false }
+    expect(inspectCard(card('4444444444444444'), NOW, TEST_CARDS, strict).outcome).toBe('APPROVE')
+    expect(inspectCard(card('5184019740373151'), NOW, TEST_CARDS, strict).outcome).toBe('DECLINE')
+  })
+
+  it('a card added to the table forces its outcome', () => {
+    const table = [...TEST_CARDS, { number: UNLISTED, outcome: 'EXPIRED' as const, label: 'x', real: false }]
+    expect(() => inspectCard(card(UNLISTED), NOW, table)).toThrow(CardErrorMatcher('EXPIRED'))
+  })
+
+  it('a generated number has the brand, the length and a valid Luhn digit', () => {
+    for (const brand of Object.keys(GENERATED_BRANDS)) {
+      const n = generateCardNumber(brand, (len) => '7'.repeat(len))
+      expect(n).toHaveLength(GENERATED_BRANDS[brand]!.length)
+      expect(luhn(n)).toBe(true)
+      expect(detectBrand(n)).toBe(brand as CardBrand)
+    }
+  })
+})
+
+/** The error a CreditCardError carries for an outcome. */
+function CardErrorMatcher(outcome: keyof typeof CARD_ERRORS): string {
+  return CARD_ERRORS[outcome].description
+}

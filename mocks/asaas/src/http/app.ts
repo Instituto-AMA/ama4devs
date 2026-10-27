@@ -3,6 +3,7 @@ import { panelRoutes } from '../admin/panel.ts'
 import { adminRoutes } from '../admin/routes.ts'
 import type { AppContext } from '../core/context.ts'
 import { AsaasError, unauthorized } from '../core/errors.ts'
+import { invoiceRoutes } from '../invoice/routes.ts'
 import { mockRoutes } from '../mock/routes.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { authenticate } from './auth.ts'
@@ -58,7 +59,7 @@ function errorHandler(ctx: AppContext) {
   }
 }
 
-const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin']
+const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin', '/i']
 
 /** True for a finished 2xx mutating request under the API, mock or admin routes. */
 function shouldDispatch(request: Request, status: unknown): boolean {
@@ -106,6 +107,7 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
     .use(panelRoutes(ctx))
     .use(adminRoutes(ctx, deps.scheduler))
     .use(mockRoutes(ctx))
+    .use(invoiceRoutes(ctx))
     .use(api)
 
   return { app: app as unknown as Elysia, coverage }

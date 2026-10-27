@@ -343,6 +343,7 @@ export function inspectCard(
   card: CardInput,
   now: Date,
   table: TestCardTable = TEST_CARDS,
+  policy: CardPolicy = DEFAULT_CARD_POLICY,
 ): CardInfo {
   const number = normalizeCardNumber(card.number)
   const simulated = outcomeFor(number, table)
@@ -388,13 +389,82 @@ export function inspectCard(
     throw errorFor('MISSING_CVV')
   }
 
+  // A well-formed card outside the table approves, as in Asaas — unless the simulator
+  // was told to accept only the listed cards: then the issuer refuses it.
+  const unlisted: AuthorizationOutcome = policy.acceptAny ? 'APPROVE' : 'DECLINE'
   return {
     last4: number.slice(-4),
     brand: detectBrand(number),
-    // Um cartão bem-formado que não está na tabela APROVA.
     outcome:
-      simulated === 'DECLINE' || simulated === 'DECLINE_ON_CHARGE' ? simulated : 'APPROVE',
+      simulated === 'DECLINE' || simulated === 'DECLINE_ON_CHARGE'
+        ? simulated
+        : simulated === 'APPROVE'
+          ? 'APPROVE'
+          : unlisted,
   }
+}
+
+/**
+ * How a number OUTSIDE the table is judged. `acceptAny` (the default, and what Asaas
+ * does) approves any well-formed number; off, only the listed cards pass and any other
+ * number is refused by the issuer — to test a flow that must not accept a random card.
+ */
+export interface CardPolicy {
+  acceptAny: boolean
+}
+
+export const DEFAULT_CARD_POLICY: CardPolicy = { acceptAny: true }
+
+/**
+ * The outcomes a card added in the panel can force: the ones a NUMBER produces.
+ * INVALID_MONTH, MISSING_CVV and MISSING_HOLDER are properties of other fields
+ * (see TRIGGERS), so a number cannot honestly carry them.
+ */
+export const CUSTOM_CARD_OUTCOMES = [
+  'APPROVE',
+  'DECLINE',
+  'DECLINE_ON_CHARGE',
+  'EXPIRED',
+  'INVALID_NUMBER',
+] as const satisfies readonly SimulatedOutcome[]
+
+export type CustomCardOutcome = (typeof CUSTOM_CARD_OUTCOMES)[number]
+
+/** The default label of each outcome, as the table names them. */
+export const OUTCOME_LABEL: Record<CustomCardOutcome, string> = {
+  APPROVE: 'Aprova',
+  DECLINE: 'Recusa do emissor',
+  DECLINE_ON_CHARGE: 'Tokeniza, recusa ao cobrar',
+  EXPIRED: 'Cartão expirado',
+  INVALID_NUMBER: 'Número inválido',
+}
+
+/** Where a generated number starts and how long it is, per brand. */
+export const GENERATED_BRANDS: Readonly<Record<string, { prefix: string; length: number }>> = {
+  VISA: { prefix: '4', length: 16 },
+  MASTERCARD: { prefix: '5', length: 16 },
+  ELO: { prefix: '6363', length: 16 },
+  AMEX: { prefix: '37', length: 15 },
+}
+
+/** The Luhn check digit that completes `partial`. */
+export function luhnCheckDigit(partial: string): string {
+  for (let d = 0; d <= 9; d++) {
+    if (luhn(`${partial}${d}`)) return String(d)
+  }
+  throw new Error(`no Luhn digit for ${partial}`)
+}
+
+/**
+ * A plausible card number: the brand's prefix, random digits from `digits(n)` (the
+ * caller's seeded source, so the domain stays free of ambient randomness) and a valid
+ * Luhn check digit.
+ */
+export function generateCardNumber(brand: string, digits: (n: number) => string): string {
+  const spec = GENERATED_BRANDS[brand]
+  if (!spec) throw new Error(`unknown brand ${brand}`)
+  const body = spec.prefix + digits(spec.length - spec.prefix.length - 1)
+  return body + luhnCheckDigit(body)
 }
 
 /** Este desfecho recusa quando a cobrança é feita? (os dois DECLINE recusam) */

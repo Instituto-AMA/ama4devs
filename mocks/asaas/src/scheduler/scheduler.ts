@@ -18,6 +18,7 @@
 import { sql } from 'drizzle-orm'
 import { DAY_MS } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
+import { dispatchNotifications } from '../notify/dispatcher.ts'
 import { dispatchDue } from '../webhooks/dispatcher.ts'
 
 export interface TickReport {
@@ -143,6 +144,7 @@ export class Scheduler {
   async #runDispatch(): Promise<void> {
     const ctx = this.#ctx
     await dispatchDue(ctx, emptyReport(ctx.clock.today(), ctx.clock.timestamp()), this.paused)
+    await dispatchNotifications(ctx)
   }
 
   async #runTick(): Promise<TickReport> {

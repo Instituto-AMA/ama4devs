@@ -1,3 +1,13 @@
+/* "Accept any card" on the left, "Novo cartão" on the right. */
+.test-card-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pad-md);
+  flex-wrap: wrap;
+}
+.test-card-controls .toggle { flex: 1; min-width: 240px; }
+
 .card-grid {
   display: flex;
   flex-direction: column;

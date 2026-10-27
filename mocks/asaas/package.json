@@ -1,6 +1,6 @@
 {
   "name": "asaas-mock-server",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "description": "Simulador local fiel do sandbox Asaas — entrega webhooks em localhost",
   "private": true,
   "type": "module",
@@ -18,7 +18,6 @@
     "db:migrate": "bun src/db/migrate.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "hub:overview": "bun tools/hub-overview.ts",
     "panel:dev": "vite --config panel/vite.config.ts panel",
     "panel:build": "vite build --config panel/vite.config.ts panel && cp panel/dist/index.html src/admin/ui.html",
     "panel:check": "tsc --noEmit -p panel/tsconfig.json"

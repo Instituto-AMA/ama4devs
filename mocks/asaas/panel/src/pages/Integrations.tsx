@@ -12,6 +12,7 @@ import type { PageProps } from '../app.tsx'
 import { Icon, type IconData } from '../components/Icon.tsx'
 import * as I from '../icons.ts'
 import { ApiKeys } from './integrations/ApiKeys.tsx'
+import { ChannelPage } from './integrations/Channels.tsx'
 import { WebhookLogs } from './integrations/WebhookLogs.tsx'
 import { Webhooks } from './integrations/Webhooks.tsx'
 
@@ -28,6 +29,9 @@ export const INTEGRATION_TABS: Tab[] = [
   { id: 'webhooks', label: 'Webhooks', icon: I.WEBHOOK },
   { id: 'requests', label: 'Logs de Requisições', icon: I.LOG, disabled: true },
   { id: 'webhook-logs', label: 'Logs de Webhooks', icon: I.LOG },
+  // The payer channels (simulator): where the e-mails and WhatsApp templates land.
+  { id: 'whatsapp', label: 'WhatsApp', icon: I.WHATSAPP },
+  { id: 'email', label: 'E-mail (Mailpit)', icon: I.MAIL },
 ]
 
 /** The tab a hash names, or the first one. */
@@ -59,6 +63,8 @@ export function Integrations(props: PageProps & { tab: string | undefined }) {
       {tab.id === 'keys' && <ApiKeys {...props} />}
       {tab.id === 'webhooks' && <Webhooks {...props} />}
       {tab.id === 'webhook-logs' && <WebhookLogs {...props} />}
+      {tab.id === 'whatsapp' && <ChannelPage {...props} channel="WHATSAPP" />}
+      {tab.id === 'email' && <ChannelPage {...props} channel="EMAIL" />}
     </div>
   )
 }

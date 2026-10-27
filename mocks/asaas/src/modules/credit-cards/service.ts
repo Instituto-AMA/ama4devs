@@ -37,6 +37,7 @@ import { maxInstallmentsForBrand } from '../../domain/installments.ts'
 import { applyTransition } from '../payments/apply.ts'
 import { serializePayment, type PaymentRow } from '../payments/serializer.ts'
 import { createPayment, parseCreateBody } from '../payments/service.ts'
+import { loadCardRules } from './test-cards.ts'
 
 export type CreditCardRow = typeof creditCards.$inferSelect
 
@@ -57,9 +58,11 @@ function toApiError(err: unknown): never {
   throw err
 }
 
-export function inspect(card: CardInput, now: Date): CardInfo {
+/** Inspects against the panel's table and policy (built-in plus added cards). */
+export async function inspect(db: DB, card: CardInput, now: Date): Promise<CardInfo> {
+  const rules = await loadCardRules(db)
   try {
-    return inspectCard(card, now)
+    return inspectCard(card, now, rules.table, rules.policy)
   } catch (err) {
     return toApiError(err)
   }
@@ -194,7 +197,8 @@ export async function resolveCard(
 
   // O `now` do RELÓGIO, não o do sistema: avançar 5 anos no painel tem que expirar
   // um cartão 05/2027, senão a viagem no tempo mente sobre o cartão.
-  const info = inspect(
+  const info = await inspect(
+    db,
     {
       number: String(card.number ?? ''),
       holderName: card.holderName,

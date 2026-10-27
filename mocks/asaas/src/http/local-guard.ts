@@ -58,7 +58,14 @@ function hostnameOf(
 }
 
 function isGuardedPath(pathname: string): boolean {
-  return pathname === '/' || pathname.startsWith('/_admin') || pathname.startsWith('/_mock')
+  return (
+    pathname === '/' ||
+    pathname.startsWith('/_admin') ||
+    pathname.startsWith('/_mock') ||
+    // The payer's invoice and bank slip pages: key-free, and paying changes state.
+    pathname.startsWith('/i/') ||
+    pathname.startsWith('/b/')
+  )
 }
 
 function forbiddenBody(code: keyof typeof FORBIDDEN) {

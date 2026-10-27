@@ -15,6 +15,7 @@ import { payments } from '../db/schema/index.ts'
 import { brlToCents } from '../domain/money.ts'
 import type { Trigger } from '../domain/payment-machine.ts'
 import { applyTransition, type TransitionResult } from '../modules/payments/apply.ts'
+import { recordWhatsappWebhook } from '../notify/inbound.ts'
 import { serializePayment, type PaymentRow } from '../modules/payments/serializer.ts'
 
 const DEFAULT_LIMIT = 50
@@ -80,6 +81,12 @@ export function mockRoutes(ctx: AppContext) {
   const overdue = withPayment(() => ({ kind: 'OVERDUE', on: today() }))
 
   return app
+    // The sender number's webhook in the WhatsApp mock (registered on boot by
+    // src/notify/channels.ts): GET is Meta's verification, POST the statuses and replies.
+    .get('/whatsapp/webhook', ({ query }) => String(query['hub.challenge'] ?? 'ok'))
+    .post('/whatsapp/webhook', ({ body }) => ({
+      received: recordWhatsappWebhook(body, ctx.clock.timestamp()),
+    }))
     .get(
       '/payments',
       async ({ query }) => {

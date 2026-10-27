@@ -3,7 +3,7 @@
 # esta linha, o `COPY . .` do estágio de build a leva para dentro da imagem. Ela
 # não sobreviveria ao multi-stage (o runtime copia só src/, drizzle/, spec/), mas
 # ficaria no cache do builder — e bastaria alguém trocar o COPY seletivo por um
-# `COPY --from=build /app .` para a chave sair publicada no Docker Hub.
+# `COPY --from=build /app .` para a chave sair publicada no GHCR.
 # .env.example stays excluded too: the image receives its environment from compose.
 .env
 .env.*

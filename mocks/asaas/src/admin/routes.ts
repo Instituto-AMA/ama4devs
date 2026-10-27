@@ -11,16 +11,43 @@ import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
-import { badRequest } from '../core/errors.ts'
+import { badRequest, notFound } from '../core/errors.ts'
 import {
   accounts,
   apiKeys,
   customers,
+  notificationDeliveries,
+  payments,
   webhookDeliveries,
   webhookEvents,
   webhooks,
 } from '../db/schema/index.ts'
-import { CARD_ERRORS, detectBrand, TEST_CARDS, TRIGGERS } from '../domain/credit-card.ts'
+import {
+  NOTIFIABLE_EVENTS,
+  NOTIFICATION_LABEL,
+  type NotifiableEvent,
+} from '../domain/notification-text.ts'
+import { serializePayment, type PaymentRow } from '../modules/payments/serializer.ts'
+import { arrivals, channelStatus } from '../notify/channels.ts'
+import { dispatchNotifications, sendTestNotification } from '../notify/dispatcher.ts'
+import { inboundWhatsapp } from '../notify/inbound.ts'
+import { enqueuePaymentNotifications, type PaymentFacts } from '../notify/enqueue.ts'
+import {
+  CARD_ERRORS,
+  CUSTOM_CARD_OUTCOMES,
+  detectBrand,
+  GENERATED_BRANDS,
+  OUTCOME_LABEL,
+  TEST_CARDS,
+  TRIGGERS,
+} from '../domain/credit-card.ts'
+import {
+  addTestCard,
+  cardPolicy,
+  customCards,
+  removeTestCard,
+  setCardPolicy,
+} from '../modules/credit-cards/test-cards.ts'
 import { serialize as serializeCustomer } from '../modules/customers/handlers.ts'
 import { WebhookEvent } from '../generated/enums.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
@@ -322,16 +349,155 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
        * APROVARIA. Sem essa marca, alguém escreve um teste contra um comportamento
        * que só existe aqui e descobre em produção.
        */
-      .get('/test-cards', () => ({
-        cards: TEST_CARDS.map((c) => ({
-          ...c,
-          brand: detectBrand(c.number),
-          error: c.outcome === 'APPROVE' ? null : CARD_ERRORS[c.outcome],
-        })),
-        // Três dos seis erros do Asaas não se disparam por número — são
-        // propriedades de outros campos. Aqui vai como produzi-los.
-        triggers: TRIGGERS.map((t) => ({ ...t, error: CARD_ERRORS[t.outcome] })),
+      .get('/test-cards', async () => {
+        const [custom, policy] = await Promise.all([customCards(ctx.db), cardPolicy(ctx.db)])
+        return {
+          // `acceptAny`: a number outside the table approves (on) or is refused (off).
+          acceptAny: policy.acceptAny,
+          cards: [...TEST_CARDS, ...custom].map((c) => ({
+            ...c,
+            custom: 'custom' in c,
+            brand: detectBrand(c.number),
+            error: c.outcome === 'APPROVE' ? null : CARD_ERRORS[c.outcome],
+          })),
+          outcomes: CUSTOM_CARD_OUTCOMES.map((o) => ({ outcome: o, label: OUTCOME_LABEL[o] })),
+          brands: Object.keys(GENERATED_BRANDS),
+          // Três dos seis erros do Asaas não se disparam por número — são
+          // propriedades de outros campos. Aqui vai como produzi-los.
+          triggers: TRIGGERS.map((t) => ({ ...t, error: CARD_ERRORS[t.outcome] })),
+        }
+      })
+
+      /** Accept any well-formed card (on) or only the listed ones (off). */
+      .put('/test-cards/policy', async ({ body }) => setCardPolicy(ctx, body), {
+        body: t.Object({ acceptAny: t.Boolean() }),
+      })
+
+      /** Adds a card: a typed number, or one generated for `brand` when `number` is empty. */
+      .post(
+        '/test-cards',
+        async ({ body }) => {
+          const card = await addTestCard(ctx, body)
+          return {
+            ...card,
+            brand: detectBrand(card.number),
+            error: card.outcome === 'APPROVE' ? null : CARD_ERRORS[card.outcome],
+          }
+        },
+        {
+          body: t.Object({
+            number: t.Optional(t.String()),
+            brand: t.Optional(t.String()),
+            outcome: t.String(),
+            label: t.Optional(t.String()),
+          }),
+        },
+      )
+
+      /**
+       * The payer notifications (e-mail to Mailpit, WhatsApp template to the WhatsApp
+       * mock): which channels are on, and what was sent for a charge.
+       */
+      .get('/notifications', async ({ query }) => {
+        const where = query.paymentId
+          ? eq(notificationDeliveries.paymentId, String(query.paymentId))
+          : query.accountId
+            ? eq(notificationDeliveries.accountId, String(query.accountId))
+            : undefined
+        const rows = await ctx.db
+          .select()
+          .from(notificationDeliveries)
+          .where(where)
+          .orderBy(desc(notificationDeliveries.createdAtMs))
+          .limit(100)
+        return {
+          channels: {
+            email: Boolean(ctx.config.notify.mailpitUrl),
+            whatsapp: Boolean(ctx.config.notify.whatsappUrl),
+          },
+          events: NOTIFIABLE_EVENTS.map((e) => ({ event: e, label: NOTIFICATION_LABEL[e] })),
+          data: rows.map(({ html: _html, ...r }) => r),
+        }
+      })
+
+      /** Integrações › WhatsApp / E-mail: whether each channel is on and answering. */
+      .get('/notify/status', async () => ({
+        ...(await channelStatus(ctx)),
+        replies: inboundWhatsapp(),
       }))
+
+      /** What actually arrived at the channel from this server, read back from it. */
+      .get('/notify/arrivals', async ({ query }) => {
+        const channel = query.channel === 'WHATSAPP' ? 'WHATSAPP' : 'EMAIL'
+        try {
+          return { channel, data: await arrivals(ctx, channel), error: null }
+        } catch (err) {
+          return { channel, data: [], error: err instanceof Error ? err.message : String(err) }
+        }
+      })
+
+      /** "Enviar teste": a sample e-mail or template straight to the channel. */
+      .post(
+        '/notify/test',
+        async ({ body }) => {
+          const on = body.channel === 'EMAIL' ? ctx.config.notify.mailpitUrl : ctx.config.notify.whatsappUrl
+          if (!on) {
+            throw badRequest('notify_not_configured', `Canal ${body.channel === 'EMAIL' ? 'de e-mail' : 'de WhatsApp'} desligado.`)
+          }
+          try {
+            await sendTestNotification(ctx, body.channel, body.to)
+          } catch (err) {
+            throw badRequest('notify_failed', err instanceof Error ? err.message : String(err))
+          }
+          return { sent: true }
+        },
+        {
+          body: t.Object({
+            channel: t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP')]),
+            to: t.String({ minLength: 3 }),
+          }),
+        },
+      )
+
+      /** "Enviar agora": queues the notification of `event` for a charge on the given channels. */
+      .post(
+        '/notifications',
+        async ({ body }) => {
+          const [row] = await ctx.db
+            .select()
+            .from(payments)
+            .where(eq(payments.id, body.paymentId))
+            .limit(1)
+          if (!row) throw notFound('Cobrança')
+          const payment = (await serializePayment(ctx.db, row as PaymentRow)) as unknown as PaymentFacts
+          const queued = await enqueuePaymentNotifications(
+            ctx.db,
+            { clock: ctx.clock, rng: ctx.rng, config: ctx.config },
+            {
+              accountId: row.accountId,
+              event: body.event as NotifiableEvent,
+              payment,
+              forced: body.channels,
+            },
+          )
+          // Delivered before the answer, so the panel reads the outcome right away.
+          const sent = await dispatchNotifications(ctx)
+          return { queued, sent }
+        },
+        {
+          body: t.Object({
+            paymentId: t.String(),
+            event: t.Union(NOTIFIABLE_EVENTS.map((e) => t.Literal(e))),
+            channels: t.Array(t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP')]), { minItems: 1 }),
+          }),
+        },
+      )
+
+      /** Removes a card added in the panel. */
+      .delete('/test-cards/:number', async ({ params }) => {
+        await removeTestCard(ctx, params.number)
+        return { deleted: true, number: params.number }
+      })
 
       /**
        * Todas as contas do simulador, com SALDO e CHAVE DE API.

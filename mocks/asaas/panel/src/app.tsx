@@ -16,11 +16,11 @@ import { Icon } from './components/Icon.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Topbar } from './components/Topbar.tsx'
 import { Banner, Button, plural } from './components/ui.tsx'
+import { Charges, chargeTab } from './pages/Charges.tsx'
 import { Customers } from './pages/Customers.tsx'
 import { Home } from './pages/Home.tsx'
 import { integrationTab, Integrations } from './pages/Integrations.tsx'
-import { Payments } from './pages/Payments.tsx'
-import { SimulateSale } from './pages/SimulateSale.tsx'
+import { ChargeForm } from './components/ChargeForm.tsx'
 import { Splits } from './pages/Splits.tsx'
 import { Statement } from './pages/Statement.tsx'
 import { Subaccounts } from './pages/Subaccounts.tsx'
@@ -78,6 +78,8 @@ export function App() {
   const store = useStore()
   const [page, setPage] = useHashPage('home')
   const [saleOpen, setSaleOpen] = useState(false)
+  // Bumped when "Simular Venda" created something: the open page remounts and reloads its lists.
+  const [pageKey, setPageKey] = useState(0)
 
   const drift = store.clock?.driftDays ?? 0
 
@@ -102,7 +104,14 @@ export function App() {
 
   // `integrations/keys` → the section and its tab; the tab names the screen.
   const [section = page, sub] = page.split('/')
-  const tabTitle = section === 'integrations' ? integrationTab(sub).label : null
+  const tabTitle =
+    section === 'integrations'
+      ? integrationTab(sub).label
+      : section === 'payments' && sub
+        ? chargeTab(sub).label
+        : section === 'customers' && sub
+          ? 'Cliente'
+          : null
 
   return (
     <div class="shell">
@@ -182,11 +191,20 @@ export function App() {
             </Banner>
           )}
 
-          <Page page={page} {...props} />
+          <Page key={pageKey} page={page} {...props} />
         </div>
       </main>
 
-      {saleOpen && <SimulateSale store={store} onClose={() => setSaleOpen(false)} />}
+      {/* "Simular Venda" is the full charge form: single, installments or subscription,
+          with split, and every invoice link it generated at the end. */}
+      {saleOpen && (
+        <ChargeForm
+          store={store}
+          title="Simular Venda"
+          onClose={() => setSaleOpen(false)}
+          onCreated={() => setPageKey((k) => k + 1)}
+        />
+      )}
     </div>
   )
 }
@@ -197,9 +215,9 @@ function Page({ page, ...p }: PageProps & { page: string }) {
     case 'home':
       return <Home {...p} />
     case 'customers':
-      return <Customers {...p} />
+      return <Customers {...p} customerId={tab} />
     case 'payments':
-      return <Payments {...p} />
+      return <Charges {...p} tab={tab} />
     case 'statement':
       return <Statement {...p} />
     case 'splits':

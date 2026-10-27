@@ -33,7 +33,7 @@ export function Home({ store, navigate }: PageProps) {
       <div class="split-2">
         <Card
           title="Cartões de crédito de teste"
-          subtitle="Use estes cartões para simular transações. Qualquer número bem-formado aprova — estes forçam erros específicos."
+          subtitle="Use estes cartões para simular transações. Estes forçam resultados específicos; crie os seus em Novo cartão."
         >
           <TestCardList compact />
         </Card>

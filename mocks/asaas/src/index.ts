@@ -1,11 +1,25 @@
 import { bootstrap } from './bootstrap.ts'
 import { OPERATION_COUNT } from './generated/operations.ts'
+import { ensureWhatsappSender } from './notify/channels.ts'
 
-const { app, config, seed, coverage, scheduler } = await bootstrap()
+const { app, config, seed, coverage, scheduler, ctx } = await bootstrap()
 
 scheduler.start(config.clock.tickIntervalMs)
 
 app.listen(config.port)
+
+// The payer channels come up configured: the sender number is registered in the
+// WhatsApp mock now, and again on every tick if the WhatsApp mock was not up yet or
+// restarted (src/notify/channels.ts).
+if (config.notify.whatsappUrl) {
+  void ensureWhatsappSender(ctx).then((r) =>
+    console.log(
+      r.registered
+        ? `WhatsApp: número ${config.notify.whatsappPhoneNumberId} cadastrado no mock (${config.notify.whatsappUrl})`
+        : `WhatsApp: mock ainda não respondeu (${r.error}); cadastro refeito no próximo tick`,
+    ),
+  )
+}
 
 // Denominador é o total de ROTAS, não de operações: 5 operações da spec dividem
 // rota com a canônica (a variante "com cartão de crédito"). Ver progress.md.

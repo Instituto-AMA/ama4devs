@@ -15,6 +15,8 @@ import { and, eq, sql } from 'drizzle-orm'
 import type { DB } from '../db/client.ts'
 import { webhookDeliveries, webhookEvents, webhooks } from '../db/schema/index.ts'
 import { webhookEventId } from '../domain/ids.ts'
+import { NOTIFICATION_FOR_WEBHOOK } from '../domain/notification-text.ts'
+import { enqueuePaymentNotifications, type PaymentFacts } from '../notify/enqueue.ts'
 import type { Clock } from './clock.ts'
 import { DAY_MS } from './clock.ts'
 import type { Config } from './config.ts'
@@ -115,6 +117,19 @@ export function createEmitter(deps: EmitDeps) {
         nextAttemptAtMs: nowMs,
         expiresAtMs,
         dateCreated: timestamp,
+      })
+    }
+
+    // The payer hears about it too: an e-mail and a WhatsApp template, when those
+    // channels are configured. Same transaction: the notification exists iff the fact does.
+    const notification =
+      event.resourceType === 'payment' ? NOTIFICATION_FOR_WEBHOOK[event.event] : undefined
+    const { mailpitUrl, whatsappUrl } = deps.config.notify
+    if (notification && (mailpitUrl || whatsappUrl)) {
+      await enqueuePaymentNotifications(tx, deps, {
+        accountId: event.accountId,
+        event: notification,
+        payment: event.resource as unknown as PaymentFacts,
       })
     }
   }

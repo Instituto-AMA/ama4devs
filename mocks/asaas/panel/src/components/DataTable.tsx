@@ -42,6 +42,8 @@ export function DataTable<T>(props: {
   empty?: ComponentChildren
   /** Uma coluna de ações no fim, fora da busca e da ordenação. */
   actions?: (row: T) => ComponentChildren
+  /** A click on a row (outside its actions) opens it. */
+  onRowClick?: (row: T) => void
 }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortSpec | null>(props.initialSort ?? null)
@@ -106,13 +108,19 @@ export function DataTable<T>(props: {
           </thead>
           <tbody>
             {sorted.map((row, i) => (
-              <tr key={i}>
+              <tr
+                key={i}
+                class={props.onRowClick ? 'dt-clickable' : undefined}
+                onClick={props.onRowClick ? () => props.onRowClick!(row) : undefined}
+              >
                 {props.columns.map((c) => (
                   <td key={c.key} class={c.align === 'right' ? 'right' : undefined}>
                     {c.render(row)}
                   </td>
                 ))}
-                {props.actions && <td>{props.actions(row)}</td>}
+                {props.actions && (
+                  <td onClick={(e) => e.stopPropagation()}>{props.actions(row)}</td>
+                )}
               </tr>
             ))}
           </tbody>

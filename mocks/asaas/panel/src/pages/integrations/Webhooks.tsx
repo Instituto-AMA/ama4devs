@@ -31,6 +31,7 @@ import {
   Toggle,
 } from '../../components/ui.tsx'
 import * as I from '../../icons.ts'
+import { Picker } from '../../components/Picker.tsx'
 import { groupEvents, type EventGroup } from './events.ts'
 import './integrations.css'
 
@@ -467,14 +468,13 @@ function WebhookForm(props: {
             label="Versão da API"
             hint={w ? 'Também não muda depois de criado.' : undefined}
           >
-            <select
-              class="input"
+            <Picker
+              ariaLabel="Versão da API"
               disabled={Boolean(w)}
               value={String(apiVersion)}
-              onChange={(e) => setApiVersion(Number((e.target as HTMLSelectElement).value))}
-            >
-              <option value="3">v3</option>
-            </select>
+              onChange={(v) => setApiVersion(Number(v))}
+              options={[{ value: '3', label: 'v3' }]}
+            />
           </Field>
           <Field
             label="Token de autenticação"
@@ -505,16 +505,15 @@ function WebhookForm(props: {
                 : 'Independentes: uma falha não segura as outras, mas a ordem não é garantida.'
             }
           >
-            <select
-              class="input"
+            <Picker
+              ariaLabel="Tipo de envio"
               value={sendType}
-              onChange={(e) =>
-                setSendType((e.target as HTMLSelectElement).value as Webhook['sendType'])
-              }
-            >
-              <option value="SEQUENTIALLY">Sequencial</option>
-              <option value="NON_SEQUENTIALLY">Não sequencial</option>
-            </select>
+              onChange={(v) => setSendType(v as Webhook['sendType'])}
+              options={[
+                { value: 'SEQUENTIALLY', label: 'Sequencial' },
+                { value: 'NON_SEQUENTIALLY', label: 'Não sequencial' },
+              ]}
+            />
           </Field>
         </div>
 

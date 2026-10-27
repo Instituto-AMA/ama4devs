@@ -73,3 +73,7 @@ td.right { font-variant-numeric: tabular-nums; }
 
 /* Sem linhas, a tabela vira um cabeçalho solto: o Empty entra logo abaixo. */
 .dt tbody:empty { display: none; }
+
+/* A row that opens its record. */
+tr.dt-clickable { cursor: pointer; }
+tr.dt-clickable:focus-within, tr.dt-clickable:hover { background: var(--surface-soft); }

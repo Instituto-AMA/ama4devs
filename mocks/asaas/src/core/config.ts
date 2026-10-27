@@ -153,6 +153,14 @@ export interface Config {
    */
   publicBaseUrl: string
 
+  /**
+   * Where the payer's invoice page (`invoiceUrl`, `/i/<id>`) and bank slip (`bankSlipUrl`)
+   * open: this server, as the browser reaches it. Unlike `publicBaseUrl` the page exists
+   * here, so the link has to work. Default `http://localhost:<PORT>`; behind a different
+   * host port, set INVOICE_BASE_URL to it.
+   */
+  invoiceBaseUrl: string
+
   clock: { mode: ClockMode; start: string | undefined; tickIntervalMs: number }
 
   seedAccount: {
@@ -165,6 +173,29 @@ export interface Config {
 
   /** Extra ROOT accounts seeded from `SEED_EXTRA_ACCOUNTS` on every boot. */
   seedExtraAccounts: SeedExtraAccount[]
+
+  /**
+   * The payer notifications (e-mail and WhatsApp template per charge event). Each
+   * channel is on only when its address is set: e-mail goes to Mailpit's send API,
+   * the template to the WhatsApp mock's Cloud API. Off, nothing is queued.
+   */
+  notify: {
+    mailpitUrl: string | undefined
+    whatsappUrl: string | undefined
+    /** The sender number the WhatsApp mock shows the templates from. */
+    whatsappPhoneNumberId: string
+    fromEmail: string
+    maxAttempts: number
+    /**
+     * This server as the WhatsApp mock reaches it: on boot the sender number is
+     * registered there with `<callbackBaseUrl>/_mock/whatsapp/webhook` as its webhook,
+     * so delivery statuses and the payer's replies come back here.
+     */
+    callbackBaseUrl: string
+    /** Where the browser opens Mailpit's mailbox and the WhatsApp console (Integrações). */
+    mailpitUiUrl: string
+    whatsappUiUrl: string
+  }
 
   webhook: {
     /**
@@ -200,8 +231,10 @@ export interface Config {
 export function loadConfig(): Config {
   const seedRaw = process.env.SEED
   const masterApiKey = optionalStr('ASAAS_API_KEY')
+  const port = num('PORT', 45445)
   return {
-    port: num('PORT', 45445),
+    port,
+    invoiceBaseUrl: str('INVOICE_BASE_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
     databasePath: str('DATABASE_PATH', './data/asaas.db'),
     seed: seedRaw === undefined || seedRaw === '' ? undefined : Number(seedRaw),
     adminEnabled: bool('ADMIN_ENABLED', true),
@@ -224,6 +257,17 @@ export function loadConfig(): Config {
     },
 
     seedExtraAccounts: parseSeedExtraAccounts(process.env.SEED_EXTRA_ACCOUNTS, masterApiKey),
+
+    notify: {
+      mailpitUrl: optionalStr('MAILPIT_URL')?.replace(/\/+$/, ''),
+      whatsappUrl: optionalStr('WHATSAPP_MOCK_URL')?.replace(/\/+$/, ''),
+      whatsappPhoneNumberId: str('WHATSAPP_PHONE_NUMBER_ID', '5511400000000'),
+      fromEmail: str('NOTIFY_FROM_EMAIL', 'notificacoes@asaas.localhost'),
+      maxAttempts: num('NOTIFY_MAX_ATTEMPTS', 5),
+      callbackBaseUrl: str('NOTIFY_CALLBACK_BASE_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
+      mailpitUiUrl: str('MAILPIT_UI_URL', 'http://localhost:8025').replace(/\/+$/, ''),
+      whatsappUiUrl: str('WHATSAPP_UI_URL', 'http://localhost:3010').replace(/\/+$/, ''),
+    },
 
     webhook: {
       localhostRewrite: optionalStr('WEBHOOK_LOCALHOST_REWRITE'),
