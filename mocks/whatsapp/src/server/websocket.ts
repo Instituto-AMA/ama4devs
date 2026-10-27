@@ -11,7 +11,12 @@ export const removeClient = (ws: WebSocket) => {
 }
 
 interface BroadcastMessage {
-	type: 'NEW_MESSAGE' | 'STATS_UPDATE' | 'TYPING_INDICATOR'
+	type:
+		| 'NEW_MESSAGE'
+		| 'STATS_UPDATE'
+		| 'TYPING_INDICATOR'
+		| 'STATUS_UPDATE'
+		| 'WEBHOOK_EVENT'
 	payload: unknown
 }
 

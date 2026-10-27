@@ -29,6 +29,18 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
 
 ### Behaviour
 
+- **Panel API (`src/server/panel-message.ts`, `delivery-status.ts`):** `GET /mock/messages` lists both directions as
+  `PanelMessage`; `POST /mock/simulate-message` accepts an optional `name`, optional `message.id`/`timestamp`, works
+  without a webhook URL (`200 { delivered: false, reason: 'webhook_not_configured' }` instead of 400) and broadcasts
+  `NEW_MESSAGE`; outbound `NEW_MESSAGE` carries a `PanelMessage`.
+- **Deterministic delivery:** the random template rejection (10%) and delivery failure (5%) are gone; template approval
+  is always `APPROVED`. `MOCK_DELIVERY_MODE` (`auto` default | `manual`), `GET/POST /mock/delivery-mode`; `manual` stops
+  at `sent`. Each status step updates the store and broadcasts `STATUS_UPDATE`.
+- **`POST /mock/messages/:id/status`:** moves an outbound message to `delivered | read | failed` (a `failed` webhook
+  carries `errors: [{ code: 131026, title: 'Message undeliverable' }]`).
+- **Webhook event log:** `sendWebhook` records every attempt (`kind`, `status`, `httpStatus`, `error`, redacted `url`),
+  broadcasts `WEBHOOK_EVENT`; `GET /mock/events` answers `{ events }` newest first, at most 200.
+- **`GET /mock/templates`** and `secretSet` on `GET /mock/config`.
 - **`parseJsonBody` (`src/server/utils/json-body.ts`):** one shared middleware that rejects a malformed JSON payload
   with the Graph error shape (`validation_error`, code 400) instead of letting the validator crash; the raw body is
   cloned before it is parsed, so the validation middleware still receives the untouched request. It guards

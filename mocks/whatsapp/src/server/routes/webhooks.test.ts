@@ -16,6 +16,7 @@ import type {
 	WebhookPayload,
 	WhatsAppErrorResponse,
 } from '../types/api-types.ts'
+import { mockStore } from '../store/memory-store.ts'
 import { webhooksRouter } from './webhooks.ts'
 
 describe('Webhooks API Integration Tests', () => {
@@ -159,7 +160,7 @@ describe('Webhooks API Integration Tests', () => {
 			const data = await response.json()
 			expect(data.success).toBe(true)
 			expect(data.messageId).toBeDefined()
-			expect(data.webhookUrl).toBe(mockWebhookUrl)
+			expect(data.delivered).toBe(true)
 
 			// Wait for webhook to be delivered
 			await new Promise((resolve) => setTimeout(resolve, 100))
@@ -272,7 +273,7 @@ describe('Webhooks API Integration Tests', () => {
 			expect(data.error.type).toBe('validation_error')
 		})
 
-		test('should return error when webhook URL is not configured', async () => {
+		test('should store the message and answer delivered:false when no webhook URL is configured', async () => {
 			// Temporarily clear the environment variable to simulate no config
 			const originalUrl = process.env.WEBHOOK_URL
 			delete process.env.WEBHOOK_URL
@@ -298,11 +299,20 @@ describe('Webhooks API Integration Tests', () => {
 				body: JSON.stringify(simulateParams),
 			})
 
-			expect(response.status).toBe(400)
+			expect(response.status).toBe(200)
 
-			const data = (await response.json()) as WhatsAppErrorResponse
-			expect(data.error.message).toContain('No webhook URL configured')
-			expect(data.error.type).toBe('webhook_not_configured')
+			const data = (await response.json()) as {
+				success: boolean
+				messageId: string
+				delivered: boolean
+				reason?: string
+			}
+			expect(data.success).toBe(true)
+			expect(data.delivered).toBe(false)
+			expect(data.reason).toBe('webhook_not_configured')
+			expect(mockStore.getAllWebhookMessages().map((m) => m.id)).toContain(
+				data.messageId
+			)
 
 			// Restore the original URL and reset config
 			process.env.WEBHOOK_URL = originalUrl
@@ -375,7 +385,8 @@ describe('Webhooks API Integration Tests', () => {
 
 			const data = await response.json()
 			expect(data.success).toBe(true)
-			expect(data.webhookUrl).toBe(invalidWebhookUrl)
+			// The send started: its failure lands in the event log, not here.
+			expect(data.delivered).toBe(true)
 
 			// Restore valid webhook URL
 			setWebhookUrl(testPhoneId, mockWebhookUrl)

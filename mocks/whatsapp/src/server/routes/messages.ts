@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { getWebhookUrl } from '../config.ts'
+import { scheduleDelivery } from '../delivery-status.ts'
+import { toPanelMessage } from '../panel-message.ts'
 import type { StoredMessage } from '../store/memory-store.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type { Template, TemplateStore } from '../store/template-store.ts'
@@ -88,99 +90,6 @@ export function processTemplate(
 
 export function createMessagesRouter(templateStore: TemplateStore) {
 	const messagesRouter = new Hono()
-
-	/** Enhanced delivery status webhook supporting template-specific data */
-	function sendDeliveryStatusWebhook(
-		messageId: string,
-		phoneNumberId: string,
-		to: string,
-		status: 'sent' | 'delivered' | 'read' | 'failed',
-		templateData?: {
-			name: string
-			language: string
-			category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
-			error?: {
-				code: string
-				title: string
-				message: string
-				details?: string
-			}
-		}
-	): void {
-		const webhookUrl = getWebhookUrl(phoneNumberId)
-		if (!webhookUrl) return
-
-		const baseStatus = {
-			id: messageId,
-			status,
-			timestamp: Math.floor(Date.now() / 1000).toString(),
-			recipient_id: to,
-			conversation: {
-				id: `conversation_${messageId}`,
-				expiration_timestamp: Math.floor(Date.now() / 1000 + 86400).toString(), // 24 hours
-				origin: {
-					type: 'business_initiated',
-				},
-			},
-			pricing: {
-				category:
-					templateData?.category === 'AUTHENTICATION'
-						? 'authentication'
-						: 'utility',
-				pricing_model: 'CBP',
-			},
-		}
-
-		const payload: WebhookPayload = {
-			object: 'whatsapp_business_account',
-			entry: [
-				{
-					id: phoneNumberId,
-					changes: [
-						{
-							value: {
-								messaging_product: 'whatsapp',
-								metadata: {
-									display_phone_number: phoneNumberId,
-									phone_number_id: phoneNumberId,
-								},
-								// Use template_statuses for template messages, statuses for regular messages
-								...(templateData
-									? {
-											template_statuses: [
-												{
-													...baseStatus,
-													template: {
-														name: templateData.name,
-														language: templateData.language,
-														category: templateData.category || 'UTILITY',
-													},
-													...(templateData.error && {
-														error: templateData.error,
-													}),
-												},
-											],
-										}
-									: {
-											statuses: [baseStatus],
-										}),
-							},
-							field: 'messages',
-						},
-					],
-				},
-			],
-		}
-
-		const messageType = templateData ? 'template' : 'text'
-		console.log(
-			`📤 Sending ${status} webhook for ${messageType} message ${messageId}`
-		)
-
-		sendWebhook(webhookUrl, payload).catch((error) => {
-			console.error(`❌ Delivery status webhook failed: ${error.message}`)
-		})
-	}
 
 	/** Send template status update webhook for approval/rejection events */
 	function sendTemplateStatusWebhook(
@@ -396,7 +305,7 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 			// Broadcast that a new message was sent
 			broadcast({
 				type: 'NEW_MESSAGE',
-				payload: storedMessage,
+				payload: toPanelMessage(storedMessage),
 			})
 
 			// Prepare template data for webhooks if it's a template message
@@ -419,116 +328,23 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 				],
 			}
 
-			// Simulate template approval/rejection process for new templates
+			// Simulate template approval workflow (always approved: the mock is deterministic)
 			if (messageBody.template) {
 				const template = messageBody.template // Extract for type safety
-				// Simulate template approval process with random outcomes for demonstration
-				const shouldApprove = Math.random() > 0.1 // 90% approval rate
-				const shouldFail = Math.random() > 0.95 // 5% delivery failure rate
-
-				// Simulate template approval workflow
 				setTimeout(() => {
-					if (shouldApprove) {
-						sendTemplateStatusWebhook(phoneNumberId, {
-							id: `template_${Date.now()}`,
-							name: template.name,
-							language: template.language.code,
-							category: 'UTILITY',
-							event: 'APPROVED',
-							status_details: 'Template approved and ready for use',
-						})
-					} else {
-						sendTemplateStatusWebhook(phoneNumberId, {
-							id: `template_${Date.now()}`,
-							name: template.name,
-							language: template.language.code,
-							category: 'UTILITY',
-							event: 'REJECTED',
-							reason: 'POLICY_VIOLATION',
-							status_details:
-								'Template rejected due to policy compliance issues',
-							errors: [
-								{
-									code: 'INVALID_CONTENT',
-									title: 'Content Policy Violation',
-									message:
-										'Template content does not comply with WhatsApp policies',
-									error_data: {
-										details:
-											'Please review template content for promotional language',
-									},
-								},
-							],
-						})
-					}
+					sendTemplateStatusWebhook(phoneNumberId, {
+						id: `template_${Date.now()}`,
+						name: template.name,
+						language: template.language.code,
+						category: 'UTILITY',
+						event: 'APPROVED',
+						status_details: 'Template approved and ready for use',
+					})
 				}, 500) // Approval happens before delivery
-
-				// Simulate delivery failure for templates with policy issues
-				if (shouldFail) {
-					setTimeout(() => {
-						mockStore.updateMessageStatus(storedMessage.id, 'sent')
-						if (templateWebhookData) {
-							sendDeliveryStatusWebhook(
-								storedMessage.id,
-								phoneNumberId,
-								messageBody.to,
-								'failed',
-								{
-									name: templateWebhookData.name,
-									language: templateWebhookData.language,
-									category: templateWebhookData.category,
-									error: {
-										code: 'TEMPLATE_REJECTED',
-										title: 'Template Message Failed',
-										message:
-											'Message could not be delivered due to template policy violation',
-										details:
-											'Template has been paused due to low acceptance rate',
-									},
-								}
-							)
-						}
-					}, 1500)
-
-					// Skip normal delivery flow for failed messages
-					return c.json(response)
-				}
 			}
 
-			// Simulate webhook for delivery status (sent -> delivered -> read)
-			setTimeout(
-				() =>
-					sendDeliveryStatusWebhook(
-						storedMessage.id,
-						phoneNumberId,
-						messageBody.to,
-						'sent',
-						templateWebhookData
-					),
-				1000
-			)
-
-			setTimeout(() => {
-				mockStore.updateMessageStatus(storedMessage.id, 'delivered')
-				sendDeliveryStatusWebhook(
-					storedMessage.id,
-					phoneNumberId,
-					messageBody.to,
-					'delivered',
-					templateWebhookData
-				)
-			}, 2000)
-
-			setTimeout(() => {
-				mockStore.updateMessageStatus(storedMessage.id, 'read')
-				sendDeliveryStatusWebhook(
-					storedMessage.id,
-					phoneNumberId,
-					messageBody.to,
-					'read',
-					templateWebhookData
-				)
-			}, 3000)
+			// Delivery progression (sent -> delivered -> read) follows the delivery mode
+			scheduleDelivery(storedMessage, templateWebhookData)
 
 			// Response was already prepared above
 

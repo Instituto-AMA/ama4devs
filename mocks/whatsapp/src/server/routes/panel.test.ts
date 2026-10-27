@@ -11,7 +11,7 @@ describe('Panel route', () => {
 		expect(res.status).toBe(200)
 		expect(res.headers.get('content-type')).toContain('text/html')
 		const body = await res.text()
-		expect(body).toContain('Simular mensagem do paciente')
+		expect(body).toContain('Responder como paciente')
 	})
 
 	test('the page references no external host', async () => {
