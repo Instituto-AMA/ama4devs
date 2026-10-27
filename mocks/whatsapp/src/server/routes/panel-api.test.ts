@@ -172,6 +172,20 @@ describe('Panel API', () => {
 				payload: expect.objectContaining({ direction: 'in', text: 'oi' }),
 			})
 		})
+
+		test('DELETE /conversation clears both sides of every conversation', async () => {
+			await sendText()
+			await post('/mock/simulate-message', {
+				from: '5511911111111',
+				to: businessId,
+				message: { type: 'text', text: { body: 'oi' } },
+			})
+			expect((await listMessages()).length).toBe(2)
+
+			const res = await app.request(`${base}/conversation`, { method: 'DELETE' })
+			expect(res.status).toBe(200)
+			expect(await listMessages()).toEqual([])
+		})
 	})
 
 	describe('outbound messages', () => {

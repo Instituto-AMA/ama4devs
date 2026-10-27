@@ -143,8 +143,11 @@ class MemoryStore {
 	}
 
 	// Clear all messages
+	// Clears both sides of every conversation: the business's messages and the
+	// user's. Clearing only the first left half of each chat on screen.
 	clearMessages(): void {
 		this.messages.clear()
+		this.webhookMessages.clear()
 		console.log('🧹 Cleared all messages')
 	}
 
