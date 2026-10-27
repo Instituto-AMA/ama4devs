@@ -226,7 +226,8 @@ The WhatsApp Template Testing System supports both **numbered parameters** ({{1}
 When sending template messages with named parameters via API:
 
 ```bash
-curl -X POST http://localhost:3010/v22.0/123456789/messages \
+curl -X POST http://localhost:3010/v23.0/123456789/messages \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -277,7 +278,8 @@ curl -X POST http://localhost:3010/v22.0/123456789/messages \
 For templates with both named and numbered parameters:
 
 ```bash
-curl -X POST http://localhost:3010/v22.0/123456789/messages \
+curl -X POST http://localhost:3010/v23.0/123456789/messages \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -556,7 +558,8 @@ Enter value for {{2}}: 555-0123
 Send template messages via HTTP API:
 
 ```bash
-curl -X POST http://localhost:3010/v22.0/123456789/messages \
+curl -X POST http://localhost:3010/v23.0/123456789/messages \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -580,9 +583,12 @@ curl -X POST http://localhost:3010/v22.0/123456789/messages \
 
 ### Template Management API
 
+The library belongs to the business account (WABA, `100000000000001` in the
+mock), as on Meta. Every call wants an access token (`Authorization: Bearer …`).
+
 #### List Templates
 ```bash
-GET /v22.0/{phone-id}/message_templates
+GET /v23.0/{waba-id}/message_templates?name=&status=&language=&category=&limit=&after=
 ```
 
 Response:
@@ -609,20 +615,34 @@ Response:
 
 #### Create Template
 ```bash
-POST /v22.0/{phone-id}/message_templates
+POST /v23.0/{waba-id}/message_templates
 Content-Type: application/json
+X-Mock-Template-Review: APPROVED          # optional: the verdict
+X-Mock-Template-Review-Delay: 2000        # optional: how long the review takes
 
 {
   "name": "new_template",
-  "language": "en_US", 
+  "language": "en_US",
   "category": "UTILITY",
   "components": [...]
 }
 ```
 
+The answer is Meta's: `{ "id", "status": "PENDING", "category" }`. The review
+gives its verdict after the delay and every webhook of the account gets
+`message_template_status_update`. Any component Meta takes is kept: header
+(text, image, video, document, location), body, footer, buttons (quick reply,
+URL, phone, copy code…), carousel.
+
+#### Edit Template
+```bash
+POST /v23.0/{template-id}
+{ "category": "UTILITY", "components": [...] }
+```
+
 #### Delete Template
 ```bash
-DELETE /v22.0/{phone-id}/message_templates/{template-id}
+DELETE /v23.0/{waba-id}/message_templates?name={name}[&hsm_id={template-id}]
 ```
 
 ### Webhook Events
@@ -689,15 +709,17 @@ The mock server simulates WhatsApp webhook events for template messages:
 
 ## Development Workflow
 
-### Hot-Reload Development
+### Seed Files and the Library
 
-Templates support hot-reload for rapid development:
+The template library lives in the mock's database (`WHAP_DATA_DIR/whap.db`,
+SQLite), so what the API creates, edits or deletes survives a restart. The
+files in `templates/` seed it:
 
-1. **Modify template file** while server is running
-2. **Changes auto-detected** by file watcher
-3. **Template re-validated** and reloaded
-4. **Available immediately** in CLI and API
-5. **No server restart required**
+1. **A file is imported** at start and whenever it changes (a watcher)
+2. **The content is validated** before it reaches the library
+3. **A file is imported again only when its content changes**: a template the
+   API deleted or edited stays as the API left it
+4. **Removing a file removes nothing** from the library
 
 ### Template Validation
 
@@ -871,7 +893,8 @@ Test multiple templates programmatically:
 # Test all templates via API
 for template in $(ls templates/*.json); do
   name=$(basename $template .json)
-  curl -X POST http://localhost:3010/v22.0/123456789/messages \
+  curl -X POST http://localhost:3010/v23.0/123456789/messages \
+  -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d "{ \"type\": \"template\", \"template\": { \"name\": \"$name\" } }"
 done

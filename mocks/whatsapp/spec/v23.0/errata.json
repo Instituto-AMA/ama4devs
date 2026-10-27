@@ -1,0 +1,61 @@
+{
+	"openObjects": true,
+	"oneOfAsAnyOf": true,
+	"optional": {
+		"*": ["recipient_type", "policy"],
+		"OfficialBusinessAccountUpdateRequest": [
+			"business_website_url",
+			"primary_country_of_operation"
+		],
+		"CallRequestPayload": ["to"]
+	},
+	"looseProperties": [
+		"latitude",
+		"longitude",
+		"mobile_number",
+		"landline_number",
+		"index"
+	],
+	"extendEnums": {
+		"button": ["order_details", "order_status"],
+		"quick_reply": ["CATALOG", "flow", "copy_code"],
+		"header,body,button": ["carousel", "limited_time_offer"]
+	},
+	"addBranches": {
+		"ActionObject": [
+			{
+				"type": "object",
+				"required": ["name", "parameters"],
+				"properties": {
+					"name": { "enum": ["review_and_pay", "review_order"] },
+					"parameters": { "type": "object" }
+				}
+			}
+		]
+	},
+	"requiredQuery": {
+		"deleteTemplateByName": ["name"]
+	},
+	"defaults": {
+		"sendMessage": { "type": "text" }
+	},
+	"brokenExamples": {
+		"sendMessage": ["Send Reply to List Message", "Send Multi-Product Message"]
+	},
+	"reasons": {
+		"openObjects": "The message schemas close with additionalProperties: false and leave out messaging_product and context, which every sendMessage example sends.",
+		"optional.recipient_type": "BaseMessageProperties and MarketingMessageRequestPayload require it; Send Test Message, Send Contact Message and seven more examples leave it out (the API defaults to individual).",
+		"optional.policy": "LanguageObject requires it; every template example sends only the code (the API defaults to deterministic).",
+		"oneOfAsAnyOf": "The branches of the interactive action overlap (a reply button fits two), so oneOf refuses Send Reply Button.",
+		"addBranches.ActionObject": "ActionObject has no shape for the payment actions: Send Order Details Message (review_and_pay) and Send Order Status Message (review_order) send name and parameters.",
+		"requiredQuery.deleteTemplateByName": "Deleting a template needs its name (with hsm_id for one language); the spec lists name as optional.",
+		"defaults.sendMessage": "The API sends text when type is left out; Send Text Message with Preview URL leaves it out.",
+		"optional.CallRequestPayload": "The schema requires to on every call action; Meta's guide (User-initiated calls) sends pre_accept, accept and reject with call_id and no to, and to is the callee only on connect.",
+		"optional.OfficialBusinessAccountUpdateRequest":"The submit, withdraw and resubmit examples send neither business_website_url nor primary_country_of_operation.",
+		"looseProperties": "Send Location Message sends latitude and longitude as numbers where the schema asks for strings; the compliance examples send phone numbers the pattern refuses; template button index is a number in the examples and its pattern is not a valid range.",
+		"extendEnums.button": "The interactive type enum misses order_details and order_status, the types of Send Order Details Message and Send Order Status Message.",
+		"extendEnums.quick_reply": "The button sub_type enum misses CATALOG and flow, used by Send Catalog Template Message and Send Flow Template Message, and copy_code, the coupon of a copy-code button (Meta's guide: Copy code buttons).",
+		"extendEnums.header,body,button": "The template component type enum misses carousel (the cards of a media card carousel template, Meta's guide: Media card carousel templates) and limited_time_offer (Limited-time offer templates).",
+		"brokenExamples.sendMessage": "Send Reply to List Message has no type and an interactive body (type defaults to text); Send Multi-Product Message keeps the placeholder <HEADER_TYPE>. Neither is a call the API accepts as written."
+	}
+}

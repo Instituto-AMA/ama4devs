@@ -190,3 +190,6 @@ codegen-for-zig-team.tar.gz
 scratch*.{js,ts,tsx,cjs,mjs}
 
 *.bun-build
+
+# What a source run remembers (SQLite file and uploaded media, WHAP_DATA_DIR)
+data/

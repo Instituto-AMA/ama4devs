@@ -1,6 +1,6 @@
 {
 	"name": "whap",
-	"version": "0.2.1",
+	"version": "0.4.0",
 	"description": "CLI and mock server for testing WhatsApp integration",
 	"type": "module",
 	"bin": {

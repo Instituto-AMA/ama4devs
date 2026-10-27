@@ -26,3 +26,6 @@ coverage/
 *.md
 .cursor/
 .vscode/
+
+# A source run's database and media never go into the image
+data/

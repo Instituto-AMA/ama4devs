@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TemplateResolver } from '../template-resolver.ts'
-import { type Template, TemplateStore } from './template-store.ts'
+import { type Template, TemplateStore, templateIdOf } from './template-store.ts'
 
 // Mock fs promises for controlled testing
 vi.mock('node:fs/promises', () => ({
@@ -82,8 +82,11 @@ describe('TemplateStore', () => {
 			const mockFiles = ['template1.json', 'template2.json', 'readme.txt']
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
 
-			// @ts-expect-error - Mocking readdir for testing
-			vi.mocked(readdir).mockResolvedValue(mockFiles)
+			// The seeds, and the examples folder with one example and its media.
+			vi.mocked(readdir).mockImplementation((async (path: string) =>
+				String(path).endsWith('examples')
+					? ['example.json', 'media']
+					: mockFiles) as never)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -91,7 +94,10 @@ describe('TemplateStore', () => {
 			expect(readdir).toHaveBeenCalledWith(
 				expect.stringMatching(/test-templates$/)
 			)
-			expect(readFile).toHaveBeenCalledTimes(2) // Only JSON files
+			expect(readdir).toHaveBeenCalledWith(
+				expect.stringMatching(/test-templates\/examples$/)
+			)
+			expect(readFile).toHaveBeenCalledTimes(3) // Only JSON files
 		})
 
 		test('should handle missing templates directory gracefully', async () => {
@@ -111,7 +117,12 @@ describe('TemplateStore', () => {
 			await templateStore.initialize()
 
 			const retrieved = templateStore.getTemplate('test_template', 'en')
-			expect(retrieved).toEqual(sampleTemplate)
+			// The store adds the id Meta would give the template.
+			expect(retrieved).toEqual({
+				...sampleTemplate,
+				id: templateIdOf('test_template', 'en'),
+			})
+			expect(templateStore.getTemplateById(retrieved?.id ?? '')).toBe(retrieved)
 		})
 
 		test('should return undefined for non-existent template', () => {
@@ -129,7 +140,10 @@ describe('TemplateStore', () => {
 
 			const allTemplates = templateStore.getAllTemplates()
 			expect(allTemplates).toHaveLength(1)
-			expect(allTemplates[0]).toEqual(sampleTemplate)
+			expect(allTemplates[0]).toEqual({
+				...sampleTemplate,
+				id: templateIdOf('test_template', 'en'),
+			})
 		})
 
 		test('should get templates by category', async () => {

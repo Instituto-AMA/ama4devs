@@ -17,6 +17,11 @@ interface BroadcastMessage {
 		| 'TYPING_INDICATOR'
 		| 'STATUS_UPDATE'
 		| 'WEBHOOK_EVENT'
+		| 'TEMPLATE_STATUS'
+		/** A number or account changed, or a verification code was "sent". */
+		| 'ACCOUNT_UPDATE'
+		/** A call rang, was answered (with its SDP), or ended. */
+		| 'CALL_UPDATE'
 	payload: unknown
 }
 

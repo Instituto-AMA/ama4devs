@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { mockStore } from '../store/memory-store.ts'
+import { mockStore } from '../store/mock-store.ts'
 import { broadcast } from '../websocket.ts'
 
 const statusRouter = new Hono()

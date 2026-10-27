@@ -1,10 +1,11 @@
 import { getWebhookUrl } from './config.ts'
-import { mockStore, type StoredMessage } from './store/memory-store.ts'
+import { mockStore, type StoredMessage } from './store/mock-store.ts'
 import type { WebhookPayload } from './types/api-types.ts'
 import { sendWebhook } from './webhook-target.ts'
 import { broadcast } from './websocket.ts'
 
-export type DeliveryStatus = StoredMessage['status']
+/** The statuses a clinic message walks; `received` belongs to the user's side. */
+export type DeliveryStatus = Exclude<StoredMessage['status'], 'received'>
 
 export type TemplateStatusData = {
 	name: string
@@ -138,7 +139,7 @@ export function scheduleDelivery(
 			sendDeliveryStatusWebhook(
 				message.id,
 				message.phoneNumberId,
-				message.to,
+				message.contact,
 				status,
 				templateData
 			)

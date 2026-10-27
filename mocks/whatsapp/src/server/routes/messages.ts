@@ -1,27 +1,38 @@
+/**
+ * `/{phone-number-id}/messages`: the conversation of a number, both sides.
+ *
+ * The engine (graph/engine.ts) already checked the call against Meta's spec;
+ * here it happens:
+ * - a `status: read` body is a receipt: with a `typing_indicator` the clinic
+ *   is typing; from the clinic it marks the user's message as read; from the
+ *   user's phone (`X-Mock-From`) it is the user's receipt of a clinic message;
+ * - with `X-Mock-From` the user writes, any type a user sends;
+ * - otherwise the clinic sends, any type of the Cloud API: text, template,
+ *   media, location, contacts, interactive, reaction, a reply (`context`).
+ */
+import type { Context } from 'hono'
 import { Hono } from 'hono'
-import { validator } from 'hono/validator'
-import { getWebhookUrl } from '../config.ts'
-import { scheduleDelivery } from '../delivery-status.ts'
-import { toPanelMessage } from '../panel-message.ts'
-import type { StoredMessage } from '../store/memory-store.ts'
-import { mockStore } from '../store/memory-store.ts'
-import type { Template, TemplateStore } from '../store/template-store.ts'
-import type {
-	WebhookPayload,
-	WhatsAppErrorResponse,
-	WhatsAppSendMessageRequest,
-	WhatsAppSendMessageResponse,
-	WhatsAppTypingRequest,
-	WhatsAppTypingResponse,
-} from '../types/api-types.ts'
-import { invalidJsonResponse, parseJsonBody } from '../utils/json-body.ts'
 import {
-	formatValidationErrorForAPI,
-	validateWhatsAppMessageRequest,
-	validateWhatsAppTypingRequest,
-} from '../utils/validator.ts'
-import { sendWebhook } from '../webhook-target.ts'
+	answerPermission,
+	checkPermissionRequest,
+	recordPermissionRequest,
+} from '../calls.ts'
+import { clinicReads, userReceipt, userWrites } from '../conversation.ts'
+import { scheduleDelivery } from '../delivery-status.ts'
+import { graphError, invalidParameter } from '../graph-error.ts'
+import { MOCK_HEADERS, readReceipt } from '../mock-headers.ts'
+import { toPanelMessage } from '../panel-message.ts'
+import { accountStore } from '../store/account-store.ts'
+import { mockStore, type StoredMessage } from '../store/mock-store.ts'
+import type { Template, TemplateStore } from '../store/template-store.ts'
+import {
+	REVIEW_DETAILS,
+	renderTemplate,
+	type TemplateParameter,
+} from '../template-render.ts'
 import { broadcast } from '../websocket.ts'
+
+type Json = Record<string, unknown>
 
 /** Process template with variable substitution */
 export function processTemplate(
@@ -34,7 +45,6 @@ export function processTemplate(
 		text: string
 	}>
 ): { processedTemplate: Template | null; error?: string } {
-	// Get template from store
 	const template = templateStore.getTemplate(templateName, language)
 	if (!template) {
 		return {
@@ -43,412 +53,286 @@ export function processTemplate(
 		}
 	}
 
-	// Create a map of parameter values by name/index
 	const paramMap = new Map<string, string>()
 	for (const param of parameters) {
 		paramMap.set(param.parameter_name, param.text)
 	}
 
-	// Process each component and substitute variables
 	const processedComponents = template.components.map((component) => {
-		if (component.text) {
-			// Replace both {{n}} and {{name}} placeholders with actual values
-			let processedText = component.text
-			const placeholderRegex = /\{\{([^}]+)\}\}/g
-
-			processedText = processedText.replace(
-				placeholderRegex,
-				(match, paramName) => {
-					const value = paramMap.get(paramName)
-					if (value !== undefined) {
-						return value
-					}
-					// If parameter not found, keep the placeholder
-					console.warn(
-						`Template parameter ${paramName} not provided, keeping placeholder`
-					)
-					return match
-				}
+		if (!component.text) return component
+		const text = component.text.replace(/\{\{([^}]+)\}\}/g, (match, name) => {
+			const value = paramMap.get(name)
+			if (value !== undefined) return value
+			console.warn(
+				`Template parameter ${name} not provided, keeping placeholder`
 			)
-
-			return {
-				...component,
-				text: processedText,
-			}
-		}
-		return component
+			return match
+		})
+		return { ...component, text }
 	})
 
 	return {
-		processedTemplate: {
-			...template,
-			components: processedComponents,
-		},
+		processedTemplate: { ...template, components: processedComponents },
 		error: undefined,
 	}
+}
+
+/** What the mock tells the application when a template does not pass the review. */
+export { REVIEW_DETAILS }
+
+const fbtrace = () => crypto.randomUUID().replaceAll('-', '').slice(0, 23)
+
+/** The clinic is typing: the indicator lasts 25 s, or until the next message. */
+function typing(phoneNumberId: string, messageId: string): void {
+	mockStore.setTypingIndicator(phoneNumberId, messageId, true)
+	const tell = (isTyping: boolean) =>
+		broadcast({
+			type: 'TYPING_INDICATOR',
+			payload: { phoneNumberId, messageId, isTyping, timestamp: Date.now() },
+		})
+	tell(true)
+	setTimeout(() => {
+		mockStore.setTypingIndicator(phoneNumberId, messageId, false)
+		tell(false)
+	}, 25000)
+}
+
+/** A receipt: typing, the clinic reading the user, or the user's phone answering. */
+function receipt(
+	c: Context,
+	phoneNumberId: string,
+	body: Json,
+	from: string | undefined
+) {
+	const message = mockStore.getMessage(String(body.message_id ?? ''))
+	const wanted = from ? 'out' : 'in'
+	if (
+		!message ||
+		message.phoneNumberId !== phoneNumberId ||
+		message.direction !== wanted ||
+		(from && message.contact !== from)
+	) {
+		return graphError(c, {
+			message: '(#100) Invalid parameter',
+			code: 100,
+			userMessage: from
+				? 'message_id is not a message the clinic sent to this user.'
+				: 'message_id is not a message a user sent to this number.',
+		})
+	}
+	if (!from) {
+		clinicReads(message)
+		if (body.typing_indicator) typing(phoneNumberId, message.id)
+		return c.json({ success: true })
+	}
+	const answer = readReceipt(c.req.header(MOCK_HEADERS.messageStatus))
+	if (!answer) {
+		return invalidParameter(
+			c,
+			'X-Mock-Message-Status must be delivered, read or failed.'
+		)
+	}
+	userReceipt(message, answer)
+	return c.json({ success: true })
+}
+
+/** The parameters of a template call, per component, as the renderer reads them. */
+function templateParameters(template: Json): {
+	header: TemplateParameter[]
+	body: TemplateParameter[]
+} {
+	const components = (template.components as Json[] | undefined) ?? []
+	const of = (type: string) =>
+		(components.find((c) => String(c.type).toLowerCase() === type)
+			?.parameters as TemplateParameter[] | undefined) ?? []
+	return { header: of('header'), body: of('body') }
 }
 
 export function createMessagesRouter(templateStore: TemplateStore) {
 	const messagesRouter = new Hono()
 
-	/** Send template status update webhook for approval/rejection events */
-	function sendTemplateStatusWebhook(
-		phoneNumberId: string,
-		templateData: {
-			id: string
-			name: string
-			language: string
-			category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
-			event: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
-			reason?: string
-			status_details?: string
-			errors?: Array<{
-				code: string
-				title: string
-				message: string
-				error_data?: {
-					component_index?: number
-					button_position?: number
-					details?: string
-				}
-			}>
-		}
-	): void {
-		const webhookUrl = getWebhookUrl(phoneNumberId)
-		if (!webhookUrl) return
+	messagesRouter.post('/:phoneNumberId/messages', async (c) => {
+		const { phoneNumberId } = c.req.param()
+		const body = (await c.req.json().catch(() => null)) as Json | null
+		if (!body) return invalidParameter(c, 'The request body is not valid JSON.')
+		const from =
+			c.req.header(MOCK_HEADERS.from)?.replace(/\D/g, '') || undefined
 
-		const payload: WebhookPayload = {
-			object: 'whatsapp_business_account',
-			entry: [
-				{
-					id: phoneNumberId,
-					changes: [
-						{
-							value: {
-								messaging_product: 'whatsapp',
-								metadata: {
-									display_phone_number: phoneNumberId,
-									phone_number_id: phoneNumberId,
-								},
-								event: templateData.event,
-								message_template_id: templateData.id,
-								message_template_name: templateData.name,
-								message_template_language: templateData.language,
-								category: templateData.category,
-								timestamp: Math.floor(Date.now() / 1000).toString(),
-								...(templateData.reason && { reason: templateData.reason }),
-								...(templateData.status_details && {
-									status_details: templateData.status_details,
-								}),
-								...(templateData.errors && { errors: templateData.errors }),
-							},
-							field: 'message_template_status_update',
-						},
-					],
-				},
-			],
+		if (body.status === 'read') return receipt(c, phoneNumberId, body, from)
+
+		const type = String(body.type ?? 'text')
+		const replyTo = (body.context as { message_id?: string } | undefined)
+			?.message_id
+
+		const number = accountStore.ensure(phoneNumberId)
+		if (!accountStore.isRegistered(number)) {
+			return graphError(c, {
+				message: '(#133010) Account not registered',
+				code: 133010,
+				userMessage:
+					'The number is not registered on the Cloud API (POST /{phone-number-id}/register).',
+			})
 		}
 
-		console.log(
-			`📋 Sending template ${templateData.event} webhook for template ${templateData.name}`
-		)
-
-		sendWebhook(webhookUrl, payload).catch((error) => {
-			console.error(`❌ Template status webhook failed: ${error.message}`)
-		})
-	}
-
-	/** Check if request is a typing indicator using JSON schema validation */
-	function isTypingIndicatorRequest(
-		body: unknown
-	): body is WhatsAppTypingRequest {
-		const typingResult = validateWhatsAppTypingRequest(body)
-		return typingResult.isValid
-	}
-
-	/** Validation middleware for send message request using Ajv */
-	const validateSendMessage = validator('json', (value, c) => {
-		// First try to validate as a typing indicator request
-		const typingResult = validateWhatsAppTypingRequest(value)
-		if (typingResult.isValid && typingResult.data) {
-			return typingResult.data
-		}
-
-		// Then try to validate as a message request
-		const messageResult = validateWhatsAppMessageRequest(value)
-		if (messageResult.isValid && messageResult.data) {
-			return messageResult.data
-		}
-
-		// If neither validation passes, return error response
-		const errorMessage = formatValidationErrorForAPI(
-			messageResult.errors || [
-				{ path: 'root', message: 'Invalid request format' },
-			]
-		)
-
-		return c.json(
-			{
-				error: {
-					message: errorMessage,
-					type: 'validation_error',
-					code: 400,
-				},
-			} as WhatsAppErrorResponse,
-			400
-		)
-	})
-
-	// POST /v22.0/{phone-number-id}/messages - Send message or typing indicator
-	messagesRouter.post(
-		'/:phoneNumberId/messages',
-		parseJsonBody,
-		validateSendMessage,
-		async (c) => {
-			const { phoneNumberId } = c.req.param()
-			const body = c.req.valid('json')
-
-			// Check if this is a typing indicator request
-			if (isTypingIndicatorRequest(body)) {
-				console.log(
-					`⌨️ Typing indicator for message ${body.message_id} on ${phoneNumberId}`
-				)
-
-				// Store typing status temporarily (will expire after 25 seconds)
-				mockStore.setTypingIndicator(phoneNumberId, body.message_id, true)
-
-				// Broadcast typing status to CLI
-				broadcast({
-					type: 'TYPING_INDICATOR',
-					payload: {
+		if (from) {
+			let payload = (body[type] as Json | undefined) ?? {}
+			if (type === 'text' && !String(payload.body ?? '').trim()) {
+				return invalidParameter(c, 'text.body is required.')
+			}
+			// The user answers a call permission request: the permission
+			// changes, and the reply carries its expiry as Meta writes it.
+			if (type === 'interactive' && payload.type === 'call_permission_reply') {
+				const reply = (payload.call_permission_reply as Json | undefined) ?? {}
+				const response = reply.response === 'reject' ? 'reject' : 'accept'
+				payload = {
+					type: 'call_permission_reply',
+					call_permission_reply: answerPermission(
 						phoneNumberId,
-						messageId: body.message_id,
-						isTyping: true,
-						timestamp: Date.now(),
-					},
-				})
-
-				// Auto-clear typing indicator after 25 seconds (as per WhatsApp specs)
-				setTimeout(() => {
-					mockStore.setTypingIndicator(phoneNumberId, body.message_id, false)
-					broadcast({
-						type: 'TYPING_INDICATOR',
-						payload: {
-							phoneNumberId,
-							messageId: body.message_id,
-							isTyping: false,
-							timestamp: Date.now(),
-						},
-					})
-				}, 25000)
-
-				const response: WhatsAppTypingResponse = {
-					success: true,
+						from,
+						response,
+						reply.is_permanent === true,
+						'user_action'
+					),
 				}
-
-				return c.json(response)
 			}
-
-			// Otherwise handle as regular message
-			const messageBody = body as WhatsAppSendMessageRequest
-
-			// Process template if present
-			let processedContent: StoredMessage['content'] = {
-				...(messageBody.text && { text: messageBody.text }),
-				...(messageBody.template && { template: messageBody.template }),
-			}
-
-			if (messageBody.template) {
-				const templateProcessingResult = processTemplate(
-					templateStore,
-					messageBody.template.name,
-					messageBody.template.language.code,
-					messageBody.template.components?.[0]?.parameters || []
-				)
-
-				if (templateProcessingResult.error) {
-					console.error(
-						`❌ Template processing error: ${templateProcessingResult.error}`
-					)
-					return c.json(
-						{
-							error: {
-								message: templateProcessingResult.error,
-								type: 'template_error',
-								code: 400,
-							},
-						} as WhatsAppErrorResponse,
-						400
-					)
-				}
-
-				// Store the processed template in the content
-				processedContent = {
-					...processedContent,
-					processedTemplate:
-						templateProcessingResult.processedTemplate || undefined,
-				}
-
-				console.log(
-					`✅ Template "${messageBody.template.name}" processed successfully`
-				)
-			}
-
-			// Store the message
-			const storedMessage = mockStore.storeMessage({
+			const name = c.req.header(MOCK_HEADERS.contactName)?.trim() || null
+			const { message } = userWrites({
 				phoneNumberId,
-				to: messageBody.to,
-				type: messageBody.type,
-				content: processedContent,
+				from,
+				name,
+				type,
+				payload,
+				replyTo,
 			})
-
-			// Broadcast that a new message was sent
-			broadcast({
-				type: 'NEW_MESSAGE',
-				payload: toPanelMessage(storedMessage),
+			return c.json({
+				messaging_product: 'whatsapp',
+				contacts: [{ input: from, wa_id: from }],
+				messages: [{ id: message.id }],
 			})
+		}
 
-			// Prepare template data for webhooks if it's a template message
-			const templateWebhookData = messageBody.template
+		const to = String(body.to ?? '')
+		let content: StoredMessage['content'] = {
+			...(replyTo ? { context: { message_id: replyTo } } : {}),
+		}
+
+		if (type === 'text') {
+			content.text = body.text as { body: string }
+		} else if (type === 'template') {
+			const template = body.template as Json &
+				StoredMessage['content']['template']
+			const language = (template.language as { code: string }).code
+			const render = renderTemplate(
+				templateStore,
+				String(template.name),
+				language,
+				templateParameters(template)
+			)
+			if (!render.ok) {
+				// Meta refuses the send with the code of the template error. The
+				// review was reported when it landed (template-review.ts).
+				return c.json(
+					{
+						error: {
+							message: render.error.message,
+							type: 'OAuthException',
+							code: render.error.subcode,
+							error_data: {
+								messaging_product: 'whatsapp',
+								details: render.error.details,
+								...render.error.data,
+							},
+							fbtrace_id: fbtrace(),
+						},
+					},
+					400
+				)
+			}
+			content = { ...content, template, processedTemplate: render.template }
+		} else {
+			content.payload = (body[type] as Json | undefined) ?? {}
+		}
+
+		// A call permission request: calling must be on, and Meta allows one
+		// request per 24 hours and two per 7 days, none over a permanent one.
+		const asksPermission =
+			type === 'interactive' &&
+			content.payload?.type === 'call_permission_request'
+		if (asksPermission) {
+			if (!accountStore.callingEnabled(number)) {
+				return graphError(c, {
+					message: '(#138000) Calling not enabled',
+					code: 138000,
+					userMessage: 'Calling is not enabled on this business number.',
+				})
+			}
+			const allowed = checkPermissionRequest(
+				phoneNumberId,
+				to.replace(/\D/g, '')
+			)
+			if (!allowed.ok) {
+				return graphError(c, {
+					message:
+						allowed.code === 138017
+							? "(#138017) Call permission request can't be sent because a permanent permission already exists."
+							: '(#138009) Call Permission Request Limit Hit',
+					code: allowed.code,
+					userMessage:
+						allowed.code === 138017
+							? 'The user already allows this business to call at any time.'
+							: 'Too many call permission requests to this user: 1 per 24 hours and 2 per 7 days, reset by a connected call.',
+				})
+			}
+		}
+
+		const stored = mockStore.storeMessage({
+			direction: 'out',
+			phoneNumberId,
+			contact: to,
+			contactName: null,
+			type,
+			content,
+		})
+		broadcast({ type: 'NEW_MESSAGE', payload: toPanelMessage(stored) })
+		if (asksPermission)
+			recordPermissionRequest(phoneNumberId, stored.contact.replace(/\D/g, ''))
+
+		// Delivery progression (sent → delivered → read) follows the delivery mode.
+		scheduleDelivery(
+			stored,
+			content.template
 				? {
-						name: messageBody.template.name,
-						language: messageBody.template.language.code,
-						category: 'UTILITY' as const, // Default category - could be enhanced to detect from template
+						name: content.template.name,
+						language: content.template.language.code,
+						category: content.processedTemplate?.category ?? 'UTILITY',
 					}
 				: undefined
-
-			// Prepare response early for potential early returns
-			const response: WhatsAppSendMessageResponse = {
-				messaging_product: 'whatsapp',
-				contacts: [{ input: messageBody.to, wa_id: messageBody.to }],
-				messages: [
-					{
-						id: storedMessage.id,
-					},
-				],
-			}
-
-			// Simulate template approval workflow (always approved: the mock is deterministic)
-			if (messageBody.template) {
-				const template = messageBody.template // Extract for type safety
-				setTimeout(() => {
-					sendTemplateStatusWebhook(phoneNumberId, {
-						id: `template_${Date.now()}`,
-						name: template.name,
-						language: template.language.code,
-						category: 'UTILITY',
-						event: 'APPROVED',
-						status_details: 'Template approved and ready for use',
-					})
-				}, 500) // Approval happens before delivery
-			}
-
-			// Delivery progression (sent -> delivered -> read) follows the delivery mode
-			scheduleDelivery(storedMessage, templateWebhookData)
-
-			// Response was already prepared above
-
-			return c.json(response)
-		}
-	)
-
-	// POST /v22.0/{phone-number-id}/typing - Send typing indicator (dedicated endpoint)
-	messagesRouter.post('/:phoneNumberId/typing', async (c) => {
-		try {
-			const body = (await c.req.json()) as WhatsAppTypingRequest
-			const phoneNumberId = c.req.param('phoneNumberId')
-
-			// Validate typing request
-			if (body.status === 'read' && body.message_id && body.typing_indicator) {
-				console.log(
-					`⌨️ Typing indicator for message ${body.message_id} on ${phoneNumberId}`
-				)
-
-				// Store typing status temporarily (will expire after 25 seconds)
-				mockStore.setTypingIndicator(phoneNumberId, body.message_id, true)
-
-				// Broadcast typing status to CLI
-				broadcast({
-					type: 'TYPING_INDICATOR',
-					payload: {
-						phoneNumberId,
-						messageId: body.message_id,
-						isTyping: true,
-						timestamp: Date.now(),
-					},
-				})
-
-				// Auto-clear typing indicator after 25 seconds (as per WhatsApp specs)
-				setTimeout(() => {
-					mockStore.setTypingIndicator(phoneNumberId, body.message_id, false)
-					broadcast({
-						type: 'TYPING_INDICATOR',
-						payload: {
-							phoneNumberId,
-							messageId: body.message_id,
-							isTyping: false,
-							timestamp: Date.now(),
-						},
-					})
-				}, 25000)
-
-				const response: WhatsAppTypingResponse = {
-					success: true,
-				}
-
-				return c.json(response)
-			}
-			return c.json(
-				{
-					error: {
-						message: 'Invalid typing indicator request format',
-						type: 'validation_error',
-						code: 400,
-					},
-				} as WhatsAppErrorResponse,
-				400
-			)
-		} catch (error) {
-			console.error('❌ Typing indicator error:', error)
-			return invalidJsonResponse(c)
-		}
-	})
-
-	// GET /v22.0/{phone-number-id}/messages - Get messages (mock endpoint for testing)
-	messagesRouter.get('/:phoneNumberId/messages', (c) => {
-		const phoneNumberId = c.req.param('phoneNumberId')
-		const messages = mockStore.getMessagesForPhoneNumber(phoneNumberId)
+		)
 
 		return c.json({
-			data: messages,
-			paging: {
-				cursors: {
-					before: 'mock-cursor-before',
-					after: 'mock-cursor-after',
+			messaging_product: 'whatsapp',
+			contacts: [{ input: to, wa_id: to.replace(/\D/g, '') }],
+			messages: [
+				{
+					id: stored.id,
+					...(type === 'template' ? { message_status: 'accepted' } : {}),
 				},
-			},
+			],
 		})
 	})
 
-	// GET /v22.0/{phone-number-id}/messages/{message-id} - Get specific message
-	messagesRouter.get('/:phoneNumberId/messages/:messageId', (c) => {
-		const messageId = c.req.param('messageId')
-		const message = mockStore.getMessage(messageId)
-
-		if (!message) {
-			return c.json(
-				{
-					error: {
-						message: 'Message not found',
-						type: 'not_found',
-						code: 404,
-					},
-				} as WhatsAppErrorResponse,
-				404
-			)
-		}
-
-		return c.json(message)
+	// GET /{phone-number-id}/messages[?contact=] — the conversations of the
+	// number, both sides, oldest first, in the panel's shape (mock extension).
+	messagesRouter.get('/:phoneNumberId/messages', (c) => {
+		const phoneNumberId = c.req.param('phoneNumberId')
+		const messages = mockStore.getConversation(
+			phoneNumberId,
+			c.req.query('contact') || undefined
+		)
+		return c.json({
+			data: messages.map(toPanelMessage),
+			paging: { cursors: { before: '', after: '' } },
+		})
 	})
 
 	return messagesRouter

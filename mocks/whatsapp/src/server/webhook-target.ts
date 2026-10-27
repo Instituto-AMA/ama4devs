@@ -10,10 +10,10 @@
 import { getWebhookSecret } from './configuration.ts'
 import {
 	computeHmacSignatureHeader,
-	serializeJsonWithEscapedUnicode,
 	SIGNATURE_HEADER,
+	serializeJsonWithEscapedUnicode,
 } from './middleware/hmac-signature.ts'
-import { mockStore, type WebhookEvent } from './store/memory-store.ts'
+import { mockStore, type WebhookEvent } from './store/mock-store.ts'
 import type { WebhookPayload } from './types/api-types.ts'
 import { broadcast } from './websocket.ts'
 
@@ -74,6 +74,7 @@ function webhookKind(payload: WebhookPayload): WebhookEvent['kind'] {
 	if (change?.field === 'message_template_status_update') {
 		return 'template_status'
 	}
+	if ((change?.field as string) === 'calls') return 'call'
 	const value = change?.value
 	if (value && 'messages' in value && value.messages) return 'message'
 	return 'status'
@@ -93,6 +94,11 @@ function logWebhookAttempt(
 		...outcome,
 	})
 	broadcast({ type: 'WEBHOOK_EVENT', payload: event })
+}
+
+/** Wait for the configured response delay. */
+function wait(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /** Deliver a webhook payload, signing it when a secret is configured. */
@@ -121,6 +127,13 @@ export async function sendWebhook(
 				webhookSecret,
 				body
 			)
+		}
+
+		// The application behind the webhook may need a moment to answer. The
+		// delay is what the panel calls the response timer.
+		const delayMs = mockStore.getResponseDelayMs()
+		if (delayMs > 0) {
+			await wait(delayMs)
 		}
 
 		const response = await fetch(targetUrl, {

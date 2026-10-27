@@ -1,8 +1,7 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { serve } from '@hono/node-server'
+import { Hono } from 'hono'
 import {
 	afterAll,
 	beforeAll,
@@ -13,14 +12,13 @@ import {
 	vi,
 } from 'vitest'
 import { createApp } from '../server.ts'
-import { mockStore, type StoredMessage } from '../store/memory-store.ts'
+import { mockStore, type StoredMessage } from '../store/mock-store.ts'
 import { TemplateStore } from '../store/template-store.ts'
 import type {
 	WhatsAppErrorResponse,
 	WhatsAppSendMessageRequest,
 	WhatsAppSendMessageResponse,
 } from '../types/api-types.ts'
-import { createMessagesRouter } from './messages.ts'
 
 describe('Messages API Integration Tests', () => {
 	let server: ReturnType<typeof serve>
@@ -47,11 +45,8 @@ describe('Messages API Integration Tests', () => {
 		templateStore = new TemplateStore(templatesDir)
 		await templateStore.initialize()
 
-		// Set up test messages server
-		const app = new Hono()
-		app.use('*', cors())
-		const messagesRouter = createMessagesRouter(templateStore)
-		app.route('/v22.0', messagesRouter)
+		// The mock as it runs: the Cloud API engine in front of the messages.
+		const { app } = createApp(templateStore)
 
 		server = serve({
 			fetch: app.fetch,
@@ -60,7 +55,6 @@ describe('Messages API Integration Tests', () => {
 
 		// Set up mock webhook endpoint to receive webhooks
 		const mockApp = new Hono()
-		mockApp.use('*', cors())
 
 		mockApp.post('/webhook', async (c) => {
 			const payload = await c.req.json()
@@ -91,7 +85,7 @@ describe('Messages API Integration Tests', () => {
 		vi.clearAllMocks()
 	})
 
-	describe('POST /v22.0/{phone-number-id}/messages - Text Messages', () => {
+	describe('POST /v23.0/{phone-number-id}/messages - Text Messages', () => {
 		test('should send text message and trigger webhooks', async () => {
 			const textMessage: WhatsAppSendMessageRequest = {
 				messaging_product: 'whatsapp',
@@ -102,10 +96,11 @@ describe('Messages API Integration Tests', () => {
 				},
 			}
 
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(textMessage),
 			})
@@ -140,22 +135,25 @@ describe('Messages API Integration Tests', () => {
 				// Missing text.body
 			}
 
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(invalidMessage),
 			})
 
+			// The spec of the version refuses it, as Meta does: (#100) Invalid parameter.
 			expect(response.status).toBe(400)
 
 			const data = (await response.json()) as WhatsAppErrorResponse
-			expect(data.error.type).toBe('validation_error')
+			expect(data.error.type).toBe('OAuthException')
+			expect(data.error.code).toBe(100)
 		})
 	})
 
-	describe('POST /v22.0/{phone-number-id}/messages - Template Messages', () => {
+	describe('POST /v23.0/{phone-number-id}/messages - Template Messages', () => {
 		test('should send template message and trigger template-specific webhooks', async () => {
 			const templateMessage: WhatsAppSendMessageRequest = {
 				messaging_product: 'whatsapp',
@@ -164,13 +162,15 @@ describe('Messages API Integration Tests', () => {
 				template: {
 					name: 'welcome_message',
 					language: { code: 'en' },
+					// Header and body each ask for their own {{1}}, as Meta reads them.
 					components: [
+						{ type: 'header', parameters: [{ type: 'text', text: 'Ama' }] },
 						{
 							type: 'body',
 							parameters: [
 								{
 									type: 'text',
-									parameter_name: 'name',
+									// The body asks for {{1}}: the parameter without a name fills it.
 									text: 'John Doe',
 								},
 							],
@@ -179,10 +179,11 @@ describe('Messages API Integration Tests', () => {
 				},
 			}
 
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(templateMessage),
 			})
@@ -224,10 +225,11 @@ describe('Messages API Integration Tests', () => {
 				},
 			}
 
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(invalidTemplateMessage),
 			})
@@ -235,13 +237,13 @@ describe('Messages API Integration Tests', () => {
 			expect(response.status).toBe(400)
 
 			const data = (await response.json()) as WhatsAppErrorResponse
-			expect(data.error.type).toBe('template_error')
+			expect(data.error.type).toBe('OAuthException')
+			// Meta: "Template name does not exist in the translation".
+			expect(data.error.code).toBe(132001)
 			expect(data.error.message).toContain('not found')
 		})
-	})
 
-	describe('Message Storage Integration', () => {
-		test('should store template messages in memory store', async () => {
+		test('should refuse a template whose variables did not arrive and say which', async () => {
 			const templateMessage: WhatsAppSendMessageRequest = {
 				messaging_product: 'whatsapp',
 				to: '1234567890',
@@ -255,7 +257,55 @@ describe('Messages API Integration Tests', () => {
 							parameters: [
 								{
 									type: 'text',
+									// The body of the template asks for {{1}}, not for "name".
 									parameter_name: 'name',
+									text: 'John Doe',
+								},
+							],
+						},
+					],
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
+				},
+				body: JSON.stringify(templateMessage),
+			})
+
+			expect(response.status).toBe(400)
+
+			const data = (await response.json()) as WhatsAppErrorResponse & {
+				error: { error_data: { details: string; missing_parameters: string[] } }
+			}
+			expect(data.error.type).toBe('OAuthException')
+			// Meta: "Number of parameters does not match the expected number".
+			expect(data.error.code).toBe(132000)
+			expect(data.error.message).toContain('missing 1 parameter')
+			expect(data.error.error_data.details).toBe('MISSING_PARAMETERS')
+			expect(data.error.error_data.missing_parameters).toEqual(['1'])
+		})
+	})
+
+	describe('Message Storage Integration', () => {
+		test('should store template messages in memory store', async () => {
+			const templateMessage: WhatsAppSendMessageRequest = {
+				messaging_product: 'whatsapp',
+				to: '1234567890',
+				type: 'template',
+				template: {
+					name: 'welcome_message',
+					language: { code: 'en' },
+					components: [
+						{ type: 'header', parameters: [{ type: 'text', text: 'Ama' }] },
+						{
+							type: 'body',
+							parameters: [
+								{
+									type: 'text',
 									text: 'Test User',
 								},
 							],
@@ -264,10 +314,11 @@ describe('Messages API Integration Tests', () => {
 				},
 			}
 
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(templateMessage),
 			})
@@ -280,7 +331,7 @@ describe('Messages API Integration Tests', () => {
 			expect(messageId).toBeDefined()
 
 			// Check if message is stored in memory store
-			const storedMessages = mockStore.getMessagesForPhoneNumber(testPhoneId)
+			const storedMessages = mockStore.getConversation(testPhoneId)
 			const storedMessage = storedMessages.find(
 				(msg: StoredMessage) => msg.id === messageId
 			)
@@ -293,10 +344,11 @@ describe('Messages API Integration Tests', () => {
 
 	describe('Error Handling', () => {
 		test('should handle malformed JSON', async () => {
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: 'invalid json',
 			})
@@ -319,10 +371,11 @@ describe('Messages API Integration Tests', () => {
 			}
 
 			// API should still work even if webhook fails
-			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+			const response = await fetch(`${baseUrl}/v23.0/${testPhoneId}/messages`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: 'Bearer test',
 				},
 				body: JSON.stringify(textMessage),
 			})
@@ -335,22 +388,44 @@ describe('Messages API Integration Tests', () => {
 	})
 
 	describe('Graph API version routing', () => {
-		test('should answer on every v<major>.<minor> version and 404 on /latest', async () => {
+		test('answers the versions it has a specification for, and refuses the others', async () => {
 			const { app: versionedApp } = createApp(templateStore)
+			const auth = { headers: { Authorization: 'Bearer test' } }
 
-			for (const version of ['v22.0', 'v23.0', 'v25.0']) {
+			const v23 = await versionedApp.request(
+				`/v23.0/${testPhoneId}/messages`,
+				auth
+			)
+			expect(v23.status).toBe(200)
+
+			for (const version of ['v22.0', 'v99.0']) {
 				const response = await versionedApp.request(
-					`/${version}/${testPhoneId}/messages`
+					`/${version}/${testPhoneId}/messages`,
+					auth
 				)
-
-				expect(response.status).toBe(200)
+				expect(response.status).toBe(400)
+				expect(
+					((await response.json()) as { error: { code: number } }).error.code
+				).toBe(2500)
 			}
 
 			const latestResponse = await versionedApp.request(
 				`/latest/${testPhoneId}/messages`
 			)
-
 			expect(latestResponse.status).toBe(404)
+		})
+
+		test('wants an access token, like Meta', async () => {
+			const { app: versionedApp } = createApp(templateStore)
+			const none = await versionedApp.request(`/v23.0/${testPhoneId}/messages`)
+			expect(none.status).toBe(400)
+			const bad = await versionedApp.request(`/v23.0/${testPhoneId}/messages`, {
+				headers: { Authorization: 'Basic x' },
+			})
+			expect(bad.status).toBe(401)
+			expect(
+				((await bad.json()) as { error: { code: number } }).error.code
+			).toBe(190)
 		})
 	})
 })

@@ -300,44 +300,50 @@ describe('Template Validation', () => {
 		expect(result.errors).toBeDefined()
 	})
 
-	test('rejects template with invalid component type', () => {
-		const invalidTemplate = {
+	// The component types are Meta's (CAROUSEL, LIMITED_TIME_OFFER…): the spec
+	// of the Graph version checks them; a file only needs a type at all.
+	test('keeps a carousel, and refuses a component without a type', () => {
+		const carousel = validateTemplateData({
+			name: 'test_template',
+			language: 'en',
+			category: 'MARKETING',
+			components: [
+				{ type: 'BODY', text: 'Pick one' },
+				{
+					type: 'CAROUSEL',
+					cards: [{ components: [{ type: 'BODY', text: 'A' }] }],
+				},
+			],
+		})
+		expect(carousel.isValid).toBe(true)
+
+		const untyped = validateTemplateData({
 			name: 'test_template',
 			language: 'en',
 			category: 'UTILITY',
-			components: [{ type: 'INVALID_TYPE', text: 'Message' }],
-		}
-
-		const result = validateTemplateData(invalidTemplate)
-
-		expect(result.isValid).toBe(false)
-		expect(result.data).toBeUndefined()
-		expect(result.errors).toBeDefined()
+			components: [{ type: '', text: 'Message' }],
+		})
+		expect(untyped.isValid).toBe(false)
+		expect(untyped.data).toBeUndefined()
 	})
 
-	test('rejects template with invalid button type', () => {
-		const invalidTemplate = {
+	// The button types are Meta's (QUICK_REPLY, URL, OTP, CATALOG, FLOW…): the
+	// spec of the Graph version checks them, so a file keeps any of them.
+	test('keeps a button type the spec knows', () => {
+		const result = validateTemplateData({
 			name: 'test_template',
 			language: 'en',
 			category: 'UTILITY',
 			components: [
+				{ type: 'BODY', text: 'Hi' },
 				{
 					type: 'BUTTONS',
-					buttons: [
-						{
-							type: 'INVALID_BUTTON_TYPE',
-							text: 'Button',
-						},
-					],
+					buttons: [{ type: 'CATALOG', text: 'View catalog' }],
 				},
 			],
-		}
+		})
 
-		const result = validateTemplateData(invalidTemplate)
-
-		expect(result.isValid).toBe(false)
-		expect(result.data).toBeUndefined()
-		expect(result.errors).toBeDefined()
+		expect(result.isValid).toBe(true)
 	})
 })
 

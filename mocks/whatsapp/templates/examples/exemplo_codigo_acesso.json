@@ -1,0 +1,24 @@
+{
+	"name": "exemplo_codigo_acesso",
+	"language": "pt_BR",
+	"category": "AUTHENTICATION",
+	"components": [
+		{
+			"type": "BODY",
+			"text": "*{{1}}* é seu código de verificação. Para sua segurança, não o compartilhe.",
+			"add_security_recommendation": true,
+			"example": { "body_text": [["482913"]] }
+		},
+		{
+			"type": "FOOTER",
+			"text": "Este código expira em 10 minutos.",
+			"code_expiration_minutes": 10
+		},
+		{
+			"type": "BUTTONS",
+			"buttons": [
+				{ "type": "OTP", "otp_type": "COPY_CODE", "text": "Copiar código" }
+			]
+		}
+	]
+}

@@ -74,12 +74,14 @@ const whatsAppSendMessageSchema: JSONSchemaType<WhatsAppSendMessageRequest> = {
 										},
 										parameter_name: {
 											type: 'string',
+											// The Cloud API lets the name out for the positional variables.
+											nullable: true,
 										},
 										text: {
 											type: 'string',
 										},
 									},
-									required: ['type', 'parameter_name', 'text'],
+									required: ['type', 'text'],
 								},
 							},
 						},
@@ -164,13 +166,13 @@ const templateSchema: JSONSchemaType<Template> = {
 			items: {
 				type: 'object',
 				properties: {
-					type: {
-						type: 'string',
-						enum: ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'],
-					},
+					// The component types, the formats and the button types are Meta's
+					// to define (CAROUSEL, LIMITED_TIME_OFFER, LOCATION, OTP,
+					// COPY_CODE, FLOW, CATALOG…): a call is checked against the spec of
+					// its version before it reaches the store.
+					type: { type: 'string', minLength: 1 },
 					format: {
 						type: 'string',
-						enum: ['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'],
 						nullable: true,
 					},
 					text: {
@@ -182,23 +184,9 @@ const templateSchema: JSONSchemaType<Template> = {
 						items: {
 							type: 'object',
 							properties: {
-								type: {
-									type: 'string',
-									enum: ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'],
-								},
-								text: {
-									type: 'string',
-								},
-								url: {
-									type: 'string',
-									nullable: true,
-								},
-								phone_number: {
-									type: 'string',
-									nullable: true,
-								},
+								type: { type: 'string' },
 							},
-							required: ['type', 'text'],
+							required: ['type'],
 						},
 						nullable: true,
 					},

@@ -141,7 +141,7 @@ ARG REVISION=unknown
 LABEL org.opencontainers.image.title="WhatsApp Mock Server" \
       org.opencontainers.image.description="Local WhatsApp Cloud API (Meta Graph API) mock with a WhatsApp-Web-like console." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
-      org.opencontainers.image.vendor="Instituto-AMA ama4devs (from fdarian/whap)" \
+      org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}"
@@ -168,6 +168,19 @@ COPY --from=build --chown=whap:whap /app/dist/whap ./whap
 # the directory must be present at /app/templates in the final image.
 # Users can override these at runtime by mounting a volume onto /app/templates.
 COPY --from=build --chown=whap:whap /app/templates ./templates
+
+# Meta's Cloud API specification, one folder per Graph version (spec/v23.0/…):
+# the server reads it at start to route, validate and answer every call.
+# specDir() resolves './spec' relative to cwd (/app), or WHAP_SPEC_DIR.
+COPY --from=build --chown=whap:whap /app/spec ./spec
+
+# What the mock remembers (src/server/store/database.ts): the SQLite file
+# whap.db (conversations, webhook calls, settings, webhooks, numbers, the
+# template library) and media/ (the bytes of uploaded media). A volume keeps
+# it across container restarts; templates/ above only seeds the library.
+ENV WHAP_DATA_DIR=/app/data
+RUN mkdir -p /app/data/media && chown -R whap:whap /app/data
+VOLUME ["/app/data"]
 
 USER whap
 

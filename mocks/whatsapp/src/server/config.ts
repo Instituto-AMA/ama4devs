@@ -2,6 +2,7 @@ import {
 	getWebhookMappingsFromConfig,
 	parseWebhookEntry,
 } from './configuration.ts'
+import { mockStore } from './store/mock-store.ts'
 import { redactUrl } from './webhook-target.ts'
 
 export interface WebhookConfig {
@@ -154,8 +155,21 @@ export function resetWebhookConfig(): void {
 export function getWebhookConfig(): WebhookConfig {
 	if (!webhookConfig) {
 		webhookConfig = initializeWebhookConfig()
+		// The overrides set through the Cloud API outlive a restart: they are
+		// laid over what the flags, the environment and the config file say.
+		for (const row of overrideRows()) {
+			webhookConfig.mappings.set(row.phone_number_id, row.url)
+		}
 	}
 	return webhookConfig
+}
+
+function overrideRows(): Array<{ phone_number_id: string; url: string }> {
+	return mockStore.db
+		.query<{ phone_number_id: string; url: string }, []>(
+			'SELECT phone_number_id, url FROM webhook_overrides'
+		)
+		.all()
 }
 
 /**
@@ -200,6 +214,33 @@ export function setWebhookUrl(phoneNumber: string, url: string): void {
 		throw new Error(`Invalid URL format passed to setWebhookUrl: ${url}`)
 	}
 	config.mappings.set(phoneNumber, url)
+	mockStore.db
+		.query(
+			'INSERT INTO webhook_overrides (phone_number_id, url) VALUES (?, ?) ON CONFLICT (phone_number_id) DO UPDATE SET url = excluded.url'
+		)
+		.run(phoneNumber, url)
+}
+
+/**
+ * Drop the override of a number: its events go back to the app callback. A
+ * mapping the flags or the environment gave comes back on the next start.
+ */
+export function removeWebhookUrl(phoneNumber: string): void {
+	getWebhookConfig().mappings.delete(phoneNumber)
+	mockStore.db
+		.query('DELETE FROM webhook_overrides WHERE phone_number_id = ?')
+		.run(phoneNumber)
+}
+
+/** Forget every override set through the Cloud API (tests). */
+export function clearWebhookOverrides(): void {
+	mockStore.db.exec('DELETE FROM webhook_overrides')
+	webhookConfig = null
+}
+
+/** The override of a number, without falling back to the app callback. */
+export function getWebhookOverride(phoneNumber: string): string | null {
+	return getWebhookConfig().mappings.get(phoneNumber) ?? null
 }
 
 const DEFAULT_ALLOWED_HOSTS = [

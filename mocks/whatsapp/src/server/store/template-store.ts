@@ -1,9 +1,42 @@
+import type { Database } from 'bun:sqlite'
+import { createHash } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import type { FSWatcher } from 'chokidar'
 import type { TemplateResolver } from '../template-resolver.ts'
-import type { Template, TemplateComponent } from '../types/api-types.ts'
-import { validateTemplateData } from '../utils/validator.ts'
+import type {
+	Template,
+	TemplateComponent,
+	TemplateStatus,
+} from '../types/api-types.ts'
+import {
+	formatValidationErrorForAPI,
+	validateTemplateData,
+} from '../utils/validator.ts'
+import { storeDatabase } from './database.ts'
+
+/**
+ * The id Meta would give a template: sixteen digits. It is derived from the
+ * name and the language (FNV-1a), so a template keeps its id across restarts
+ * without the file having to carry it.
+ */
+export function templateIdOf(name: string, language: string): string {
+	let hash = 0xcbf29ce484222325n
+	for (const char of `${name}\u0000${language}`) {
+		hash ^= BigInt(char.codePointAt(0) ?? 0)
+		hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn
+	}
+	return `1${(hash % 1_000_000_000_000_000n).toString().padStart(15, '0')}`
+}
+
+/**
+ * Where a template is in the review. A file without a status is a template
+ * that was approved before the mock tracked reviews; a file with only the old
+ * `review` field is in the state that review named.
+ */
+export function statusOf(template: Template): TemplateStatus {
+	return template.status ?? template.review?.event ?? 'APPROVED'
+}
 
 /** Auto-generate variables from template components */
 function generateVariablesFromTemplate(
@@ -79,25 +112,47 @@ function generateVariableExample(variableName: string): string {
 	return 'Example Value'
 }
 
+/**
+ * The template library of the mock.
+ *
+ * The library lives in the mock's database (`database.ts`): what the Cloud API
+ * creates, edits, reviews and deletes is a row, and a restart keeps it. The
+ * `templates/` folder is a seed: each JSON file is imported at start and
+ * whenever it changes. A seed is imported again only when its content
+ * changes, so a template deleted or edited through the API stays as the API
+ * left it.
+ *
+ * `templates/examples/` holds the examples: one template per thing Meta lets
+ * a template carry (each header format, the footer, every button type, a
+ * carousel, named parameters, authentication), with the sample files of their
+ * media headers in `templates/examples/media/`. They are seeds like any other;
+ * the panel lists them apart from the application's own templates.
+ */
 export class TemplateStore {
+	/** The rows, read once and kept in step with every write. */
 	private templates: Map<string, Template> = new Map()
+	/** The keys (name_language) of the templates seeded from the examples folder. */
+	private examples: Set<string> = new Set()
 	private watcher: FSWatcher | null = null
 	private templatesDir: string
 	private isWatching = false
 	private templateResolver?: TemplateResolver
+	private db: Database
 
 	constructor(
 		templatesDir = './templates',
-		templateResolver?: TemplateResolver
+		templateResolver?: TemplateResolver,
+		db: Database = storeDatabase()
 	) {
 		// Resolve to absolute path to ensure consistent file watching.
 		// Relative paths are resolved from the working directory, absolute paths
 		// are kept as they are.
 		this.templatesDir = resolve(process.cwd(), templatesDir)
 		this.templateResolver = templateResolver
+		this.db = db
 	}
 
-	/** Initialize the template store and start file watching */
+	/** Read the library, import the seeds and watch the seed folder. */
 	async initialize(): Promise<void> {
 		console.log('🗂️  Initializing template store...')
 
@@ -105,16 +160,41 @@ export class TemplateStore {
 			console.log('🔌 Using custom template resolution')
 			console.log('📁 Template store initialized with custom resolver')
 		} else {
-			// Load existing templates
+			this.readLibrary()
 			await this.loadAllTemplates()
-
-			// Start file watcher
 			await this.startWatcher()
 
 			console.log(
 				`📁 Template store initialized with ${this.templates.size} templates`
 			)
 		}
+	}
+
+	/** The rows of the library, into the cache. */
+	private readLibrary(): void {
+		this.templates.clear()
+		const rows = this.db
+			.query<{ data: string }, []>('SELECT data FROM templates')
+			.all()
+		for (const row of rows) {
+			const template = JSON.parse(row.data) as Template
+			this.templates.set(`${template.name}_${template.language}`, template)
+		}
+	}
+
+	private writeRow(template: Template): void {
+		this.db
+			.query(
+				`INSERT INTO templates (id, name, language, data) VALUES (?, ?, ?, ?)
+				 ON CONFLICT (name, language) DO UPDATE SET id = excluded.id, data = excluded.data`
+			)
+			.run(
+				template.id ?? templateIdOf(template.name, template.language ?? 'en'),
+				template.name,
+				template.language ?? 'en',
+				JSON.stringify(template)
+			)
+		this.templates.set(`${template.name}_${template.language}`, template)
 	}
 
 	/** Start file watcher for hot-reload functionality */
@@ -135,7 +215,8 @@ export class TemplateStore {
 				ignored: /^\./,
 				persistent: true,
 				ignoreInitial: true,
-				depth: 0, // Only watch direct files, not subdirectories
+				// The seeds and templates/examples/ (its media/ is not watched).
+				depth: 1,
 				awaitWriteFinish: {
 					stabilityThreshold: 100,
 					pollInterval: 50,
@@ -145,21 +226,24 @@ export class TemplateStore {
 			if (this.watcher) {
 				this.watcher
 					.on('add', async (path: string) => {
-						if (path.endsWith('.json')) {
+						if (this.isSeed(path)) {
 							console.log(`📄 Template file added: ${path}`)
 							await this.loadTemplate(path)
 						}
 					})
 					.on('change', async (path: string) => {
-						if (path.endsWith('.json')) {
+						if (this.isSeed(path)) {
 							console.log(`📝 Template file changed: ${path}`)
 							await this.loadTemplate(path)
 						}
 					})
 					.on('unlink', (path: string) => {
+						// The library is the database: a seed file that goes away
+						// takes nothing with it.
 						if (path.endsWith('.json')) {
-							console.log(`🗑️  Template file removed: ${path}`)
-							this.removeTemplateByPath(path)
+							console.log(
+								`🗑️  Template seed removed (the library keeps it): ${path}`
+							)
 						}
 					})
 					.on('error', (error: unknown) => {
@@ -198,12 +282,45 @@ export class TemplateStore {
 			)
 			console.error(error)
 		}
+		const examples = await readdir(this.examplesDir).catch(() => [])
+		for (const file of examples.filter((name) => name.endsWith('.json'))) {
+			await this.loadTemplate(join(this.examplesDir, file))
+		}
 	}
 
-	/** Load a single template file */
+	/** The folder of the examples and of their sample media. */
+	get examplesDir(): string {
+		return join(this.templatesDir, 'examples')
+	}
+
+	/** A seed file: a JSON right in templates/ or in templates/examples/. */
+	private isSeed(path: string): boolean {
+		const folder = resolve(dirname(path))
+		return (
+			path.endsWith('.json') &&
+			(folder === this.templatesDir || folder === this.examplesDir)
+		)
+	}
+
+	/** The examples still in the library, as the panel groups them. */
+	getExamples(): Array<{ name: string; language: string }> {
+		return Array.from(this.examples)
+			.map((key) => this.templates.get(key))
+			.filter((template): template is Template => template !== undefined)
+			.map((template) => ({
+				name: template.name,
+				language: template.language ?? 'en',
+			}))
+	}
+
+	/**
+	 * Import a seed file into the library, unless this very content was
+	 * imported before (the API may have changed or deleted it since).
+	 */
 	private async loadTemplate(filePath: string): Promise<void> {
 		try {
 			const content = await readFile(filePath, 'utf-8')
+			const hash = createHash('sha256').update(content).digest('hex')
 			const templateData = JSON.parse(content)
 
 			// Apply defaults and auto-generate variables
@@ -223,9 +340,25 @@ export class TemplateStore {
 
 			const template = validationResult.data as Template
 			const templateKey = `${template.name}_${template.language}`
-			this.templates.set(templateKey, template)
+			if (resolve(dirname(filePath)) === this.examplesDir) {
+				this.examples.add(templateKey)
+			}
+			const seeded = this.db
+				.query<{ hash: string }, [string, string]>(
+					'SELECT hash FROM template_seeds WHERE name = ? AND language = ?'
+				)
+				.get(template.name, template.language ?? 'en')
+			if (seeded?.hash === hash) return
 
-			console.log(`✅ Loaded template: ${templateKey}`)
+			this.writeRow(template)
+			this.db
+				.query(
+					`INSERT INTO template_seeds (name, language, hash) VALUES (?, ?, ?)
+					 ON CONFLICT (name, language) DO UPDATE SET hash = excluded.hash`
+				)
+				.run(template.name, template.language ?? 'en', hash)
+
+			console.log(`✅ Imported template seed: ${templateKey}`)
 		} catch (error) {
 			console.error(`❌ Error loading template from ${filePath}:`, error)
 		}
@@ -250,6 +383,8 @@ export class TemplateStore {
 			processed.category = 'UTILITY'
 		}
 
+		processed.id = templateIdOf(processed.name, processed.language)
+
 		// Auto-generate variables if not provided or merge with existing
 		if (processed.components) {
 			const autoGeneratedVariables = generateVariablesFromTemplate(
@@ -271,22 +406,6 @@ export class TemplateStore {
 		return processed
 	}
 
-	/** Remove template by file path */
-	private removeTemplateByPath(filePath: string): void {
-		// Extract template name from file path for exact matching
-		const fileName = filePath.split('/').pop()?.replace('.json', '')
-		if (!fileName) return
-
-		// Find template by exact name match
-		for (const [key, template] of this.templates.entries()) {
-			if (template.name === fileName) {
-				this.templates.delete(key)
-				console.log(`🗑️  Removed template: ${key}`)
-				break
-			}
-		}
-	}
-
 	/** Get template by name and language */
 	getTemplate(name: string, language = 'en'): Template | undefined {
 		if (this.templateResolver) {
@@ -295,6 +414,14 @@ export class TemplateStore {
 
 		const key = `${name}_${language}`
 		return this.templates.get(key)
+	}
+
+	/** The template Meta knows by this id, if the mock has it. */
+	getTemplateById(id: string): Template | undefined {
+		for (const template of this.templates.values()) {
+			if (template.id === id) return template
+		}
+		return undefined
 	}
 
 	/** Get all templates */
@@ -312,6 +439,47 @@ export class TemplateStore {
 	/** Get template names for listing */
 	getTemplateNames(): string[] {
 		return Array.from(this.templates.values()).map((template) => template.name)
+	}
+
+	/** Create or replace a template in the library. */
+	async upsertTemplate(template: Template): Promise<Template> {
+		if (this.templateResolver) {
+			throw new Error(
+				'Este mock resolve os templates por comando externo; eles não são editáveis aqui.'
+			)
+		}
+
+		const processed = this.processTemplateData(template)
+		const validationResult = validateTemplateData(processed)
+		if (!validationResult.isValid || !validationResult.data) {
+			throw new Error(
+				`Template inválido: ${formatValidationErrorForAPI(validationResult.errors ?? [])}`
+			)
+		}
+
+		const data = validationResult.data as Template
+		this.writeRow(data)
+		console.log(`💾 Saved template: ${data.name}_${data.language}`)
+		return data
+	}
+
+	/** Delete a template from the library; its seed file, if any, stays. */
+	async removeTemplate(name: string, language = 'en'): Promise<boolean> {
+		if (this.templateResolver) {
+			throw new Error(
+				'Este mock resolve os templates por comando externo; eles não são editáveis aqui.'
+			)
+		}
+
+		const key = `${name}_${language}`
+		if (!this.templates.has(key)) return false
+
+		this.db
+			.query('DELETE FROM templates WHERE name = ? AND language = ?')
+			.run(name, language)
+		this.templates.delete(key)
+		console.log(`🗑️  Deleted template: ${key}`)
+		return true
 	}
 
 	/** Get template stats */
@@ -350,10 +518,10 @@ export class TemplateStore {
 		}
 	}
 
-	/** Manually reload all templates (for testing/debugging) */
+	/** Read the library again and import the seeds that changed. */
 	async reloadTemplates(): Promise<void> {
 		console.log('🔄 Manually reloading all templates...')
-		this.templates.clear()
+		this.readLibrary()
 		await this.loadAllTemplates()
 		console.log(`✅ Manually reloaded ${this.templates.size} templates`)
 	}

@@ -4,19 +4,40 @@ import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { graphEngine } from '../graph/engine.ts'
+import { NodeRegistry } from '../graph/nodes.ts'
+import type { GraphSpec } from '../graph/spec.ts'
+import { loadSpecs, statefulOperations } from '../graph/versions.ts'
+import { closeStaleCalls, listCalls } from './calls.ts'
 import { allowedHosts, getWebhookConfig, serverPort } from './config.ts'
 import { getTemplatesConfig } from './configuration.ts'
 import { isAllowedOrigin, localGuard } from './middleware/local-guard.ts'
-import { conversationRouter } from './routes/conversation.ts'
+import {
+	createAccountsRouter,
+	createAccountsSettingsRouter,
+} from './routes/accounts.ts'
+import { createCallsRouter } from './routes/calls.ts'
+import { createExamplesRouter } from './routes/examples.ts'
+import { createMediaDownloadRouter, createMediaRouter } from './routes/media.ts'
 import { createMessagesRouter } from './routes/messages.ts'
-import { panelRouter } from './routes/panel.ts'
-import { phoneRouter } from './routes/phone.ts'
+import { createNodesRouter } from './routes/nodes.ts'
+import { createPanelRouter } from './routes/panel.ts'
+import { settingsRouter } from './routes/settings.ts'
 import { startStatsInterval, statusRouter } from './routes/status.ts'
 import { createTemplatesRouter } from './routes/templates.ts'
-import { webhooksRouter } from './routes/webhooks.ts'
+import { accountStore } from './store/account-store.ts'
+import { mediaStore } from './store/media-store.ts'
 import { TemplateStore } from './store/template-store.ts'
 import { TemplateResolver } from './template-resolver.ts'
+import { resumeReviews } from './template-review.ts'
 import { addClient, removeClient } from './websocket.ts'
+
+/** The specifications are read once per process: every app shares them. */
+let specs: Map<string, GraphSpec> | null = null
+export function graphSpecs(): Map<string, GraphSpec> {
+	specs ??= loadSpecs()
+	return specs
+}
 
 const REDACTED_HEADERS = new Set([
 	'authorization',
@@ -29,6 +50,12 @@ export function createApp(templateStore: TemplateStore) {
 
 	// Initialize webhook configuration from CLI arguments and environment
 	getWebhookConfig()
+
+	// The accounts boot configured: the default business, WABA and number
+	// (registered, calling on) and the configured numbers. A call that was
+	// going on when the mock stopped is over.
+	accountStore.seed()
+	closeStaleCalls()
 
 	const { upgradeWebSocket, injectWebSocket } = createNodeWebSocket({
 		app,
@@ -119,26 +146,45 @@ export function createApp(templateStore: TemplateStore) {
 		})
 	}
 
-	// Create routers with the store instance
-	const messagesRouter = createMessagesRouter(templateStore)
-	const templatesRouter = createTemplatesRouter(templateStore)
-
-	// Graph API versions are matched by pattern, so the mock keeps answering
-	// on every v<major>.<minor> release (e.g. /v22.0, /v23.0, /v25.0).
+	// The Cloud API, one specification per Graph version (spec/<version>/).
+	// The engine checks the version, the token, the operation and its body
+	// against Meta's spec, then runs the operation: the simulation below for
+	// the operations the mock keeps state of, Meta's example for the rest.
+	// What only a test needs travels in X-Mock-* headers (mock-headers.ts).
 	const versionPath = '/:version{v[0-9]+\\.[0-9]+}'
-	app.route(versionPath, messagesRouter)
-	app.route(versionPath, templatesRouter)
-	app.route(versionPath, phoneRouter)
-	// The /mock path is for internal simulation tools
-	app.get('/mock/templates', (c) =>
-		c.json({ templates: templateStore.getAllTemplates() })
+	const simulation = new Hono()
+	simulation.route(versionPath, createMessagesRouter(templateStore))
+	simulation.route(versionPath, createTemplatesRouter(templateStore))
+	// A media id is answered by the media router; any other id goes on to nodes.
+	simulation.route(versionPath, createMediaRouter(mediaStore))
+	simulation.route(versionPath, createAccountsRouter())
+	simulation.route(versionPath, createCallsRouter())
+	simulation.route(versionPath, createNodesRouter(templateStore))
+	const nodes = new NodeRegistry()
+	nodes.register('template', (id) => !!templateStore.getTemplateById(id))
+	nodes.register('media', (id) => mediaStore.known(id))
+	nodes.register('waba', (id) => !!accountStore.waba(id))
+	nodes.register('business', (id) => !!accountStore.business(id))
+	nodes.register('phone', (id) => !!accountStore.number(id))
+	app.all(
+		`${versionPath}/*`,
+		graphEngine({
+			specs: graphSpecs(),
+			nodes,
+			stateful: statefulOperations,
+			simulation,
+		})
 	)
-	app.route('/mock', webhooksRouter)
+	// What Meta has no call for: how the mock behaves and what it shows.
+	// Meta's download URL of a media (lookaside.fbsbx.com in production).
+	app.route('/', createMediaDownloadRouter(mediaStore))
+	app.route('/settings', settingsRouter)
+	app.route('/settings', createExamplesRouter(templateStore))
+	app.route('/settings', createAccountsSettingsRouter())
+	app.get('/settings/calls', (c) => c.json({ calls: listCalls() }))
 	app.route('/status', statusRouter)
-	app.route('/conversation', conversationRouter)
-	app.route('/webhook', webhooksRouter)
 
-	app.route('/', panelRouter)
+	app.route('/', createPanelRouter(graphSpecs))
 
 	// 404 handler
 	app.notFound((c) => {
@@ -209,6 +255,9 @@ export async function startServer(port = serverPort()) {
 		console.error('❌ Failed to initialize template store:', error)
 		throw error
 	})
+
+	// A template that was in review when the mock stopped resumes its review.
+	resumeReviews(store)
 
 	const { app, injectWebSocket } = createApp(store)
 

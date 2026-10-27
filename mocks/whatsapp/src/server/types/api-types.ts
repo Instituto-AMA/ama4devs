@@ -1,11 +1,25 @@
 // WhatsApp Cloud API Types for Mock Server
 
+/** The states of a template in the review of Meta. */
+export type TemplateStatus =
+	| 'PENDING'
+	| 'APPROVED'
+	| 'REJECTED'
+	| 'PAUSED'
+	| 'DISABLED'
+
 /** Template structure based on WhatsApp Business API format */
 export interface Template {
+	/** The id Meta gives the template; derived from the name and the language. */
+	id?: string
 	name: string
 	language?: string
 	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 	components: TemplateComponent[]
+	/** Where the template is in the review. A template without one is approved. */
+	status?: TemplateStatus
+	/** The business account the template was created in, for the status webhook. */
+	wabaId?: string
 	variables?: Record<
 		string,
 		{
@@ -13,18 +27,46 @@ export interface Template {
 			example: string
 		}
 	>
+	/**
+	 * The verdict the review of the mock gives this template (the
+	 * `X-Mock-Template-Review*` headers of the call that created or edited it).
+	 * The template waits `delayMs` as PENDING, then takes `event` as its status
+	 * and the application hears it through `message_template_status_update`.
+	 */
+	review?: {
+		event: TemplateStatus
+		reason?: string
+		delayMs?: number
+	}
+}
+
+/** A button of a template, as Meta writes it at creation. */
+export interface TemplateButton {
+	/** QUICK_REPLY, URL, PHONE_NUMBER, COPY_CODE, OTP, FLOW, CATALOG, MPM… */
+	type: string
+	text?: string
+	url?: string
+	phone_number?: string
+	/** The sample of a URL suffix or of a code to copy. */
+	example?: string | string[]
 }
 
 export interface TemplateComponent {
-	type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
-	format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+	/** HEADER, BODY, FOOTER, BUTTONS, CAROUSEL, LIMITED_TIME_OFFER… */
+	type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | 'CAROUSEL' | (string & {})
+	format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION' | (string & {})
 	text?: string
-	buttons?: Array<{
-		type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
-		text: string
-		url?: string
-		phone_number?: string
-	}>
+	/** The example values Meta asks for at creation (`body_text`, `header_text`, `header_handle`). */
+	example?: Record<string, unknown>
+	buttons?: TemplateButton[]
+	/** The cards of a carousel: each a header, a body and buttons. */
+	cards?: Array<{ components: TemplateComponent[] }>
+	/** The offer line of a LIMITED_TIME_OFFER component. */
+	limited_time_offer?: { text?: string; has_expiration?: boolean }
+	/** Authentication: the security line Meta adds to the body. */
+	add_security_recommendation?: boolean
+	/** Authentication: the expiry line Meta writes in the footer. */
+	code_expiration_minutes?: number
 }
 
 export interface WhatsAppSendMessageRequest {
@@ -38,10 +80,11 @@ export interface WhatsAppSendMessageRequest {
 		name: string
 		language: { code: string }
 		components?: Array<{
-			type: 'body'
+			type: 'header' | 'body' | 'button'
 			parameters: Array<{
 				type: 'text'
-				parameter_name: string
+				/** The Cloud API lets it out: without a name, the parameter fills the next variable. */
+				parameter_name?: string
 				text: string
 			}>
 		}>
@@ -155,7 +198,7 @@ export interface TemplateStatusUpdate {
 	category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 	reason?: string
 	status_details?: string
-	timestamp: string
+	timestamp?: string
 	/** Additional error details for rejected templates */
 	errors?: Array<{
 		code: string
@@ -173,6 +216,8 @@ export interface WebhookPayload {
 	object: 'whatsapp_business_account'
 	entry: Array<{
 		id: string
+		/** Unix seconds, on the business account events (template reviews). */
+		time?: number
 		changes: Array<{
 			value:
 				| {

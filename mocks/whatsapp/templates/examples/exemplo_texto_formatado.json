@@ -1,0 +1,12 @@
+{
+	"name": "exemplo_texto_formatado",
+	"language": "pt_BR",
+	"category": "UTILITY",
+	"components": [
+		{
+			"type": "BODY",
+			"text": "Oi, {{1}}! Antes da cirurgia de amanhã:\n\n• *Jejum* de 8 horas\n• _Traga_ seus exames e um documento\n• ~Não precisa~ trazer acompanhante: a sedação é leve\n\nProtocolo: ```{{2}}```\nDúvidas: https://clinica.exemplo/preparo",
+			"example": { "body_text": [["Mariana", "CIR-88412"]] }
+		}
+	]
+}

@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"$id": "https://raw.githubusercontent.com/fdarian/whap/main/schema/whap-config.schema.json",
+	"$id": "https://github.com/Instituto-AMA/ama4devs/mocks/whatsapp/schema/whap-config.schema.json",
 	"title": "Whap Configuration",
 	"description": "Configuration file for Whap WhatsApp Mock Server",
 	"type": "object",

@@ -1,321 +1,415 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import type { Template } from '../store/template-store.ts'
+import type { Database } from 'bun:sqlite'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import {
+	clearWebhookOverrides,
+	resetWebhookConfig,
+	setWebhookUrl,
+} from '../config.ts'
+import { createApp } from '../server.ts'
+import { openDatabase } from '../store/database.ts'
+import { mockStore } from '../store/mock-store.ts'
 import { TemplateStore } from '../store/template-store.ts'
-import { createTemplatesRouter } from './templates.ts'
 
-describe('Templates API Integration Tests', () => {
-	let server: ReturnType<typeof serve>
-	let templateStore: TemplateStore
-	const baseUrl = 'http://localhost:3011'
-	const testBusinessId = 'test-business-123'
+const base = 'http://localhost:3010'
+const waba = '102290129340398'
+const phone = '5511400000000'
 
-	beforeAll(async () => {
-		// Create and initialize template store for testing
-		templateStore = new TemplateStore('./templates')
-		await templateStore.initialize()
+// biome-ignore lint/suspicious/noExplicitAny: the tests read Graph answers of any shape
+type Json = Record<string, any>
 
-		// Set up test server
-		const app = new Hono()
-		app.use('*', cors())
-		const templatesRouter = createTemplatesRouter(templateStore)
-		app.route('/v22.0', templatesRouter)
+describe('Message templates through the Cloud API', () => {
+	let dir: string
+	let db: Database
+	let store: TemplateStore
+	let app: ReturnType<typeof createApp>['app']
+	const realFetch = globalThis.fetch
+	const delivered: Array<{ url: string; body: Json }> = []
 
-		server = serve({
-			fetch: app.fetch,
-			port: 3011,
+	const call = (
+		path: string,
+		init: {
+			method?: string
+			body?: unknown
+			headers?: Record<string, string>
+		} = {}
+	) =>
+		app.request(`${base}${path}`, {
+			method: init.method ?? 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: 'Bearer test',
+				...init.headers,
+			},
+			...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
 		})
 
-		// Wait a bit for server to start
-		await new Promise((resolve) => setTimeout(resolve, 500))
+	const create = (body: Json, headers: Record<string, string> = {}) =>
+		call(`/v23.0/${waba}/message_templates`, {
+			method: 'POST',
+			body,
+			headers: { 'X-Mock-Template-Review-Delay': '0', ...headers },
+		})
+
+	const draft = (name: string): Json => ({
+		name,
+		language: 'pt_BR',
+		category: 'UTILITY',
+		components: [
+			{ type: 'HEADER', format: 'TEXT', text: 'Cobrança' },
+			{
+				type: 'BODY',
+				text: 'Olá, {{1}}! Sua cobrança de {{2}} venceu.',
+				example: { body_text: [['Mariana', 'R$ 120,00']] },
+			},
+		],
 	})
 
-	afterAll(async () => {
-		server?.close()
-		await templateStore?.cleanup()
-	})
+	const statusOf = async (name: string) => {
+		const res = await call(`/v23.0/${waba}/message_templates?name=${name}`)
+		return ((await res.json()) as Json).data[0]
+	}
 
-	describe('GET /v22.0/{business-account-id}/message_templates', () => {
-		test('should list all templates', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`
-			)
-
-			expect(response.status).toBe(200)
-
-			const data = await response.json()
-			expect(data).toHaveProperty('data')
-			expect(data).toHaveProperty('paging')
-			expect(Array.isArray(data.data)).toBe(true)
-
-			// Should have at least the default templates
-			expect(data.data.length).toBeGreaterThan(0)
-
-			// Verify template structure
-			if (data.data.length > 0) {
-				const template = data.data[0]
-				expect(template).toHaveProperty('name')
-				expect(template).toHaveProperty('language')
-				expect(template).toHaveProperty('category')
-				expect(template).toHaveProperty('components')
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), 'whap-templates-'))
+		// One database per test, shared by the stores of a "restart".
+		db = openDatabase(':memory:')
+		store = new TemplateStore(dir, undefined, db)
+		app = createApp(store).app
+		delete process.env.WEBHOOK_URL
+		resetWebhookConfig()
+		mockStore.setResponseDelayMs(0)
+		delivered.length = 0
+		// The webhooks of the application, answered here.
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			const url = String(input instanceof Request ? input.url : input)
+			if (url.startsWith('http://app.test/')) {
+				const target = new URL(url)
+				if ((init?.method ?? 'GET') === 'GET') {
+					return new Response(target.searchParams.get('hub.challenge') ?? '')
+				}
+				delivered.push({ url, body: JSON.parse(String(init?.body)) })
+				return new Response('ok')
 			}
+			return realFetch(input, init)
 		})
 	})
 
-	describe('GET /v22.0/{business-account-id}/message_templates/{template-name}', () => {
-		test('should get specific template', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/welcome_message?language=en`
-			)
+	afterEach(async () => {
+		vi.restoreAllMocks()
+		await rm(dir, { recursive: true, force: true })
+	})
 
-			expect(response.status).toBe(200)
-
-			const data = await response.json()
-			expect(data.name).toBe('welcome_message')
-			expect(data.language).toBe('en')
-			expect(data.category).toBe('UTILITY')
-			expect(Array.isArray(data.components)).toBe(true)
+	test('a new template is born PENDING and a restart finds it in the library', async () => {
+		const res = await create(draft('cobranca_vencida'), {
+			'X-Mock-Template-Review-Delay': '60000',
 		})
 
-		test('should return 404 for non-existent template', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/non_existent_template?language=en`
-			)
-
-			expect(response.status).toBe(404)
-
-			const data = await response.json()
-			expect(data.error).toHaveProperty('message')
-			expect(data.error).toHaveProperty('type', 'template_not_found')
-			expect(data.error).toHaveProperty('code', 404)
+		expect(res.status).toBe(200)
+		const created = (await res.json()) as Json
+		expect(created).toEqual({
+			id: expect.stringMatching(/^\d{16}$/),
+			status: 'PENDING',
+			category: 'UTILITY',
 		})
+		const restarted = new TemplateStore(dir, undefined, db)
+		await restarted.initialize()
+		const kept = restarted.getTemplate('cobranca_vencida', 'pt_BR') as Json
+		expect(kept.status).toBe('PENDING')
+		expect(kept.wabaId).toBe(waba)
+		expect(kept.variables['1'].example).toBe('Mariana')
+		await restarted.cleanup()
+	})
 
-		test('should return 404 for existing template with wrong language', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/welcome_message?language=fr`
-			)
+	test('a seed deleted through the API stays deleted until its file changes', async () => {
+		const seed = join(dir, 'semente.json')
+		await writeFile(
+			seed,
+			JSON.stringify({ ...draft('semente'), status: 'APPROVED' })
+		)
+		await store.initialize()
+		expect(store.getTemplate('semente', 'pt_BR')).toBeDefined()
 
-			expect(response.status).toBe(404)
+		const removed = await call(
+			`/v23.0/${waba}/message_templates?name=semente`,
+			{
+				method: 'DELETE',
+			}
+		)
+		expect(removed.status).toBe(200)
+		const again = new TemplateStore(dir, undefined, db)
+		await again.initialize()
+		expect(again.getTemplate('semente', 'pt_BR')).toBeUndefined()
 
-			const data = await response.json()
-			expect(data.error.message).toContain("not found for language 'fr'")
+		await writeFile(
+			seed,
+			JSON.stringify({ ...draft('semente'), category: 'MARKETING' })
+		)
+		await again.reloadTemplates()
+		expect(again.getTemplate('semente', 'pt_BR')?.category).toBe('MARKETING')
+		await store.cleanup()
+		await again.cleanup()
+	})
+
+	test('the review approves it and tells every webhook of the account', async () => {
+		setWebhookUrl(phone, 'http://app.test/hooks/meta')
+		const created = (await (await create(draft('lembrete'))).json()) as Json
+
+		await vi.waitFor(async () => {
+			expect((await statusOf('lembrete')).status).toBe('APPROVED')
+		})
+		await vi.waitFor(() => expect(delivered).toHaveLength(1))
+		const entry = delivered[0].body.entry[0]
+		expect(entry.id).toBe(waba)
+		expect(entry.changes[0].field).toBe('message_template_status_update')
+		expect(entry.changes[0].value).toMatchObject({
+			event: 'APPROVED',
+			message_template_id: created.id,
+			message_template_name: 'lembrete',
+			message_template_language: 'pt_BR',
+			reason: 'NONE',
 		})
 	})
 
-	describe('POST /v22.0/{business-account-id}/message_templates', () => {
-		test('should create new template', async () => {
-			const newTemplate: Template = {
-				name: 'test_create_template',
-				language: 'en',
-				category: 'UTILITY',
-				components: [
+	test('the headers decide the verdict, and a rejected template cannot be sent', async () => {
+		await create(draft('promo'), {
+			'X-Mock-Template-Review': 'REJECTED',
+			'X-Mock-Template-Review-Reason': 'TAG_CONTENT_MISMATCH',
+		})
+		await vi.waitFor(async () => {
+			expect((await statusOf('promo')).status).toBe('REJECTED')
+		})
+		expect((await statusOf('promo')).rejected_reason).toBe(
+			'TAG_CONTENT_MISMATCH'
+		)
+
+		const send = await call(`/v23.0/${phone}/messages`, {
+			method: 'POST',
+			body: {
+				messaging_product: 'whatsapp',
+				to: '5511999999999',
+				type: 'template',
+				template: { name: 'promo', language: { code: 'pt_BR' } },
+			},
+		})
+		expect(send.status).toBe(400)
+		expect(((await send.json()) as Json).error.code).toBe(132001)
+	})
+
+	test('a paused template is refused with the code Meta uses for it', async () => {
+		await create(draft('pausado'), { 'X-Mock-Template-Review': 'PAUSED' })
+		await vi.waitFor(async () => {
+			expect((await statusOf('pausado')).status).toBe('PAUSED')
+		})
+		const send = await call(`/v23.0/${phone}/messages`, {
+			method: 'POST',
+			body: {
+				messaging_product: 'whatsapp',
+				to: '5511999999999',
+				type: 'template',
+				template: { name: 'pausado', language: { code: 'pt_BR' } },
+			},
+		})
+		expect(((await send.json()) as Json).error.code).toBe(132015)
+	})
+
+	test('refuses what Meta refuses', async () => {
+		const badName = await create({ ...draft('x'), name: 'Cobrança Vencida' })
+		expect(badName.status).toBe(400)
+		expect(((await badName.json()) as Json).error).toMatchObject({
+			type: 'OAuthException',
+			code: 100,
+		})
+
+		const noBody = await create({
+			...draft('sem_corpo'),
+			components: [{ type: 'FOOTER', text: 'rodapé' }],
+		})
+		expect(noBody.status).toBe(400)
+
+		await create(draft('duplicado'))
+		const twice = await create(draft('duplicado'))
+		expect(twice.status).toBe(400)
+		expect(((await twice.json()) as Json).error.error_subcode).toBe(2388024)
+	})
+
+	test('reads a template by its id and edits it back into the review', async () => {
+		const { id } = (await (await create(draft('edicao'))).json()) as Json
+		await vi.waitFor(async () => {
+			expect((await statusOf('edicao')).status).toBe('APPROVED')
+		})
+
+		const read = (await (await call(`/v23.0/${id}`)).json()) as Json
+		expect(read.name).toBe('edicao')
+		expect(read.components[1].example.body_text[0]).toEqual([
+			'Mariana',
+			'R$ 120,00',
+		])
+
+		const edit = await call(`/v23.0/${id}`, {
+			method: 'POST',
+			body: {
+				components: [{ type: 'BODY', text: 'Oi, {{1}}!' }],
+			},
+			headers: { 'X-Mock-Template-Review-Delay': '60000' },
+		})
+		expect(((await edit.json()) as Json).success).toBe(true)
+		expect((await statusOf('edicao')).status).toBe('PENDING')
+
+		const whileInReview = await call(`/v23.0/${id}`, {
+			method: 'POST',
+			body: { category: 'MARKETING' },
+		})
+		expect(whileInReview.status).toBe(400)
+	})
+
+	test('deletes one language by hsm_id, or every language by name', async () => {
+		const pt = (await (await create(draft('aviso'))).json()) as Json
+		await create({ ...draft('aviso'), language: 'en_US' })
+
+		await call(`/v23.0/${waba}/message_templates?name=aviso&hsm_id=${pt.id}`, {
+			method: 'DELETE',
+		})
+		expect(store.getTemplate('aviso', 'pt_BR')).toBeUndefined()
+		expect(store.getTemplate('aviso', 'en_US')).toBeDefined()
+
+		const all = await call(`/v23.0/${waba}/message_templates?name=aviso`, {
+			method: 'DELETE',
+		})
+		expect(((await all.json()) as Json).success).toBe(true)
+		expect(store.getTemplate('aviso', 'en_US')).toBeUndefined()
+
+		const none = await call(`/v23.0/${waba}/message_templates?name=aviso`, {
+			method: 'DELETE',
+		})
+		expect(none.status).toBe(400)
+	})
+
+	test('lists with the filters and the paging of Meta', async () => {
+		await create(draft('um'))
+		await create(draft('dois'), { 'X-Mock-Template-Review-Delay': '60000' })
+		await vi.waitFor(async () => {
+			expect((await statusOf('um')).status).toBe('APPROVED')
+		})
+
+		const pending = (await (
+			await call(`/v23.0/${waba}/message_templates?status=PENDING`)
+		).json()) as Json
+		expect(pending.data.map((t: Json) => t.name)).toEqual(['dois'])
+
+		const page = (await (
+			await call(`/v23.0/${waba}/message_templates?limit=1`)
+		).json()) as Json
+		expect(page.data).toHaveLength(1)
+		expect(page.paging.next).toContain('after=')
+	})
+
+	test('a template in review when the mock stops resumes its review', async () => {
+		await writeFile(
+			join(dir, 'retomado_pt_BR.json'),
+			JSON.stringify({
+				...draft('retomado'),
+				status: 'PENDING',
+				review: { event: 'APPROVED', delayMs: 0 },
+			})
+		)
+		const restarted = new TemplateStore(dir, undefined, db)
+		await restarted.initialize()
+		const { resumeReviews } = await import('../template-review.ts')
+		resumeReviews(restarted)
+		await vi.waitFor(() => {
+			expect(restarted.getTemplate('retomado', 'pt_BR')?.status).toBe(
+				'APPROVED'
+			)
+		})
+		await restarted.cleanup()
+	})
+})
+
+describe('The webhook override of a number', () => {
+	let app: ReturnType<typeof createApp>['app']
+	const realFetch = globalThis.fetch
+	let answer: (url: URL) => Response
+
+	const post = (body: Json, headers: Record<string, string> = {}) =>
+		app.request(`${base}/v23.0/${phone}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: 'Bearer test',
+				...headers,
+			},
+			body: JSON.stringify(body),
+		})
+
+	const configuration = async () =>
+		(
+			(await (
+				await app.request(
+					`${base}/v23.0/${phone}?fields=webhook_configuration`,
 					{
-						type: 'BODY',
-						text: 'This is a test template for creation',
-					},
-				],
-			}
+						headers: { Authorization: 'Bearer test' },
+					}
+				)
+			).json()) as Json
+		).webhook_configuration
 
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(newTemplate),
-				}
-			)
-
-			expect(response.status).toBe(201)
-
-			const data = await response.json()
-			expect(data.id).toBe('test_create_template_en')
-			expect(data.status).toBe('PENDING')
-			expect(data.category).toBe('UTILITY')
-		})
-
-		test('should return 409 for duplicate template', async () => {
-			const existingTemplate: Template = {
-				name: 'welcome_message',
-				language: 'en',
-				category: 'UTILITY',
-				components: [
-					{
-						type: 'BODY',
-						text: 'Duplicate template test',
-					},
-				],
-			}
-
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(existingTemplate),
-				}
-			)
-
-			expect(response.status).toBe(409)
-
-			const data = await response.json()
-			expect(data.error).toHaveProperty('type', 'duplicate_template')
-			expect(data.error.message).toContain('already exists')
-		})
-
-		test('should return 400 for invalid template data', async () => {
-			const invalidTemplate = {
-				name: 'invalid_template',
-				// Missing required fields
-			}
-
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(invalidTemplate),
-				}
-			)
-
-			expect(response.status).toBe(400)
-
-			const data = await response.json()
-			expect(data.error).toHaveProperty('type', 'validation_error')
-			expect(data.error).toHaveProperty('code', 400)
+	beforeEach(() => {
+		app = createApp(new TemplateStore(tmpdir())).app
+		delete process.env.WEBHOOK_URL
+		clearWebhookOverrides()
+		resetWebhookConfig()
+		answer = (url) => new Response(url.searchParams.get('hub.challenge') ?? '')
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			const url = String(input instanceof Request ? input.url : input)
+			if (url.startsWith('http://app.test/')) return answer(new URL(url))
+			return realFetch(input, init)
 		})
 	})
 
-	describe('POST /v22.0/{business-account-id}/message_templates/{template-name}', () => {
-		test('should update existing template', async () => {
-			const updateData: Template = {
-				name: 'welcome_message',
-				language: 'en',
-				category: 'UTILITY',
-				components: [
-					{
-						type: 'BODY',
-						text: 'Updated welcome message',
-					},
-				],
-			}
+	afterEach(() => vi.restoreAllMocks())
 
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/welcome_message`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(updateData),
-				}
-			)
-
-			expect(response.status).toBe(200)
-
-			const data = await response.json()
-			expect(data.success).toBe(true)
-			expect(data.id).toBe('welcome_message_en')
+	test('is verified with the challenge, then used', async () => {
+		const res = await post({
+			webhook_configuration: {
+				override_callback_uri: 'http://app.test/hooks/meta',
+				verify_token: 'segredo',
+			},
 		})
-
-		test('should return 404 for non-existent template', async () => {
-			const updateData: Template = {
-				name: 'non_existent_template',
-				language: 'en',
-				category: 'UTILITY',
-				components: [
-					{
-						type: 'BODY',
-						text: "This template doesn't exist",
-					},
-				],
-			}
-
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/non_existent_template`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(updateData),
-				}
-			)
-
-			expect(response.status).toBe(404)
-
-			const data = await response.json()
-			expect(data.error).toHaveProperty('type', 'template_not_found')
+		expect(((await res.json()) as Json).success).toBe(true)
+		expect(await configuration()).toEqual({
+			phone_number: 'http://app.test/hooks/meta',
 		})
 	})
 
-	describe('DELETE /v22.0/{business-account-id}/message_templates/{template-name}', () => {
-		test('should delete existing template', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/sample_template?language=en`,
-				{
-					method: 'DELETE',
-				}
-			)
-
-			expect(response.status).toBe(200)
-
-			const data = await response.json()
-			expect(data.success).toBe(true)
+	test('is refused when the callback does not echo the challenge', async () => {
+		answer = () => new Response('nope', { status: 403 })
+		const res = await post({
+			webhook_configuration: { override_callback_uri: 'http://app.test/x' },
 		})
-
-		test('should return 404 for non-existent template', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates/non_existent_template?language=en`,
-				{
-					method: 'DELETE',
-				}
-			)
-
-			expect(response.status).toBe(404)
-
-			const data = await response.json()
-			expect(data.error).toHaveProperty('type', 'template_not_found')
-			expect(data.error).toHaveProperty('code', 404)
-		})
+		expect(res.status).toBe(400)
+		expect(((await res.json()) as Json).error.code).toBe(2200)
+		expect(await configuration()).toEqual({})
 	})
 
-	describe('Error Handling', () => {
-		test('should handle malformed JSON', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: 'invalid json',
-				}
-			)
+	test('skips the verification when the mock header asks', async () => {
+		answer = () => new Response('nope', { status: 500 })
+		const res = await post(
+			{ webhook_configuration: { override_callback_uri: 'http://app.test/y' } },
+			{ 'X-Mock-Skip-Callback-Verification': 'true' }
+		)
+		expect(res.status).toBe(200)
+		expect((await configuration()).phone_number).toBe('http://app.test/y')
+	})
 
-			expect(response.status).toBe(400)
-		})
-
-		test('should validate Content-Type header', async () => {
-			const response = await fetch(
-				`${baseUrl}/v22.0/${testBusinessId}/message_templates`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'text/plain',
-					},
-					body: JSON.stringify({}),
-				}
-			)
-
-			expect(response.status).toBe(400)
-		})
+	test('an empty address removes the override', async () => {
+		await post(
+			{ webhook_configuration: { override_callback_uri: 'http://app.test/z' } },
+			{ 'X-Mock-Skip-Callback-Verification': 'true' }
+		)
+		await post({ webhook_configuration: { override_callback_uri: '' } })
+		expect(await configuration()).toEqual({})
 	})
 })

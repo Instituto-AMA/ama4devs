@@ -1,5 +1,7 @@
 import ky from 'ky'
-import { v4 as uuidv4 } from 'uuid'
+
+/** The Graph API version the TUI talks to. */
+const GRAPH_VERSION = 'v23.0'
 
 export interface Message {
 	id: string
@@ -76,35 +78,32 @@ export class ApiClient {
 		return response
 	}
 
+	/**
+	 * The user writes to the clinic number `to`: the Cloud API call made from
+	 * the user's phone (`X-Mock-From`). The message enters the conversation and
+	 * reaches the application's webhook.
+	 */
 	async sendMessage(
 		from: string,
 		to: string,
 		text: string
 	): Promise<{ messageId: string }> {
-		const messageId = this.generateWhatsAppMessageId()
-		const payload = {
-			from: from,
-			to: to,
-			message: {
-				id: messageId,
-				type: 'text',
-				timestamp: Math.floor(Date.now() / 1000).toString(),
-				text: {
-					body: text,
-				},
-			},
-		}
-
 		try {
-			// Simulate incoming user message via webhook
-			await this.client.post('mock/simulate-message', {
-				json: payload,
-			})
+			const response = await this.client
+				.post(`${GRAPH_VERSION}/${to}/messages`, {
+					headers: { 'X-Mock-From': from },
+					json: {
+						messaging_product: 'whatsapp',
+						type: 'text',
+						text: { body: text },
+					},
+				})
+				.json<{ messages: Array<{ id: string }> }>()
+			return { messageId: response.messages[0]?.id ?? '' }
 		} catch (error) {
 			console.error('Error sending message:', error)
+			return { messageId: '' }
 		}
-
-		return { messageId }
 	}
 
 	async sendTemplateMessage(
@@ -136,44 +135,63 @@ export class ApiClient {
 			},
 		}
 
-		await this.client.post(`v22.0/${from}/messages`, {
+		await this.client.post(`${GRAPH_VERSION}/${from}/messages`, {
 			json: payload,
 		})
 
 		return { messageId }
 	}
 
+	/**
+	 * The conversation between a user (`from`) and a clinic number (`to`), or
+	 * every conversation when they are not given.
+	 */
 	async getConversationHistory(
 		from?: string,
 		to?: string
 	): Promise<ConversationHistory> {
-		const searchParams: Record<string, string> = {}
-		if (from) searchParams.from = from
-		if (to) searchParams.to = to
+		type Row = {
+			id: string
+			direction: 'out' | 'in'
+			businessId: string
+			contact: string
+			text: string
+			timestamp: string
+		}
+		const rows =
+			from && to
+				? (
+						await this.client
+							.get(`${GRAPH_VERSION}/${to}/messages`, {
+								searchParams: { contact: from },
+							})
+							.json<{ data: Row[] }>()
+					).data
+				: (
+						await this.client
+							.get('settings/conversations')
+							.json<{ messages: Row[] }>()
+					).messages
 
-		const response = await this.client
-			.get('conversation', {
-				...(Object.keys(searchParams).length > 0 && { searchParams }),
-			})
-			.json<{
-				messages: Array<Omit<Message, 'timestamp'> & { timestamp: string }>
-				participants: string[]
-			}>()
-
-		// Convert timestamp strings back to Date objects
-		const messages = response.messages.map((msg) => ({
-			...msg,
-			timestamp: new Date(msg.timestamp),
+		const messages: Message[] = rows.map((row) => ({
+			id: row.id,
+			from: row.direction === 'out' ? row.businessId : row.contact,
+			to: row.direction === 'out' ? row.contact : row.businessId,
+			text: row.text,
+			timestamp: new Date(row.timestamp),
+			direction: row.direction === 'out' ? 'sent' : 'received',
 		}))
 
 		return {
 			messages,
-			participants: response.participants,
+			participants: Array.from(
+				new Set(messages.flatMap((message) => [message.from, message.to]))
+			),
 		}
 	}
 
 	async clearConversation(): Promise<void> {
-		await this.client.delete('conversation')
+		await this.client.delete('settings/conversations')
 	}
 
 	async getStats(): Promise<{
@@ -200,29 +218,7 @@ export class ApiClient {
 		from: string,
 		messageBody: string
 	): Promise<{ messageId: string }> {
-		const payload = {
-			to: phoneNumberId,
-			from: from,
-			message: {
-				id: uuidv4(),
-				type: 'text',
-				timestamp: Math.floor(Date.now() / 1000).toString(),
-				text: {
-					body: messageBody,
-				},
-			},
-		}
-
-		try {
-			// Simulate incoming user message via webhook
-			await this.client.post('mock/simulate-message', {
-				json: payload,
-			})
-		} catch (error) {
-			console.error('Error sending message:', error)
-		}
-
-		return { messageId: payload.message.id }
+		return this.sendMessage(from, phoneNumberId, messageBody)
 	}
 
 	async sendTypingIndicator(
@@ -242,7 +238,7 @@ export class ApiClient {
 			// Try the standard WhatsApp Cloud API messages endpoint first
 			// This matches the external service implementation
 			const response = await this.client
-				.post(`v22.0/${phoneNumberId}/messages`, {
+				.post(`${GRAPH_VERSION}/${phoneNumberId}/messages`, {
 					json: payload,
 				})
 				.json<{ success: boolean }>()
@@ -258,7 +254,7 @@ export class ApiClient {
 	async getTemplates(businessAccountId = 'test'): Promise<Template[]> {
 		try {
 			const response = await this.client
-				.get(`v22.0/${businessAccountId}/message_templates`)
+				.get(`${GRAPH_VERSION}/${businessAccountId}/message_templates`)
 				.json<{ data: Template[] }>()
 
 			return response.data
@@ -276,15 +272,14 @@ export class ApiClient {
 	): Promise<Template | null> {
 		try {
 			const response = await this.client
-				.get(
-					`v22.0/${businessAccountId}/message_templates/${encodeURIComponent(templateName)}`,
-					{
-						searchParams: { language },
-					}
-				)
-				.json<Template>()
+				.get(`${GRAPH_VERSION}/${businessAccountId}/message_templates`, {
+					searchParams: { name: templateName, language },
+				})
+				.json<{ data: Template[] }>()
 
-			return response
+			return (
+				response.data.find((template) => template.name === templateName) ?? null
+			)
 		} catch (error) {
 			console.error(`Error fetching template ${templateName}:`, error)
 			return null

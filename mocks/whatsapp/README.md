@@ -1,6 +1,4 @@
-# Whap
-
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/fdarian/whap?utm_source=oss&utm_medium=github&utm_campaign=fdarian%2Fwhap&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+# WhatsApp Mock Server
 
 A comprehensive development environment for testing WhatsApp integrations without using real WhatsApp Cloud API endpoints, phone numbers, or incurring API costs.
 
@@ -37,9 +35,8 @@ A comprehensive development environment for testing WhatsApp integrations withou
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/fdarian/whap.git
-cd whap
+# From the root of ama4devs
+cd mocks/whatsapp
 
 # Install dependencies
 bun install
@@ -156,6 +153,59 @@ Header: x-hub-signature-256: sha256=b6978b21c4467654c466607663db9b43fae44b710835
 Secret: your-app-secret
 Body: {"object":"whatsapp_business_account","entry":[...]}
 ```
+
+### The Response Timer
+
+The mock can wait before it delivers an event to the webhook, so an
+application that takes time to process is visible in the panel instead of
+being a race. The default is **5 seconds** and it is changed in the *Eventos*
+tab of the panel or through the API:
+
+```bash
+curl -X PUT http://localhost:3010/settings/webhook-delay \
+  -H 'Content-Type: application/json' \
+  -d '{"delayMs":1500}'
+```
+
+The delay can also come from the environment, when the mock starts:
+
+```bash
+MOCK_WEBHOOK_RESPONSE_DELAY_MS=1500 bun whap server
+```
+
+## The Web Panel
+
+The panel is served at `GET /`. It shows the conversations of the mock with
+every message type (media, locations, templates with header, footer, buttons
+and carousel), the controls to test an integration (reply as the user or the
+clinic with text or a file, the user's receipts, the delivery mode, the webhook
+destination), the template builder, and the **API** tab: every operation of
+Meta's Cloud API specification for the served version, with a call ready to
+copy and a table of contents that follows the reading.
+
+The panel speaks Portuguese and English; the switch is in the header and the
+choice is kept in the browser.
+
+Every call that replicates Meta is the Meta resource itself, validated against
+Meta's OpenAPI file (`spec/v23.0`). What only a test needs travels in optional
+`X-Mock-*` headers, so the body stays what the Cloud API expects:
+
+```bash
+curl -X POST http://localhost:3010/v23.0/100000000000001/message_templates \
+  -H 'Authorization: Bearer $TOKEN' \
+  -H 'Content-Type: application/json' \
+  -H 'X-Mock-Template-Review: REJECTED' \
+  -H 'X-Mock-Template-Review-Reason: TAG_CONTENT_MISMATCH' \
+  -H 'X-Mock-Template-Review-Delay: 5000' \
+  -d '{"name":"cobranca_vencida","language":"pt_BR","category":"UTILITY",
+       "components":[{"type":"BODY","text":"Olá, {{1}}!","example":{"body_text":[["Mariana"]]}}]}'
+```
+
+What the mock knows (conversations, webhook calls, settings, webhooks, the
+template library, uploaded media) is kept in `WHAP_DATA_DIR` (`./data`;
+`/app/data` in the image, a volume), so a restart forgets nothing.
+
+The full reference: [docs/panel.md](docs/panel.md).
 
 ## Docker Deployment
 
@@ -279,7 +329,7 @@ docker run -p 3010:3010 \
 
 ```bash
 # 1. Create/modify template files in templates/
-# 2. Templates hot-reload automatically
+# 2. A changed file is imported into the library automatically
 # 3. Test immediately in CLI interface
 # 4. Send via API for integration testing
 ```
@@ -287,7 +337,8 @@ docker run -p 3010:3010 \
 ### API Example
 
 ```bash
-curl -X POST http://localhost:3010/v22.0/123456789/messages \
+curl -X POST http://localhost:3010/v23.0/123456789/messages \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "messaging_product": "whatsapp",
