@@ -1,6 +1,14 @@
+import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
-import { getAllWebhookMappings, getWebhookUrl } from '../config.ts'
+import {
+	getAllWebhookMappings,
+	getWebhookUrl,
+	setWebhookUrl,
+} from '../config.ts'
+import { getWebhookSecret } from '../configuration.ts'
+import { applyStatus, sendDeliveryStatusWebhook } from '../delivery-status.ts'
+import { toPanelMessage } from '../panel-message.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type {
 	SimulateMessageParams,
@@ -10,6 +18,7 @@ import type {
 } from '../types/api-types.ts'
 import { invalidJsonResponse, parseJsonBody } from '../utils/json-body.ts'
 import { redactUrl, sendWebhook } from '../webhook-target.ts'
+import { broadcast } from '../websocket.ts'
 
 const webhooksRouter = new Hono()
 
@@ -68,6 +77,9 @@ webhooksRouter.post(
 
 		// Store webhook configuration
 		mockStore.setWebhookConfig(config.phoneNumberId, config)
+		// Deliveries read the URL from the webhook mappings: without this, a URL
+		// configured here was stored and never used.
+		setWebhookUrl(config.phoneNumberId, config.url)
 
 		console.log(
 			`🔗 Configured webhook for ${config.phoneNumberId}: ${redactUrl(config.url)}`
@@ -111,6 +123,7 @@ webhooksRouter.get('/config', (c) => {
 		fallbackUrl,
 		mappings,
 		configured: !!fallbackUrl || mappings.length > 0,
+		secretSet: !!getWebhookSecret(),
 		sources: {
 			environment: !!fallbackUrl,
 			cli_mappings: mappings.length > 0,
@@ -175,25 +188,13 @@ webhooksRouter.post(
 	async (c) => {
 		const params = c.req.valid('json') as SimulateMessageParams
 
-		// Get webhook URL for the specific phone number
+		// Get webhook URL for the specific phone number (optional: the message is
+		// stored and shown in the panel either way)
 		const webhookUrl = getWebhookUrl(params.to)
 
-		if (!webhookUrl) {
-			return c.json(
-				{
-					error: {
-						message:
-							'No webhook URL configured for this phone number. Set WEBHOOK_URL environment variable or use --webhook-url CLI argument.',
-						type: 'webhook_not_configured',
-						code: 400,
-					},
-				} as WhatsAppErrorResponse,
-				400
-			)
-		}
-
-		// Store the webhook message
+		// Store the webhook message and tell the panel
 		const storedMessage = mockStore.storeWebhookMessage(params)
+		broadcast({ type: 'NEW_MESSAGE', payload: toPanelMessage(storedMessage) })
 
 		// Create webhook payload
 		const payload: WebhookPayload = {
@@ -212,7 +213,7 @@ webhooksRouter.post(
 								contacts: [
 									{
 										profile: {
-											name: `User ${params.from}`,
+											name: params.name ?? `User ${params.from}`,
 										},
 										wa_id: params.from,
 									},
@@ -220,8 +221,12 @@ webhooksRouter.post(
 								messages: [
 									{
 										from: params.from,
-										id: params.message.id,
-										timestamp: params.message.timestamp,
+										id: storedMessage.id,
+										timestamp:
+											params.message.timestamp ??
+											Math.floor(
+												storedMessage.timestamp.getTime() / 1000
+											).toString(),
 										type: 'text',
 										text: {
 											body: params.message.text.body,
@@ -239,6 +244,16 @@ webhooksRouter.post(
 		console.log(
 			`Simulating incoming message from ${params.from} to ${params.to}`
 		)
+
+		if (!webhookUrl) {
+			return c.json({
+				success: true,
+				messageId: storedMessage.id,
+				delivered: false,
+				reason: 'webhook_not_configured',
+			})
+		}
+
 		console.log(`🔗 Sending webhook to: ${redactUrl(webhookUrl)}`)
 
 		// Send webhook (fire and forget)
@@ -248,12 +263,92 @@ webhooksRouter.post(
 
 		return c.json({
 			success: true,
-			message: 'Webhook message simulated and sent',
 			messageId: storedMessage.id,
-			webhookUrl,
+			delivered: true,
 		})
 	}
 )
+
+// List every message, both directions, oldest first (web panel)
+webhooksRouter.get('/messages', (c) => {
+	const messages = [
+		...mockStore.getAllMessages(),
+		...mockStore.getAllWebhookMessages(),
+	]
+		.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+		.map(toPanelMessage)
+	return c.json({ messages })
+})
+
+const invalidValue = (c: Context, message: string) =>
+	c.json(
+		{
+			error: { message, type: 'validation_error', code: 400 },
+		} as WhatsAppErrorResponse,
+		400
+	)
+
+// Delivery mode: `auto` walks sent/delivered/read, `manual` stops at sent
+webhooksRouter.get('/delivery-mode', (c) =>
+	c.json({ mode: mockStore.getDeliveryMode() })
+)
+
+webhooksRouter.post('/delivery-mode', async (c) => {
+	let body: { mode?: unknown }
+	try {
+		body = await c.req.json()
+	} catch {
+		return invalidJsonResponse(c)
+	}
+	if (body?.mode !== 'auto' && body?.mode !== 'manual') {
+		return invalidValue(c, "mode must be 'auto' or 'manual'")
+	}
+	mockStore.setDeliveryMode(body.mode)
+	return c.json({ mode: body.mode })
+})
+
+// Move an outbound message to delivered, read or failed (manual delivery)
+webhooksRouter.post('/messages/:id/status', async (c) => {
+	const id = c.req.param('id')
+	let body: { status?: unknown }
+	try {
+		body = await c.req.json()
+	} catch {
+		return invalidJsonResponse(c)
+	}
+	const status = body?.status
+	if (status !== 'delivered' && status !== 'read' && status !== 'failed') {
+		return invalidValue(c, "status must be 'delivered', 'read' or 'failed'")
+	}
+
+	const message = mockStore.getMessage(id)
+	if (!message) {
+		return c.json(
+			{
+				error: {
+					message: 'Message not found',
+					type: 'not_found',
+					code: 404,
+				},
+			} as WhatsAppErrorResponse,
+			404
+		)
+	}
+
+	applyStatus(id, status)
+	sendDeliveryStatusWebhook(
+		id,
+		message.phoneNumberId,
+		message.to,
+		status,
+		undefined,
+		status === 'failed'
+			? [{ code: 131026, title: 'Message undeliverable' }]
+			: undefined
+	)
+
+	return c.json({ success: true, id, status })
+})
 
 // Get mock server stats
 webhooksRouter.get('/stats', (c) => {
@@ -286,8 +381,7 @@ webhooksRouter.get('/conversation/:phoneNumberId/:otherNumber', (c) => {
 
 // GET /webhook/events - Get webhook events
 webhooksRouter.get('/events', (c) => {
-	const events = mockStore.getAllWebhookEvents()
-	return c.json(events)
+	return c.json({ events: mockStore.getRecentWebhookEvents() })
 })
 
 // POST /webhook/trigger - Trigger a webhook
@@ -307,7 +401,10 @@ webhooksRouter.post('/trigger', async (c) => {
 		timestamp: new Date(),
 		payload: { phone, message },
 		url: 'mock://trigger',
+		kind: 'message',
 		status: 'delivered',
+		httpStatus: null,
+		error: null,
 	})
 
 	console.log(`🔗 Triggered webhook for ${phone}: ${message}`)

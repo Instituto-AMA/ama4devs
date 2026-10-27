@@ -13,7 +13,9 @@ import {
 	serializeJsonWithEscapedUnicode,
 	SIGNATURE_HEADER,
 } from './middleware/hmac-signature.ts'
+import { mockStore, type WebhookEvent } from './store/memory-store.ts'
 import type { WebhookPayload } from './types/api-types.ts'
+import { broadcast } from './websocket.ts'
 
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
@@ -66,6 +68,33 @@ export function redactUrl(url: string): string {
 	}
 }
 
+/** Classify a payload for the event log. */
+function webhookKind(payload: WebhookPayload): WebhookEvent['kind'] {
+	const change = payload.entry[0]?.changes[0]
+	if (change?.field === 'message_template_status_update') {
+		return 'template_status'
+	}
+	const value = change?.value
+	if (value && 'messages' in value && value.messages) return 'message'
+	return 'status'
+}
+
+/** Record a delivery attempt in the store and tell the panel. */
+function logWebhookAttempt(
+	url: string,
+	payload: WebhookPayload,
+	outcome: Pick<WebhookEvent, 'status' | 'httpStatus' | 'error'>
+): void {
+	const event = mockStore.storeWebhookEvent({
+		timestamp: new Date(),
+		url: redactUrl(url),
+		kind: webhookKind(payload),
+		payload,
+		...outcome,
+	})
+	broadcast({ type: 'WEBHOOK_EVENT', payload: event })
+}
+
 /** Deliver a webhook payload, signing it when a secret is configured. */
 export async function sendWebhook(
 	url: string,
@@ -75,6 +104,7 @@ export async function sendWebhook(
 	// rewrite points the delivery to the app running on the host.
 	const targetUrl = rewriteLoopback(url)
 	const logTarget = redactUrl(targetUrl)
+	let httpStatus: number | null = null
 
 	try {
 		const body = serializeJsonWithEscapedUnicode(payload)
@@ -98,14 +128,25 @@ export async function sendWebhook(
 			headers,
 			body,
 		})
+		httpStatus = response.status
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`)
 		}
 
 		console.log(`✅ Webhook delivered successfully to ${logTarget}`)
+		logWebhookAttempt(url, payload, {
+			status: 'delivered',
+			httpStatus,
+			error: null,
+		})
 	} catch (error) {
 		console.error(`❌ Failed to deliver webhook to ${logTarget}:`, error)
+		logWebhookAttempt(url, payload, {
+			status: 'failed',
+			httpStatus,
+			error: error instanceof Error ? error.message : String(error),
+		})
 		throw error
 	}
 }

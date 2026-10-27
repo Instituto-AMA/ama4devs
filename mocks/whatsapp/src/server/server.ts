@@ -130,6 +130,9 @@ export function createApp(templateStore: TemplateStore) {
 	app.route(versionPath, templatesRouter)
 	app.route(versionPath, phoneRouter)
 	// The /mock path is for internal simulation tools
+	app.get('/mock/templates', (c) =>
+		c.json({ templates: templateStore.getAllTemplates() })
+	)
 	app.route('/mock', webhooksRouter)
 	app.route('/status', statusRouter)
 	app.route('/conversation', conversationRouter)

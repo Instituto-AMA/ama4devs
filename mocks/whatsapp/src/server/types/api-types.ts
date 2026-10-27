@@ -93,10 +93,14 @@ export interface WebhookConfiguration {
 export interface SimulateMessageParams {
 	from: string
 	to: string
+	/** Contact profile name; the webhook falls back to `User <from>` */
+	name?: string
 	message: {
-		id: string
+		/** Generated (`wamid.…`) when absent */
+		id?: string
 		type: 'text'
-		timestamp: string
+		/** Unix seconds; the current time when absent */
+		timestamp?: string
 		text: {
 			body: string
 		}
@@ -109,6 +113,8 @@ export interface MessageStatusUpdate {
 	status: 'sent' | 'delivered' | 'read' | 'failed'
 	timestamp: string
 	recipient_id: string
+	/** Cloud API errors carried by a `failed` status */
+	errors?: Array<{ code: number; title: string }>
 	conversation?: {
 		id: string
 		expiration_timestamp: string

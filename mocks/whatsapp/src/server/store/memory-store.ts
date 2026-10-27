@@ -26,7 +26,7 @@ export interface StoredMessage {
 		processedTemplate?: Template
 	}
 	timestamp: Date
-	status: 'sent' | 'delivered' | 'read'
+	status: 'sent' | 'delivered' | 'read' | 'failed'
 }
 
 export interface StoredWebhookMessage {
@@ -35,6 +35,7 @@ export interface StoredWebhookMessage {
 	to: string
 	phoneNumberId: string
 	text: { body: string }
+	contactName: string | null
 	timestamp: Date
 	processed: boolean
 }
@@ -44,8 +45,20 @@ export interface WebhookEvent {
 	timestamp: Date
 	payload: unknown
 	url: string
+	kind: 'message' | 'status' | 'template_status'
 	status: 'pending' | 'delivered' | 'failed'
+	httpStatus: number | null
+	error: string | null
 }
+
+export type DeliveryMode = 'auto' | 'manual'
+
+/** Delivery mode from `MOCK_DELIVERY_MODE`; anything but `manual` means `auto`. */
+function defaultDeliveryMode(): DeliveryMode {
+	return process.env.MOCK_DELIVERY_MODE === 'manual' ? 'manual' : 'auto'
+}
+
+const MAX_RECENT_WEBHOOK_EVENTS = 200
 
 class MemoryStore {
 	private messages: Map<string, StoredMessage> = new Map()
@@ -57,6 +70,7 @@ class MemoryStore {
 		{ messageId: string; isTyping: boolean; timestamp: number }
 	> = new Map()
 	private messageIdCounter = 1
+	private deliveryMode: DeliveryMode = defaultDeliveryMode()
 
 	// Generate realistic WhatsApp message ID
 	generateMessageId(): string {
@@ -85,20 +99,20 @@ class MemoryStore {
 
 	// Store incoming webhook message
 	storeWebhookMessage(params: SimulateMessageParams): StoredWebhookMessage {
+		const id = params.message.id ?? this.generateMessageId()
 		const stored: StoredWebhookMessage = {
-			id: params.message.id,
+			id,
 			from: params.from,
 			to: params.to,
 			phoneNumberId: params.to, // In WhatsApp, 'to' is the bot's phone number ID
 			text: params.message.text,
+			contactName: params.name ?? null,
 			timestamp: new Date(), // Always use server time for consistency
 			processed: false,
 		}
 
-		this.webhookMessages.set(params.message.id, stored)
-		console.log(
-			`📥 Stored incoming webhook message: ${params.message.id} from ${params.from}`
-		)
+		this.webhookMessages.set(id, stored)
+		console.log(`📥 Stored incoming webhook message: ${id} from ${params.from}`)
 		return stored
 	}
 
@@ -199,6 +213,21 @@ class MemoryStore {
 		return Array.from(this.webhookEvents.values()).sort(
 			(a, b) => a.timestamp.getTime() - b.timestamp.getTime()
 		)
+	}
+
+	// Newest first, capped for the panel
+	getRecentWebhookEvents(limit = MAX_RECENT_WEBHOOK_EVENTS): WebhookEvent[] {
+		return Array.from(this.webhookEvents.values()).reverse().slice(0, limit)
+	}
+
+	// Delivery mode management
+	getDeliveryMode(): DeliveryMode {
+		return this.deliveryMode
+	}
+
+	setDeliveryMode(mode: DeliveryMode): void {
+		this.deliveryMode = mode
+		console.log(`🚚 Delivery mode set to ${mode}`)
 	}
 
 	// Webhook configuration management
