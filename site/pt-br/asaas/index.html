@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador do Asaas: sandbox local em Docker (Pix, boleto, cartão, webhooks) | ama4devs</title>
+  <meta name="description" content="Mock da API v3 do Asaas e simulador de sandbox em Docker: Pix, boleto, cartão de crédito, parcelamento, assinatura e webhooks no localhost, com relógio virtual.">
+  <meta name="keywords" content="simulador asaas, mock asaas, sandbox asaas localhost, webhook asaas localhost, mock pix, mock boleto, testar pagamento asaas, docker">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Mock da API do Asaas: sandbox local em Docker">
+  <meta property="og:description" content="A API v3 do Asaas no localhost: Pix, boleto, cartão de crédito, parcelamento, assinatura, um relógio virtual e webhooks entregues no localhost.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/pt-br/asaas/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/asaas/dashboard.jpg">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../../img/asaas/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Asaas Mock Server",
+    "alternateName": "Asaas API mock",
+    "description": "Simulador local da API v3 do Asaas: clientes, cobranças com Pix, boleto e cartão de crédito, parcelamentos, assinaturas, webhooks no localhost, notificações ao pagador e um relógio virtual.",
+    "inLanguage": "pt-BR",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+    "softwareVersion": "0.6.4",
+    "url": "https://instituto-ama.github.io/ama4devs/pt-br/asaas/",
+    "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body data-tool="asaas">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../">ama4devs <span>mocks</span></a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../whatsapp/">Mock do WhatsApp</a>
+        <a href="./" aria-current="page">Mock do Asaas</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../asaas/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero">
+      <h1>Asaas, no localhost.</h1>
+      <p class="lead">A API v3 do Asaas, o gateway de pagamentos brasileiro, simulada com fidelidade de contrato <em>e</em> de comportamento: clientes, cobranças com <strong>Pix</strong>, <strong>boleto</strong> e <strong>cartão de crédito</strong>, parcelamentos, assinaturas, estornos, split, subcontas, notificações ao pagador e um relógio virtual. Diferente do sandbox real, ele <strong>entrega webhooks no <code>localhost</code></strong>.</p>
+
+      <div class="swap">
+        <div class="from">https://api-sandbox.asaas.com/v3</div>
+        <div class="to">http://localhost:45445/v3</div>
+      </div>
+      <div class="run code"><pre><code>docker run --rm -p 45445:45445 ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+      <p>A chave de API aparece no log da subida. Trocar a sua aplicação do sandbox para o mock é trocar a URL base.</p>
+
+      <figure class="shot hero-shot">
+        <img src="../../img/asaas/dashboard.jpg" width="1502" height="714" alt="O painel do simulador: cobranças recebidas, confirmadas, aguardando pagamento e vencidas com os totais, cartões de teste e a carteira e a chave de API da conta.">
+        <figcaption>O painel do simulador.</figcaption>
+      </figure>
+    </section>
+
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#why">Por que não o sandbox do Asaas</a></li>
+            <li><a href="#simulates">O que ele simula</a></li>
+            <li><a href="#notifications">Notificações ao pagador</a></li>
+            <li><a href="#panel">O painel</a></li>
+            <li><a href="#use">Use no seu projeto</a></li>
+            <li><a href="#config">Configuração</a></li>
+            <li><a href="#admin">Rotas de administração</a></li>
+            <li><a href="#mock-routes">Rotas de controle de pagamento</a></li>
+            <li><a href="#fidelity">Fidelidade</a></li>
+            <li><a href="#development">Desenvolvimento</a></li>
+            <li><a href="#license">Licença</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <article>
+        <section id="why">
+          <h2>Por que não usar só o sandbox do Asaas</h2>
+          <p>O sandbox não entrega webhook no <code>localhost</code>. Isso te obriga a usar túnel, subir um ambiente de homologação ou montar payload na mão, e nada disso testa o que importa: o prazo de crédito, os juros do atraso, o split, a retentativa do webhook. E no sandbox um pagamento no cartão só cai em 32 dias de verdade.</p>
+          <p>Aqui <strong>o tempo é seu</strong>:</p>
+          <div class="code"><pre><code><span class="c"># Um pagamento no cartão fica em CONFIRMED; o dinheiro cai em D+32.</span>
+curl -X POST localhost:45445/_admin/clock/advance \
+     -H 'content-type: application/json' -d '{"days": 32}'
+<span class="c"># → PAYMENT_RECEIVED chega no seu endpoint. Levou 40 ms.</span></code></pre></div>
+        </section>
+
+        <section id="simulates">
+          <h2>O que ele simula</h2>
+          <p>Não é um mock de respostas fixas.</p>
+          <ul>
+            <li><strong>Uma máquina de estados por forma de pagamento.</strong> Pix vai direto para <code>RECEIVED</code>; boleto credita em D+1 útil; cartão de crédito em <strong>D+32</strong>; débito em D+3. Uma cobrança não paga passa antes por <code>OVERDUE</code>.</li>
+            <li><strong>Dinheiro de verdade.</strong> <code>netValue = value − taxa</code>, a taxa é debitada no extrato, e o extrato fecha com o saldo (um invariante testado).</li>
+            <li><strong>Juros e multa.</strong> A multa uma vez, no primeiro dia de atraso; os juros pro rata die sobre um mês comercial de 30 dias.</li>
+            <li><strong>Split entre contas.</strong> Cada chave de API é uma conta com <code>walletId</code> e saldo próprios. Um split move dinheiro e lança nos <strong>dois</strong> extratos.</li>
+            <li><strong>Webhooks do jeito do Asaas.</strong> Header <code>asaas-access-token</code>, <strong>só HTTP 200 conta como sucesso</strong> (201 e 204 são falha, a regra real), 15 tentativas com backoff, <code>SEQUENTIALLY</code> com bloqueio de fila de verdade e <code>interrupted</code> no fim.</li>
+            <li><strong>Cartão de verdade.</strong> Tokenização (o número nunca é guardado), cartões de teste, pré-autorização e captura, chargeback. Parcelamento no cartão cobra o cartão.</li>
+            <li><strong>Recorrência.</strong> Uma assinatura cria a <strong>primeira cobrança na hora</strong>; as seguintes nascem 40 dias antes do vencimento. No parcelamento, a sobra do arredondamento vai para a <strong>última</strong> parcela, e no cartão cada uma credita em <strong>D+32×n</strong>. <em>(As três capturadas do sandbox real, as três contradizem o que a documentação sugere.)</em></li>
+            <li><strong>Pix que paga mesmo.</strong> <code>GET /v3/payments/{id}/pixQrCode</code> devolve um <strong>BR Code EMV de verdade</strong>, com CRC16, e a imagem do QR: a câmera do celular lê.</li>
+            <li><strong>Ativação de subconta.</strong> Crie a subconta, liste os documentos pendentes, envie o arquivo (multipart), aprove.</li>
+            <li><strong>A API inteira.</strong> Toda operação da especificação oficial existe, com autenticação, validação e o formato de erro do Asaas. As que ainda não têm regra de negócio respondem <code>501</code> dizendo qual operação falta, nunca dados inventados (<code>GET /_admin/coverage</code>).</li>
+          </ul>
+        </section>
+
+        <section id="notifications">
+          <h2>Notificações ao pagador</h2>
+          <p>O que o Asaas avisa a quem paga, entregue de verdade na sua máquina:</p>
+          <figure class="shot">
+            <img src="../../img/asaas/charge-notifications.jpg" width="1502" height="714" alt="Uma cobrança com o link da fatura, os botões de pagamento e as notificações ao pagador: o e-mail enviado ao Mailpit e o template enviado ao WhatsApp mock." loading="lazy">
+          </figure>
+          <ul>
+            <li>Cada evento da cobrança (criada, alterada, vencendo, vencida, recebida) manda ao pagador um <strong>e-mail no Mailpit</strong> e um <strong>template de WhatsApp</strong> pela Cloud API do <a href="../whatsapp/">mock do WhatsApp</a>.</li>
+            <li><strong>O parcelamento é avisado uma vez</strong>: a criação da primeira parcela conta o plano inteiro (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); lembretes e confirmações continuam por parcela.</li>
+            <li>Tudo sobe configurado: na subida e a cada ciclo, o número remetente recebe o webhook deste servidor e os templates do pagador são criados no WhatsApp mock, pelas chamadas da própria Meta.</li>
+            <li>O <code>notificationDisabled</code> do cliente e as configurações de notificação são respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia quando você pede.</li>
+          </ul>
+        </section>
+
+        <section id="panel">
+          <h2>O painel</h2>
+          <p>Abra <strong>http://localhost:45445</strong>. Não é o painel do Asaas: é o do <em>simulador</em>, e mostra o que o Asaas não deixa você ver.</p>
+          <div class="gallery">
+            <figure class="shot">
+              <img src="../../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="A página da fatura que o pagador abre: valor, vencimento, descrição e o QR code do Pix com copia e cola." loading="lazy">
+              <figcaption><strong>A página da fatura.</strong> O que o pagador abre (<code>invoiceUrl</code>): Pix com QR code de verdade, boleto com linha digitável, ou cartão. Pagar por ela segue o caminho real: status, extrato, webhooks.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../../img/asaas/charges.jpg" width="1502" height="771" alt="A lista de cobranças: avulsas e parcelas com situação, cliente, tipo, forma de pagamento, valor e vencimento, e as abas Assinaturas e Parcelamentos." loading="lazy">
+              <figcaption><strong>Cobranças.</strong> Avulsas, parcelas e assinaturas, com situação, forma de pagamento e vencimento. <strong>Nova cobrança</strong> cria qualquer uma das três.</figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="../../img/asaas/clock.jpg" width="1502" height="771" alt="O relógio virtual: a hora e o modo do simulador, e os botões para avançar um dia, sete dias, trinta e dois dias, rodar um tick ou voltar ao presente." loading="lazy">
+              <figcaption><strong>Relógio virtual.</strong> <code>+1 dia</code>, <code>+7 dias</code>, <code>+32 dias</code>: cada dia simulado roda um ciclo completo, então assinaturas geram cobrança, cobranças não pagas vencem e cartões creditam.</figcaption>
+            </figure>
+          </div>
+          <ul>
+            <li><strong>Meus Clientes</strong>: criar, editar, remover e restaurar; abra um para ver tudo que foi cobrado dele.</li>
+            <li><strong>Cobranças</strong>, <strong>Assinaturas</strong>, <strong>Parcelamentos</strong>, e <strong>Nova cobrança</strong> com os três tipos do Asaas (avulsa, parcelada pelo total ou por parcela, assinatura), qualquer forma de pagamento, juros, multa, desconto e split. <strong>Simular Venda</strong> abre o mesmo formulário.</li>
+            <li><strong>Uma cobrança</strong>: link da fatura, simular pagamento, confirmar recebimento em dinheiro, receber, vencer, estornar, excluir, restaurar, e as notificações.</li>
+            <li><strong>Integrações</strong>, por conta: chaves de API (gerar, trocar, expirar no relógio virtual), webhooks (com a lista de eventos, pela <code>/v3/webhooks</code> real), logs de webhook com a resposta do seu endpoint, e os canais de e-mail e WhatsApp.</li>
+            <li><strong>Cartões de teste</strong>: a tabela que o motor lê; aceitar qualquer cartão bem formado ou só os listados; criar um cartão com o resultado que ele força.</li>
+            <li><strong>Perfis</strong>: uma conta raiz por cliente da sua aplicação, criada e apagada sem reiniciar.</li>
+          </ul>
+        </section>
+
+        <section id="use">
+          <h2>Use no seu projeto</h2>
+          <div class="code"><pre><code>services:
+  asaas:
+    image: ghcr.io/instituto-ama/asaas-mock:0.6.4   <span class="c"># fixe uma versão, ou :latest</span>
+    ports:
+      - '45445:45445'
+    environment:
+      <span class="c"># Fixe a chave, senão um volume novo gera outra.</span>
+      <span class="c"># `$$` é um `$` literal no compose: um `$aact_...` simples viraria uma variável vazia.</span>
+      ASAAS_API_KEY: '$$aact_hmlg_local'
+      <span class="c"># Dentro do container, localhost é o próprio container: isto manda os webhooks para a sua máquina.</span>
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+      <span class="c"># O tempo corre, e você pode pular (POST /_admin/clock/advance).</span>
+      CLOCK_MODE: VIRTUAL_FLOWING
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   <span class="c"># Linux</span>
+    volumes:
+      - asaas-data:/data
+volumes:
+  asaas-data:</code></pre></div>
+          <p>Se a sua aplicação roda na mesma rede do compose, ela chega no mock em <code>http://asaas:45445/v3</code>. <strong>No CI</strong>, tire o rewrite e use <code>CLOCK_MODE=VIRTUAL_FROZEN</code>: o relógio só anda quando o teste manda.</p>
+          <div class="code"><pre><code>curl localhost:45445/v3/customers \
+  -H 'access_token: $aact_hmlg_local' -H 'content-type: application/json' \
+  -d '{"name":"Jane Doe","cpfCnpj":"24971563792","email":"jane@example.com","mobilePhone":"11987654321"}'</code></pre></div>
+          <p>Para as notificações ao pagador, rode o <a href="../whatsapp/">mock do WhatsApp</a> e o Mailpit ao lado e defina <code>WHATSAPP_MOCK_URL</code> e <code>MAILPIT_URL</code> (o <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/docker-compose.yml"><code>docker-compose.yml</code></a> da raiz já faz tudo isso).</p>
+        </section>
+
+        <section id="config">
+          <h2>Configuração</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Variável</th><th>Padrão</th><th>Significado</th></tr></thead>
+              <tbody>
+                <tr><td><code>PORT</code></td><td><code>45445</code></td><td>Porta HTTP</td></tr>
+                <tr><td><code>ASAAS_API_KEY</code></td><td><em>gerada, aparece na subida</em></td><td>A chave da conta principal</td></tr>
+                <tr><td><code>WEBHOOK_LOCALHOST_REWRITE</code></td><td><em>(vazio)</em></td><td>Host que substitui <code>localhost</code> nas URLs de webhook. <strong>Use <code>host.docker.internal</code>.</strong></td></tr>
+                <tr><td><code>CLOCK_MODE</code></td><td><code>REAL</code></td><td><code>REAL</code> · <code>VIRTUAL_FLOWING</code> (corre, dá para pular) · <code>VIRTUAL_FROZEN</code> (só anda quando mandam, para CI)</td></tr>
+                <tr><td><code>ADMIN_ENABLED</code></td><td><code>true</code></td><td>As rotas <code>/_admin/*</code> e o painel</td></tr>
+                <tr><td><code>INVOICE_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Para onde <code>invoiceUrl</code> e <code>bankSlipUrl</code> apontam, como o navegador chega neste servidor</td></tr>
+                <tr><td><code>MAILPIT_URL</code></td><td><em>(vazio: e-mail desligado)</em></td><td>Mailpit (<code>http://mailpit:8025</code>): e-mails ao pagador</td></tr>
+                <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(vazio: WhatsApp desligado)</em></td><td>O WhatsApp mock (<code>http://whatsapp:3010</code>): templates ao pagador</td></tr>
+                <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td><code>5511400000000</code></td><td>O número remetente no WhatsApp mock</td></tr>
+                <tr><td><code>WHATSAPP_WABA_ID</code></td><td><code>100000000000001</code></td><td>A WABA cuja biblioteca guarda os templates do pagador</td></tr>
+                <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Este servidor como o WhatsApp mock o alcança (<code>http://asaas:45445</code> no compose)</td></tr>
+                <tr><td><code>MAILPIT_UI_URL</code> · <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code> · <code>http://localhost:3010</code></td><td>As duas telas, como o navegador as abre a partir de Integrações</td></tr>
+                <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Remetente dos e-mails</td></tr>
+                <tr><td><code>DATABASE_PATH</code></td><td><code>/data/asaas.db</code></td><td>Monte um volume em <code>/data</code> para guardar</td></tr>
+                <tr><td><code>TZ</code></td><td><code>America/Sao_Paulo</code></td><td>Fuso horário</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="admin">
+          <h2>Rotas de administração</h2>
+          <p>Não existem no Asaas: ficam fora de <code>/v3</code>, sem <code>access_token</code>, e desligam com <code>ADMIN_ENABLED=false</code>.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Endpoint</th><th>O que faz</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /_admin/clock</code> · <code>POST /_admin/clock/advance</code> · <code>POST /_admin/clock/set</code></td><td>O relógio: onde está, <code>{"days": 32}</code>, <code>{"date": "2026-08-01"}</code></td></tr>
+                <tr><td><code>POST /_admin/tick</code></td><td>Roda os jobs sem mexer no relógio</td></tr>
+                <tr><td><code>GET /_admin/accounts</code> · <code>POST /_admin/accounts</code> · <code>DELETE /_admin/accounts/:id</code></td><td>Contas com saldo e chave que funciona; perfil novo; apagar com tudo que ele tem</td></tr>
+                <tr><td><code>GET</code>, <code>POST /_admin/accounts/:id/keys</code> · <code>POST …/keys/:keyId/rotate</code> · <code>PUT</code>, <code>DELETE …/keys/:keyId</code></td><td>Chaves de API</td></tr>
+                <tr><td><code>GET /_admin/webhooks/events</code> · <code>GET /_admin/webhooks/deliveries</code> · <code>POST /_admin/webhooks/pause</code></td><td>Eventos de webhook, o registro de entregas, congelar o despacho</td></tr>
+                <tr><td><code>GET /_admin/test-cards</code> · <code>PUT /_admin/test-cards/policy</code> · <code>POST</code>, <code>DELETE /_admin/test-cards…</code></td><td>Cartões de teste e a política de aceitar qualquer um</td></tr>
+                <tr><td><code>GET</code>, <code>POST /_admin/notifications</code> · <code>GET /_admin/notify/status</code> · <code>GET /_admin/notify/arrivals</code> · <code>POST /_admin/notify/test</code></td><td>Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou</td></tr>
+                <tr><td><code>GET /_admin/coverage</code> · <code>GET /_admin/fees</code></td><td>Operações com regra de negócio; a tabela de taxas</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="mock-routes">
+          <h2>Rotas de controle de pagamento</h2>
+          <p>Rotas auxiliares sem chave, montadas sob <code>/_mock</code>, dão controle determinístico sobre os estados de pagamento em testes automatizados e verificação local: listar, confirmar, receber, vencer, falhar (um apelido de vencer) e estornar (total ou parcial).</p>
+          <div class="code"><pre><code>curl http://localhost:45445/_mock/payments?limit=10
+→curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/confirm
+→curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/receive
+→curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/overdue
+→curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/fail
+→curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/refund \
+  -H 'Content-Type: application/json' \
+  -d '{"value": 50.00}'</code></pre></div>
+        </section>
+
+        <section id="fidelity">
+          <h2>Fidelidade: provada, não prometida</h2>
+          <p>As regras de negócio foram <strong>capturadas do sandbox real do Asaas</strong> e são conferidas campo a campo por uma suíte de paridade:</p>
+          <div class="code"><pre><code>bun run test:parity</code></pre></div>
+          <p><code>tools/capture.ts</code> roda os cenários no Asaas real e grava as respostas em <code>tests/golden/</code>; a suíte repete os mesmos cenários no simulador e compara tudo que não é legitimamente volátil, até <strong>o conjunto exato de chaves de cada objeto</strong>. A captura derrubou 20 regras que tinham sido deduzidas da documentação, entre elas: a assinatura cria a primeira cobrança na hora; a taxa do parcelamento no cartão sai do total e a divisão trunca (R$ 350 em 12x dá R$ 1,20 de taxa por parcela, não R$ 1,21); a parcela <code>n</code> credita em D+32×n; o campo do desconto é <code>limitDate</code>, que a especificação nem declara.</p>
+          <p>As chamadas que uma aplicação real faz ao Asaas também foram testadas no simulador e comparadas chave a chave com o sandbox, o que achou seis buracos que uma suíte de contrato não via (o QR code do Pix, parcelamento por <code>POST /v3/payments</code>, pagar com cartão já tokenizado…). Veja <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/progress.md"><code>progress.md</code></a>.</p>
+          <p>Para capturar de novo com a sua chave de <strong>sandbox</strong> (o script recusa qualquer chave que não comece com <code>$aact_hmlg_</code>):</p>
+          <div class="code"><pre><code>ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun run capture
+bun run test:parity</code></pre></div>
+        </section>
+
+        <section id="development">
+          <h2>Desenvolvimento</h2>
+          <div class="code"><pre><code>bun install
+bun run codegen        <span class="c"># especificação OpenAPI → TypeBox e o manifesto de operações</span>
+bun run db:generate    <span class="c"># migrações a partir do schema Drizzle</span>
+bun run dev
+bun test
+bun run e2e            <span class="c"># sobe o servidor, paga uma cobrança Pix, espera o PAYMENT_RECEIVED</span>
+bun run spec:diff      <span class="c"># o Asaas mudou a API?</span></code></pre></div>
+          <p>Leia o <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/AGENTS.md"><code>AGENTS.md</code></a> antes de contribuir: domínio puro, sem <code>Date.now()</code>, dinheiro em centavos inteiros.</p>
+        </section>
+
+        <section id="license">
+          <h2>Licença</h2>
+          <p>MIT, veja <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/LICENSE">LICENSE</a>.</p>
+          <p class="note"><strong>Sem vínculo com o Asaas.</strong> Um simulador independente da API pública deles, para desenvolvimento local e testes. "Asaas" é marca de seus donos. <strong>Não use para movimentar dinheiro de verdade</strong>: nenhum pagamento aqui é real.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p>O mock do WhatsApp é Apache-2.0, o mock do Asaas é MIT. Código-fonte no <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. Para modelos de linguagem: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Simuladores independentes de APIs públicas, sem afiliação com Meta, WhatsApp ou Asaas. Seus nomes são marcas registradas de seus respectivos proprietários. Nenhum pagamento realizado aqui é real.</p>
+    </div>
+  </footer>
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>
