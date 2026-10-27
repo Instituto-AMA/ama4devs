@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { v3 } from '../api.ts'
+import { admin, v3 } from '../api.ts'
 import type { PageProps } from '../app.tsx'
 import { DataTable, type Column } from '../components/DataTable.tsx'
 import { Badge, Button, Card, Empty } from '../components/ui.tsx'
@@ -19,8 +19,8 @@ type View = 'active' | 'removed'
 /**
  * The account's customers, read from the real `/v3/customers` with the account's key.
  *
- * Asaas lists only active customers; a removed one comes back with `deletedOnly=true`.
- * Both are shown here, because a charge keeps pointing at its customer after the
+ * Asaas lists only active customers and has no filter for removed ones, so those come
+ * from the simulator (`/_admin/customers?removed=true`). Both are shown here, because a charge keeps pointing at its customer after the
  * customer is removed (an integration's cleanup does exactly that) and a panel that
  * only shows the active list looks empty while the charges still name someone.
  */
@@ -29,14 +29,17 @@ export function Customers({ store }: PageProps) {
   const [removed, setRemoved] = useState<Customer[] | null>(null)
   const [view, setView] = useState<View>('active')
   const key = store.selected?.apiKey
+  const accountId = store.selected?.id
 
   useEffect(() => {
-    if (!key) return
+    if (!key || !accountId) return
     setActive(null)
     setRemoved(null)
     void v3('/customers?limit=100', key).then((r) => setActive(r.data))
-    void v3('/customers?limit=100&deletedOnly=true', key).then((r) => setRemoved(r.data))
-  }, [key])
+    void admin(`/customers?accountId=${encodeURIComponent(accountId)}&removed=true`).then((r) =>
+      setRemoved(r.data),
+    )
+  }, [key, accountId])
 
   if (!active || !removed) return <Card><Empty>carregando…</Empty></Card>
 

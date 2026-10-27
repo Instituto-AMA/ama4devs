@@ -132,6 +132,27 @@ describe('painel', () => {
     await h.assertLedgerBalances()
   })
 
+  it('lists the removed customers of an account apart from the active ones', async () => {
+    h = await createHarness()
+
+    const kept = await h.api.call('create-new-customer', {
+      body: { name: 'Ativo', cpfCnpj: '24971563792' },
+    })
+    const gone = await h.api.call('create-new-customer', {
+      body: { name: 'Removido', cpfCnpj: '24971563792' },
+    })
+    await h.api.call('remove-customer', { params: { id: gone.body.id } })
+
+    const removed = (await (
+      await get(h.app, `/_admin/customers?accountId=${h.accountId}&removed=true`)
+    ).json()) as any
+    expect(removed.data.map((c: any) => c.id)).toEqual([gone.body.id])
+    expect(removed.data[0].deleted).toBe(true)
+
+    const active = (await (await get(h.app, `/_admin/customers?accountId=${h.accountId}`)).json()) as any
+    expect(active.data.map((c: any) => c.id)).toEqual([kept.body.id])
+  })
+
   it('the summary leaves deleted charges out, as the charge list does', async () => {
     h = await createHarness()
 

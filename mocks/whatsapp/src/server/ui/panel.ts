@@ -337,7 +337,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
           <div class="brand-sub"><span class="dot" id="live-dot"></span><span id="live-text">conectando…</span></div>
         </div>
       </div>
-      <button class="icon-btn" id="new-chat" type="button" aria-label="Nova conversa como paciente" title="Nova conversa">
+      <button class="icon-btn" id="new-chat" type="button" aria-label="Nova conversa como usuário" title="Nova conversa">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.6 19L4 20Z"/><path d="M12 8.5v7M8.5 12h7"/></svg>
       </button>
       <button class="icon-btn" id="toggle-tools" type="button" aria-label="Painel de controle" aria-pressed="false" title="Painel de controle">
@@ -369,9 +369,9 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
         </div>
         <h1>Conversas do mock</h1>
         <p>As mensagens que a aplicação envia pela API do WhatsApp aparecem aqui, com os tiques de entrega e leitura.</p>
-        <p>Para testar a entrada, fale como paciente: a mensagem chega à aplicação pelo webhook.</p>
+        <p>Para testar a entrada, fale como usuário: a mensagem chega à aplicação pelo webhook.</p>
         <div class="actions">
-          <button class="btn" type="button" id="welcome-new">Nova conversa como paciente</button>
+          <button class="btn" type="button" id="welcome-new">Nova conversa como usuário</button>
           <button class="btn ghost" type="button" id="welcome-tools">Abrir painel de controle</button>
         </div>
       </div>
@@ -388,11 +388,11 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     </header>
     <div class="stream" id="stream" hidden aria-live="polite"></div>
     <form class="compose" id="compose" hidden>
-      <div class="quick" id="quick" aria-label="Respostas rápidas do paciente"></div>
+      <div class="quick" id="quick" aria-label="Respostas rápidas do usuário"></div>
       <div class="compose-line">
-        <label class="sr" for="reply">Responder como paciente</label>
-        <textarea id="reply" rows="1" placeholder="Responder como paciente"></textarea>
-        <button class="send" id="send" type="submit" aria-label="Enviar como paciente" disabled>
+        <label class="sr" for="reply">Responder como usuário</label>
+        <textarea id="reply" rows="1" placeholder="Responder como usuário"></textarea>
+        <button class="send" id="send" type="submit" aria-label="Enviar como usuário" disabled>
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
         </button>
       </div>
@@ -415,7 +415,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     </div>
     <section class="pane" id="pane-delivery" role="tabpanel" aria-labelledby="tab-delivery">
       <h3>Como as mensagens da clínica avançam</h3>
-      <p class="help">Automática: cada mensagem enviada vira entregue e lida em poucos segundos, como um paciente atento. Manual: ela fica como enviada até você marcar entregue, lida ou falha no menu da mensagem.</p>
+      <p class="help">Automática: cada mensagem enviada vira entregue e lida em poucos segundos, como um usuário atento. Manual: ela fica como enviada até você marcar entregue, lida ou falha no menu da mensagem.</p>
       <div class="seg" role="group" aria-label="Modo de entrega">
         <button type="button" data-mode="auto" aria-pressed="false">Automática</button>
         <button type="button" data-mode="manual" aria-pressed="false">Manual</button>
@@ -429,7 +429,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     </section>
     <section class="pane" id="pane-webhook" role="tabpanel" aria-labelledby="tab-webhook" hidden>
       <h3>Para onde vão os eventos</h3>
-      <p class="help">O mock chama este endereço com cada mensagem do paciente e cada mudança de status, no formato da Cloud API. Endereços em localhost chegam à sua máquina mesmo com o mock em container.</p>
+      <p class="help">O mock chama este endereço com cada mensagem do usuário e cada mudança de status, no formato da Cloud API. Endereços em localhost chegam à sua máquina mesmo com o mock em container.</p>
       <dl class="kv" id="webhook-kv"></dl>
       <form id="webhook-form">
         <label class="field"><span>Número da clínica (phone number id)</span><input id="wh-phone" required autocomplete="off"></label>
@@ -451,7 +451,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 </div>
 
 <div class="menu" id="menu" role="menu" aria-label="Status da mensagem">
-  <div class="menu-title">Simular o lado do paciente</div>
+  <div class="menu-title">Simular o lado do usuário</div>
   <button type="button" role="menuitem" data-status="delivered">Marcar como entregue</button>
   <button type="button" role="menuitem" data-status="read">Marcar como lida</button>
   <button type="button" role="menuitem" data-status="failed" class="danger">Marcar como não entregue</button>
@@ -459,15 +459,15 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 
 <dialog id="new-dialog">
   <form method="dialog" id="new-form">
-    <h2>Nova conversa como paciente</h2>
-    <p class="help">A mensagem entra como se o paciente tivesse escrito para a clínica e segue para o webhook.</p>
+    <h2>Nova conversa como usuário</h2>
+    <p class="help">A mensagem entra como se o usuário tivesse escrito para a clínica e segue para o webhook.</p>
     <label class="field"><span>Número da clínica (phone number id)</span><input id="nd-business" required autocomplete="off"></label>
-    <label class="field"><span>Número do paciente</span><input id="nd-contact" required inputmode="tel" placeholder="5511999999999" autocomplete="off"></label>
-    <label class="field"><span>Nome do paciente (opcional)</span><input id="nd-name" autocomplete="off" placeholder="Maria Souza"></label>
+    <label class="field"><span>Número do usuário</span><input id="nd-contact" required inputmode="tel" placeholder="5511999999999" autocomplete="off"></label>
+    <label class="field"><span>Nome do usuário (opcional)</span><input id="nd-name" autocomplete="off" placeholder="Maria Souza"></label>
     <label class="field"><span>Mensagem</span><textarea id="nd-text" rows="2" required placeholder="Oi, quero marcar uma consulta"></textarea></label>
     <div class="actions">
       <button class="btn ghost" type="button" id="nd-cancel">Cancelar</button>
-      <button class="btn" type="submit" id="nd-send">Enviar como paciente</button>
+      <button class="btn" type="submit" id="nd-send">Enviar como usuário</button>
     </div>
   </form>
 </dialog>
@@ -668,7 +668,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
       var empty = node('li', 'side-empty');
       empty.appendChild(node('div', null, state.messages.length ? 'Nenhuma conversa com esse filtro.' : 'Nenhuma conversa ainda. Quando a aplicação enviar uma mensagem, ela aparece aqui.'));
       if (!state.messages.length) {
-        var b = node('button', 'btn ghost', 'Começar como paciente');
+        var b = node('button', 'btn ghost', 'Começar como usuário');
         b.type = 'button';
         b.addEventListener('click', openNewDialog);
         empty.appendChild(b);
@@ -754,7 +754,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     var nearBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 80;
     stream.textContent = '';
     if (!webhookFor(t.businessId)) {
-      stream.appendChild(node('div', 'notice', 'Sem webhook para este número: o que o paciente escrever fica registrado aqui, mas não chega à aplicação. Configure em Painel de controle, Webhook.'));
+      stream.appendChild(node('div', 'notice', 'Sem webhook para este número: o que o usuário escrever fica registrado aqui, mas não chega à aplicação. Configure em Painel de controle, Webhook.'));
     }
     var lastDay = null;
     var prev = null;
@@ -933,7 +933,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     renderEvents();
     renderTemplates();
   }
-  var KIND = { message: 'Mensagem do paciente', status: 'Status de mensagem', template_status: 'Status de template' };
+  var KIND = { message: 'Mensagem do usuário', status: 'Status de mensagem', template_status: 'Status de template' };
   function renderEvents() {
     var ul = el('events');
     ul.textContent = '';

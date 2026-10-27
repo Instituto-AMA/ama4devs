@@ -13,7 +13,7 @@
  * force lifecycle transitions and test corresponding webhook reactions.
  */
 import { useEffect, useState } from 'preact/hooks'
-import { mock, v3, type Payment } from '../api.ts'
+import { admin, mock, v3, type Payment } from '../api.ts'
 import type { PageProps } from '../app.tsx'
 import { DataTable, type Column } from '../components/DataTable.tsx'
 import { BILLING_LABEL, Badge, Button, Card, Empty, money, StatusBadge } from '../components/ui.tsx'
@@ -41,7 +41,7 @@ export function Payments({ store }: PageProps) {
     const [payments, active, removed] = await Promise.all([
       v3('/payments?limit=100&order=desc', key),
       v3('/customers?limit=100', key),
-      v3('/customers?limit=100&deletedOnly=true', key),
+      admin(`/customers?accountId=${encodeURIComponent(store.selected?.id ?? '')}&removed=true`),
     ])
     const byId = new Map<string, { name: string; removed: boolean }>()
     for (const c of active.data) byId.set(c.id, { name: c.name, removed: false })

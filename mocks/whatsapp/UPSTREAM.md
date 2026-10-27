@@ -64,9 +64,12 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
   `/v25.0`) and a path without a version (`/latest`) does not.
 - **`PORT` environment variable:** `serverPort()` reads `PORT` and returns it when it is a valid port number, else 3010;
   the `server` command's `--port` flag defaults to it, the HTTP listener uses it, and the Docker healthcheck follows it.
-- **Web inspection panel:** an inline HTML panel is served at `GET /` (`src/server/routes/panel.ts` and
-  `src/server/ui/panel.ts`): the conversation list, the messages of the selected conversation and a
-  "Simular mensagem do paciente" form. The page is self-contained — it references no external host.
+- **Web console:** an inline HTML page is served at `GET /` (`src/server/routes/panel.ts` and
+  `src/server/ui/panel.ts`), laid out like WhatsApp Web: the chats (search, unread and awaiting filters), the
+  conversation (day separators, bubbles, delivery ticks, rendered templates), replying and starting a conversation
+  as the user, moving a message to delivered / read / failed, and a control panel (delivery mode, webhook, event log,
+  templates). The page is self-contained — it references no external host — and calls the people on the other side
+  "usuário", since the mock serves any business.
 - **`createApp` is exported** from `src/server/server.ts`, so the full application (guards, CORS and logging included)
   can be built by the tests.
 
@@ -117,7 +120,7 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
   with `127.0.0.1`, with the IPv6 loopback, with a non-loopback host (unchanged), keeping the port and the path, and
   with an unparseable URL (unchanged); `redactUrl` dropping the query string and refusing to echo an unparseable URL.
 - **`src/server/routes/panel.test.ts` (new):** `GET /` answers 200 with an HTML body containing the
-  "Simular mensagem do paciente" form, and the page references no external host.
+  "Responder como usuário" composer, and the page references no external host.
 - **`src/server/server.test.ts` (new):** the request log redacts the `authorization`, `cookie` and signature headers,
   and a foreign `Host` is refused with a 403 by the full application.
 - **`src/server/routes/messages.test.ts` (fixed):** the templates directory is resolved from the test file, so the

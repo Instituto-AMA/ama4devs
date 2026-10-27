@@ -18,6 +18,12 @@ vendored upstream commit `14fa00e` — the whole delta is `git diff 2691e7c..HEA
 
 ### Behaviour
 
+- **The home summary skips deleted charges:** `src/admin/summary.ts` counted deleted charges and their customers, so
+  "Aguardando pagamento" showed charges and totals the charge list did not have.
+- **Removed customers are visible:** the real `GET /v3/customers` has no filter for removed customers, so
+  `GET /_admin/customers?accountId=&removed=true` lists them; Clientes has an Ativos / Removidos switch and Cobranças
+  names each charge's customer (removed ones marked). Statuses and billing types read as the Asaas dashboard writes
+  them.
 - **`payment.refunds` lists the refunds:** the payment serializer answered `refunds: null` always; it now lists the
   rows of `payment_refunds` (newest first, the installment's refund shape) and stays `null` when there is none, as the
   sandbox does. A client polling `GET /payments/{id}` for its refund saw nothing before.

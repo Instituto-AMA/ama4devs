@@ -9,7 +9,7 @@ import * as ids from '../../domain/ids.ts'
 
 type CustomerRow = typeof customers.$inferSelect
 
-function serialize(c: CustomerRow): Record<string, unknown> {
+export function serialize(c: CustomerRow): Record<string, unknown> {
   return {
     object: 'customer',
     id: c.id,

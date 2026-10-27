@@ -7,13 +7,14 @@
  *
  * Desligue com ADMIN_ENABLED=false em qualquer ambiente compartilhado.
  */
-import { desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
 import { badRequest } from '../core/errors.ts'
-import { accounts, apiKeys, webhookDeliveries, webhookEvents } from '../db/schema/index.ts'
+import { accounts, apiKeys, customers, webhookDeliveries, webhookEvents } from '../db/schema/index.ts'
 import { CARD_ERRORS, detectBrand, TEST_CARDS, TRIGGERS } from '../domain/credit-card.ts'
+import { serialize as serializeCustomer } from '../modules/customers/handlers.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 
@@ -182,6 +183,24 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         const accountId = String(query.accountId ?? '')
         if (!accountId) throw badRequest('invalid_accountId', 'Informe accountId.')
         return { groups: await paymentsSummary(ctx, accountId) }
+      })
+
+      /**
+       * The customers of an account, the removed ones on request. The real
+       * `GET /v3/customers` has no filter for removed customers (the spec lists
+       * none), yet a charge keeps naming its customer after an integration's
+       * cleanup removed it: the panel needs both lists to stay readable.
+       */
+      .get('/customers', async ({ query }) => {
+        const accountId = String(query.accountId ?? '')
+        if (!accountId) throw badRequest('invalid_accountId', 'Informe accountId.')
+        const removed = String(query.removed ?? '') === 'true'
+        const rows = await ctx.db
+          .select()
+          .from(customers)
+          .where(and(eq(customers.accountId, accountId), eq(customers.deleted, removed)))
+          .orderBy(asc(customers.name))
+        return { data: rows.map(serializeCustomer) }
       })
 
       /**
