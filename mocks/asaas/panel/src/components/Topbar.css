@@ -128,6 +128,15 @@
 .acct-option-bal { font-variant-numeric: tabular-nums; color: var(--text-medium); }
 .acct-option-bal.neg { color: var(--danger-strong); }
 
+/* The way out of the list: separated, and in the primary colour like a link. */
+.acct-option.acct-manage {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .theme-toggle {
   display: flex;
   align-items: center;

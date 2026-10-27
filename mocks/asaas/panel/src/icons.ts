@@ -11,7 +11,15 @@
  * desenho depois é mudar uma linha.
  */
 export {
+  Add01Icon as ADD,
   Alert02Icon as ALERT,
+  Delete02Icon as DELETE,
+  FileScriptIcon as LOG,
+  Key01Icon as KEY,
+  LockIcon as LOCK,
+  PencilEdit02Icon as EDIT,
+  SourceCodeIcon as INTEGRATION,
+  UserAdd01Icon as PROFILE,
   ArrowDown01Icon as CARET,
   ArrowDown01Icon as SORT_DESC,
   ArrowReloadHorizontalIcon as REFRESH,

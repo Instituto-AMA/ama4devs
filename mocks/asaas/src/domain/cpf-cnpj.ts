@@ -45,23 +45,35 @@ export function isValidCpf(raw: string): boolean {
   return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10])
 }
 
+/** The CNPJ check digit over the first `upTo` digits. */
+function cnpjDigit(cnpj: string, upTo: number): number {
+  let sum = 0
+  let weight = upTo - 7
+  for (let i = 0; i < upTo; i++) {
+    sum += Number(cnpj[i]) * weight
+    weight = weight - 1 < 2 ? 9 : weight - 1
+  }
+  const rest = sum % 11
+  return rest < 2 ? 0 : 11 - rest
+}
+
 export function isValidCnpj(raw: string): boolean {
   const cnpj = onlyDigits(raw)
   if (cnpj.length !== 14) return false
   if (/^(\d)\1{13}$/.test(cnpj)) return false
 
-  const digit = (upTo: number): number => {
-    let sum = 0
-    let weight = upTo - 7
-    for (let i = 0; i < upTo; i++) {
-      sum += Number(cnpj[i]) * weight
-      weight = weight - 1 < 2 ? 9 : weight - 1
-    }
-    const rest = sum % 11
-    return rest < 2 ? 0 : 11 - rest
-  }
+  return cnpjDigit(cnpj, 12) === Number(cnpj[12]) && cnpjDigit(cnpj, 13) === Number(cnpj[13])
+}
 
-  return digit(12) === Number(cnpj[12]) && digit(13) === Number(cnpj[13])
+/**
+ * A valid CNPJ from its 12-digit base: the base plus both check digits. The
+ * panel creates a profile without asking for a document, and the account still
+ * needs one that every validation in this server accepts.
+ */
+export function cnpjFromBase(base: string): string {
+  const head = onlyDigits(base).slice(0, 12).padStart(12, '0')
+  const first = `${head}${cnpjDigit(head, 12)}`
+  return `${first}${cnpjDigit(first, 13)}`
 }
 
 export function isValidCpfCnpj(raw: string): boolean {

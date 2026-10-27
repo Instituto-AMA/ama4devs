@@ -94,6 +94,8 @@
   font: 600 11px var(--font);
   padding: 3px 8px;
   cursor: pointer;
+  flex-shrink: 0; /* a long key wraps; the button keeps its word on one line */
+  white-space: nowrap;
 }
 .copy-btn:hover { background: var(--primary-soft); }
 
@@ -157,3 +159,192 @@ tbody tr:hover { background: var(--surface-soft); }
   color: var(--text-soft);
   font-size: 13px;
 }
+
+/* ── Modal ────────────────────────────────────────────────────────────────── */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 45%);
+}
+
+.modal {
+  position: fixed;
+  z-index: 21;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 25%);
+}
+.modal.wide { width: min(680px, calc(100vw - 32px)); }
+
+.modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pad-xl) var(--pad-xl) 0;
+}
+.modal header h2 { font-size: 20px; }
+
+.modal-x {
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  color: var(--text-medium);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.modal-x:hover { background: var(--surface-hover); }
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-md);
+  padding: var(--pad-xl);
+}
+.modal-body p { margin: 0; line-height: 1.6; }
+
+.modal-body label { display: flex; flex-direction: column; gap: 6px; }
+.modal-body label > span:first-child {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--pad-sm);
+  margin-top: var(--pad-xs);
+}
+
+/* A freshly made key, shown in a dialog with its copy button. */
+.reveal-key {
+  padding: var(--pad-sm) var(--pad-md);
+  background: var(--surface-soft);
+  border-radius: var(--radius-input);
+  overflow-wrap: anywhere;
+}
+.reveal-key .mono { font-size: 13px; }
+
+/* ── Inputs (Atlas: 40px de altura, raio 12) ─────────────────────────────── */
+.input {
+  height: 40px;
+  padding: 0 var(--pad-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font: 400 14px var(--font);
+  flex: 1;
+  min-width: 0;
+}
+.input:focus-visible { border-color: var(--focus); }
+.input:disabled { background: var(--surface-soft); color: var(--text-soft); }
+
+.chip {
+  height: 36px;
+  padding: 0 var(--pad-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-medium);
+  font: 600 13px var(--font);
+  cursor: pointer;
+}
+.chip:hover { background: var(--surface-hover); }
+.chip.on {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ── Field ────────────────────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.field .row { flex-wrap: nowrap; }
+/* `.input` grows along a ROW; in the field's column it would stretch to the cell height. */
+.field > .input { flex: none; }
+.field .row > .input { min-width: 140px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--pad-lg) var(--pad-xl);
+}
+
+/* ── Toggle ───────────────────────────────────────────────────────────────── */
+.toggle { display: inline-flex; align-items: flex-start; gap: var(--pad-sm); cursor: pointer; }
+.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transition: background 120ms;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 120ms;
+}
+.toggle input:checked + .toggle-track { background: var(--primary); }
+.toggle input:checked + .toggle-track::after { transform: translateX(20px); }
+.toggle input:focus-visible + .toggle-track { outline: 2px solid var(--focus); outline-offset: 2px; }
+.toggle-text { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; font-size: 14px; }
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: var(--pad-xl);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  padding: var(--pad-sm) 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--text-medium);
+  font: 500 15px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tab:hover:not(:disabled) { color: var(--text); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab:disabled { opacity: .45; cursor: not-allowed; }
+
+/* A small icon-only action in a table row. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-medium);
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+.icon-btn.danger:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger-strong); }
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }

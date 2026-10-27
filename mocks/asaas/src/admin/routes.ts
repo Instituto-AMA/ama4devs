@@ -7,16 +7,35 @@
  *
  * Desligue com ADMIN_ENABLED=false em qualquer ambiente compartilhado.
  */
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
 import { badRequest } from '../core/errors.ts'
-import { accounts, apiKeys, customers, webhookDeliveries, webhookEvents } from '../db/schema/index.ts'
+import {
+  accounts,
+  apiKeys,
+  customers,
+  webhookDeliveries,
+  webhookEvents,
+  webhooks,
+} from '../db/schema/index.ts'
 import { CARD_ERRORS, detectBrand, TEST_CARDS, TRIGGERS } from '../domain/credit-card.ts'
 import { serialize as serializeCustomer } from '../modules/customers/handlers.ts'
+import { WebhookEvent } from '../generated/enums.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
+import { createKey, deleteKey, listKeys, rotateKey, updateKey } from './keys.ts'
+import { createProfile, deleteProfile, seededDocuments } from './profiles.ts'
+
+/** Every event a webhook can subscribe to, in the spec's order. */
+const WEBHOOK_EVENTS: string[] = WebhookEvent.anyOf.map((s) => String(s.const))
+
+const keyBody = t.Object({
+  name: t.Optional(t.String()),
+  expirationDate: t.Optional(t.Nullable(t.String())),
+  enabled: t.Optional(t.Boolean()),
+})
 
 export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
   const virtual = (): VirtualClock => {
@@ -215,24 +234,38 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         return { webhooks: await queueHealth(ctx) }
       })
 
+      /**
+       * The events a webhook can subscribe to — the panel's checkbox list. From
+       * the generated enum, so the list and the validation never disagree.
+       */
+      .get('/webhooks/events', () => ({ events: WEBHOOK_EVENTS }))
+
+      /** The deliveries, newest first; `accountId` narrows them to one account. */
       .get('/webhooks/deliveries', async ({ query }) => {
+        const accountId = query.accountId ? String(query.accountId) : undefined
         const rows = await ctx.db
           .select({
             id: webhookDeliveries.id,
             webhookId: webhookDeliveries.webhookId,
+            webhookName: webhooks.name,
+            url: webhooks.url,
             status: webhookDeliveries.status,
             attempt: webhookDeliveries.attempt,
             nextAttemptAtMs: webhookDeliveries.nextAttemptAtMs,
             lastStatusCode: webhookDeliveries.lastStatusCode,
             lastError: webhookDeliveries.lastError,
             lastAttemptAt: webhookDeliveries.lastAttemptAt,
+            dateCreated: webhookDeliveries.dateCreated,
             event: webhookEvents.event,
             eventId: webhookEvents.id,
             payload: webhookEvents.payload,
           })
           .from(webhookDeliveries)
           .innerJoin(webhookEvents, eq(webhookDeliveries.eventId, webhookEvents.id))
-          .orderBy(desc(webhookDeliveries.sequence))
+          .innerJoin(webhooks, eq(webhookDeliveries.webhookId, webhooks.id))
+          .where(accountId ? eq(webhookDeliveries.accountId, accountId) : undefined)
+          // `sequence` is per webhook; the event time orders across webhooks.
+          .orderBy(desc(webhookEvents.createdAtMs), desc(webhookDeliveries.sequence))
           .limit(Number(query.limit ?? 50))
 
         return { data: rows }
@@ -318,8 +351,21 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           .from(accounts)
           .orderBy(accounts.parentAccountId, accounts.dateCreated)
 
-        const keys = await ctx.db.select().from(apiKeys).where(eq(apiKeys.active, true))
+        // The key the panel acts with: one that authenticates NOW. With several,
+        // the newest — after a rotation that is the one the app was given.
+        const now = ctx.clock.timestamp()
+        const keys = await ctx.db
+          .select()
+          .from(apiKeys)
+          .where(
+            and(
+              eq(apiKeys.active, true),
+              or(isNull(apiKeys.expirationDate), gt(apiKeys.expirationDate, now)),
+            ),
+          )
+          .orderBy(asc(apiKeys.dateCreated))
         const keyOf = new Map(keys.map((k) => [k.accountId, k.key]))
+        const seeded = seededDocuments(ctx)
 
         return {
           accounts: rows.map((a) => ({
@@ -333,9 +379,45 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             // Em reais, como toda fronteira de saída deste projeto.
             balance: a.balanceCents / 100,
             apiKey: keyOf.get(a.id) ?? null,
+            /** A root account the environment seeds: deleted, it returns on the next boot. */
+            seeded: a.parentAccountId === null && seeded.has(a.cpfCnpj),
             dateCreated: a.dateCreated,
           })),
         }
       })
+
+      /** A new profile (root account) with its first key. Not an Asaas operation. */
+      .post('/accounts', async ({ body }) => createProfile(ctx, body), {
+        body: t.Object({
+          name: t.String(),
+          cpfCnpj: t.Optional(t.String()),
+          email: t.Optional(t.String()),
+          apiKey: t.Optional(t.String()),
+        }),
+      })
+
+      /** Deletes a profile and everything it owns, subaccounts included. */
+      .delete('/accounts/:id', async ({ params }) => deleteProfile(ctx, params.id))
+
+      // ── API keys of an account (the "Chaves de API" tab) ─────────────────
+      .get('/accounts/:id/keys', async ({ params }) => ({
+        keys: await listKeys(ctx, params.id),
+      }))
+      .post('/accounts/:id/keys', async ({ params, body }) => createKey(ctx, params.id, body), {
+        body: keyBody,
+      })
+      .post(
+        '/accounts/:id/keys/:keyId/rotate',
+        async ({ params, body }) => rotateKey(ctx, params.id, params.keyId, body ?? {}),
+        { body: t.Optional(keyBody) },
+      )
+      .put(
+        '/accounts/:id/keys/:keyId',
+        async ({ params, body }) => updateKey(ctx, params.id, params.keyId, body),
+        { body: keyBody },
+      )
+      .delete('/accounts/:id/keys/:keyId', async ({ params }) =>
+        deleteKey(ctx, params.id, params.keyId),
+      )
   )
 }

@@ -4,13 +4,22 @@
  * Cada chave pertence a uma conta, e a conta carrega walletId e saldo próprios.
  * É isso que faz o split funcionar de verdade entre contas deste servidor.
  */
-import { and, eq } from 'drizzle-orm'
+import { and, eq, gt, isNull, or } from 'drizzle-orm'
 import type { DB } from '../db/client.ts'
 import { accounts, apiKeys } from '../db/schema/index.ts'
 import type { AuthContext } from '../core/context.ts'
 import { invalidTokenFormat, unauthorized } from '../core/errors.ts'
 
-export async function authenticate(db: DB, token: string | undefined): Promise<AuthContext> {
+/**
+ * `now` is the simulator's business timestamp (`YYYY-MM-DD HH:mm:ss`), the
+ * format `expirationDate` is stored in: a key past its expiration is refused
+ * like a disabled one, and a jump of the virtual clock expires it too.
+ */
+export async function authenticate(
+  db: DB,
+  token: string | undefined,
+  now: string,
+): Promise<AuthContext> {
   if (!token) throw unauthorized()
 
   // O Asaas distingue "formato inválido" de "chave inválida" — é o que permite
@@ -25,7 +34,13 @@ export async function authenticate(db: DB, token: string | undefined): Promise<A
     })
     .from(apiKeys)
     .innerJoin(accounts, eq(apiKeys.accountId, accounts.id))
-    .where(and(eq(apiKeys.key, token), eq(apiKeys.active, true)))
+    .where(
+      and(
+        eq(apiKeys.key, token),
+        eq(apiKeys.active, true),
+        or(isNull(apiKeys.expirationDate), gt(apiKeys.expirationDate, now)),
+      ),
+    )
     .limit(1)
 
   if (!row) throw unauthorized()

@@ -84,8 +84,55 @@ export interface Account {
   parentAccountId: string | null
   status: string
   balance: number
+  /** A key that authenticates now, or null when every key is disabled, expired or gone. */
   apiKey: string | null
+  /** An environment profile: deleted, it returns on the next boot. */
+  seeded: boolean
   dateCreated: string
+}
+
+/** An API key as the "Chaves de API" tab lists it (`/_admin/accounts/:id/keys`). */
+export interface ApiKey {
+  id: string
+  name: string
+  enabled: boolean
+  expired: boolean
+  usable: boolean
+  expirationDate: string | null
+  dateCreated: string
+  apiKey: string
+}
+
+/** A webhook as `GET /v3/webhooks` returns it. */
+export interface Webhook {
+  id: string
+  name: string
+  url: string
+  email: string
+  enabled: boolean
+  interrupted: boolean
+  apiVersion: number
+  hasAuthToken: boolean
+  sendType: 'SEQUENTIALLY' | 'NON_SEQUENTIALLY'
+  events: string[]
+}
+
+/** One delivery of one event to one webhook (`/_admin/webhooks/deliveries`). */
+export interface Delivery {
+  id: string
+  webhookId: string
+  webhookName: string
+  url: string
+  status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'INTERRUPTED' | 'EXPIRED'
+  attempt: number
+  nextAttemptAtMs: number | null
+  lastStatusCode: number | null
+  lastError: string | null
+  lastAttemptAt: string | null
+  dateCreated: string
+  event: string
+  eventId: string
+  payload: Record<string, unknown>
 }
 
 export interface Clock {

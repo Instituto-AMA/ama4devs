@@ -82,7 +82,7 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
     .derive(async ({ headers }) => {
       const token = headers['access_token']
       if (!token) throw unauthorized()
-      return { auth: await authenticate(ctx.db, token) }
+      return { auth: await authenticate(ctx.db, token, ctx.clock.timestamp()) }
     })
 
   const coverage = registerOperations(api as unknown as Elysia, ctx, deps.handlers)

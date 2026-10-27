@@ -18,14 +18,15 @@ import { Topbar } from './components/Topbar.tsx'
 import { Banner, Button, plural } from './components/ui.tsx'
 import { Customers } from './pages/Customers.tsx'
 import { Home } from './pages/Home.tsx'
+import { integrationTab, Integrations } from './pages/Integrations.tsx'
 import { Payments } from './pages/Payments.tsx'
 import { SimulateSale } from './pages/SimulateSale.tsx'
 import { Splits } from './pages/Splits.tsx'
 import { Statement } from './pages/Statement.tsx'
 import { Subaccounts } from './pages/Subaccounts.tsx'
 import { Clock } from './pages/sim/Clock.tsx'
+import { Profiles } from './pages/sim/Profiles.tsx'
 import { TestCards } from './pages/sim/TestCards.tsx'
-import { Webhooks } from './pages/Webhooks.tsx'
 import { useStore, type Store } from './store.ts'
 import './app.css'
 
@@ -42,10 +43,14 @@ const TITLES: Record<string, string> = {
   statement: 'Extrato da Conta',
   splits: 'Split de pagamentos',
   subaccounts: 'Subcontas',
-  webhooks: 'Webhooks',
+  integrations: 'Integrações',
+  'sim-profiles': 'Perfis',
   'sim-clock': 'Relógio virtual',
   'sim-cards': 'Cartões de teste',
 }
+
+/** Old links that moved: `#webhooks` now lives under Integrações. */
+const ALIASES: Record<string, string> = { webhooks: 'integrations/webhooks' }
 
 /**
  * A página fica no hash. Trinta linhas a menos que um router, e resolve o que
@@ -54,7 +59,10 @@ const TITLES: Record<string, string> = {
  * travada em vez de descrever onde clicar.
  */
 function useHashPage(fallback: string) {
-  const read = () => window.location.hash.slice(1) || fallback
+  const read = () => {
+    const page = window.location.hash.slice(1) || fallback
+    return ALIASES[page] ?? page
+  }
   const [page, setPage] = useState(read)
 
   useEffect(() => {
@@ -92,6 +100,10 @@ export function App() {
 
   const props = { store, navigate: setPage }
 
+  // `integrations/keys` → the section and its tab; the tab names the screen.
+  const [section = page, sub] = page.split('/')
+  const tabTitle = section === 'integrations' ? integrationTab(sub).label : null
+
   return (
     <div class="shell">
       <Sidebar
@@ -108,16 +120,27 @@ export function App() {
           onSelect={store.select}
           onRefresh={() => void store.reload()}
           refreshing={store.loading}
+          onManageProfiles={() => setPage('sim-profiles')}
         />
 
         <div class="content">
           <div class="crumbs">
             <Icon icon={I.HOME} size={15} />
-            <span class="crumb-current">{TITLES[page] ?? page}</span>
+            {tabTitle ? (
+              <>
+                <span>{TITLES[section]}</span>
+                <Icon icon={I.CHEVRON} size={14} />
+                <span class="crumb-current">{tabTitle}</span>
+              </>
+            ) : (
+              <span class="crumb-current">{TITLES[page] ?? page}</span>
+            )}
           </div>
 
           <h1>
-            {page === 'home' ? `Olá, ${store.selected?.name ?? '…'}` : (TITLES[page] ?? page)}
+            {page === 'home'
+              ? `Olá, ${store.selected?.name ?? '…'}`
+              : (tabTitle ?? TITLES[page] ?? page)}
           </h1>
 
           {store.error && <Banner tone="danger">{store.error}</Banner>}
@@ -139,12 +162,16 @@ export function App() {
             </Banner>
           )}
 
-          {blocked.length > 0 && page !== 'webhooks' && (
+          {blocked.length > 0 && page !== 'integrations/webhooks' && (
             <Banner
               tone="danger"
               icon={I.WEBHOOK}
               action={
-                <Button variant="danger" size="sm" onClick={() => setPage('webhooks')}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setPage('integrations/webhooks')}
+                >
                   Ver fila
                 </Button>
               }
@@ -165,7 +192,8 @@ export function App() {
 }
 
 function Page({ page, ...p }: PageProps & { page: string }) {
-  switch (page) {
+  const [section, tab] = page.split('/')
+  switch (section) {
     case 'home':
       return <Home {...p} />
     case 'customers':
@@ -178,10 +206,12 @@ function Page({ page, ...p }: PageProps & { page: string }) {
       return <Splits {...p} />
     case 'subaccounts':
       return <Subaccounts {...p} />
+    case 'integrations':
+      return <Integrations {...p} tab={tab} />
+    case 'sim-profiles':
+      return <Profiles {...p} />
     case 'sim-clock':
       return <Clock {...p} />
-    case 'webhooks':
-      return <Webhooks {...p} />
     case 'sim-cards':
       return <TestCards /> // a tabela vem do domínio, não da conta selecionada
     default:

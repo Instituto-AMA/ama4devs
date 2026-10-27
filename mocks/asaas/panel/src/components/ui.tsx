@@ -23,6 +23,17 @@ export const money = (v: number | null | undefined) =>
 export const plural = (n: number, um: string, muitos: string) =>
   `${n} ${n === 1 ? um : muitos}`
 
+/** "2026-01-05 09:00:00" → "05/01/2026 09:00"; a date alone → "05/01/2026". */
+export const dateTime = (v: string | null | undefined) => {
+  if (!v) return '—'
+  const [date = '', time] = v.split(' ')
+  const [y, m, d] = date.split('-')
+  return `${d}/${m}/${y}${time ? ` ${time.slice(0, 5)}` : ''}`
+}
+
+/** The message of a failed call, for an `alert` or a banner. */
+export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
 // ── Card ────────────────────────────────────────────────────────────────────
 
 export function Card(props: {
@@ -194,6 +205,71 @@ export const Table = ({ children }: { children: ComponentChildren }) => (
 export const Empty = ({ children }: { children: ComponentChildren }) => (
   <div class="empty">{children}</div>
 )
+
+// ── Modal ───────────────────────────────────────────────────────────────────
+
+/** A dialog over a scrim; a click outside or on the ✕ closes it. */
+export function Modal(props: {
+  title: ComponentChildren
+  onClose: () => void
+  children: ComponentChildren
+  wide?: boolean
+}) {
+  return (
+    <>
+      <div class="modal-scrim" onClick={props.onClose} />
+      <div class={`modal ${props.wide ? 'wide' : ''}`} role="dialog">
+        <header>
+          <h2>{props.title}</h2>
+          <button class="modal-x" onClick={props.onClose} aria-label="Fechar">
+            <Icon icon={I.CLOSE} size={18} />
+          </button>
+        </header>
+        <div class="modal-body">{props.children}</div>
+      </div>
+    </>
+  )
+}
+
+// ── Form ────────────────────────────────────────────────────────────────────
+
+/** A labelled field: the label above, an optional hint below. */
+export function Field(props: {
+  label: ComponentChildren
+  hint?: ComponentChildren
+  children: ComponentChildren
+}) {
+  return (
+    <label class="field">
+      <span class="field-label">{props.label}</span>
+      {props.children}
+      {props.hint && <span class="hint">{props.hint}</span>}
+    </label>
+  )
+}
+
+/** An on/off switch with its label beside it. */
+export function Toggle(props: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  children: ComponentChildren
+  hint?: ComponentChildren
+}) {
+  return (
+    <label class="toggle">
+      <input
+        type="checkbox"
+        checked={props.checked}
+        onChange={(e) => props.onChange((e.target as HTMLInputElement).checked)}
+      />
+      <span class="toggle-track" aria-hidden="true" />
+      <span class="toggle-text">
+        <span>{props.children}</span>
+        {props.hint && <span class="hint">{props.hint}</span>}
+      </span>
+    </label>
+  )
+}
 
 // ── KeyValue ────────────────────────────────────────────────────────────────
 

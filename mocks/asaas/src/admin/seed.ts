@@ -2,7 +2,7 @@
  * Seed idempotente: garante que existe uma conta principal com a API key do
  * ambiente. Roda em todo boot; se a conta já existe, não faz nada.
  */
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { toBusinessTimestamp } from '../core/clock.ts'
 import type { DB } from '../db/client.ts'
 import { accountDocumentGroups, accounts, apiKeys } from '../db/schema/index.ts'
@@ -23,8 +23,11 @@ export interface SeedDeps extends DocumentDeps {
   db: DB
 }
 
-/** The fields an account needs to be born. Master and extra accounts differ only here. */
-interface RootAccountSeed {
+/**
+ * The fields an account needs to be born. Master, extra and panel-created
+ * profiles differ only here.
+ */
+export interface RootAccountSeed {
   apiKey: string
   name: string
   email: string
@@ -43,13 +46,13 @@ function slugify(name: string): string {
 }
 
 /**
- * The INSERT shared by the master account and the extra ones: a ROOT account
- * (`parentAccountId: null`), its own walletId, the API key row and the KYC
- * already approved — what the real sandbox returns for an account in use. A
- * SUB-account created via POST /v3/accounts is the one born with documents to
- * send.
+ * The INSERT shared by the master account, the extra ones and the profiles the
+ * panel creates: a ROOT account (`parentAccountId: null`), its own walletId,
+ * the API key row and the KYC already approved — what the real sandbox returns
+ * for an account in use. A SUB-account created via POST /v3/accounts is the one
+ * born with documents to send.
  */
-async function insertRootAccount(
+export async function insertRootAccount(
   deps: SeedDeps,
   seed: RootAccountSeed,
 ): Promise<SeedResult> {
@@ -93,15 +96,44 @@ async function insertRootAccount(
   return { created: true, accountId, walletId, apiKey: seed.apiKey }
 }
 
+/**
+ * The root account an environment profile already lives in, or none.
+ *
+ * Found by its KEY or by its DOCUMENT: the panel rotates and deletes keys, so
+ * the key alone stops naming the account after a rotation, and a restart would
+ * seed a second copy of a profile that is still there. A profile deleted in the
+ * panel has neither, and the environment brings it back on the next boot.
+ */
+async function findSeeded(
+  db: DB,
+  seed: { apiKey: string | undefined; cpfCnpj: string },
+): Promise<typeof accounts.$inferSelect | undefined> {
+  if (seed.apiKey) {
+    const [byKey] = await db
+      .select({ account: accounts })
+      .from(apiKeys)
+      .innerJoin(accounts, eq(apiKeys.accountId, accounts.id))
+      .where(eq(apiKeys.key, seed.apiKey))
+      .limit(1)
+    if (byKey) return byKey.account
+  }
+
+  const [byDocument] = await db
+    .select()
+    .from(accounts)
+    .where(and(isNull(accounts.parentAccountId), eq(accounts.cpfCnpj, seed.cpfCnpj)))
+    .limit(1)
+  return byDocument
+}
+
 export async function seedMasterAccount(deps: SeedDeps): Promise<SeedResult> {
   const { db, config, rng } = deps
-  const existing = await db.select().from(accounts).limit(1)
-  if (existing.length > 0) {
-    const account = existing[0]!
+  const account = await findSeeded(db, config.seedAccount)
+  if (account) {
     const [key] = await db
       .select()
       .from(apiKeys)
-      .where(eq(apiKeys.accountId, account.id))
+      .where(and(eq(apiKeys.accountId, account.id), eq(apiKeys.active, true)))
       .limit(1)
 
     // Banco criado antes da tabela de documentos: sem este backfill, a conta
@@ -147,21 +179,17 @@ export async function seedMasterAccount(deps: SeedDeps): Promise<SeedResult> {
  * the time an item gets here it is well-formed and its key is not the master's.
  *
  * Runs on every boot, right after `seedMasterAccount`, under the same
- * idempotency contract: if the key already exists, the account is already
- * seeded and NOTHING changes — no new wallet, no new balance. The balance of a
- * fresh extra account starts at zero.
+ * idempotency contract: if the key, or a root account with the same document,
+ * already exists, the account is already seeded and NOTHING changes — no new
+ * wallet, no new balance, no key put back after the panel rotated it. The
+ * balance of a fresh extra account starts at zero.
  */
 export async function seedExtraAccounts(deps: SeedDeps): Promise<SeedResult[]> {
   const { db, config } = deps
   const created: SeedResult[] = []
 
   for (const extra of config.seedExtraAccounts) {
-    const [existing] = await db
-      .select({ id: apiKeys.id })
-      .from(apiKeys)
-      .where(eq(apiKeys.key, extra.apiKey))
-      .limit(1)
-    if (existing) continue
+    if (await findSeeded(db, extra)) continue
 
     created.push(
       await insertRootAccount(deps, {

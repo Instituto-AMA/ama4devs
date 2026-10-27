@@ -21,6 +21,8 @@ export function Topbar(props: {
   onSelect: (id: string) => void
   onRefresh: () => void
   refreshing: boolean
+  /** Opens the profiles screen — where a profile is created or deleted. */
+  onManageProfiles: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [theme, toggleTheme] = useTheme()
@@ -83,6 +85,16 @@ export function Topbar(props: {
               {master.map(option)}
               {subs.length > 0 && <div class="acct-group">Subcontas</div>}
               {subs.map(option)}
+              <button
+                class="acct-option acct-manage"
+                onClick={() => {
+                  props.onManageProfiles()
+                  setOpen(false)
+                }}
+              >
+                <Icon icon={I.PROFILE} size={16} />
+                <span class="acct-option-name">Criar ou excluir perfis</span>
+              </button>
             </div>
           </>
         )}

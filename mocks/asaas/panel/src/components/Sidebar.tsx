@@ -35,18 +35,21 @@ export const ASAAS_NAV: NavItem[] = [
   { id: 'splits', label: 'Split de pagamentos', icon: I.SPLIT },
   { id: 'subaccounts', label: 'Subcontas', icon: I.SUBACCOUNT },
   /**
-   * Webhook é configuração DA CONTA, e existe no painel do Asaas de verdade — por isso
-   * mora aqui em cima, e não no bloco do Simulador. Cada conta tem os seus, e um evento
-   * da conta X só é entregue aos webhooks de X.
+   * Chaves de API e webhooks são configuração DA CONTA, e existem no painel do Asaas de
+   * verdade, sob "Integrações" — por isso moram aqui em cima, e não no bloco do
+   * Simulador. Cada conta tem os seus, e um evento da conta X só é entregue aos
+   * webhooks de X.
    *
    * (O DIAGNÓSTICO da fila — por que ela travou, quantas entregas estão presas atrás —
    * esse sim é introspecção nossa. A tela diz isso.)
    */
-  { id: 'webhooks', label: 'Webhooks', icon: I.WEBHOOK },
+  { id: 'integrations', label: 'Integrações', icon: I.INTEGRATION },
 ]
 
 /** O que NÃO existe no Asaas. É por isso que fica num bloco à parte. */
 export const SIM_NAV: NavItem[] = [
+  /** No Asaas não se abre conta raiz por API; aqui, um perfil é um tenant da app. */
+  { id: 'sim-profiles', label: 'Perfis', icon: I.PROFILE },
   { id: 'sim-clock', label: 'Relógio virtual', icon: I.CLOCK },
   { id: 'sim-cards', label: 'Cartões de teste', icon: I.CARD },
 ]
@@ -61,7 +64,7 @@ export function Sidebar(props: {
   const item = (i: NavItem, badge?: number) => (
     <button
       key={i.id}
-      class={`nav-item ${props.page === i.id ? 'active' : ''}`}
+      class={`nav-item ${props.page.split('/')[0] === i.id ? 'active' : ''}`}
       disabled={i.disabled}
       title={i.disabled ? 'Ainda não implementado no simulador' : undefined}
       onClick={() => props.onNavigate(i.id)}
@@ -81,7 +84,7 @@ export function Sidebar(props: {
         </button>
       </div>
 
-      <nav>{ASAAS_NAV.map((i) => item(i, i.id === 'webhooks' ? props.webhookAlerts : 0))}</nav>
+      <nav>{ASAAS_NAV.map((i) => item(i, i.id === 'integrations' ? props.webhookAlerts : 0))}</nav>
 
       <div class="sim-section">
         <div class="sim-label">
