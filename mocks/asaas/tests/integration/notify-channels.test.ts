@@ -56,6 +56,7 @@ async function boot(whatsappUrl: string) {
       mailpitUrl: undefined,
       whatsappUrl,
       whatsappPhoneNumberId: '5511400000000',
+      whatsappWabaId: '100000000000001',
       fromEmail: 'notificacoes@asaas.localhost',
       maxAttempts: 5,
       callbackBaseUrl: 'http://asaas:45445',
@@ -75,6 +76,41 @@ async function admin(path: string, method = 'GET', body?: unknown) {
   )
   return { status: res.status, body: (await res.json().catch(() => null)) as any }
 }
+
+describe('the payer templates come up in the WhatsApp mock', () => {
+  it('creates the missing ones through Meta\'s call, approved at once, and keeps an existing one', async () => {
+    const library = new Map<string, any>([['asaas_cobranca_criada', { name: 'asaas_cobranca_criada', language: 'pt_BR' }]])
+    const created: any[] = []
+    fake = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url)
+        if (url.pathname !== '/v23.0/100000000000001/message_templates') return new Response('not found', { status: 404 })
+        if (req.method === 'GET') {
+          const t = library.get(url.searchParams.get('name') ?? '')
+          return Response.json({ data: t ? [t] : [] })
+        }
+        const body = (await req.json()) as any
+        created.push({ body, review: req.headers.get('x-mock-template-review-delay') })
+        library.set(body.name, { name: body.name, language: body.language })
+        return Response.json({ id: '1', status: 'PENDING', category: 'UTILITY' })
+      },
+    })
+    await boot(`http://localhost:${fake.port}`)
+    const { ensureWhatsappTemplates, WHATSAPP_TEMPLATES } = await import('../../src/notify/channels.ts')
+
+    expect(await ensureWhatsappTemplates(h.app.ctx)).toEqual({ ready: true })
+    expect(created.map((c) => c.body.name)).toEqual(
+      WHATSAPP_TEMPLATES.map((t) => t.name).filter((n) => n !== 'asaas_cobranca_criada'),
+    )
+    expect(created[0].review).toBe('0')
+    expect(created[0].body.components[1].example.body_text[0]).toHaveLength(5)
+
+    // A second pass finds them all and creates nothing.
+    expect(await ensureWhatsappTemplates(h.app.ctx)).toEqual({ ready: true })
+    expect(created).toHaveLength(WHATSAPP_TEMPLATES.length - 1)
+  })
+})
 
 describe('payer channels come up configured', () => {
   it('registers the sender number with this server webhook when it is missing', async () => {

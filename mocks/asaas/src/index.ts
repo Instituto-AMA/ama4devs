@@ -1,6 +1,6 @@
 import { bootstrap } from './bootstrap.ts'
 import { OPERATION_COUNT } from './generated/operations.ts'
-import { ensureWhatsappSender } from './notify/channels.ts'
+import { ensureWhatsappSender, ensureWhatsappTemplates, WHATSAPP_TEMPLATES } from './notify/channels.ts'
 
 const { app, config, seed, coverage, scheduler, ctx } = await bootstrap()
 
@@ -12,13 +12,22 @@ app.listen(config.port)
 // WhatsApp mock now, and again on every tick if the WhatsApp mock was not up yet or
 // restarted (src/notify/channels.ts).
 if (config.notify.whatsappUrl) {
-  void ensureWhatsappSender(ctx).then((r) =>
-    console.log(
-      r.registered
-        ? `WhatsApp: número ${config.notify.whatsappPhoneNumberId} cadastrado no mock (${config.notify.whatsappUrl})`
-        : `WhatsApp: mock ainda não respondeu (${r.error}); cadastro refeito no próximo tick`,
-    ),
-  )
+  void ensureWhatsappSender(ctx)
+    .then((r) =>
+      console.log(
+        r.registered
+          ? `WhatsApp: número ${config.notify.whatsappPhoneNumberId} cadastrado no mock (${config.notify.whatsappUrl})`
+          : `WhatsApp: mock ainda não respondeu (${r.error}); cadastro refeito no próximo tick`,
+      ),
+    )
+    .then(() => ensureWhatsappTemplates(ctx))
+    .then((t) =>
+      console.log(
+        t.ready
+          ? `WhatsApp: ${WHATSAPP_TEMPLATES.length} templates do pagador na biblioteca do mock`
+          : `WhatsApp: templates ainda não criados (${t.error}); refeito no próximo tick`,
+      ),
+    )
 }
 
 // Denominador é o total de ROTAS, não de operações: 5 operações da spec dividem

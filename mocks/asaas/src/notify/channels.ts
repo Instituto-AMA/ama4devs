@@ -71,6 +71,82 @@ export async function ensureWhatsappSender(ctx: AppContext): Promise<{ registere
   }
 }
 
+const FOOTER = 'Enviado pelo Asaas (simulador)'
+
+/**
+ * The payer templates, one per event (`domain/notification-text.ts` names them
+ * and fills the five body variables: payer, merchant, value, due date, link).
+ */
+export const WHATSAPP_TEMPLATES: Array<{ name: string; header: string; body: string }> = [
+  {
+    name: 'asaas_cobranca_criada',
+    header: 'Nova cobrança',
+    body: 'Olá, {{1}}! {{2}} gerou uma cobrança de {{3}} com vencimento em {{4}}. Pague por aqui: {{5}}',
+  },
+  {
+    name: 'asaas_cobranca_alterada',
+    header: 'Cobrança alterada',
+    body: 'Olá, {{1}}. {{2}} alterou a sua cobrança: agora {{3}}, com vencimento em {{4}}. Veja a fatura: {{5}}',
+  },
+  {
+    name: 'asaas_lembrete_vencimento',
+    header: 'Lembrete de vencimento',
+    body: 'Olá, {{1}}. Lembrete: a cobrança de {{3}} de {{2}} vence em {{4}}. Pague por aqui: {{5}}',
+  },
+  {
+    name: 'asaas_cobranca_vencida',
+    header: 'Cobrança vencida',
+    body: 'Olá, {{1}}. A cobrança de {{3}} de {{2}} venceu em {{4}} e ainda não foi paga. Regularize por aqui: {{5}}',
+  },
+  {
+    name: 'asaas_pagamento_confirmado',
+    header: 'Pagamento confirmado',
+    body: 'Olá, {{1}}! Recebemos o seu pagamento de {{3}} para {{2}} (vencimento {{4}}). Comprovante: {{5}}',
+  },
+]
+
+const TEMPLATE_EXAMPLE = ['Maria', 'Clínica Exemplo', 'R$ 150,00', '30/10/2026', 'http://localhost:45445/i/123456789012']
+
+/**
+ * Creates in the WhatsApp mock, through Meta's call (`POST /{waba-id}/message_templates`),
+ * every payer template its library lacks, approved at once (`X-Mock-Template-Review-Delay: 0`).
+ * A template that exists is left as it is: a person's edit is kept.
+ */
+export async function ensureWhatsappTemplates(ctx: AppContext): Promise<{ ready: boolean; error?: string }> {
+  const { whatsappUrl, whatsappWabaId } = ctx.config.notify
+  if (!whatsappUrl) return { ready: false, error: 'WHATSAPP_MOCK_URL não configurado' }
+  const library = `${whatsappUrl}/${GRAPH_VERSION}/${whatsappWabaId}/message_templates`
+  try {
+    for (const template of WHATSAPP_TEMPLATES) {
+      const found = await get(`${library}?name=${template.name}`, WHATSAPP_AUTH)
+      if ((found.data ?? []).some((t: any) => t.name === template.name && t.language === 'pt_BR')) continue
+      const res = await fetch(library, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-mock-template-review-delay': '0', ...WHATSAPP_AUTH },
+        body: JSON.stringify({
+          name: template.name,
+          language: 'pt_BR',
+          category: 'UTILITY',
+          components: [
+            { type: 'HEADER', format: 'TEXT', text: template.header },
+            { type: 'BODY', text: template.body, example: { body_text: [TEMPLATE_EXAMPLE] } },
+            { type: 'FOOTER', text: FOOTER },
+          ],
+        }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+      if (!res.ok) {
+        const detail = (await res.text().catch(() => '')).slice(0, 300)
+        throw new Error(`${template.name}: HTTP ${res.status}${detail ? `: ${detail}` : ''}`)
+      }
+      ctx.log('info', 'Payer template created in the WhatsApp mock', { name: template.name })
+    }
+    return { ready: true }
+  } catch (err) {
+    return { ready: false, error: errorText(err) }
+  }
+}
+
 export interface ChannelStatus {
   on: boolean
   reachable: boolean

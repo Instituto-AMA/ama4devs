@@ -184,6 +184,8 @@ export interface Config {
     whatsappUrl: string | undefined
     /** The sender number the WhatsApp mock shows the templates from. */
     whatsappPhoneNumberId: string
+    /** The WABA whose library holds the payer templates (the WhatsApp mock's default account). */
+    whatsappWabaId: string
     fromEmail: string
     maxAttempts: number
     /**
@@ -262,6 +264,7 @@ export function loadConfig(): Config {
       mailpitUrl: optionalStr('MAILPIT_URL')?.replace(/\/+$/, ''),
       whatsappUrl: optionalStr('WHATSAPP_MOCK_URL')?.replace(/\/+$/, ''),
       whatsappPhoneNumberId: str('WHATSAPP_PHONE_NUMBER_ID', '5511400000000'),
+      whatsappWabaId: str('WHATSAPP_WABA_ID', '100000000000001'),
       fromEmail: str('NOTIFY_FROM_EMAIL', 'notificacoes@asaas.localhost'),
       maxAttempts: num('NOTIFY_MAX_ATTEMPTS', 5),
       callbackBaseUrl: str('NOTIFY_CALLBACK_BASE_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
