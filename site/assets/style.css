@@ -120,8 +120,8 @@ body:not([data-tool]) :focus-visible { outline-color: var(--wa-bright); }
 
 main { max-width: var(--page); margin: 0 auto; padding: 0 var(--gutter) 96px; }
 
-section { padding-top: 72px; }
-section + section { border-top: 1px solid var(--rule); margin-top: 72px; }
+section { padding-top: 56px; }
+section + section { border-top: 1px solid var(--rule); margin-top: 56px; }
 
 h1, h2, h3 { line-height: 1.15; letter-spacing: -0.025em; margin: 0; }
 h1 { font-size: clamp(38px, 6vw, 68px); font-weight: 700; max-width: 16ch; }
@@ -216,7 +216,7 @@ figure { margin: 0; }
 
 .hero-shot { margin-top: 56px; }
 
-.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; margin-top: 28px; }
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; margin: 28px 0 40px; }
 .gallery .wide { grid-column: 1 / -1; }
 @media (max-width: 760px) { .gallery { grid-template-columns: 1fr; } }
 
@@ -253,7 +253,7 @@ td code { white-space: nowrap; }
   .doc > .toc { display: none; }
 }
 
-.toc nav { position: sticky; top: 96px; padding-top: 72px; font-size: 14px; }
+.toc nav { position: sticky; top: 96px; padding-top: 56px; font-size: 14px; }
 .toc p { font-weight: 650; margin-bottom: 10px; }
 .toc ol { list-style: none; padding: 0; margin: 0; border-left: 1px solid var(--rule); }
 .toc li { margin: 0; }
