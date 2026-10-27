@@ -10,6 +10,9 @@ Rules, layout map, and instructions for agents working in this repository.
 | `docker-compose.yml` | Compose definitions with profiles for each mock service (`asaas`, `whatsapp`) |
 | `.env.example` | Contract for root environment variables and port mappings |
 | `scripts/` | Shell helpers: `lib.sh`, `check-tools.sh`, `setup.sh`, `setup-sandbox.sh`, `env-mode.sh`, `publish.sh` (multi-platform build and push to GHCR), `changed-mocks.sh` (the mocks a push changed) |
+| `site/` | The GitHub Pages documentation site (https://instituto-ama.github.io/ama4devs/): plain HTML, one stylesheet and one script in `site/assets/`; English at the root, Portuguese under `site/pt-br/` with the same section ids. A change to a mock's README rewrites its two pages (EN and PT) in the same change |
+| `scripts/build-site.sh` | Assembles `_site/` (gitignored) from `site/`, the mocks' `docs/img/` screenshots (the one copy the READMEs show) and `llms.txt` |
+| `.github/workflows/pages.yml` | Builds and deploys the site on every push to master that touches it or the screenshots |
 | `.github/workflows/publish-mocks.yml` | Publishes `ghcr.io/instituto-ama/<mock>-mock` on every push to master that changes a mock; only the changed mocks, after their tests |
 | `profiles/` | Environment key profiles (`generic/mock.env`, `generic/sandbox.env`) |
 | `mocks/asaas/` | Asaas mock server (Elysia, Bun, SQLite, Drizzle, TypeBox) |
