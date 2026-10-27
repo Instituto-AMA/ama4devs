@@ -1,6 +1,21 @@
-# WhatsApp Mock Server
+# WhatsApp Mock Server: a local WhatsApp Cloud API simulator
 
-A comprehensive development environment for testing WhatsApp integrations without using real WhatsApp Cloud API endpoints, phone numbers, or incurring API costs.
+A mock of the **WhatsApp Cloud API** (Meta Graph API v23.0, WhatsApp Business
+Platform) for local development, automated tests and CI: every operation of
+Meta's own OpenAPI specification, with Meta's paths, validation, answers and
+error codes. Messages, message templates (with their review), media upload and
+download, voice calls (Calling API, real WebRTC), phone numbers and WhatsApp
+Business Accounts (WABAs), webhooks signed like Meta's, and a WhatsApp Web like
+panel to chat as the user.
+
+```bash
+docker run --rm -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest
+# panel: http://localhost:3010 · API: http://localhost:3010/v23.0/...
+```
+
+Em português: simulador local da API oficial do WhatsApp (Cloud API da Meta),
+com mensagens, templates, mídia, ligações, números e webhooks, para testar a
+sua integração sem número real e sem custo.
 
 ## Features
 

@@ -1,4 +1,18 @@
-# Asaas Mock Server
+# Asaas Mock Server: a local Asaas API sandbox simulator
+
+A mock of the **Asaas API v3** (the Brazilian payment gateway) for local
+development, automated tests and CI: customers, charges with **Pix**,
+**boleto** and **credit card**, installments, subscriptions, refunds, splits,
+webhooks delivered to `localhost`, payer e-mail and WhatsApp notifications,
+and a virtual clock to travel through due dates.
+
+```bash
+docker run --rm -p 45445:45445 ghcr.io/instituto-ama/asaas-mock:latest
+# panel: http://localhost:45445 · API: http://localhost:45445/v3
+```
+
+Em português: simulador local do Asaas (sandbox) com Pix, boleto, cartão,
+parcelamento, assinatura e webhooks entregues no `localhost`.
 
 A **local Asaas**, in Docker. It simulates the Asaas sandbox with contract *and*
 behavioral fidelity — and, unlike the real sandbox, it **delivers webhooks to

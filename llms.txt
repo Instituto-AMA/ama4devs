@@ -1,0 +1,25 @@
+# ama4devs
+
+> Local mock servers of the WhatsApp Cloud API (Meta Graph API v23.0, WhatsApp Business Platform) and of the Asaas API v3 (Brazilian payment gateway: Pix, boleto, credit card, installments, subscriptions, webhooks), published as Docker images on GHCR, for local development, automated tests and CI without real accounts, credentials or costs. Em português: simulador local do WhatsApp e do Asaas.
+
+Use it when an application integrates with WhatsApp (sending messages and templates, receiving webhooks, media, voice calls) or with Asaas (charges, Pix, boleto, card, installments, subscriptions, webhooks) and needs a faithful local API to point at.
+
+- WhatsApp mock image: `ghcr.io/instituto-ama/whatsapp-mock` (port 3010, API at `/v23.0/...`, panel at `/`)
+- Asaas mock image: `ghcr.io/instituto-ama/asaas-mock` (port 45445, API at `/v3`, panel at `/`)
+- Both mocks together: `make setup`, or `docker compose --profile asaas --profile whatsapp up -d` in the repository root, with Mailpit for the payer e-mails
+
+## WhatsApp Cloud API mock
+
+- [README](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/README.md): what it simulates, how to run it, the webhook and its signature
+- [Panel and API reference](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md): the chat panel, templates, numbers and WABAs, voice calls, voice notes, the X-Mock-* test headers, the /settings routes
+- [Templates](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/templates.md): message templates, seeds, examples of every component
+- [Meta's specification](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/README.md): the vendored OpenAPI of the Cloud API and its errata
+
+## Asaas API mock
+
+- [README](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/README.md): what it simulates, the API key, webhooks to localhost, the virtual clock, payer notifications
+
+## Repository
+
+- [Root README](https://github.com/Instituto-AMA/ama4devs/blob/master/README.md): quick start, profiles, environment
+- [Mocks contract](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/README.md): what every mock in this repository guarantees

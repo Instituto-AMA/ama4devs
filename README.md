@@ -1,6 +1,16 @@
-# ama4devs
+# ama4devs: WhatsApp Cloud API mock and Asaas API mock
 
-Local third-party provider mocks (Asaas, WhatsApp / Meta Graph API) for development and testing.
+Local mock servers of two third-party APIs, for development, automated tests and CI,
+as Docker images on GHCR:
+
+| Mock | What it simulates | Image |
+|---|---|---|
+| [WhatsApp mock](mocks/whatsapp/) | **WhatsApp Cloud API** (Meta Graph API v23.0, WhatsApp Business Platform): messages, message templates, media, voice calls (Calling API with WebRTC), phone numbers and WABAs, webhooks, and a WhatsApp Web like panel | `docker pull ghcr.io/instituto-ama/whatsapp-mock:latest` |
+| [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail and WhatsApp notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
+
+Em português: **simulador local do WhatsApp (API oficial da Meta) e do Asaas**
+(Pix, boleto, cartão, parcelamento, assinatura e webhooks), para desenvolver e
+testar integrações sem conta, sem credencial e sem custo.
 
 This repository provides reproducible local mock containers with high behavioral fidelity. Developers and CI pipelines can run end-to-end payment flows and messaging integrations without creating vendor accounts, without managing external credentials, and with full support for delivering webhooks directly to `localhost`.
 

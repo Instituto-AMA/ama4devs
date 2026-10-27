@@ -38,8 +38,8 @@ ARG REVISION=unknown
 
 # `source` links the GHCR package to this repository.
 # No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
-LABEL org.opencontainers.image.title="Asaas Mock Server" \
-      org.opencontainers.image.description="Local Asaas that delivers webhooks to localhost (the official sandbox does not). Virtual clock: 32 days in 40 ms." \
+LABEL org.opencontainers.image.title="Asaas Mock Server - Asaas API sandbox simulator" \
+      org.opencontainers.image.description="Asaas API mock server (v3 sandbox simulator) for local development and tests: customers and charges with Pix and boleto and credit card - installments and subscriptions - webhooks delivered to localhost - payer e-mail and WhatsApp notifications - virtual clock. Simulador local do Asaas." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
       org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="MIT" \
