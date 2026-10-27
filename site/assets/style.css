@@ -218,12 +218,12 @@ figure { margin: 0; }
 
 .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; margin: 28px 0 40px; }
 .gallery .wide { grid-column: 1 / -1; }
-@media (max-width: 760px) { .gallery { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .gallery { grid-template-columns: minmax(0, 1fr); } }
 
 /* Home: the two tools side by side */
 
 .tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px; margin-top: 12px; }
-@media (max-width: 900px) { .tools { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .tools { grid-template-columns: minmax(0, 1fr); } }
 
 .tool { display: flex; flex-direction: column; }
 .tool h3 { font-size: 26px; margin: 28px 0 6px; }
@@ -249,7 +249,7 @@ td code { white-space: nowrap; }
 .doc { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 64px; }
 .doc > .toc { order: 2; }
 @media (max-width: 1000px) {
-  .doc { grid-template-columns: 1fr; gap: 0; }
+  .doc { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .doc > .toc { display: none; }
 }
 
