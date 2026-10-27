@@ -66,8 +66,8 @@ vendored upstream commit `0684423` — the whole delta is `git diff 2691e7c..HEA
   the `server` command's `--port` flag defaults to it, the HTTP listener uses it, and the Docker healthcheck follows it.
 - **Web console:** an inline HTML page is served at `GET /` (`src/server/routes/panel.ts` and
   `src/server/ui/panel.ts`), laid out like WhatsApp Web: the chats (search, unread and awaiting filters), the
-  conversation (day separators, bubbles, delivery ticks, rendered templates), replying and starting a conversation
-  as the user, moving a message to delivered / read / failed, and a control panel (delivery mode, webhook, event log,
+  conversation (day separators, bubbles, delivery ticks, rendered templates), replying as the user (through the
+  webhook) or as the number's owner (through the Cloud API send, like the application) and starting a conversation, moving a message to delivered / read / failed, and a control panel (delivery mode, webhook, event log,
   templates). The page is self-contained — it references no external host — and calls the people on the other side
   "usuário", since the mock serves any business.
 - **`createApp` is exported** from `src/server/server.ts`, so the full application (guards, CORS and logging included)

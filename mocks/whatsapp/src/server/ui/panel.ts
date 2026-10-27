@@ -231,6 +231,10 @@ button { cursor: pointer; }
 .quick button { flex: none; border: 1px solid var(--line); background: var(--panel); border-radius: 16px; padding: 4px 12px; font-size: 13px; color: var(--ink-2); }
 .quick button:hover { border-color: var(--green); color: var(--green); }
 .compose-line { display: flex; align-items: flex-end; gap: 8px; }
+.as { display: flex; flex: none; align-self: center; gap: 2px; padding: 3px; border-radius: 20px; background: var(--panel); }
+.as button { border: 0; background: transparent; border-radius: 16px; padding: 6px 12px; font-size: 13px; color: var(--ink-2); }
+.as button[aria-pressed="true"] { background: var(--green); color: var(--green-ink); font-weight: 600; }
+.compose.owner textarea { box-shadow: inset 3px 0 0 var(--green); }
 .compose textarea {
   flex: 1; resize: none; border: 0; border-radius: 8px; background: var(--panel); padding: 10px 12px;
   max-height: 140px; min-height: 42px; line-height: 1.4;
@@ -388,9 +392,13 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     </header>
     <div class="stream" id="stream" hidden aria-live="polite"></div>
     <form class="compose" id="compose" hidden>
-      <div class="quick" id="quick" aria-label="Respostas rápidas do usuário"></div>
+      <div class="quick" id="quick" aria-label="Respostas rápidas"></div>
       <div class="compose-line">
-        <label class="sr" for="reply">Responder como usuário</label>
+        <div class="as" role="group" aria-label="Responder como">
+          <button type="button" data-as="user" aria-pressed="true" title="A mensagem entra pelo webhook, como se o usuário tivesse escrito">Usuário</button>
+          <button type="button" data-as="owner" aria-pressed="false" title="A mensagem sai pela API do WhatsApp, como a aplicação enviaria">Dono</button>
+        </div>
+        <label class="sr" for="reply" id="reply-label">Responder como usuário</label>
         <textarea id="reply" rows="1" placeholder="Responder como usuário"></textarea>
         <button class="send" id="send" type="submit" aria-label="Enviar como usuário" disabled>
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
@@ -478,7 +486,14 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 (function () {
   'use strict';
 
-  var QUICK = ['Sim, confirmo', 'Quero remarcar', 'Qual o valor?', 'Já paguei', 'Obrigado!'];
+  var QUICK = {
+    user: ['Sim, confirmo', 'Quero remarcar', 'Qual o valor?', 'Já paguei', 'Obrigado!'],
+    owner: ['Olá! Como posso ajudar?', 'Horário confirmado.', 'Segue o link de pagamento.', 'Vou verificar e já retorno.', 'Obrigado pelo contato!']
+  };
+  var AS_TEXT = {
+    user: { label: 'Responder como usuário', send: 'Enviar como usuário' },
+    owner: { label: 'Responder como dono do número', send: 'Enviar como dono do número' }
+  };
   var AVATAR_COLORS = ['#00a884', '#027eb5', '#a5b337', '#d3396d', '#fa6533', '#7f66ff', '#06cf9c', '#ff9b0f'];
   var SEEN_KEY = 'whatsapp-mock-seen';
 
@@ -495,6 +510,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     typing: {},
     seen: readSeen(),
     menuFor: null,
+    as: 'user',
     healthy: null,
     live: false
   };
@@ -777,7 +793,10 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     renderChat.lastCount = t.messages.length;
 
     var hint = el('compose-hint');
-    if (webhookFor(t.businessId)) {
+    if (state.as === 'owner') {
+      hint.textContent = 'Sai pela API do WhatsApp, como a aplicação enviaria. Os tiques seguem o modo de entrega.';
+      hint.className = 'compose-hint';
+    } else if (webhookFor(t.businessId)) {
       hint.textContent = 'Enter envia · Shift+Enter quebra a linha';
       hint.className = 'compose-hint';
     } else {
@@ -856,13 +875,47 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
       return load().then(function () { return res; });
     });
   }
+  /* ---------- sending as the number's owner ---------- */
+  // The same Cloud API call the application makes, so the message is stored as
+  // outbound and its ticks follow the delivery mode.
+  function sendAsOwner(businessId, contact, text) {
+    var body = { messaging_product: 'whatsapp', recipient_type: 'individual', to: digits(contact), type: 'text', text: { body: text } };
+    return api('/v23.0/' + encodeURIComponent(businessId) + '/messages', { method: 'POST', body: body })
+      .then(function (res) { return load().then(function () { return res; }); });
+  }
+  function setAs(mode) {
+    state.as = mode;
+    document.querySelectorAll('.as button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-as') === mode ? 'true' : 'false');
+    });
+    el('compose').classList.toggle('owner', mode === 'owner');
+    el('reply').placeholder = AS_TEXT[mode].label;
+    el('reply-label').textContent = AS_TEXT[mode].label;
+    el('send').setAttribute('aria-label', AS_TEXT[mode].send);
+    renderQuick();
+    renderChat();
+    el('reply').focus();
+  }
+  function renderQuick() {
+    var box = el('quick');
+    box.textContent = '';
+    QUICK[state.as].forEach(function (q) {
+      var b = node('button', null, q);
+      b.type = 'button';
+      b.addEventListener('click', function () { el('reply').value = q; updateSend(); submitReply(); });
+      box.appendChild(b);
+    });
+  }
   function submitReply(e) {
     if (e) e.preventDefault();
     var t = selectedThread();
     var text = el('reply').value.trim();
     if (!t || !text) return;
     el('send').disabled = true;
-    sendAsPatient(t.businessId, t.contact, t.name, text).then(function () {
+    var sending = state.as === 'owner'
+      ? sendAsOwner(t.businessId, t.contact, text)
+      : sendAsPatient(t.businessId, t.contact, t.name, text);
+    sending.then(function () {
       el('reply').value = '';
       autosize();
     }).catch(function (err) { toast(err.message, true); }).then(function () { updateSend(); });
@@ -1115,12 +1168,10 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
   el('reply').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitReply(); }
   });
-  QUICK.forEach(function (q) {
-    var b = node('button', null, q);
-    b.type = 'button';
-    b.addEventListener('click', function () { el('reply').value = q; updateSend(); submitReply(); });
-    el('quick').appendChild(b);
+  document.querySelectorAll('.as button').forEach(function (b) {
+    b.addEventListener('click', function () { setAs(b.getAttribute('data-as')); });
   });
+  renderQuick();
 
   el('nd-cancel').addEventListener('click', function () { el('new-dialog').close(); });
   el('new-form').addEventListener('submit', function (e) {
