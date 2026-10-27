@@ -3,9 +3,9 @@
  *
  * A fronteira onde centavos viram reais. Nada de aritmética daqui para fora.
  */
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import type { DB } from '../../db/client.ts'
-import { chargebacks, creditCards, payments, paymentSplits } from '../../db/schema/index.ts'
+import { chargebacks, creditCards, paymentRefunds, payments, paymentSplits } from '../../db/schema/index.ts'
 import { centsToBrl, cents } from '../../domain/money.ts'
 
 export type PaymentRow = typeof payments.$inferSelect
@@ -34,6 +34,11 @@ export async function serializePayment(
   p: PaymentRow,
 ): Promise<Record<string, unknown>> {
   const splits = await db.select().from(paymentSplits).where(eq(paymentSplits.paymentId, p.id))
+  const refunds = await db
+    .select()
+    .from(paymentRefunds)
+    .where(eq(paymentRefunds.paymentId, p.id))
+    .orderBy(desc(paymentRefunds.dateCreated))
 
   /**
    * O chargeback, quando existe. A cobrança em CHARGEBACK_REQUESTED que
@@ -146,7 +151,21 @@ export async function serializePayment(
     postalService: p.postalService,
     escrow: null,
     // `null`, não `[]` — mesmo quando não há estorno. Confirmado no sandbox.
-    refunds: null,
+    // With refunds, the list of them (same shape as the installment's), so a
+    // client that reads `payment.refunds` sees the refund it asked for.
+    refunds: refunds.length
+      ? refunds.map((r) => ({
+          dateCreated: r.dateCreated,
+          status: r.status,
+          value: money(r.valueCents),
+          endToEndIdentifier: null,
+          description: r.description,
+          effectiveDate: r.effectiveDate,
+          transactionReceiptUrl: r.transactionReceiptUrl,
+          refundedSplits: [],
+          paymentId: r.paymentId,
+        }))
+      : null,
   }
 
   // ── Regra 2: campos por meio de pagamento ──

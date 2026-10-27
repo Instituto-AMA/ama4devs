@@ -18,6 +18,9 @@ vendored upstream commit `14fa00e` — the whole delta is `git diff 2691e7c..HEA
 
 ### Behaviour
 
+- **`payment.refunds` lists the refunds:** the payment serializer answered `refunds: null` always; it now lists the
+  rows of `payment_refunds` (newest first, the installment's refund shape) and stays `null` when there is none, as the
+  sandbox does. A client polling `GET /payments/{id}` for its refund saw nothing before.
 - **`Scheduler.dispatchNow()`:** sends the webhook deliveries that are already due outside the virtual tick, sharing
   the tick's mutex so it never interleaves with a tick or a clock advance; calls that arrive while a pass is running
   coalesce into one more pass instead of one pass each.
@@ -85,6 +88,10 @@ vendored upstream commit `14fa00e` — the whole delta is `git diff 2691e7c..HEA
 
 ### Tests
 
+- **Clock reset test is timezone-correct:** `auth-and-clock.test.ts` compared the clock's business day
+  (America/Sao_Paulo) with the UTC date and failed every evening between 21:00 and midnight; it compares with
+  `toBusinessDate(new Date())`.
+- **Refunds on the payment:** `payment-lifecycle.test.ts` proves `refunds` is `null` before a refund and lists it after.
 - **`tests/integration/local-guard.test.ts` (new):** allowed hosts on the panel and admin routes, an unknown `Host`
   refused on `/`, `/_admin/*` and `/_mock/*`, port stripping and bracketed IPv6 hosts, a foreign `Origin` refused on a
   write while a local origin and a request without `Origin` pass, the opaque `null` origin refused, `Origin` ignored

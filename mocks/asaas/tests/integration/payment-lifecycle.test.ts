@@ -271,6 +271,31 @@ describe('Estorno', () => {
     await h.assertLedgerBalances()
   })
 
+  it('lists the refund on the payment, and null before any refund', async () => {
+    const cus = await customer()
+    const created = await h.api.call('create-new-payment', {
+      body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
+    })
+    await h.api.call('confirm-payment', { params: { id: created.body.id } })
+
+    const before = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
+    expect(before.body.refunds).toBeNull()
+
+    await h.api.call('refund-payment', {
+      params: { id: created.body.id },
+      body: { value: 100, description: 'Plano cancelado' },
+    })
+
+    const after = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
+    expect(after.body.refunds).toHaveLength(1)
+    expect(after.body.refunds[0]).toMatchObject({
+      status: 'DONE',
+      value: 100,
+      description: 'Plano cancelado',
+      paymentId: created.body.id,
+    })
+  })
+
   it('não é possível estornar cobrança que ninguém pagou', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { toBusinessDate } from '../../src/core/clock.ts'
 import { createHarness, TEST_API_KEY, type Harness } from '../helpers/harness.ts'
 
 /** As rotas de /_admin ficam fora de /v3 e não passam pelo ApiClient tipado. */
@@ -103,7 +104,9 @@ describe('relógio virtual', () => {
     const clock = await clockNow()
     expect(clock.driftDays).toBe(0)
     // E é o tempo REAL, não a data de partida do harness.
-    expect(clock.today).toBe(new Date().toISOString().slice(0, 10))
+    // The clock's day is the business day in America/Sao_Paulo: comparing with
+    // the UTC date failed every evening between 21:00 and midnight (UTC-3).
+    expect(clock.today).toBe(toBusinessDate(new Date()))
   })
 
   it('jobs diários são idempotentes: dez ticks no mesmo dia = uma execução', async () => {
