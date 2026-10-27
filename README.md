@@ -107,7 +107,9 @@ How it is published:
 The Asaas mock provides an in-depth simulation of the Asaas payment platform.
 
 - **API Base Path:** `http://localhost:45445/v3`
-- **Dashboard Panel:** `http://localhost:45445` (inspect accounts, balances, API keys, payments, and ledger entries).
+- **Dashboard Panel:** `http://localhost:45445` (accounts, balances, API keys, customers, charges, subscriptions, installment plans and ledger entries; create customers and charges of the three kinds, receive in cash).
+- **Payer Notifications:** every charge event e-mails the payer (to Mailpit, UI on `http://localhost:8025`, started with the `asaas` profile) and sends a WhatsApp template (to the WhatsApp mock, whose `templates/asaas_*.json` hold them). The charge dialog of the panel lists them and forces one on demand.
+- **Invoice Page:** every charge's `invoiceUrl` (`http://localhost:45445/i/<id>`) opens the payer's page, where the charge is paid by Pix, boleto or a test card through the same path as a real payment. `INVOICE_BASE_URL` sets its address when the host port differs.
 - **Virtual Clock:** Controlled by `ASAAS_CLOCK_MODE` (`REAL`, `VIRTUAL_FLOWING`, or `VIRTUAL_FROZEN`).
   - Advance time: `POST /_admin/clock/advance` with `{"days": 32}` to trigger D+32 credit card settlements or overdue calculations in milliseconds.
   - Set specific date: `POST /_admin/clock/set` with `{"date": "2026-08-01"}`.
@@ -156,25 +158,21 @@ Key-free helper routes mounted under `/_mock` allow deterministic control over p
 
 The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
 
-- **Graph API Base Path:** Dynamic pattern matching `/:version{v[0-9]+\.[0-9]+}/...` (e.g. `/v22.0/...`, `/v23.0/...`).
-- **Web Panel:** [http://localhost:3010](http://localhost:3010) (browser UI to inspect conversations, view templates, and test delivery).
-- **Simulate Inbound Message:**
+- **Graph API:** `/v23.0/...`, every operation of Meta's own OpenAPI specification (`mocks/whatsapp/spec/v23.0`), validated and answered like Meta, with an access token (`Authorization: Bearer …`, any value). What only a test needs travels in optional `X-Mock-*` headers; what Meta has no call for is under `/settings`.
+- **Web Panel:** [http://localhost:3010](http://localhost:3010) (conversations with every message type, files, the template builder, the API reference).
+- **State:** conversations, webhook calls, settings, webhooks, templates and media survive a restart (SQLite and files in the `whatsapp-data` volume, `/app/data`).
+- **The user writes** (the same send call, from the user's phone):
   ```bash
-  curl -X POST http://localhost:3010/mock/simulate-message \
+  curl -X POST http://localhost:3010/v23.0/123456789/messages \
+    -H 'Authorization: Bearer test' \
     -H 'Content-Type: application/json' \
-    -d '{
-      "from": "5511999999999",
-      "to": "123456789",
-      "message": {
-        "id": "wamid.test12345",
-        "timestamp": 1700000000,
-        "text": { "body": "Olá, preciso de informações" }
-      }
-    }'
+    -H 'X-Mock-From: 5511999999999' \
+    -H 'X-Mock-Contact-Name: Maria Souza' \
+    -d '{"messaging_product": "whatsapp", "type": "text", "text": {"body": "Olá, preciso de informações"}}'
   ```
 - **Webhook Configuration:**
   - Set via environment variable `WHATSAPP_WEBHOOK_URL` in `.env`.
-  - Configured via `POST /mock/configure` with `{"phoneNumberId": "123456789", "url": "http://localhost:8080/webhooks/whatsapp"}`.
+  - Per number, Meta's call: `POST /v23.0/{phone-number-id}` with `{"webhook_configuration": {"override_callback_uri": "http://localhost:8080/webhooks/whatsapp", "verify_token": "…"}}`; the mock checks the address with `hub.challenge` first (`X-Mock-Skip-Callback-Verification: true` skips it).
   - Loopback targets are rewritten to `host.docker.internal` using `WEBHOOK_LOCALHOST_REWRITE`.
 - **HMAC Signatures:**
   - When `WHATSAPP_WEBHOOK_SECRET` is set, outgoing webhook deliveries include the `x-hub-signature-256` header calculated as `sha256=HMAC_SHA256(body, secret)`.
@@ -195,6 +193,5 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 
 ## Licenses
 
-This project vendors and adapts open-source upstream repositories:
-- `mocks/asaas`: Adapted from [`theoxys/asaas-mock-server`](https://github.com/theoxys/asaas-mock-server), licensed under the MIT License (see `mocks/asaas/LICENSE` and `mocks/asaas/UPSTREAM.md`).
-- `mocks/whatsapp`: Adapted from [`fdarian/whap`](https://github.com/fdarian/whap), licensed under the Apache License 2.0 (see `mocks/whatsapp/LICENSE` and `mocks/whatsapp/UPSTREAM.md`).
+- `mocks/asaas`: MIT License (`mocks/asaas/LICENSE`).
+- `mocks/whatsapp`: Apache License 2.0 (`mocks/whatsapp/LICENSE`).

@@ -26,10 +26,8 @@ Every mock added to this repository must follow these standards:
    - The allowlist is the loopback defaults (`localhost`, `127.0.0.1`, `::1`, `host.docker.internal`) plus the comma-separated `MOCK_ALLOWED_HOSTS` (the Compose service names belong there).
 8. **Automated Test Suite:**
    - Must include automated tests executed by `make test` (and individually via `bun test` inside the mock directory).
-9. **Upstream Documentation:**
-   - If adapted from an external repository, the mock must include an `UPSTREAM.md` documenting origin URL, commit hash, copy date, license, and modifications.
-10. **Profile Entries:**
-    - Must be represented in `profiles/generic/mock.env` and `profiles/generic/sandbox.env` (and any application-specific profiles).
+9. **Profile Entries:**
+   - Must be represented in `profiles/generic/mock.env` and `profiles/generic/sandbox.env` (and any application-specific profiles).
 
 ---
 
@@ -145,11 +143,7 @@ In `profiles/generic/sandbox.env`:
 EMAIL_BASE_URL=https://api.sandbox-email-provider.com
 ```
 
-### 9. Document Upstream (if applicable)
-
-If adapted from an existing repository, create `mocks/email/UPSTREAM.md` documenting origin URL, commit hash, copy date, license, and modifications.
-
-### 10. Verify
+### 9. Verify
 
 Test the new mock end-to-end:
 ```bash

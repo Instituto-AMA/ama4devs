@@ -17,8 +17,16 @@ services:
       CLOCK_MODE: ${ASAAS_CLOCK_MODE:-VIRTUAL_FLOWING}
       # Inside the container "localhost" is the container itself: rewrite it to the host.
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
-      MOCK_ALLOWED_HOSTS: whatsapp
       MOCK_ALLOWED_HOSTS: asaas
+      # Payer notifications: the e-mail to Mailpit, the WhatsApp template to the WhatsApp mock.
+      # A channel whose service is not up records the notification as failed; nothing else breaks.
+      MAILPIT_URL: ${ASAAS_MAILPIT_URL-http://mailpit:8025}
+      WHATSAPP_MOCK_URL: ${ASAAS_WHATSAPP_MOCK_URL-http://whatsapp:3010}
+      # On boot the sender number is registered in the WhatsApp mock with this server's
+      # webhook (statuses, replies); Integrações opens these two pages in the browser.
+      NOTIFY_CALLBACK_BASE_URL: http://asaas:45445
+      MAILPIT_UI_URL: http://localhost:${MAILPIT_PORT:-8025}
+      WHATSAPP_UI_URL: http://localhost:${WHATSAPP_PORT:-3010}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -46,8 +54,13 @@ services:
       WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-}
       WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:-}
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+      # The Asaas mock sends its payer templates here by service name.
+      MOCK_ALLOWED_HOSTS: whatsapp
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+    # The SQLite file and the uploaded media (WHAP_DATA_DIR=/app/data in the image).
+    volumes:
+      - whatsapp-data:/app/data
     healthcheck:
       test: ['CMD-SHELL', 'curl --fail --silent http://localhost:3010/health']
       interval: 10s
@@ -56,5 +69,15 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  # The mailbox of the payer e-mails the Asaas mock sends (UI on :8025). Starts with
+  # the asaas profile; `MAILPIT_PORT` moves it when another Mailpit holds 8025.
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    profiles: [asaas, mail]
+    ports:
+      - '127.0.0.1:${MAILPIT_PORT:-8025}:8025'
+    restart: unless-stopped
+
 volumes:
   asaas-data:
+  whatsapp-data:
