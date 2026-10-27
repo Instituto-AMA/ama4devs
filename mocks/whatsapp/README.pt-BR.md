@@ -1,4 +1,4 @@
-<p align="center"><a href="README.md">English</a> · <b>Português</b></p>
+<p align="center"><a href="README.md">English</a> · <b>Português</b> · <a href="https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/">Site da documentação</a></p>
 
 # WhatsApp Mock Server
 
