@@ -89,8 +89,7 @@
             <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clone the repository</button>
           </div>
           <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <pre><code><span class="c"># ready images on GHCR, no login</span>
-docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+            <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
 docker pull ghcr.io/instituto-ama/asaas-mock:latest
 
 docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest
@@ -98,8 +97,7 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
           </div>
           <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <pre><code><span class="c"># the image built from the source</span>
-git clone https://github.com/Instituto-AMA/ama4devs.git
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 docker build -t whatsapp-mock mocks/whatsapp
 docker build -t asaas-mock mocks/asaas
@@ -108,15 +106,14 @@ docker run -d -p 3010:3010 whatsapp-mock
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
           </div>
           <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <pre><code><span class="c"># both mocks and Mailpit, already wired to each other</span>
-git clone https://github.com/Instituto-AMA/ama4devs.git
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
-make setup</code></pre>
+make setup   <span class="c"># WhatsApp, Asaas and Mailpit, wired together</span></code></pre>
           </div>
         </div>
         <div class="actions">
-          <a class="key confirm" href="whatsapp/quick-start/">Start with WhatsApp</a>
-          <a class="key confirm" href="asaas/quick-start/">Start with Asaas</a>
+          <a class="key" href="whatsapp/quick-start/">Start with WhatsApp</a>
+          <a class="key" href="asaas/quick-start/">Start with Asaas</a>
         </div>
       </div>
 

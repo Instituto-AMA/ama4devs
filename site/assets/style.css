@@ -254,13 +254,13 @@ h1 {
 }
 /* Three ways to run (pull, build, clone): small keys pick the panel. */
 .runbox { margin-top: 32px; max-width: 680px; }
-.runbox .cmd { margin-top: 12px; position: relative; display: block; padding-top: 44px; }
+.runbox .cmd { margin-top: 12px; display: block; max-width: none; }
 .runbox .cmd[hidden] { display: none; }
 .runbox .cmd pre { font-size: 13px; }
-.runbox .cmd .copy { position: absolute; top: 10px; right: 10px; }
-.run-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-.run-tabs .key { --face: transparent; --deep: transparent; --label: var(--on-ground-soft); box-shadow: inset 0 0 0 1px var(--ground-line); }
-.run-tabs .key[aria-selected='true'] { --face: var(--key-face); --deep: #b9bab3; --label: var(--ink); box-shadow: 0 3px 0 var(--deep); }
+.run-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.run-tabs .copy { margin-left: auto; }
+.run-tabs [role='tab'] { --face: transparent; --deep: transparent; --label: var(--on-ground-soft); box-shadow: inset 0 0 0 1px var(--ground-line); }
+.run-tabs [role='tab'][aria-selected='true'] { --face: var(--key-face); --deep: #b9bab3; --label: var(--ink); box-shadow: 0 3px 0 var(--deep); }
 .runbox .note-run { font-size: 14px; color: var(--on-ground-soft); margin: 10px 0 0; }
 
 .cmd pre { margin: 0; flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; color: var(--on-ground); }

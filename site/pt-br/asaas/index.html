@@ -74,14 +74,13 @@ docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
           </div>
           <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <pre><code><span class="c"># junto com o mock do WhatsApp e o Mailpit, para os avisos ao pagador</span>
-git clone https://github.com/Instituto-AMA/ama4devs.git
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
-make setup</code></pre>
+make setup   <span class="c"># + mock do WhatsApp e Mailpit, para os avisos ao pagador</span></code></pre>
           </div>
         </div>
         <div class="actions">
-          <a class="key confirm" href="quick-start/">Quick start</a>
+          <a class="key" href="quick-start/">Quick start</a>
           <a class="key" href="#use-cases">Casos de uso</a>
         </div>
       </div>

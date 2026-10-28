@@ -89,14 +89,13 @@ docker build -t whatsapp-mock mocks/whatsapp
 docker run -d -p 3010:3010 whatsapp-mock</code></pre>
           </div>
           <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <pre><code><span class="c"># with the Asaas mock and Mailpit, already wired to each other</span>
-git clone https://github.com/Instituto-AMA/ama4devs.git
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
-make setup</code></pre>
+make setup   <span class="c"># + the Asaas mock and Mailpit, wired together</span></code></pre>
           </div>
         </div>
         <div class="actions">
-          <a class="key confirm" href="quick-start/">Quick start</a>
+          <a class="key" href="quick-start/">Quick start</a>
           <a class="key" href="#use-cases">Use cases</a>
         </div>
       </div>

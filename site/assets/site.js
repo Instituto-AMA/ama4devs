@@ -165,7 +165,27 @@
     })
     block.appendChild(button)
   }
-  for (const block of document.querySelectorAll('.code, .cmd')) addCopy(block)
+  for (const block of document.querySelectorAll('.code, .cmd')) {
+    if (!block.closest('.runbox')) addCopy(block)
+  }
+  // The ways to run share one copy key, beside the tabs: it copies the visible panel.
+  for (const box of document.querySelectorAll('.runbox')) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'key small copy'
+    button.textContent = words.copy
+    button.addEventListener('click', async () => {
+      const panel = [...box.querySelectorAll('.cmd')].find((p) => !p.hidden)
+      try {
+        await navigator.clipboard.writeText(panel.querySelector('pre').innerText.replace(/\n$/, ''))
+        button.textContent = words.copied
+        setTimeout(() => { button.textContent = words.copy }, 1600)
+      } catch {
+        button.remove()
+      }
+    })
+    box.querySelector('.run-tabs').appendChild(button)
+  }
 
   // ── The index follows the reading ──
   const links = [...document.querySelectorAll('.toc a[href^="#"]')]
