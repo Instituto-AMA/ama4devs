@@ -254,9 +254,15 @@ h1 {
 }
 /* Three ways to run (pull, build, clone): small keys pick the panel. */
 .runbox { margin-top: 32px; max-width: 680px; }
-.runbox .cmd { margin-top: 12px; display: block; max-width: none; }
+.runbox .cmd { margin-top: 12px; display: block; max-width: none; padding: 18px 20px 6px; }
 .runbox .cmd[hidden] { display: none; }
 .runbox .cmd pre { font-size: 13px; }
+/* A panel: when to pick it, then one labeled group per mock with the address it opens. */
+.run-why { margin: 0 0 14px; font-size: 15px; line-height: 1.5; color: var(--on-ground); }
+.run-step { padding: 12px 0 14px; border-top: 1px dashed var(--ground-line); }
+.run-label { display: block; font: 700 12px/1 var(--mono); color: var(--on-ground-soft); margin-bottom: 8px; }
+.run-out { display: block; margin-top: 8px; font-size: 14px; color: var(--on-ground-soft); }
+.run-out code { color: var(--on-ground); }
 .run-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .run-tabs .copy { margin-left: auto; }
 .run-tabs [role='tab'] { --face: transparent; --deep: transparent; --label: var(--on-ground-soft); box-shadow: inset 0 0 0 1px var(--ground-line); }

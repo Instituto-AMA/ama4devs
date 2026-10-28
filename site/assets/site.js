@@ -177,7 +177,9 @@
     button.addEventListener('click', async () => {
       const panel = [...box.querySelectorAll('.cmd')].find((p) => !p.hidden)
       try {
-        await navigator.clipboard.writeText(panel.querySelector('pre').innerText.replace(/\n$/, ''))
+        // Only the commands: the labels and addresses around them are for reading.
+        const text = [...panel.querySelectorAll('pre')].map((p) => p.innerText.replace(/\n$/, '')).join('\n\n')
+        await navigator.clipboard.writeText(text)
         button.textContent = words.copied
         setTimeout(() => { button.textContent = words.copy }, 1600)
       } catch {

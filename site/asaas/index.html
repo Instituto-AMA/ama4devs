@@ -75,25 +75,37 @@
         <p class="lead">The Asaas API v3 on <code>localhost</code>, with the business rules captured from the real sandbox. <strong>Skip days and watch billing happen</strong>: subscriptions charge the saved card on the due date and retry when it is refused, boletos go overdue with their fine and interest, cards credit at D+32, and every webhook reaches your machine. Debug your payment state machine end to end, not by guessing.</p>
         <div class="runbox">
           <div class="run-tabs" role="tablist" aria-label="How to run">
-            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Pull the image</button>
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Ready image</button>
             <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Build from source</button>
-            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clone the repository</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Run everything</button>
           </div>
           <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
+            <p class="run-why">The fastest way: the ready image, straight from GHCR, no login.</p>
+            <div class="run-step">
+              <pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
+              <span class="run-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on</span>
+            </div>
           </div>
           <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+            <p class="run-why">To run from the source, or after changing the mock.</p>
+            <div class="run-step">
+              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
+              <span class="run-out">Panel and API at <code>localhost:45445</code></span>
+            </div>
           </div>
           <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+            <p class="run-why">With the WhatsApp mock and Mailpit, wired together: every charge tells the payer by e-mail and by WhatsApp.</p>
+            <div class="run-step">
+              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
-make setup   <span class="c"># + the WhatsApp mock and Mailpit, for payer notices</span></code></pre>
+make setup</code></pre>
+              <span class="run-out">Asaas at <code>localhost:45445</code>, WhatsApp at <code>localhost:3010</code>, e-mails at <code>localhost:8025</code></span>
+            </div>
           </div>
         </div>
         <div class="actions">
