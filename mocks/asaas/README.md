@@ -142,8 +142,9 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
   receive, overdue, refund, delete, restore, and its notifications.
 - **Integrations**, per account: API keys (generate, rotate, expire on the
   virtual clock), webhooks (with the event checklist, through the real
-  `/v3/webhooks`), webhook logs with your endpoint's answer, and the e-mail and
-  WhatsApp channels.
+  `/v3/webhooks`), request logs (every `/v3` call, with what went in and what
+  came back, errors included), webhook logs with your endpoint's answer (and the
+  events no webhook took), and the e-mail and WhatsApp channels.
 - **Test cards**: the table the engine reads; accept any well-formed card or
   only the listed ones; add a card with the outcome it forces.
 - **Profiles**: one root account per tenant of your application, created and
@@ -184,8 +185,16 @@ curl localhost:45445/v3/customers \
 ```
 
 To get the payer notifications, run the [WhatsApp mock](../whatsapp/) and
-Mailpit next to it and set `WHATSAPP_MOCK_URL` and `MAILPIT_URL` (the root
-[`docker-compose.yml`](../../docker-compose.yml) does it all).
+Mailpit next to it. Nothing to set: this server finds them by itself, however
+it runs (bun, `docker run`, your compose, the root
+[`docker-compose.yml`](../../docker-compose.yml)). It looks for them by the
+compose service name (`mailpit:8025`, `whatsapp:3010` or `whatsapp-mock:3010`),
+on this machine (`localhost`) and on the Docker host (`host.docker.internal`,
+the gateway on Linux), on boot and every 10 s, and the closest one wins. The
+address the WhatsApp mock calls back on (delivery statuses, the payer's replies)
+is found the same way: each one this server may be reached on is offered, and
+the first the WhatsApp mock verifies is kept. A variable below pins a place;
+set empty, it turns that channel off.
 
 ## Configuration
 
@@ -197,11 +206,11 @@ Mailpit next to it and set `WHATSAPP_MOCK_URL` and `MAILPIT_URL` (the root
 | `CLOCK_MODE` | `REAL` | `REAL` · `VIRTUAL_FLOWING` (flows, you can skip) · `VIRTUAL_FROZEN` (moves only when told, for CI) |
 | `ADMIN_ENABLED` | `true` | The `/_admin/*` routes and the panel |
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Where `invoiceUrl` and `bankSlipUrl` point, as the browser reaches this server |
-| `MAILPIT_URL` | *(empty: e-mail off)* | Mailpit (`http://mailpit:8025`): payer e-mails |
-| `WHATSAPP_MOCK_URL` | *(empty: WhatsApp off)* | The WhatsApp mock (`http://whatsapp:3010`): payer templates |
+| `MAILPIT_URL` | *(unset: found by itself)* | Mailpit for the payer e-mails; set empty, e-mail is off |
+| `WHATSAPP_MOCK_URL` | *(unset: found by itself)* | The WhatsApp mock for the payer templates; set empty, WhatsApp is off |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | The sender number in the WhatsApp mock |
 | `WHATSAPP_WABA_ID` | `100000000000001` | The WABA whose library holds the payer templates |
-| `NOTIFY_CALLBACK_BASE_URL` | `http://localhost:<PORT>` | This server as the WhatsApp mock reaches it (`http://asaas:45445` in compose) |
+| `NOTIFY_CALLBACK_BASE_URL` | *(unset: found by itself)* | This server as the WhatsApp mock reaches it |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | The two UIs, as the browser opens them from Integrations |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Sender of the e-mails |
 | `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | When a recurring card charge is tried: days after the due date @ local time. Asaas's own account (blog.asaas.com, 2024) is the default; the panel overrides it at runtime |

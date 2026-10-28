@@ -9,6 +9,7 @@ import type { Scheduler } from '../scheduler/scheduler.ts'
 import { authenticate } from './auth.ts'
 import { localGuard, STATE_CHANGING_METHODS } from './local-guard.ts'
 import { registerOperations, type HandlerMap, type RegisterResult } from './register.ts'
+import { recordRequest } from './request-log.ts'
 
 export interface AppDeps {
   ctx: AppContext
@@ -16,8 +17,24 @@ export interface AppDeps {
   scheduler: Scheduler
 }
 
-/** Todo erro sai no formato do Asaas: { errors: [{ code, description }] } */
+/**
+ * Todo erro sai no formato do Asaas: { errors: [{ code, description }] }. Uma
+ * chamada à API recusada entra nos Logs de Requisições com o corpo que saiu.
+ */
 function errorHandler(ctx: AppContext) {
+  const respond = asaasError(ctx)
+  return async (context: any) => {
+    const response = respond(context)
+    await recordRequest(
+      ctx,
+      { request: context.request, body: context.body, status: context.set.status, auth: context.auth },
+      response,
+    )
+    return response
+  }
+}
+
+function asaasError(ctx: AppContext) {
   return ({ error, code, set }: any) => {
     if (error instanceof AsaasError) {
       set.status = error.status
@@ -84,6 +101,14 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
       const token = headers['access_token']
       if (!token) throw unauthorized()
       return { auth: await authenticate(ctx.db, token, ctx.clock.timestamp()) }
+    })
+    // Logs de Requisições: the call and what it returned, before the response leaves.
+    .onAfterHandle(async (context: any) => {
+      await recordRequest(
+        ctx,
+        { request: context.request, body: context.body, status: context.set.status, auth: context.auth },
+        context.responseValue ?? context.response,
+      )
     })
 
   const coverage = registerOperations(api as unknown as Elysia, ctx, deps.handlers)

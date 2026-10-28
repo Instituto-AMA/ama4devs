@@ -2,7 +2,7 @@
  * Queues the payer notifications of a charge event, inside the business
  * transaction (the emitter calls it next to the webhook fan-out).
  *
- * Which channels: those configured (MAILPIT_URL, WHATSAPP_MOCK_URL), for a
+ * Which channels: those whose address is known, set or found (discovery.ts), for a
  * customer whose notifications are on, by the customer's notification settings
  * for the event when there are any, both channels otherwise. A forced send (the
  * panel's "Enviar agora") names its channels and skips the settings.
@@ -27,6 +27,7 @@ import {
   type InstallmentFacts,
   type NotifiableEvent,
 } from '../domain/notification-text.ts'
+import { channelOffReason } from './channels.ts'
 
 export type Channel = 'EMAIL' | 'WHATSAPP'
 
@@ -69,10 +70,13 @@ export async function enqueuePaymentNotifications(
   if (args.forced) {
     channels = args.forced
     if (channels.includes('EMAIL') && !mailpitUrl) {
-      throw badRequest('notify_not_configured', 'Envio de e-mail desligado: defina MAILPIT_URL no simulador.')
+      throw badRequest('notify_not_configured', `Envio de e-mail desligado: ${channelOffReason(deps.config.notify, 'EMAIL')}.`)
     }
     if (channels.includes('WHATSAPP') && !whatsappUrl) {
-      throw badRequest('notify_not_configured', 'Envio de WhatsApp desligado: defina WHATSAPP_MOCK_URL no simulador.')
+      throw badRequest(
+        'notify_not_configured',
+        `Envio de WhatsApp desligado: ${channelOffReason(deps.config.notify, 'WHATSAPP')}.`,
+      )
     }
   }
 

@@ -3,8 +3,8 @@
  * WhatsApp templates (delivered to the WhatsApp mock), and "Enviar agora" to force one.
  *
  * Simulator-only (`/_admin/notifications`): Asaas sends these by itself and shows no
- * such list. A channel without its address configured (MAILPIT_URL,
- * WHATSAPP_MOCK_URL) is shown off and cannot be forced.
+ * such list. A channel whose service is not found (or turned off by an empty
+ * MAILPIT_URL or WHATSAPP_MOCK_URL) is shown off and cannot be forced.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type NotificationList } from '../api.ts'
@@ -58,8 +58,8 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
       </div>
       {!email && !whatsapp && (
         <p class="hint">
-          Defina <code>MAILPIT_URL</code> e <code>WHATSAPP_MOCK_URL</code> no simulador para o pagador
-          receber e-mail e WhatsApp a cada evento da cobrança.
+          Suba o Mailpit e o WhatsApp mock ao lado: o simulador acha os dois sozinho, em até 10 s, e o
+          pagador passa a receber e-mail e WhatsApp a cada evento da cobrança.
         </p>
       )}
       {error && <Banner tone="danger">{error}</Banner>}

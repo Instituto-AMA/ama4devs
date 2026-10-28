@@ -43,6 +43,13 @@
       "when": 1793146567737,
       "tag": "0005_black_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793154769927,
+      "tag": "0006_melted_hydra",
+      "breakpoints": true
     }
   ]
 }

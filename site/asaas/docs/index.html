@@ -102,6 +102,7 @@
               <ul>
                 <li>Every charge event (created, updated, due soon, overdue, received) sends the payer an <strong>e-mail to Mailpit</strong> and a <strong>WhatsApp template</strong> through the <a href="../../whatsapp/">WhatsApp mock</a>'s Cloud API.</li>
                 <li>An installment plan is told once: the first installment's creation tells the whole plan (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); reminders and payment notices stay per installment.</li>
+                <li>Nothing to wire, however it runs (bun, <code>docker run</code>, your compose, <code>make setup</code>): Mailpit and the WhatsApp mock are found by themselves, by compose service name, on this machine or on the Docker host, on boot and every 10 s, the closest one first. The address the WhatsApp mock calls back on is found the same way: the first one it verifies is kept.</li>
                 <li>Everything comes up configured: on boot and on every tick, the sender number gets this server's webhook and the payer templates are created in the WhatsApp mock, through Meta's own calls.</li>
                 <li>The customer's <code>notificationDisabled</code> and notification settings are honored, a failing channel never blocks the charge, and the panel resends on demand.</li>
               </ul>
@@ -127,7 +128,7 @@
               <ul>
                 <li><strong>Customers</strong>: create, edit, remove and restore; open one to see everything billed to it.</li>
                 <li><strong>A charge</strong>: its invoice link, simulate the payment, confirm a cash receipt, receive, overdue, refund, delete, restore, and its notifications.</li>
-                <li><strong>Integrations</strong>, per account: API keys, webhooks with the event checklist, webhook logs with your endpoint's answer, the e-mail and WhatsApp channels.</li>
+                <li><strong>Integrations</strong>, per account: API keys, webhooks with the event checklist, request logs (every <code>/v3</code> call with what went in and what came back, errors included), webhook logs with your endpoint's answer and the events no webhook took, the e-mail and WhatsApp channels.</li>
                 <li><strong>Test cards</strong>: accept any well-formed card or only the listed ones; add a card with the outcome it forces.</li>
                 <li><strong>Profiles</strong>: one root account per tenant of your application, created and deleted without a restart.</li>
               </ul>
@@ -145,11 +146,11 @@
                     <tr><td><code>CLOCK_MODE</code></td><td><code>REAL</code></td><td><code>REAL</code> (follows the machine; the clock refuses to skip), <code>VIRTUAL_FLOWING</code> or <code>VIRTUAL_FROZEN</code></td></tr>
                     <tr><td><code>ADMIN_ENABLED</code></td><td><code>true</code></td><td>The <code>/_admin/*</code> routes and the panel</td></tr>
                     <tr><td><code>INVOICE_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Where <code>invoiceUrl</code> and <code>bankSlipUrl</code> point, as the browser reaches this server</td></tr>
-                    <tr><td><code>MAILPIT_URL</code></td><td><em>(empty: e-mail off)</em></td><td>Mailpit (<code>http://mailpit:8025</code>): payer e-mails</td></tr>
-                    <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(empty: WhatsApp off)</em></td><td>The WhatsApp mock (<code>http://whatsapp:3010</code>): payer templates</td></tr>
+                    <tr><td><code>MAILPIT_URL</code></td><td><em>(unset: found by itself)</em></td><td>Mailpit for the payer e-mails; set empty, e-mail is off</td></tr>
+                    <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(unset: found by itself)</em></td><td>The WhatsApp mock for the payer templates; set empty, WhatsApp is off</td></tr>
                     <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td><code>5511400000000</code></td><td>The sender number in the WhatsApp mock</td></tr>
                     <tr><td><code>WHATSAPP_WABA_ID</code></td><td><code>100000000000001</code></td><td>The WABA whose library holds the payer templates</td></tr>
-                    <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>This server as the WhatsApp mock reaches it</td></tr>
+                    <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><em>(unset: found by itself)</em></td><td>This server as the WhatsApp mock reaches it</td></tr>
                     <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>The two screens, as the browser opens them from Integrations</td></tr>
                     <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Sender of the e-mails</td></tr>
                     <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>When a recurring card charge is tried: days after the due date @ local time. The panel overrides it at runtime</td></tr>

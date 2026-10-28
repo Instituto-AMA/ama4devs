@@ -1,7 +1,7 @@
 /**
  * Integrações › WhatsApp and E-mail: the payer channels as the simulator runs them.
  *
- * Both come up configured with the simulator (MAILPIT_URL, WHATSAPP_MOCK_URL, and the
+ * Both come up configured with the simulator (found wherever they run, and the
  * sender number registered in the WhatsApp mock on boot). This page shows that it
  * works: whether the channel answers, what Asaas sent, what actually arrived at
  * Mailpit or the WhatsApp mock (read back from them), the WhatsApp statuses and
@@ -129,7 +129,8 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
             </Badge>
           )}
         </div>
-        {s.error && <Banner tone="danger">{s.error}</Banner>}
+        {/* Off, the message says where the simulator looked for it: a hint, not a failure. */}
+        {s.error && <Banner tone={s.on ? 'danger' : 'warn'}>{s.error}</Banner>}
         <div class="detail-grid">
           <div>
             {email ? (

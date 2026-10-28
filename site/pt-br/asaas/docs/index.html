@@ -102,6 +102,7 @@
               <ul>
                 <li>Todo evento de cobrança (criada, alterada, vencendo, vencida, recebida) manda ao pagador um <strong>e-mail no Mailpit</strong> e um <strong>template de WhatsApp</strong> pela Cloud API do <a href="../../whatsapp/">mock do WhatsApp</a>.</li>
                 <li>Um parcelamento é avisado uma vez: a criação da primeira parcela conta o plano inteiro (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); lembretes e avisos de pagamento seguem por parcela.</li>
+                <li>Nada para ligar, do jeito que você rodar (bun, <code>docker run</code>, o seu compose, <code>make setup</code>): o Mailpit e o mock do WhatsApp são achados sozinhos, pelo nome do serviço no compose, nesta máquina ou no host do Docker, na subida e a cada 10 s, o mais próximo primeiro. O endereço em que o mock do WhatsApp responde de volta é achado do mesmo jeito: fica o primeiro que ele verifica.</li>
                 <li>Tudo sobe configurado: no boot e a cada tick, o número remetente recebe o webhook deste servidor e os templates do pagador são criados no mock do WhatsApp, pelas chamadas da própria Meta.</li>
                 <li>O <code>notificationDisabled</code> do cliente e as configurações de notificação são respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia quando você pede.</li>
               </ul>
@@ -127,7 +128,7 @@
               <ul>
                 <li><strong>Clientes</strong>: criar, editar, remover e restaurar; abrir um para ver tudo o que foi cobrado dele.</li>
                 <li><strong>Uma cobrança</strong>: o link da fatura, simular o pagamento, confirmar recebimento em dinheiro, receber, vencer, estornar, apagar, restaurar, e as notificações dela.</li>
-                <li><strong>Integrações</strong>, por conta: chaves de API, webhooks com a lista de eventos, o log de webhooks com a resposta do seu endpoint, os canais de e-mail e WhatsApp.</li>
+                <li><strong>Integrações</strong>, por conta: chaves de API, webhooks com a lista de eventos, o log de requisições (cada chamada à <code>/v3</code> com o que foi enviado e o que voltou, erros incluídos), o log de webhooks com a resposta do seu endpoint e os eventos que nenhum webhook levou, os canais de e-mail e WhatsApp.</li>
                 <li><strong>Cartões de teste</strong>: aceitar qualquer cartão bem formado ou só os da lista; adicionar um cartão com o desfecho que ele força.</li>
                 <li><strong>Perfis</strong>: uma conta raiz por tenant da sua aplicação, criada e apagada sem reiniciar.</li>
               </ul>
@@ -145,11 +146,11 @@
                     <tr><td><code>CLOCK_MODE</code></td><td><code>REAL</code></td><td><code>REAL</code> (segue a máquina; o relógio não deixa pular), <code>VIRTUAL_FLOWING</code> ou <code>VIRTUAL_FROZEN</code></td></tr>
                     <tr><td><code>ADMIN_ENABLED</code></td><td><code>true</code></td><td>As rotas <code>/_admin/*</code> e o painel</td></tr>
                     <tr><td><code>INVOICE_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Para onde apontam <code>invoiceUrl</code> e <code>bankSlipUrl</code>, como o navegador alcança este servidor</td></tr>
-                    <tr><td><code>MAILPIT_URL</code></td><td><em>(vazio: e-mail desativado)</em></td><td>Mailpit (<code>http://mailpit:8025</code>): e-mails ao pagador</td></tr>
-                    <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(vazio: WhatsApp desativado)</em></td><td>O mock do WhatsApp (<code>http://whatsapp:3010</code>): templates ao pagador</td></tr>
+                    <tr><td><code>MAILPIT_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O Mailpit dos e-mails ao pagador; vazio, desativa o e-mail</td></tr>
+                    <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O mock do WhatsApp dos templates ao pagador; vazio, desativa o WhatsApp</td></tr>
                     <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td><code>5511400000000</code></td><td>O número remetente no mock do WhatsApp</td></tr>
                     <tr><td><code>WHATSAPP_WABA_ID</code></td><td><code>100000000000001</code></td><td>A WABA cuja biblioteca guarda os templates do pagador</td></tr>
-                    <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Este servidor como o mock do WhatsApp o alcança</td></tr>
+                    <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>Este servidor como o mock do WhatsApp o alcança</td></tr>
                     <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>As duas telas, como o navegador as abre a partir de Integrações</td></tr>
                     <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Remetente dos e-mails</td></tr>
                     <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O painel troca em tempo de execução</td></tr>

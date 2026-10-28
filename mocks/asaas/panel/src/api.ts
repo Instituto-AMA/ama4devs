@@ -118,12 +118,26 @@ export interface Webhook {
 }
 
 /** One delivery of one event to one webhook (`/_admin/webhooks/deliveries`). */
+/** A request of the Logs de Requisições: the list row; the detail adds the bodies. */
+export interface RequestLog {
+  id: number
+  method: string
+  path: string
+  query: string
+  status: number
+  apiKeyName: string | null
+  dateCreated: string
+  requestBody?: unknown
+  responseBody?: unknown
+}
+
+/** A webhook delivery, or an event no webhook took (NO_WEBHOOK: no webhook, url or attempt). */
 export interface Delivery {
   id: string
-  webhookId: string
-  webhookName: string
-  url: string
-  status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'INTERRUPTED' | 'EXPIRED'
+  webhookId: string | null
+  webhookName: string | null
+  url: string | null
+  status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'INTERRUPTED' | 'EXPIRED' | 'NO_WEBHOOK'
   attempt: number
   nextAttemptAtMs: number | null
   lastStatusCode: number | null

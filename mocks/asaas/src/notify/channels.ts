@@ -1,21 +1,29 @@
 /**
  * The two payer channels as running services: the WhatsApp mock and Mailpit.
  *
- * Nothing here needs a person. On boot and on every tick the sender number gets
- * this server's webhook in the WhatsApp mock through the Cloud API call Meta
- * documents (`POST /{phone-number-id}` with `webhook_configuration`; the mock
- * verifies the address with `hub.challenge`, which `/_mock/whatsapp/webhook`
- * answers), so the number has somewhere to send delivery statuses and the payer's
- * replies. The WhatsApp mock keeps that in memory, so a restart of it is repaired
- * on the next tick. Mailpit needs no setup. Someone may change either one by hand
- * afterwards; the registration only fills in what is missing.
+ * Nothing here needs a person. Both are found by themselves (discovery.ts), and on
+ * boot and on every tick the sender number gets this server's webhook in the
+ * WhatsApp mock through the Cloud API call Meta documents (`POST /{phone-number-id}`
+ * with `webhook_configuration`; the mock verifies the address with `hub.challenge`,
+ * which `/_mock/whatsapp/webhook` answers), so the number has somewhere to send
+ * delivery statuses and the payer's replies. Unless NOTIFY_CALLBACK_BASE_URL says
+ * where, that address is found the same way: each place this server may be reached
+ * on is offered in turn, and the first one the WhatsApp mock verifies is kept. The
+ * WhatsApp mock keeps it in memory, so a restart of it is repaired on the next
+ * tick. Mailpit needs no setup. Someone may change either one by hand afterwards;
+ * the registration only fills in what is missing.
  *
  * Also what Integrações shows: whether each channel answers, and what actually
  * arrived there (read back from Mailpit's API and the number's messages).
  */
+import { networkInterfaces } from 'node:os'
+import type { Config } from '../core/config.ts'
 import type { AppContext } from '../core/context.ts'
+import { allowHost, disallowHost } from '../http/local-guard.ts'
 
 const TIMEOUT_MS = 3_000
+/** The WhatsApp mock verifies a callback before it answers, up to 5 s per address. */
+const REGISTER_TIMEOUT_MS = 8_000
 
 /** The Graph version the WhatsApp mock serves (its `spec/<version>`). */
 export const GRAPH_VERSION = 'v23.0'
@@ -26,6 +34,35 @@ export const GRAPH_VERSION = 'v23.0'
  */
 export const WHATSAPP_AUTH = { authorization: 'Bearer asaas-mock' }
 
+/** The names the WhatsApp mock's guard admits without MOCK_ALLOWED_HOSTS. */
+const WHATSAPP_KNOWN_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'])
+
+/**
+ * The headers of a call to the WhatsApp mock at `url`. Its guard admits only known
+ * Host names, against DNS rebinding from a page in a browser. Reached by a compose
+ * service name or a container address, this server names itself `localhost`, as a
+ * server-side caller may: no browser is involved, and the WhatsApp mock then needs
+ * no MOCK_ALLOWED_HOSTS. A dotted name (a proxy in front of it) is left as it is.
+ */
+export function whatsappHeaders(url: string): Record<string, string> {
+  const { hostname } = new URL(url)
+  const local = !WHATSAPP_KNOWN_HOSTS.has(hostname) && (!hostname.includes('.') || /^\d+(\.\d+){3}$/.test(hostname))
+  return local ? { ...WHATSAPP_AUTH, host: 'localhost' } : { ...WHATSAPP_AUTH }
+}
+
+/** Why a channel is off, for the logs, the notification rows and Integrações. */
+export function channelOffReason(notify: Config['notify'], channel: 'EMAIL' | 'WHATSAPP'): string {
+  const discover = notify.discover
+  if (channel === 'EMAIL') {
+    return discover?.mailpit.length
+      ? `nenhum Mailpit respondendo (procurado em ${discover.mailpit.join(', ')})`
+      : 'MAILPIT_URL vazio: e-mail desligado'
+  }
+  return discover?.whatsapp.length
+    ? `nenhum mock de WhatsApp respondendo (procurado em ${discover.whatsapp.join(', ')})`
+    : 'WHATSAPP_MOCK_URL vazio: WhatsApp desligado'
+}
+
 async function get(url: string, headers: Record<string, string> = {}): Promise<any> {
   const res = await fetch(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -34,38 +71,82 @@ async function get(url: string, headers: Record<string, string> = {}): Promise<a
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
+const CALLBACK_PATH = '/_mock/whatsapp/webhook'
+
 /** The webhook this server listens on for the WhatsApp mock. */
-export const whatsappCallbackUrl = (ctx: AppContext) =>
-  `${ctx.config.notify.callbackBaseUrl}/_mock/whatsapp/webhook`
+export const whatsappCallbackUrl = (ctx: AppContext) => `${ctx.config.notify.callbackBaseUrl}${CALLBACK_PATH}`
+
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+/**
+ * Where the WhatsApp mock may reach this server, best first. A WhatsApp mock on
+ * this machine's loopback reaches it there, or through the Docker host when the
+ * mock runs in a container with its port published; one in another container
+ * reaches it by this container's address on their network.
+ */
+export function callbackCandidates(ctx: AppContext, whatsappUrl: string): string[] {
+  const { port } = ctx.config
+  const own = Object.values(networkInterfaces())
+    .flat()
+    .filter((a) => a && a.family === 'IPv4' && !a.internal)
+    .map((a) => `http://${a!.address}:${port}`)
+  const local = [`http://localhost:${port}`, `http://host.docker.internal:${port}`]
+  const ordered = LOOPBACK.has(new URL(whatsappUrl).hostname) ? [...local, ...own] : [...own, ...local.reverse()]
+  return [...new Set(ordered)]
+}
 
 /**
  * Registers the sender number in the WhatsApp mock unless it already has a webhook
- * there (a person's change is kept). Returns whether the number is registered now.
+ * there: a person's address is kept, and so is this server's own. Returns whether
+ * the number is registered now.
  */
 export async function ensureWhatsappSender(ctx: AppContext): Promise<{ registered: boolean; error?: string }> {
-  const { whatsappUrl, whatsappPhoneNumberId } = ctx.config.notify
-  if (!whatsappUrl) return { registered: false, error: 'WHATSAPP_MOCK_URL não configurado' }
+  const notify = ctx.config.notify
+  const { whatsappUrl, whatsappPhoneNumberId } = notify
+  if (!whatsappUrl) return { registered: false, error: channelOffReason(ctx.config.notify,'WHATSAPP') }
+  const findCallback = Boolean(notify.discover?.callback)
   const node = `${whatsappUrl}/${GRAPH_VERSION}/${whatsappPhoneNumberId}`
+  const headers = whatsappHeaders(whatsappUrl)
   try {
-    const number = await get(`${node}?fields=webhook_configuration`, WHATSAPP_AUTH)
-    if (number.webhook_configuration?.phone_number) return { registered: true }
-    const res = await fetch(node, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...WHATSAPP_AUTH },
-      body: JSON.stringify({
-        webhook_configuration: {
-          override_callback_uri: whatsappCallbackUrl(ctx),
-          verify_token: 'asaas-mock',
-        },
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
-    if (!res.ok) {
+    const number = await get(`${node}?fields=webhook_configuration`, headers)
+    const current: string | undefined = number.webhook_configuration?.phone_number
+    // Only an earlier run's container address is replaced (a restarted container
+    // gets a new one, and the WhatsApp mock would call the old one in vain). A name
+    // is kept: it may be another Asaas mock sharing this WhatsApp mock.
+    const stale =
+      findCallback &&
+      current !== undefined &&
+      current !== whatsappCallbackUrl(ctx) &&
+      current.endsWith(CALLBACK_PATH) &&
+      /^\d+(\.\d+){3}$/.test(new URL(current).hostname)
+    if (current && !stale) return { registered: true }
+
+    const bases = findCallback ? callbackCandidates(ctx, whatsappUrl) : [notify.callbackBaseUrl]
+    const refused: string[] = []
+    for (const base of bases) {
+      // The WhatsApp mock checks the address right away: the guard must admit it first.
+      const added = allowHost(ctx.config.allowedHosts, base)
+      const res = await fetch(node, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...headers },
+        body: JSON.stringify({
+          webhook_configuration: { override_callback_uri: `${base}${CALLBACK_PATH}`, verify_token: 'asaas-mock' },
+        }),
+        signal: AbortSignal.timeout(REGISTER_TIMEOUT_MS),
+      })
+      if (res.ok) {
+        notify.callbackBaseUrl = base
+        ctx.log('info', 'Sender number registered in the WhatsApp mock', {
+          phoneNumberId: whatsappPhoneNumberId,
+          callback: `${base}${CALLBACK_PATH}`,
+        })
+        return { registered: true }
+      }
+      if (added) disallowHost(ctx.config.allowedHosts, added)
       const detail = (await res.text().catch(() => '')).slice(0, 300)
-      throw new Error(`HTTP ${res.status}${detail ? `: ${detail}` : ''}`)
+      refused.push(`${base}: HTTP ${res.status}${detail ? `: ${detail}` : ''}`)
     }
-    ctx.log('info', 'Sender number registered in the WhatsApp mock', { phoneNumberId: whatsappPhoneNumberId })
-    return { registered: true }
+    throw new Error(refused.join('; '))
   } catch (err) {
     return { registered: false, error: errorText(err) }
   }
@@ -114,15 +195,16 @@ const TEMPLATE_EXAMPLE = ['Maria', 'Clínica Exemplo', 'R$ 150,00', '30/10/2026'
  */
 export async function ensureWhatsappTemplates(ctx: AppContext): Promise<{ ready: boolean; error?: string }> {
   const { whatsappUrl, whatsappWabaId } = ctx.config.notify
-  if (!whatsappUrl) return { ready: false, error: 'WHATSAPP_MOCK_URL não configurado' }
+  if (!whatsappUrl) return { ready: false, error: channelOffReason(ctx.config.notify,'WHATSAPP') }
   const library = `${whatsappUrl}/${GRAPH_VERSION}/${whatsappWabaId}/message_templates`
+  const headers = whatsappHeaders(whatsappUrl)
   try {
     for (const template of WHATSAPP_TEMPLATES) {
-      const found = await get(`${library}?name=${template.name}`, WHATSAPP_AUTH)
+      const found = await get(`${library}?name=${template.name}`, headers)
       if ((found.data ?? []).some((t: any) => t.name === template.name && t.language === 'pt_BR')) continue
       const res = await fetch(library, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-mock-template-review-delay': '0', ...WHATSAPP_AUTH },
+        headers: { 'content-type': 'application/json', 'x-mock-template-review-delay': '0', ...headers },
         body: JSON.stringify({
           name: template.name,
           language: 'pt_BR',
@@ -160,18 +242,23 @@ export async function channelStatus(ctx: AppContext): Promise<{
   whatsapp: ChannelStatus & { sender: string; registered: boolean; callbackUrl: string }
 }> {
   const n = ctx.config.notify
-  const probe = async (url: string | undefined, path: string) => {
-    if (!url) return { reachable: false, error: null }
+  const probe = async (url: string | undefined, path: string, off: string, headers: Record<string, string> = {}) => {
+    if (!url) return { reachable: false, error: off }
     try {
-      await get(`${url}${path}`)
+      await get(`${url}${path}`, headers)
       return { reachable: true, error: null }
     } catch (err) {
       return { reachable: false, error: errorText(err) }
     }
   }
   const [mail, wa, sender] = await Promise.all([
-    probe(n.mailpitUrl, '/api/v1/info'),
-    probe(n.whatsappUrl, '/health'),
+    probe(n.mailpitUrl, '/api/v1/info', channelOffReason(ctx.config.notify,'EMAIL')),
+    probe(
+      n.whatsappUrl,
+      '/health',
+      channelOffReason(ctx.config.notify,'WHATSAPP'),
+      n.whatsappUrl ? whatsappHeaders(n.whatsappUrl) : {},
+    ),
     ensureWhatsappSender(ctx),
   ])
   return {
@@ -211,7 +298,10 @@ export async function arrivals(ctx: AppContext, channel: 'EMAIL' | 'WHATSAPP'): 
   }
   if (!n.whatsappUrl) return []
   // The number's conversation, both sides: `out` is what the business sent.
-  const res = await get(`${n.whatsappUrl}/${GRAPH_VERSION}/${n.whatsappPhoneNumberId}/messages`, WHATSAPP_AUTH)
+  const res = await get(
+    `${n.whatsappUrl}/${GRAPH_VERSION}/${n.whatsappPhoneNumberId}/messages`,
+    whatsappHeaders(n.whatsappUrl),
+  )
   return (res.data ?? [])
     .filter((m: any) => m.direction === 'out')
     .reverse()

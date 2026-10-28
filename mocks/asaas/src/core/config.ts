@@ -6,6 +6,7 @@
  * provadas contra a API real — então, quando descobrirmos uma divergência, a
  * correção tem que ser mudança de configuração, não de código.
  */
+import { readFileSync } from 'node:fs'
 import { parseCaptureSchedule, type CaptureSlot } from '../domain/card-capture.ts'
 import { bp, cents, type BasisPoints, type Cents } from '../domain/money.ts'
 import type { ClockMode } from './clock.ts'
@@ -177,8 +178,9 @@ export interface Config {
 
   /**
    * The payer notifications (e-mail and WhatsApp template per charge event). Each
-   * channel is on only when its address is set: e-mail goes to Mailpit's send API,
-   * the template to the WhatsApp mock's Cloud API. Off, nothing is queued.
+   * channel is on while its address is known, set or found (`discover`): e-mail
+   * goes to Mailpit's send API, the template to the WhatsApp mock's Cloud API. Off,
+   * nothing is queued.
    */
   notify: {
     mailpitUrl: string | undefined
@@ -198,6 +200,14 @@ export interface Config {
     /** Where the browser opens Mailpit's mailbox and the WhatsApp console (Integrações). */
     mailpitUiUrl: string
     whatsappUiUrl: string
+    /**
+     * What this server looks for by itself (src/notify/discovery.ts): the places
+     * Mailpit and the WhatsApp mock may answer on, and whether the address the
+     * WhatsApp mock calls back on is found too. Left out, nothing is looked for: the
+     * process entry fills it from the environment (`notifyDiscoveryFromEnv`), the
+     * tests leave it unset.
+     */
+    discover?: NotifyDiscovery
   }
 
   webhook: {
@@ -333,5 +343,47 @@ export function loadConfig(): Config {
         bankSlip: bp(num('FEE_ANTICIPATION_BANK_SLIP_BP', 499)),
       },
     },
+  }
+}
+
+/** The payer channels this server finds by itself, and where it looks. */
+export interface NotifyDiscovery {
+  /** The base URLs Mailpit may answer on, in order; empty when MAILPIT_URL says where. */
+  mailpit: string[]
+  /** The base URLs the WhatsApp mock may answer on, in order; empty when WHATSAPP_MOCK_URL says where. */
+  whatsapp: string[]
+  /** Whether the address the WhatsApp mock calls back on is found (NOTIFY_CALLBACK_BASE_URL unset). */
+  callback: boolean
+}
+
+/** The Docker host as a container sees it: its name, and the default gateway on Linux. */
+function dockerHosts(): string[] {
+  const hosts = ['host.docker.internal']
+  try {
+    for (const line of readFileSync('/proc/net/route', 'utf8').split('\n').slice(1)) {
+      const [, destination, gateway] = line.trim().split(/\s+/)
+      if (destination !== '00000000' || !gateway || gateway === '00000000') continue
+      // Little-endian hex: 0100A8C0 is 192.168.0.1.
+      hosts.push((gateway.match(/../g) ?? []).map((b) => parseInt(b, 16)).reverse().join('.'))
+      break
+    }
+  } catch {
+    // Not Linux: there is no routing table to read, and no gateway to add.
+  }
+  return hosts
+}
+
+/**
+ * What to look for, from the environment. A channel whose variable is set is used
+ * as given, and set empty it is off; unset, it is looked for where it usually
+ * answers: the compose service name, this machine, the Docker host.
+ */
+export function notifyDiscoveryFromEnv(env: Record<string, string | undefined> = process.env): NotifyDiscovery {
+  const places = (names: string[], port: number) =>
+    [...names, 'localhost', ...dockerHosts()].map((host) => `http://${host}:${port}`)
+  return {
+    mailpit: env.MAILPIT_URL === undefined ? places(['mailpit'], 8025) : [],
+    whatsapp: env.WHATSAPP_MOCK_URL === undefined ? places(['whatsapp', 'whatsapp-mock'], 3010) : [],
+    callback: env.NOTIFY_CALLBACK_BASE_URL === undefined,
   }
 }

@@ -11,7 +11,7 @@ import { asc, eq } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
 import { notificationDeliveries } from '../db/schema/index.ts'
 import { composeNotification } from '../domain/notification-text.ts'
-import { GRAPH_VERSION, WHATSAPP_AUTH } from './channels.ts'
+import { channelOffReason, GRAPH_VERSION, whatsappHeaders } from './channels.ts'
 
 type Row = typeof notificationDeliveries.$inferSelect
 
@@ -34,7 +34,7 @@ async function post(url: string, body: unknown, headers: Record<string, string> 
 async function send(ctx: AppContext, row: Row): Promise<void> {
   const { mailpitUrl, whatsappUrl, whatsappPhoneNumberId, fromEmail } = ctx.config.notify
   if (row.channel === 'EMAIL') {
-    if (!mailpitUrl) throw new Error('MAILPIT_URL não configurado')
+    if (!mailpitUrl) throw new Error(channelOffReason(ctx.config.notify,'EMAIL'))
     await post(`${mailpitUrl}/api/v1/send`, {
       From: { Email: fromEmail, Name: 'Asaas (simulador)' },
       To: [{ Email: row.recipient }],
@@ -45,7 +45,7 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
     })
     return
   }
-  if (!whatsappUrl) throw new Error('WHATSAPP_MOCK_URL não configurado')
+  if (!whatsappUrl) throw new Error(channelOffReason(ctx.config.notify,'WHATSAPP'))
   const template = row.template
   if (!template) throw new Error('notificação de WhatsApp sem template')
   // Positional placeholders ({{1}}, {{2}}…): Meta fills them in order, no name.
@@ -61,7 +61,7 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
         components: [{ type: 'body', parameters: template.params.map((text) => ({ type: 'text', text })) }],
       },
     },
-    WHATSAPP_AUTH,
+    whatsappHeaders(whatsappUrl),
   )
 }
 

@@ -5,14 +5,15 @@
  * A aba vai no hash (`#integrations/keys`), como as páginas: recarregar mantém a aba,
  * e dá para mandar `#integrations/webhooks` para quem está com a fila travada.
  *
- * "Segurança" e "Logs de Requisições" existem no Asaas e ainda não aqui: aparecem
- * apagadas em vez de sumirem, pela mesma razão dos itens da sidebar.
+ * "Segurança" existe no Asaas e ainda não aqui: aparece apagada em vez de sumir,
+ * pela mesma razão dos itens da sidebar.
  */
 import type { PageProps } from '../app.tsx'
 import { Icon, type IconData } from '../components/Icon.tsx'
 import * as I from '../icons.ts'
 import { ApiKeys } from './integrations/ApiKeys.tsx'
 import { ChannelPage } from './integrations/Channels.tsx'
+import { RequestLogs } from './integrations/RequestLogs.tsx'
 import { WebhookLogs } from './integrations/WebhookLogs.tsx'
 import { Webhooks } from './integrations/Webhooks.tsx'
 
@@ -27,7 +28,7 @@ export const INTEGRATION_TABS: Tab[] = [
   { id: 'keys', label: 'Chaves de API', icon: I.KEY },
   { id: 'security', label: 'Segurança', icon: I.LOCK, disabled: true },
   { id: 'webhooks', label: 'Webhooks', icon: I.WEBHOOK },
-  { id: 'requests', label: 'Logs de Requisições', icon: I.LOG, disabled: true },
+  { id: 'requests', label: 'Logs de Requisições', icon: I.LOG },
   { id: 'webhook-logs', label: 'Logs de Webhooks', icon: I.LOG },
   // The payer channels (simulator): where the e-mails and WhatsApp templates land.
   { id: 'whatsapp', label: 'WhatsApp', icon: I.WHATSAPP },
@@ -62,6 +63,7 @@ export function Integrations(props: PageProps & { tab: string | undefined }) {
 
       {tab.id === 'keys' && <ApiKeys {...props} />}
       {tab.id === 'webhooks' && <Webhooks {...props} />}
+      {tab.id === 'requests' && <RequestLogs {...props} />}
       {tab.id === 'webhook-logs' && <WebhookLogs {...props} />}
       {tab.id === 'whatsapp' && <ChannelPage {...props} channel="WHATSAPP" />}
       {tab.id === 'email' && <ChannelPage {...props} channel="EMAIL" />}

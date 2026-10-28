@@ -68,6 +68,24 @@ function isGuardedPath(pathname: string): boolean {
   )
 }
 
+/**
+ * Admits the host of a URL this server handed out itself (its callback in the
+ * WhatsApp mock). Returns the hostname when it was new, so a failed attempt can take
+ * it back, and null when it was already admitted.
+ */
+export function allowHost(allowedHosts: string[], url: string): string | null {
+  const hostname = hostnameOf(url)
+  if (!hostname || allowedHosts.some((host) => normalizeHostname(host) === hostname)) return null
+  allowedHosts.push(hostname)
+  return hostname
+}
+
+/** Takes back a host `allowHost` added. */
+export function disallowHost(allowedHosts: string[], hostname: string): void {
+  const at = allowedHosts.indexOf(hostname)
+  if (at !== -1) allowedHosts.splice(at, 1)
+}
+
 function forbiddenBody(code: keyof typeof FORBIDDEN) {
   return { errors: [{ code, description: FORBIDDEN[code] }] }
 }
@@ -77,9 +95,12 @@ function forbiddenBody(code: keyof typeof FORBIDDEN) {
  *
  * The Host check blocks DNS rebinding: a browser page can resolve an attacker
  * controlled name to 127.0.0.1, but it still sends that name in the Host header.
+ *
+ * The list is read on every request: the address the WhatsApp mock calls back on
+ * is found after boot and joins it then (`allowHost`).
  */
 export function localGuard(allowedHosts: string[]) {
-  const allowed = new Set(allowedHosts.map(normalizeHostname).filter(Boolean))
+  const allowed = { has: (hostname: string) => allowedHosts.some((host) => normalizeHostname(host) === hostname) }
 
   return new Elysia({ name: 'local-guard' }).onRequest(({ request, set }) => {
     const pathname = new URL(request.url).pathname

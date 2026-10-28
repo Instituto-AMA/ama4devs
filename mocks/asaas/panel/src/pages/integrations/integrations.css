@@ -109,6 +109,8 @@
 .log-item-main .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .log-item-side { display: flex; align-items: center; gap: var(--pad-xs); flex-shrink: 0; }
 
+.http-method { font-weight: 600; color: var(--primary); }
+
 .payload {
   margin: 0;
   padding: var(--pad-md);

@@ -142,7 +142,7 @@ docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pr
     environment:
       WEBHOOK_URL: http://my-app:4000/webhooks/whatsapp   <span class="c"># your application</span>
       WEBHOOK_SECRET: my-app-secret                       <span class="c"># signs x-hub-signature-256</span>
-      MOCK_ALLOWED_HOSTS: whatsapp
+      MOCK_ALLOWED_HOSTS: whatsapp                        <span class="c"># your application calls it by this name</span>
     volumes:
       - whatsapp-data:/app/data
 

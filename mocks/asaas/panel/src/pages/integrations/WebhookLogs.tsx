@@ -5,6 +5,10 @@
  * O payload é o CONGELADO no momento do evento — uma retentativa reenvia este, não o
  * estado atual da cobrança. É o que ver aqui responde: "o que a minha aplicação
  * recebeu, e o que ela respondeu".
+ *
+ * Um evento que nenhum webhook levou (nenhum cadastrado, ou nenhum assinou o evento)
+ * aparece como "Sem webhook", com o payload que teria saído: dá para depurar antes
+ * de cadastrar o webhook, e ver por que nada chegou.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type Delivery } from '../../api.ts'
@@ -30,6 +34,7 @@ const STATUS: Record<Delivery['status'], { label: string; tone: Tone }> = {
   FAILED: { label: 'Falhou', tone: 'danger' },
   INTERRUPTED: { label: 'Interrompida', tone: 'danger' },
   EXPIRED: { label: 'Expirada', tone: 'neutral' },
+  NO_WEBHOOK: { label: 'Sem webhook', tone: 'neutral' },
 }
 
 const FILTERS = [
@@ -41,9 +46,10 @@ const FILTERS = [
     label: 'Com falha',
     match: (d: Delivery) => d.status === 'FAILED' || d.status === 'INTERRUPTED',
   },
+  { id: 'no-webhook', label: 'Sem webhook', match: (d: Delivery) => d.status === 'NO_WEBHOOK' },
 ] as const
 
-export function WebhookLogs({ store }: PageProps) {
+export function WebhookLogs({ store, navigate }: PageProps) {
   const account = store.selected
   const [rows, setRows] = useState<Delivery[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -76,10 +82,21 @@ export function WebhookLogs({ store }: PageProps) {
   const match = FILTERS.find((f) => f.id === filter)!.match
   const shown = (rows ?? []).filter(match)
   const current = shown.find((d) => d.id === selectedId) ?? null
+  const nothingDelivered = (rows ?? []).length > 0 && (rows ?? []).every((d) => d.status === 'NO_WEBHOOK')
 
   return (
     <div class="stack">
       {error && <Banner tone="danger">{error}</Banner>}
+      {nothingDelivered && (
+        <Banner tone="warn">
+          <div class="row">
+            <span>Os eventos desta conta não saíram para lugar nenhum: nenhum webhook cadastrado os assinou.</span>
+            <Button size="sm" onClick={() => navigate('integrations/webhooks')}>
+              Cadastrar um webhook
+            </Button>
+          </div>
+        </Banner>
+      )}
 
       <div class="logs-layout">
         <Card
@@ -119,7 +136,7 @@ export function WebhookLogs({ store }: PageProps) {
                     <span class="log-item-main">
                       <span class="mono">{d.event}</span>
                       <span class="hint">
-                        {d.webhookName} · {dateTime(d.lastAttemptAt ?? d.dateCreated)}
+                        {d.webhookName ?? 'nenhum webhook'} · {dateTime(d.lastAttemptAt ?? d.dateCreated)}
                       </span>
                     </span>
                     <span class="log-item-side">
@@ -145,15 +162,22 @@ export function WebhookLogs({ store }: PageProps) {
                 <Row label="Situação">
                   <Badge tone={STATUS[current.status].tone}>{STATUS[current.status].label}</Badge>
                 </Row>
-                <Row label="Webhook">{current.webhookName}</Row>
-                <Row label="URL">
-                  <span class="mono">{current.url}</span>
-                </Row>
-                <Row label="Tentativas">{current.attempt}</Row>
-                <Row label="Retorno do endpoint">
-                  {current.lastStatusCode !== null ? `HTTP ${current.lastStatusCode}` : '—'}
-                </Row>
-                <Row label="Última tentativa">{dateTime(current.lastAttemptAt)}</Row>
+                {current.status === 'NO_WEBHOOK' ? (
+                  <Row label="Webhook">nenhum webhook desta conta assinou este evento</Row>
+                ) : (
+                  <>
+                    <Row label="Webhook">{current.webhookName}</Row>
+                    <Row label="URL">
+                      <span class="mono">{current.url}</span>
+                    </Row>
+                    <Row label="Tentativas">{current.attempt}</Row>
+                    <Row label="Retorno do endpoint">
+                      {current.lastStatusCode !== null ? `HTTP ${current.lastStatusCode}` : '—'}
+                    </Row>
+                    <Row label="Última tentativa">{dateTime(current.lastAttemptAt)}</Row>
+                  </>
+                )}
+                <Row label="Data do evento">{dateTime(current.dateCreated)}</Row>
                 <Row label="Id do evento">
                   <span class="mono">{current.eventId}</span>
                 </Row>

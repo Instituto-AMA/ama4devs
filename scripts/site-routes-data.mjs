@@ -108,7 +108,7 @@ const p = (name, where, type, description, required = false) => ({ in: where, na
 
 // ── Asaas: state the routes need ──
 const actx = {}
-actx.accountId = (await call(asaasUrl, 'GET', '/_admin/accounts')).body.data?.[0]?.id
+actx.accountId = (await call(asaasUrl, 'GET', '/_admin/accounts')).body.accounts?.[0]?.id
 actx.customer = (await v3('POST', '/customers', { name: 'Maria Souza', cpfCnpj: '24971563792', email: 'maria@example.com', mobilePhone: '11987654321' })).body.id
 const holder = { name: 'Maria Souza', email: 'maria@example.com', cpfCnpj: '24971563792', postalCode: '01310100', addressNumber: '100', phone: '11987654321' }
 actx.token = (await v3('POST', '/creditCard/tokenizeCreditCard', {
@@ -163,9 +163,25 @@ const ASAAS = [
   route('Simulator', 'GET', '/_admin/fees', 'The fee table in force'),
   route('Webhooks', 'GET', '/_admin/webhooks/events', 'Every webhook event name Asaas sends'),
   route('Webhooks', 'GET', '/_admin/webhooks/queue', 'The delivery queue: pending, failing, interrupted'),
-  route('Webhooks', 'GET', '/_admin/webhooks/deliveries', 'Every delivery attempt with your endpoint\'s answer', {
+  route('Webhooks', 'GET', '/_admin/webhooks/deliveries', 'Every delivery attempt with your endpoint\'s answer, and the events no webhook took (NO_WEBHOOK)', {
     call: (c) => `/_admin/webhooks/deliveries?accountId=${c.accountId}`,
     params: [p('accountId', 'query', 'string', 'Only this account\'s deliveries')],
+  }),
+  route('Request logs', 'GET', '/_admin/request-logs', 'The account\'s calls to /v3, newest first, without their bodies', {
+    call: (c) => `/_admin/request-logs?accountId=${c.accountId}`,
+    params: [
+      p('accountId', 'query', 'string', 'Only this account\'s calls'),
+      p('status', 'query', 'enum: success | error', 'Only 2xx, or only the rest'),
+      p('limit', 'query', 'integer', 'How many, newest first (100 by default, 1000 at most)'),
+    ],
+  }),
+  route('Request logs', 'GET', '/_admin/request-logs/:id', 'One call, with the body that went in and the one that came back', {
+    before: async (c) => {
+      c.requestLog = (await call(asaasUrl, 'GET', `/_admin/request-logs?accountId=${c.accountId}&limit=1`)).body.data[0].id
+    },
+    call: (c) => `/_admin/request-logs/${c.requestLog}`,
+    params: [p('id', 'path', 'integer', 'A call of the list', true)],
+    errors: [{ call: () => '/_admin/request-logs/999999', why: 'No call with this id.' }],
   }),
   route('Webhooks', 'POST', '/_admin/webhooks/pause', 'Freeze the dispatcher: events queue up, nothing is delivered'),
   route('Webhooks', 'POST', '/_admin/webhooks/resume', 'Deliver again'),

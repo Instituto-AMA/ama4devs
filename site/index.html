@@ -145,27 +145,28 @@
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
 docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
               <p class="way-out">Panel and API at <code>localhost:3010</code></p>
+              <p class="way-label">Mailpit, the payer e-mail inbox</p>
+              <div class="code"><pre><code>docker run -d -p 8025:8025 axllent/mailpit:v1.31.4</code></pre></div>
+              <p class="way-out">Inbox at <code>localhost:8025</code></p>
               <p class="way-label">Asaas</p>
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on</p>
+              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on. Asaas finds WhatsApp and Mailpit by itself: every charge already tells the payer on both.</p>
             </section>
 
             <section class="way" id="run-compose" aria-labelledby="run-compose-title">
               <h3 id="run-compose-title">In your docker-compose</h3>
-              <p class="way-why">To run next to your application, in its compose. The two mocks find each other by service name.</p>
+              <p class="way-why">To run next to your application, in its compose. Nothing to wire: Asaas finds WhatsApp and Mailpit by service name.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.7.1
+    image: ghcr.io/instituto-ama/asaas-mock:0.8.0
     ports:
       - '45445:45445'
     environment:
       ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` is a literal `$` in compose</span>
       CLOCK_MODE: VIRTUAL_FLOWING
-      MOCK_ALLOWED_HOSTS: asaas
-      WHATSAPP_MOCK_URL: http://whatsapp:3010
-      NOTIFY_CALLBACK_BASE_URL: http://asaas:45445
+    depends_on: [whatsapp, mailpit]
     volumes:
       - asaas-data:/data
 
@@ -175,14 +176,19 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
       - '3010:3010'
     environment:
       WEBHOOK_URL: http://my-app:4000/webhooks/whatsapp   <span class="c"># your application</span>
-      MOCK_ALLOWED_HOSTS: whatsapp
+      MOCK_ALLOWED_HOSTS: whatsapp   <span class="c"># your application calls it by this name</span>
     volumes:
       - whatsapp-data:/app/data
+
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports:
+      - '8025:8025'
 
 volumes:
   asaas-data:
   whatsapp-data:</code></pre></div>
-              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. For the payer e-mails, add a Mailpit and point <code>MAILPIT_URL</code> at it.</p>
+              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. The payer e-mails at <code>localhost:8025</code>.</p>
             </section>
 
             <section class="way" id="run-build" aria-labelledby="run-build-title">
@@ -196,6 +202,7 @@ docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
               <p class="way-label">Asaas</p>
               <div class="code"><pre><code>docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
+              <p class="way-out">With WhatsApp and Mailpit up, Asaas finds both by itself, as with the ready image.</p>
             </section>
 
             <section class="way" id="run-all" aria-labelledby="run-all-title">

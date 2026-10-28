@@ -144,7 +144,9 @@ mostra o que o Asaas não deixa você ver.
   dinheiro, receber, vencer, estornar, excluir, restaurar, e as notificações.
 - **Integrações**, por conta: chaves de API (gerar, trocar, expirar no relógio
   virtual), webhooks (com a lista de eventos, pela `/v3/webhooks` real), logs
-  de webhook com a resposta do seu endpoint, e os canais de e-mail e WhatsApp.
+  de requisições (cada chamada à `/v3`, com o que foi enviado e o que voltou,
+  erros incluídos), logs de webhook com a resposta do seu endpoint (e os
+  eventos que nenhum webhook levou), e os canais de e-mail e WhatsApp.
 - **Cartões de teste**: a tabela que o motor lê; aceitar qualquer cartão bem
   formado ou só os listados; criar um cartão com o resultado que ele força.
 - **Perfis**: uma conta raiz por cliente da sua aplicação, criada e apagada sem
@@ -185,8 +187,16 @@ curl localhost:45445/v3/customers \
 ```
 
 Para as notificações ao pagador, rode o [WhatsApp mock](../whatsapp/README.pt-BR.md)
-e o Mailpit ao lado e defina `WHATSAPP_MOCK_URL` e `MAILPIT_URL` (o
-[`docker-compose.yml`](../../docker-compose.yml) da raiz já faz tudo isso).
+e o Mailpit ao lado. Não precisa configurar nada: este servidor acha os dois
+sozinho, do jeito que estiver rodando (bun, `docker run`, o seu compose, o
+[`docker-compose.yml`](../../docker-compose.yml) da raiz). Ele procura pelo nome
+do serviço no compose (`mailpit:8025`, `whatsapp:3010` ou `whatsapp-mock:3010`),
+nesta máquina (`localhost`) e no host do Docker (`host.docker.internal`, o
+gateway no Linux), na subida e a cada 10 s, e o mais próximo ganha. O endereço
+em que o WhatsApp mock responde de volta (status de entrega, respostas do
+pagador) é achado do mesmo jeito: cada endereço em que este servidor pode ser
+alcançado é oferecido, e fica o primeiro que o WhatsApp mock verifica. Uma
+variável abaixo fixa o lugar; vazia, desliga o canal.
 
 ## Configuração
 
@@ -198,11 +208,11 @@ e o Mailpit ao lado e defina `WHATSAPP_MOCK_URL` e `MAILPIT_URL` (o
 | `CLOCK_MODE` | `REAL` | `REAL` · `VIRTUAL_FLOWING` (corre, dá para pular) · `VIRTUAL_FROZEN` (só anda quando mandam, para CI) |
 | `ADMIN_ENABLED` | `true` | As rotas `/_admin/*` e o painel |
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Para onde `invoiceUrl` e `bankSlipUrl` apontam, como o navegador chega neste servidor |
-| `MAILPIT_URL` | *(vazio: e-mail desligado)* | Mailpit (`http://mailpit:8025`): e-mails ao pagador |
-| `WHATSAPP_MOCK_URL` | *(vazio: WhatsApp desligado)* | O WhatsApp mock (`http://whatsapp:3010`): templates ao pagador |
+| `MAILPIT_URL` | *(sem valor: achado sozinho)* | O Mailpit dos e-mails ao pagador; vazio, desliga o e-mail |
+| `WHATSAPP_MOCK_URL` | *(sem valor: achado sozinho)* | O WhatsApp mock dos templates ao pagador; vazio, desliga o WhatsApp |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | O número remetente no WhatsApp mock |
 | `WHATSAPP_WABA_ID` | `100000000000001` | A WABA cuja biblioteca guarda os templates do pagador |
-| `NOTIFY_CALLBACK_BASE_URL` | `http://localhost:<PORT>` | Este servidor como o WhatsApp mock o alcança (`http://asaas:45445` no compose) |
+| `NOTIFY_CALLBACK_BASE_URL` | *(sem valor: achado sozinho)* | Este servidor como o WhatsApp mock o alcança |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | As duas telas, como o navegador as abre a partir de Integrações |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Remetente dos e-mails |
 | `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O padrão é o relato do próprio Asaas (blog.asaas.com, 2024); o painel troca em tempo de execução |

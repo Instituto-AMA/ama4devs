@@ -141,7 +141,7 @@ curl -X POST localhost:45445/_admin/clock/set \
                 <h3>No seu compose</h3>
                 <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.7.1   <span class="c"># fixe uma versão, ou :latest</span>
+    image: ghcr.io/instituto-ama/asaas-mock:0.8.0   <span class="c"># fixe uma versão, ou :latest</span>
     ports:
       - '45445:45445'
     environment:
@@ -155,7 +155,7 @@ curl -X POST localhost:45445/_admin/clock/set \
       - asaas-data:/data
 volumes:
   asaas-data:</code></pre></div>
-                <p>De um serviço na mesma rede, o mock fica em <code>http://asaas:45445/v3</code>.</p>
+                <p>De um serviço na mesma rede, o mock fica em <code>http://asaas:45445/v3</code>. Coloque um serviço <code>whatsapp</code> e um <code>mailpit</code> ao lado e ele acha os dois sozinho, como na <a href="../#run-compose">página do Asaas</a>.</p>
               </li>
 
               <li id="ci">

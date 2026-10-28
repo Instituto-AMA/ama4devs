@@ -7,7 +7,7 @@
  *
  * Desligue com ADMIN_ENABLED=false em qualquer ambiente compartilhado.
  */
-import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, gte, isNull, lt, notExists, or } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
@@ -18,10 +18,12 @@ import {
   customers,
   notificationDeliveries,
   payments,
+  requestLogs,
   webhookDeliveries,
   webhookEvents,
   webhooks,
 } from '../db/schema/index.ts'
+import { REQUEST_LOG_LIMIT } from '../http/request-log.ts'
 import {
   NOTIFIABLE_EVENTS,
   NOTIFICATION_LABEL,
@@ -274,9 +276,32 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
        */
       .get('/webhooks/events', () => ({ events: WEBHOOK_EVENTS }))
 
-      /** The deliveries, newest first; `accountId` narrows them to one account. */
+      /**
+       * The deliveries, newest first; `accountId` narrows them to one account. An
+       * event no webhook took (none registered, or none subscribed to it) is listed
+       * too, as NO_WEBHOOK: what the account produced is visible before a webhook
+       * exists to receive it.
+       */
       .get('/webhooks/deliveries', async ({ query }) => {
         const accountId = query.accountId ? String(query.accountId) : undefined
+        const limit = Number(query.limit ?? 50)
+        const delivered = ctx.db
+          .select({ id: webhookDeliveries.id })
+          .from(webhookDeliveries)
+          .where(eq(webhookDeliveries.eventId, webhookEvents.id))
+        const unsent = await ctx.db
+          .select({
+            id: webhookEvents.id,
+            event: webhookEvents.event,
+            eventId: webhookEvents.id,
+            payload: webhookEvents.payload,
+            dateCreated: webhookEvents.dateCreated,
+            eventAtMs: webhookEvents.createdAtMs,
+          })
+          .from(webhookEvents)
+          .where(and(accountId ? eq(webhookEvents.accountId, accountId) : undefined, notExists(delivered)))
+          .orderBy(desc(webhookEvents.createdAtMs))
+          .limit(limit)
         const rows = await ctx.db
           .select({
             id: webhookDeliveries.id,
@@ -293,6 +318,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             event: webhookEvents.event,
             eventId: webhookEvents.id,
             payload: webhookEvents.payload,
+            eventAtMs: webhookEvents.createdAtMs,
           })
           .from(webhookDeliveries)
           .innerJoin(webhookEvents, eq(webhookDeliveries.eventId, webhookEvents.id))
@@ -300,9 +326,82 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           .where(accountId ? eq(webhookDeliveries.accountId, accountId) : undefined)
           // `sequence` is per webhook; the event time orders across webhooks.
           .orderBy(desc(webhookEvents.createdAtMs), desc(webhookDeliveries.sequence))
-          .limit(Number(query.limit ?? 50))
+          .limit(limit)
 
+        const data = [
+          ...rows,
+          ...unsent.map((e) => ({
+            ...e,
+            webhookId: null,
+            webhookName: null,
+            url: null,
+            status: 'NO_WEBHOOK' as const,
+            attempt: 0,
+            nextAttemptAtMs: null,
+            lastStatusCode: null,
+            lastError: null,
+            lastAttemptAt: null,
+          })),
+        ]
+          // Stable: a delivery keeps its place among the deliveries of the same event.
+          .sort((a, b) => b.eventAtMs - a.eventAtMs)
+          .slice(0, limit)
+          .map(({ eventAtMs: _, ...row }) => row)
+        return { data }
+      })
+
+      /**
+       * Logs de Requisições: the account's calls to the API, newest first, without
+       * their bodies (`/request-logs/:id` has them). `status` narrows to `success`
+       * (2xx) or `error` (the rest).
+       */
+      .get('/request-logs', async ({ query }) => {
+        const accountId = query.accountId ? String(query.accountId) : undefined
+        const outcome =
+          query.status === 'success'
+            ? and(gte(requestLogs.status, 200), lt(requestLogs.status, 300))
+            : query.status === 'error'
+              ? or(lt(requestLogs.status, 200), gte(requestLogs.status, 300))
+              : undefined
+        const rows = await ctx.db
+          .select({
+            id: requestLogs.id,
+            method: requestLogs.method,
+            path: requestLogs.path,
+            query: requestLogs.query,
+            status: requestLogs.status,
+            apiKeyName: apiKeys.name,
+            dateCreated: requestLogs.dateCreated,
+          })
+          .from(requestLogs)
+          .leftJoin(apiKeys, eq(requestLogs.apiKeyId, apiKeys.id))
+          .where(and(accountId ? eq(requestLogs.accountId, accountId) : undefined, outcome))
+          .orderBy(desc(requestLogs.id))
+          .limit(Math.min(Number(query.limit ?? 100), REQUEST_LOG_LIMIT))
         return { data: rows }
+      })
+
+      /** One call of the Logs de Requisições, with what went in and what came back. */
+      .get('/request-logs/:id', async ({ params }) => {
+        const [row] = await ctx.db
+          .select({
+            id: requestLogs.id,
+            accountId: requestLogs.accountId,
+            method: requestLogs.method,
+            path: requestLogs.path,
+            query: requestLogs.query,
+            status: requestLogs.status,
+            apiKeyName: apiKeys.name,
+            requestBody: requestLogs.requestBody,
+            responseBody: requestLogs.responseBody,
+            dateCreated: requestLogs.dateCreated,
+          })
+          .from(requestLogs)
+          .leftJoin(apiKeys, eq(requestLogs.apiKeyId, apiKeys.id))
+          .where(eq(requestLogs.id, Number(params.id)))
+          .limit(1)
+        if (!row) throw notFound('Log de requisição')
+        return row
       })
 
       /**
