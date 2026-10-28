@@ -6,15 +6,16 @@
 //   <mock>-api-details.json  what a row opens to, loaded on the first click:
 //                            { [id]: { description, params, fields, examples, responses } }
 //
-//   Asaas:    every operation of spec/openapi.json, live unless GET /_admin/coverage lists it
-//             as answered with 501.
+//   Asaas:    every operation of spec/openapi.json with the mock's spec/overlays applied (the
+//             corrections of Asaas's published spec), live unless GET /_admin/coverage lists
+//             it as answered with 501.
 //   WhatsApp: every operation of spec/<version>, live when the mock simulates it with state
 //             (the reference the panel inlines at GET /), otherwise it answers Meta's example.
 //
 // usage: node scripts/site-api-data.mjs [asaas-url] [whatsapp-url]
 //        (defaults http://localhost:45445 and http://localhost:3010; start them with make up,
 //        and run bun install in mocks/whatsapp once for its yaml parser)
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -148,8 +149,31 @@ const count = (groups) => {
   return `${ops.length} operations, ${ops.filter((o) => o.live).length} live`
 }
 
+/**
+ * The mock's corrections of Asaas's published spec (spec/overlays, each with its
+ * reason and source), applied as the mock applies them: JSON Patch add, remove, replace.
+ */
+function applyOverlays(spec, dir) {
+  const unescape = (s) => s.replace(/~1/g, '/').replace(/~0/g, '~')
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
+    for (const op of JSON.parse(readFileSync(join(dir, file), 'utf8')).patch ?? []) {
+      const keys = op.path.split('/').slice(1).map(unescape)
+      const last = keys.pop()
+      const parent = keys.reduce((o, k) => o?.[k], spec)
+      if (!parent) continue
+      if (op.op === 'remove') delete parent[last]
+      else if (op.op === 'add' && Array.isArray(parent) && last === '-') parent.push(op.value)
+      else parent[last] = op.value
+    }
+  }
+  return spec
+}
+
 // ── Asaas ──
-const asaasSpec = JSON.parse(readFileSync(join(root, 'mocks/asaas/spec/openapi.json'), 'utf8'))
+const asaasSpec = applyOverlays(
+  JSON.parse(readFileSync(join(root, 'mocks/asaas/spec/openapi.json'), 'utf8')),
+  join(root, 'mocks/asaas/spec/overlays'),
+)
 const coverage = await (await fetch(`${asaasUrl}/_admin/coverage`)).json()
 const stubbed = new Set(coverage.notImplemented)
 const asaas = build(asaasSpec, (id) => !stubbed.has(id))

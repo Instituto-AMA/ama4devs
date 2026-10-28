@@ -1,0 +1,11 @@
+{
+  "_why": "The spec marks `creditCard` and `creditCardHolderInfo` as required in SubscriptionUpdateCreditCardRequestDTO (PUT /v3/subscriptions/{id}/creditCard). Asaas's own reference page for this call says the opposite for a saved card: `creditCardToken` is \"a token valid for the subscription's customer; when it is provided, the creditCard and creditCardHolderInfo fields are not required\". Only `remoteIp` stays required. While the `required` was in the schema, swapping a subscription to a saved card was refused before the handler ran. The handler keeps requiring both when no token is sent; that error's text was not captured from the sandbox, so it keeps the shape the mock answered before. Same defect as overlay 005, on the subscription side. spec/openapi.json stays untouched so the drift diff against upstream stays clean.",
+  "_source": "https://docs.asaas.com/reference/atualizar-cartao-de-credito-assinatura",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/components/schemas/SubscriptionUpdateCreditCardRequestDTO/required",
+      "value": ["remoteIp"]
+    }
+  ]
+}

@@ -601,6 +601,12 @@ export const subscriptionHandlers: HandlerMap = {
     const sub = await findOwned(ctx, auth, params.id!)
     const b = (body ?? {}) as Record<string, any>
 
+    // A saved card needs only its token (spec/overlays/007); a new card needs the
+    // card and its holder.
+    if (!b.creditCardToken && !b.creditCardHolderInfo) {
+      throw invalid('creditCardHolderInfo', 'Expected required property')
+    }
+
     const creditCardId = await resolveCreditCard(ctx, auth, sub.customerId, b)
     if (!creditCardId) {
       throw invalid('creditCard', 'Informe os dados do cartão ou um creditCardToken.')

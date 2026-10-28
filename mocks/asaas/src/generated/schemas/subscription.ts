@@ -177,8 +177,8 @@ export const SubscriptionSaveWithCreditCardResponse = Type.Object({
 export type SubscriptionSaveWithCreditCardResponse = (typeof SubscriptionSaveWithCreditCardResponse)['static']
 
 export const SubscriptionUpdateCreditCardRequest = Type.Object({
-    "creditCard": CreditCardRequest,
-    "creditCardHolderInfo": CreditCardHolderInfoRequest,
+    "creditCard": Type.Optional(Nullable(CreditCardRequest)),
+    "creditCardHolderInfo": Type.Optional(Nullable(CreditCardHolderInfoRequest)),
     "creditCardToken": Type.Optional(Nullable(Type.String({ description: "Credit card token for using the credit card tokenization functionality. If informed, the fields above are not mandatory.", examples: ["a75a1d98-c52d-4a6b-a413-71e00b193c99"] }))),
     "remoteIp": Type.String({ description: "IP from where the customer is making the purchase. Your server's IP must not be entered.", examples: ["116.213.42.532"] }),
   })

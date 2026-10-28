@@ -141,7 +141,7 @@ curl -X POST localhost:45445/_admin/clock/set \
                 <h3>In your compose</h3>
                 <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.7.0   <span class="c"># pin a version, or :latest</span>
+    image: ghcr.io/instituto-ama/asaas-mock:0.7.1   <span class="c"># pin a version, or :latest</span>
     ports:
       - '45445:45445'
     environment:

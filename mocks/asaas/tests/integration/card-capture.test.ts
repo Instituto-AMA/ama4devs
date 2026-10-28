@@ -147,10 +147,17 @@ describe('automatic capture of a saved card', () => {
         remoteIp: '116.213.42.53',
       },
     })
+    // Without a token, the new card's holder is required.
+    const noHolder = await h.api.call('update-subscription-credit-card', {
+      params: { id: subscription },
+      body: { remoteIp: '116.213.42.53' },
+    })
+    expect(noHolder.status).toBe(400)
+
+    // A saved card needs only its token (Asaas's reference; spec/overlays/007).
     const swap = await h.api.call('update-subscription-credit-card', {
       params: { id: subscription },
-      // The vendored spec requires the holder info next to a token.
-      body: { creditCardToken: tok.body.creditCardToken, creditCardHolderInfo: holderInfo, remoteIp: '116.213.42.53' },
+      body: { creditCardToken: tok.body.creditCardToken, remoteIp: '116.213.42.53' },
     })
     expect(swap.status).toBe(200)
 
