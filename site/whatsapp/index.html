@@ -72,42 +72,8 @@
       <div class="hero-copy">
         <h1>WhatsApp, with you on the other phone.</h1>
         <p class="lead">The Cloud API of the Meta Graph API v23.0 on <code>localhost</code>, routed and validated against Meta's own OpenAPI file. <strong>And you play the user</strong>: answer, read, react, send a voice note, call the business back, or have Meta reject a template, on demand. Every webhook reaches your machine, signed.</p>
-        <div class="runbox">
-          <div class="run-tabs" role="tablist" aria-label="How to run">
-            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Ready image</button>
-            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Build from source</button>
-            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Run everything</button>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <p class="run-why">The fastest way: the ready image, straight from GHCR, no login.</p>
-            <div class="run-step">
-              <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
-docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:3010</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <p class="run-why">To run from the source, or after changing the mock.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-docker build -t whatsapp-mock mocks/whatsapp
-docker run -d -p 3010:3010 whatsapp-mock</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:3010</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <p class="run-why">With the Asaas mock and Mailpit, wired together: Asaas sends its payer templates through this mock.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-make setup</code></pre>
-              <span class="run-out">WhatsApp at <code>localhost:3010</code>, Asaas at <code>localhost:45445</code>, e-mails at <code>localhost:8025</code></span>
-            </div>
-          </div>
-        </div>
         <div class="actions">
-          <a class="key" href="quick-start/">Quick start</a>
+          <a class="key confirm" href="#run">Run it on your machine</a>
           <a class="key" href="#use-cases">Use cases</a>
         </div>
       </div>
@@ -149,6 +115,64 @@ make setup</code></pre>
         <p class="machine-note">A real run of the image: the calls, the webhook fields and Meta's error code for a template that does not exist. Only the paper is drawn.</p>
       </div>
     </div>
+
+    <section class="band" id="run" aria-labelledby="run-title">
+      <div class="wrap">
+        <h2 id="run-title">Run it on your machine.</h2>
+        <p class="intro">Four ways, from the fastest to the most complete. The image is public: no login.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <section class="way" id="run-pull" aria-labelledby="run-pull-title">
+              <h3 id="run-pull-title">Ready image</h3>
+              <p class="way-why">The fastest way: the image straight from GHCR.</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+              <p class="way-out">Panel and API at <code>localhost:3010</code></p>
+            </section>
+
+            <section class="way" id="run-compose" aria-labelledby="run-compose-title">
+              <h3 id="run-compose-title">In your docker-compose</h3>
+              <p class="way-why">To run next to your application, in its compose.</p>
+              <div class="code"><pre><code>services:
+  whatsapp:
+    image: ghcr.io/instituto-ama/whatsapp-mock:0.4.1
+    ports:
+      - '3010:3010'
+    environment:
+      WEBHOOK_URL: http://my-app:4000/webhooks/whatsapp   <span class="c"># your application</span>
+      WEBHOOK_SECRET: my-app-secret                       <span class="c"># signs x-hub-signature-256</span>
+      MOCK_ALLOWED_HOSTS: whatsapp
+    volumes:
+      - whatsapp-data:/app/data
+
+volumes:
+  whatsapp-data:</code></pre></div>
+              <p class="way-out">From your application: <code>http://whatsapp:3010/v23.0</code>, with any bearer token.</p>
+            </section>
+
+            <section class="way" id="run-build" aria-labelledby="run-build-title">
+              <h3 id="run-build-title">Build from source</h3>
+              <p class="way-why">To run from the source, or after changing the mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
+              <p class="way-out">Panel and API at <code>localhost:3010</code></p>
+            </section>
+
+            <section class="way" id="run-all" aria-labelledby="run-all-title">
+              <h3 id="run-all-title">Run everything</h3>
+              <p class="way-why">With the Asaas mock and Mailpit, wired together: Asaas sends its payer templates through this mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre></div>
+              <p class="way-out">WhatsApp at <code>localhost:3010</code>, Asaas at <code>localhost:45445</code>, e-mails at <code>localhost:8025</code></p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="band" id="why" aria-labelledby="why-title">
       <div class="wrap">

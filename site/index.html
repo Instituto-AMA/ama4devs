@@ -82,61 +82,8 @@
       <div class="hero-copy">
         <h1>WhatsApp and Asaas, running on your machine.</h1>
         <p class="lead">Mock servers of the APIs your product depends on, for local development, tests and CI, starting with WhatsApp and Asaas. Point your application at <code>localhost</code>: same paths, same bodies, same webhooks. <strong>And time moves when you say so</strong>: a month of billing runs in a second, and you watch your own code react to it.</p>
-        <div class="runbox" id="run">
-          <div class="run-tabs" role="tablist" aria-label="How to run">
-            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Ready image</button>
-            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Build from source</button>
-            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Run everything</button>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <p class="run-why">The fastest way: the ready image, straight from GHCR, no login.</p>
-            <div class="run-step">
-              <span class="run-label">WhatsApp</span>
-              <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
-docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:3010</code></span>
-            </div>
-            <div class="run-step">
-              <span class="run-label">Asaas</span>
-              <pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
-docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
-  ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on</span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <p class="run-why">To run from the source, or after changing a mock.</p>
-            <div class="run-step">
-              <span class="run-label">Source</span>
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs</code></pre>
-            </div>
-            <div class="run-step">
-              <span class="run-label">WhatsApp</span>
-              <pre><code>docker build -t whatsapp-mock mocks/whatsapp
-docker run -d -p 3010:3010 whatsapp-mock</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:3010</code></span>
-            </div>
-            <div class="run-step">
-              <span class="run-label">Asaas</span>
-              <pre><code>docker build -t asaas-mock mocks/asaas
-docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
-              <span class="run-out">Panel and API at <code>localhost:45445</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <p class="run-why">Both mocks and Mailpit, wired together: every Asaas charge tells the payer by e-mail and by WhatsApp.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-make setup</code></pre>
-              <span class="run-out">WhatsApp at <code>localhost:3010</code>, Asaas at <code>localhost:45445</code>, e-mails at <code>localhost:8025</code></span>
-            </div>
-          </div>
-        </div>
         <div class="actions">
-          <a class="key" href="whatsapp/quick-start/">Start with WhatsApp</a>
-          <a class="key" href="asaas/quick-start/">Start with Asaas</a>
+          <a class="key confirm" href="#run">Run it on your machine</a>
         </div>
       </div>
 
@@ -184,6 +131,101 @@ make setup</code></pre>
       </div>
     </div>
 
+    <section class="band" id="run" aria-labelledby="run-title">
+      <div class="wrap">
+        <h2 id="run-title">Run it on your machine.</h2>
+        <p class="intro">Four ways, from the fastest to the most complete. The images are public: no login.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <section class="way" id="run-pull" aria-labelledby="run-pull-title">
+              <h3 id="run-pull-title">Ready image</h3>
+              <p class="way-why">The fastest way: the image straight from GHCR.</p>
+              <p class="way-label">WhatsApp</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+              <p class="way-out">Panel and API at <code>localhost:3010</code></p>
+              <p class="way-label">Asaas</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on</p>
+            </section>
+
+            <section class="way" id="run-compose" aria-labelledby="run-compose-title">
+              <h3 id="run-compose-title">In your docker-compose</h3>
+              <p class="way-why">To run next to your application, in its compose. The two mocks find each other by service name.</p>
+              <div class="code"><pre><code>services:
+  asaas:
+    image: ghcr.io/instituto-ama/asaas-mock:0.7.1
+    ports:
+      - '45445:45445'
+    environment:
+      ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` is a literal `$` in compose</span>
+      CLOCK_MODE: VIRTUAL_FLOWING
+      MOCK_ALLOWED_HOSTS: asaas
+      WHATSAPP_MOCK_URL: http://whatsapp:3010
+      NOTIFY_CALLBACK_BASE_URL: http://asaas:45445
+    volumes:
+      - asaas-data:/data
+
+  whatsapp:
+    image: ghcr.io/instituto-ama/whatsapp-mock:0.4.1
+    ports:
+      - '3010:3010'
+    environment:
+      WEBHOOK_URL: http://my-app:4000/webhooks/whatsapp   <span class="c"># your application</span>
+      MOCK_ALLOWED_HOSTS: whatsapp
+    volumes:
+      - whatsapp-data:/app/data
+
+volumes:
+  asaas-data:
+  whatsapp-data:</code></pre></div>
+              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. For the payer e-mails, add a Mailpit and point <code>MAILPIT_URL</code> at it.</p>
+            </section>
+
+            <section class="way" id="run-build" aria-labelledby="run-build-title">
+              <h3 id="run-build-title">Build from source</h3>
+              <p class="way-why">To run from the source, or after changing a mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs</code></pre></div>
+              <p class="way-label">WhatsApp</p>
+              <div class="code"><pre><code>docker build -t whatsapp-mock mocks/whatsapp
+docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
+              <p class="way-label">Asaas</p>
+              <div class="code"><pre><code>docker build -t asaas-mock mocks/asaas
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
+            </section>
+
+            <section class="way" id="run-all" aria-labelledby="run-all-title">
+              <h3 id="run-all-title">Run everything</h3>
+              <p class="way-why">Both mocks and Mailpit, wired together. Every Asaas charge tells the payer twice: an e-mail in Mailpit and a WhatsApp template through the WhatsApp mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup        <span class="c"># starts everything and writes the addresses into .env</span></code></pre></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Service</th><th>Address</th><th>What you open there</th></tr></thead>
+                  <tbody>
+                    <tr><td>WhatsApp mock</td><td><code>localhost:3010</code></td><td>Chats, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
+                    <tr><td>Asaas mock</td><td><code>localhost:45445</code></td><td>The simulator's panel and its clock; the API at <code>/v3</code></td></tr>
+                    <tr><td>Mailpit</td><td><code>localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>To point your project at them: write the addresses into its <code>.env</code> and switch the base URLs.</p>
+              <div class="code"><pre><code>make setup TARGET_ENV=../my-app/.env</code></pre></div>
+              <div class="code"><pre><code><span class="del">- https://graph.facebook.com/v23.0</span>
+<span class="add">+ http://localhost:3010/v23.0</span>
+<span class="del">- https://api-sandbox.asaas.com/v3</span>
+<span class="add">+ http://localhost:45445/v3</span></code></pre></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="band" aria-labelledby="mocks-title">
       <div class="wrap">
         <h2 id="mocks-title">A pool of provider mocks.</h2>
@@ -203,8 +245,6 @@ make setup</code></pre>
                 <li>Business, WABAs and numbers with the SMS code onboarding.</li>
                 <li>Webhooks signed with <code>x-hub-signature-256</code>.</li>
               </ul>
-              <div class="code"><pre><code>docker run --rm -p 3010:3010 \
-  ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
               <div class="links">
                 <a class="key confirm small" href="whatsapp/quick-start/">Quick start</a>
                 <a class="key small" href="whatsapp/#use-cases">Use cases</a>
@@ -228,9 +268,6 @@ make setup</code></pre>
                 <li>Saved cards charged on the due date, with Asaas's retries.</li>
                 <li>Payer notifications by e-mail and WhatsApp.</li>
               </ul>
-              <div class="code"><pre><code>docker run --rm -p 45445:45445 \
-  -e CLOCK_MODE=VIRTUAL_FLOWING \
-  ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
               <div class="links">
                 <a class="key confirm small" href="asaas/quick-start/">Quick start</a>
                 <a class="key small" href="asaas/#use-cases">Use cases</a>
@@ -256,47 +293,6 @@ make setup</code></pre>
       </div>
     </section>
 
-    <section class="band" id="both" aria-labelledby="both-title">
-      <div class="wrap">
-        <h2 id="both-title">Run both together.</h2>
-        <p class="intro">The repository's compose file runs the two mocks and Mailpit, already wired to each other. Every charge the Asaas mock creates tells the payer twice: an e-mail that lands in Mailpit and a WhatsApp template sent through the WhatsApp mock's Cloud API. No step by hand.</p>
-
-        <div class="paper-shadow" style="margin-top: 40px">
-          <div class="sheet narrow">
-            <ol class="steps">
-              <li>
-                <h3>Start everything</h3>
-                <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-make setup        <span class="c"># starts the mocks and writes their addresses into .env</span></code></pre></div>
-              </li>
-              <li>
-                <h3>Open the three screens</h3>
-                <div class="table-wrap">
-                  <table>
-                    <thead><tr><th>Service</th><th>Address</th><th>What you open there</th></tr></thead>
-                    <tbody>
-                      <tr><td>WhatsApp mock</td><td><code>http://localhost:3010</code></td><td>The chat panel, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
-                      <tr><td>Asaas mock</td><td><code>http://localhost:45445</code></td><td>The simulator's panel and its clock; the API at <code>/v3</code></td></tr>
-                      <tr><td>Mailpit</td><td><code>http://localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </li>
-              <li>
-                <h3>Point your application at them</h3>
-                <p>Write the addresses into your own project's environment, then switch the base URLs:</p>
-                <div class="code"><pre><code>make setup TARGET_ENV=../my-app/.env</code></pre></div>
-                <div class="code"><pre><code><span class="del">- https://graph.facebook.com/v23.0</span>
-<span class="add">+ http://localhost:3010/v23.0</span>
-<span class="del">- https://api-sandbox.asaas.com/v3</span>
-<span class="add">+ http://localhost:45445/v3</span></code></pre></div>
-              </li>
-            </ol>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <section class="band" aria-labelledby="images-title">
       <div class="wrap">

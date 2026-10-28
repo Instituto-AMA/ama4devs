@@ -56,43 +56,8 @@
       <div class="hero-copy">
         <h1>Asaas, com um relógio que você move.</h1>
         <p class="lead">A API v3 do Asaas no <code>localhost</code>, com as regras de negócio capturadas do sandbox real. <strong>Avance dias e veja a cobrança acontecer sozinha</strong>: a assinatura cobra o cartão salvo no vencimento e retenta quando ele recusa, o boleto vence com multa e juros, o cartão cai em D+32, e cada webhook chega na sua máquina. Depure a máquina de estados de pagamento de ponta a ponta, em vez de chutar.</p>
-        <div class="runbox">
-          <div class="run-tabs" role="tablist" aria-label="Como rodar">
-            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Imagem pronta</button>
-            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Gerar do código</button>
-            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Subir tudo junto</button>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <p class="run-why">O jeito mais rápido: a imagem pronta, direto do GHCR, sem login.</p>
-            <div class="run-step">
-              <pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
-docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
-  ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
-              <span class="run-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado</span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <p class="run-why">Para rodar a partir do código-fonte, ou depois de alterar o mock.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-docker build -t asaas-mock mocks/asaas
-docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
-              <span class="run-out">Painel e API em <code>localhost:45445</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <p class="run-why">Junto com o mock do WhatsApp e o Mailpit, já conectados: cada cobrança avisa o pagador por e-mail e por WhatsApp.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-make setup</code></pre>
-              <span class="run-out">Asaas em <code>localhost:45445</code>, WhatsApp em <code>localhost:3010</code>, e-mails em <code>localhost:8025</code></span>
-            </div>
-          </div>
-        </div>
         <div class="actions">
-          <a class="key" href="quick-start/">Quick start</a>
+          <a class="key confirm" href="#run">Rodar na sua máquina</a>
           <a class="key" href="#use-cases">Casos de uso</a>
         </div>
       </div>
@@ -144,6 +109,65 @@ make setup</code></pre>
         <p class="machine-note">Uma execução real da imagem: um cartão salvo configurado para aprovar três cobranças paga três faturas no vencimento; a quarta é recusada às 8h, 14h e 20h e mais três vezes no dia seguinte, como o Asaas retenta, e vence. Só o papel é desenhado.</p>
       </div>
     </div>
+
+    <section class="band" id="run" aria-labelledby="run-title">
+      <div class="wrap">
+        <h2 id="run-title">Rode na sua máquina.</h2>
+        <p class="intro">Quatro jeitos, do mais rápido ao mais completo. A imagem é pública: nenhum login.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <section class="way" id="run-pull" aria-labelledby="run-pull-title">
+              <h3 id="run-pull-title">Imagem pronta</h3>
+              <p class="way-why">O jeito mais rápido: a imagem direto do GHCR.</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+              <p class="way-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado</p>
+            </section>
+
+            <section class="way" id="run-compose" aria-labelledby="run-compose-title">
+              <h3 id="run-compose-title">No seu docker-compose</h3>
+              <p class="way-why">Para subir junto com a sua aplicação, no compose dela.</p>
+              <div class="code"><pre><code>services:
+  asaas:
+    image: ghcr.io/instituto-ama/asaas-mock:0.7.1
+    ports:
+      - '45445:45445'
+    environment:
+      ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` é um `$` literal no compose</span>
+      CLOCK_MODE: VIRTUAL_FLOWING
+      MOCK_ALLOWED_HOSTS: asaas
+    volumes:
+      - asaas-data:/data
+
+volumes:
+  asaas-data:</code></pre></div>
+              <p class="way-out">Da sua aplicação: <code>http://asaas:45445/v3</code>. Para os avisos ao pagador, adicione o mock do WhatsApp (<code>WHATSAPP_MOCK_URL</code>) e um Mailpit (<code>MAILPIT_URL</code>), como na <a href="../#run-compose">página inicial</a>.</p>
+            </section>
+
+            <section class="way" id="run-build" aria-labelledby="run-build-title">
+              <h3 id="run-build-title">Gerar do código</h3>
+              <p class="way-why">Para rodar a partir do código-fonte, ou depois de alterar o mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t asaas-mock mocks/asaas
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
+              <p class="way-out">Painel e API em <code>localhost:45445</code></p>
+            </section>
+
+            <section class="way" id="run-all" aria-labelledby="run-all-title">
+              <h3 id="run-all-title">Subir tudo junto</h3>
+              <p class="way-why">Junto com o mock do WhatsApp e o Mailpit, já conectados: cada cobrança avisa o pagador por e-mail e por WhatsApp.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre></div>
+              <p class="way-out">Asaas em <code>localhost:45445</code>, WhatsApp em <code>localhost:3010</code>, e-mails em <code>localhost:8025</code></p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="band" id="clock" aria-labelledby="clock-title">
       <div class="wrap">

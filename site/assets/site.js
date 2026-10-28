@@ -124,29 +124,6 @@
     }
   }
 
-  // ── Ways to run: tabs over the command panels ──
-  for (const box of document.querySelectorAll('.runbox')) {
-    const tabs = [...box.querySelectorAll('[role="tab"]')]
-    const select = (tab) => {
-      for (const t of tabs) {
-        const on = t === tab
-        t.setAttribute('aria-selected', String(on))
-        t.tabIndex = on ? 0 : -1
-        document.getElementById(t.getAttribute('aria-controls')).hidden = !on
-      }
-    }
-    tabs.forEach((tab, i) => {
-      tab.addEventListener('click', () => select(tab))
-      tab.addEventListener('keydown', (e) => {
-        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
-        if (!step) return
-        const next = tabs[(i + step + tabs.length) % tabs.length]
-        select(next)
-        next.focus()
-      })
-    })
-  }
-
   // ── Copy keys on code ──
   const addCopy = (block) => {
     const button = document.createElement('button')
@@ -165,29 +142,7 @@
     })
     block.appendChild(button)
   }
-  for (const block of document.querySelectorAll('.code, .cmd')) {
-    if (!block.closest('.runbox')) addCopy(block)
-  }
-  // The ways to run share one copy key, beside the tabs: it copies the visible panel.
-  for (const box of document.querySelectorAll('.runbox')) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'key small copy'
-    button.textContent = words.copy
-    button.addEventListener('click', async () => {
-      const panel = [...box.querySelectorAll('.cmd')].find((p) => !p.hidden)
-      try {
-        // Only the commands: the labels and addresses around them are for reading.
-        const text = [...panel.querySelectorAll('pre')].map((p) => p.innerText.replace(/\n$/, '')).join('\n\n')
-        await navigator.clipboard.writeText(text)
-        button.textContent = words.copied
-        setTimeout(() => { button.textContent = words.copy }, 1600)
-      } catch {
-        button.remove()
-      }
-    })
-    box.querySelector('.run-tabs').appendChild(button)
-  }
+  for (const block of document.querySelectorAll('.code, .cmd')) addCopy(block)
 
   // ── The index follows the reading ──
   const links = [...document.querySelectorAll('.toc a[href^="#"]')]

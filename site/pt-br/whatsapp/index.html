@@ -56,42 +56,8 @@
       <div class="hero-copy">
         <h1>WhatsApp, com você no outro celular.</h1>
         <p class="lead">A Cloud API da Meta Graph API v23.0 no <code>localhost</code>, roteada e validada contra o próprio arquivo OpenAPI da Meta. <strong>E você faz o papel do usuário</strong>: responde, lê, reage, manda um áudio, liga de volta para a empresa, ou faz a Meta reprovar um template, na hora que quiser. Todo webhook chega na sua máquina, assinado.</p>
-        <div class="runbox">
-          <div class="run-tabs" role="tablist" aria-label="Como rodar">
-            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Imagem pronta</button>
-            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Gerar do código</button>
-            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Subir tudo junto</button>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
-            <p class="run-why">O jeito mais rápido: a imagem pronta, direto do GHCR, sem login.</p>
-            <div class="run-step">
-              <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
-docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
-              <span class="run-out">Painel e API em <code>localhost:3010</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
-            <p class="run-why">Para rodar a partir do código-fonte, ou depois de alterar o mock.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-docker build -t whatsapp-mock mocks/whatsapp
-docker run -d -p 3010:3010 whatsapp-mock</code></pre>
-              <span class="run-out">Painel e API em <code>localhost:3010</code></span>
-            </div>
-          </div>
-          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
-            <p class="run-why">Junto com o mock do Asaas e o Mailpit, já conectados: o Asaas manda os templates de aviso ao pagador por este mock.</p>
-            <div class="run-step">
-              <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs
-make setup</code></pre>
-              <span class="run-out">WhatsApp em <code>localhost:3010</code>, Asaas em <code>localhost:45445</code>, e-mails em <code>localhost:8025</code></span>
-            </div>
-          </div>
-        </div>
         <div class="actions">
-          <a class="key" href="quick-start/">Quick start</a>
+          <a class="key confirm" href="#run">Rodar na sua máquina</a>
           <a class="key" href="#use-cases">Casos de uso</a>
         </div>
       </div>
@@ -133,6 +99,64 @@ make setup</code></pre>
         <p class="machine-note">Uma execução real da imagem: as chamadas, os campos do webhook e o código de erro da Meta para um template que não existe. Só o papel é desenhado.</p>
       </div>
     </div>
+
+    <section class="band" id="run" aria-labelledby="run-title">
+      <div class="wrap">
+        <h2 id="run-title">Rode na sua máquina.</h2>
+        <p class="intro">Quatro jeitos, do mais rápido ao mais completo. A imagem é pública: nenhum login.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <section class="way" id="run-pull" aria-labelledby="run-pull-title">
+              <h3 id="run-pull-title">Imagem pronta</h3>
+              <p class="way-why">O jeito mais rápido: a imagem direto do GHCR.</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+              <p class="way-out">Painel e API em <code>localhost:3010</code></p>
+            </section>
+
+            <section class="way" id="run-compose" aria-labelledby="run-compose-title">
+              <h3 id="run-compose-title">No seu docker-compose</h3>
+              <p class="way-why">Para subir junto com a sua aplicação, no compose dela.</p>
+              <div class="code"><pre><code>services:
+  whatsapp:
+    image: ghcr.io/instituto-ama/whatsapp-mock:0.4.1
+    ports:
+      - '3010:3010'
+    environment:
+      WEBHOOK_URL: http://minha-app:4000/webhooks/whatsapp   <span class="c"># a sua aplicação</span>
+      WEBHOOK_SECRET: segredo-da-app                         <span class="c"># assina o x-hub-signature-256</span>
+      MOCK_ALLOWED_HOSTS: whatsapp
+    volumes:
+      - whatsapp-data:/app/data
+
+volumes:
+  whatsapp-data:</code></pre></div>
+              <p class="way-out">Da sua aplicação: <code>http://whatsapp:3010/v23.0</code>, com qualquer token bearer.</p>
+            </section>
+
+            <section class="way" id="run-build" aria-labelledby="run-build-title">
+              <h3 id="run-build-title">Gerar do código</h3>
+              <p class="way-why">Para rodar a partir do código-fonte, ou depois de alterar o mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
+              <p class="way-out">Painel e API em <code>localhost:3010</code></p>
+            </section>
+
+            <section class="way" id="run-all" aria-labelledby="run-all-title">
+              <h3 id="run-all-title">Subir tudo junto</h3>
+              <p class="way-why">Junto com o mock do Asaas e o Mailpit, já conectados: o Asaas manda os templates de aviso ao pagador por este mock.</p>
+              <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre></div>
+              <p class="way-out">WhatsApp em <code>localhost:3010</code>, Asaas em <code>localhost:45445</code>, e-mails em <code>localhost:8025</code></p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="band" id="why" aria-labelledby="why-title">
       <div class="wrap">
