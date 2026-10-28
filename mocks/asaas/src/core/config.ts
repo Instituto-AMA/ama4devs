@@ -6,6 +6,7 @@
  * provadas contra a API real — então, quando descobrirmos uma divergência, a
  * correção tem que ser mudança de configuração, não de código.
  */
+import { parseCaptureSchedule, type CaptureSlot } from '../domain/card-capture.ts'
 import { bp, cents, type BasisPoints, type Cents } from '../domain/money.ts'
 import type { ClockMode } from './clock.ts'
 
@@ -225,6 +226,11 @@ export interface Config {
     splitDivergenceGraceBusinessDays: number
     /** TODO(regra): a doc não define o default de `minutesToExpire` do checkout. */
     checkoutMinutesToExpire: number
+    /**
+     * When a recurring card charge is tried on and after its due date
+     * (src/domain/card-capture.ts). The panel can override it at runtime.
+     */
+    cardCaptureSchedule: CaptureSlot[]
   }
 
   fees: FeeTable
@@ -287,6 +293,7 @@ export function loadConfig(): Config {
       bankSlipSettlementDays: num('BANK_SLIP_SETTLEMENT_DAYS', 1),
       splitDivergenceGraceBusinessDays: num('SPLIT_DIVERGENCE_GRACE_BUSINESS_DAYS', 2),
       checkoutMinutesToExpire: num('CHECKOUT_MINUTES_TO_EXPIRE', 60),
+      cardCaptureSchedule: parseCaptureSchedule(process.env.CARD_CAPTURE_SCHEDULE),
     },
 
     fees: {

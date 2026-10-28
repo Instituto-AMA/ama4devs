@@ -37,6 +37,7 @@ import { maxInstallmentsForBrand } from '../../domain/installments.ts'
 import { applyTransition } from '../payments/apply.ts'
 import { serializePayment, type PaymentRow } from '../payments/serializer.ts'
 import { createPayment, parseCreateBody } from '../payments/service.ts'
+import { cardApproves } from './capture.ts'
 import { loadCardRules } from './test-cards.ts'
 
 export type CreditCardRow = typeof creditCards.$inferSelect
@@ -181,7 +182,8 @@ export async function resolveCard(
       info: {
         last4: row.last4,
         brand: row.brand as CardInfo['brand'],
-        outcome: row.simulatedOutcome,
+        // A card whose approvals ran out (panel, /_admin/credit-cards) declines.
+        outcome: cardApproves(row) ? row.simulatedOutcome : 'DECLINE',
       },
       existing: row,
       raw: null,
@@ -246,6 +248,7 @@ export async function persistCard(
     expiryMonth: raw.expiryMonth,
     expiryYear: raw.expiryYear,
     simulatedOutcome: declinesOnCharge(resolved.info.outcome) ? 'DECLINE' : 'APPROVE',
+    approvalsLeft: null,
     holderInfo: raw.holderInfo,
     dateCreated: ctx.clock.timestamp(),
   }

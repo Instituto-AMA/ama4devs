@@ -34,7 +34,7 @@
     "description": "Local simulator of the Asaas API v3 with a virtual clock: customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks to localhost and payer notifications.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Docker (linux/amd64, linux/arm64)",
-    "softwareVersion": "0.6.4",
+    "softwareVersion": "0.7.0",
     "url": "https://instituto-ama.github.io/ama4devs/asaas/",
     "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock",
     "license": "https://opensource.org/licenses/MIT",
@@ -72,7 +72,7 @@
     <div class="wrap hero">
       <div class="hero-copy">
         <h1>Asaas, with a clock you move.</h1>
-        <p class="lead">The Asaas API v3 on <code>localhost</code>, with the business rules captured from the real sandbox. <strong>Skip days and watch billing happen</strong>: boletos go overdue with their fine and interest, cards credit at D+32, subscriptions charge, and every webhook reaches your machine. Debug your payment state machine end to end, not by guessing.</p>
+        <p class="lead">The Asaas API v3 on <code>localhost</code>, with the business rules captured from the real sandbox. <strong>Skip days and watch billing happen</strong>: subscriptions charge the saved card on the due date and retry when it is refused, boletos go overdue with their fine and interest, cards credit at D+32, and every webhook reaches your machine. Debug your payment state machine end to end, not by guessing.</p>
         <div class="cmd">
           <pre><code>docker run --rm -p 45445:45445 \
   -e CLOCK_MODE=VIRTUAL_FLOWING \
@@ -84,7 +84,7 @@
         </div>
       </div>
 
-      <div class="printer" data-printer='["Create a boleto", "Skip 3 days", "Pay it 5 days later", "Skip 1 day"]'>
+      <div class="printer" data-printer='["Subscribe on a saved card", "Skip three months", "The fourth due date", "The next day"]'>
         <div class="tape-window">
           <div class="tape" aria-live="polite">
             <div class="tape-head">
@@ -96,32 +96,39 @@
               </div>
             </div>
             <ol class="lines">
-              <li class="ln day" data-step="0">30/11/2026</li>
-              <li class="ln" data-step="0"><time>20:35</time><span class="ev"><b>POST</b> /v3/payments <span class="ok">200</span><br>BOLETO R$ 120,00, due 02/12<br>fine 2%, interest 1% a month<br>pay_819132726177 <b>PENDING</b></span></li>
-              <li class="ln hook" data-step="0"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CREATED <span class="ok">200</span></span></li>
-              <li class="ln" data-step="1"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":3}</span></li>
-              <li class="ln day" data-step="1">03/12/2026</li>
-              <li class="ln hook" data-step="1"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_OVERDUE <span class="ok">200</span></span></li>
-              <li class="ln" data-step="2"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":5}</span></li>
-              <li class="ln day" data-step="2">08/12/2026</li>
-              <li class="ln" data-step="2"><time>20:35</time><span class="ev"><b>POST</b> /v3/sandbox/payment/…/confirm <span class="ok">200</span><br><b>CONFIRMED</b> R$ 122,64<br>fine R$ 2,40 + interest R$ 0,24</span></li>
-              <li class="ln hook" data-step="2"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
-              <li class="ln" data-step="3"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":1}</span></li>
-              <li class="ln day" data-step="3">09/12/2026</li>
-              <li class="ln hook" data-step="3"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_RECEIVED <span class="ok">200</span></span></li>
-              <li class="ln total" data-step="3"><time></time><span class="ev">credited R$ 120,65 net</span></li>
+              <li class="ln day" data-step="0">27/10/2026</li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>POST</b> /v3/creditCard/tokenizeCreditCard <span class="ok">200</span><br>MASTERCARD 8829, token 4e0459fd…</span></li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>PUT</b> /_admin/credit-cards/4e0459fd… <span class="ok">200</span><br>{"approvalsLeft":3}</span></li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>POST</b> /v3/subscriptions <span class="ok">200</span><br>CREDIT_CARD R$ 129,90 MONTHLY<br>first due 05/11</span></li>
+              <li class="ln hook" data-step="0"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CREATED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/11/2026</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/12/2026</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/01/2027</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="2">05/02/2027</li>
+              <li class="ln hook" data-step="2"><time>08:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="2"><time>14:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="2"><time>20:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span><br>charge still PENDING</span></li>
+              <li class="ln day" data-step="3">06/02/2027</li>
+              <li class="ln hook" data-step="3"><time>08:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>14:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>20:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>20:21</time><span class="ev"><i>webhook</i> PAYMENT_OVERDUE <span class="ok">200</span></span></li>
+              <li class="ln total" data-step="3"><time></time><span class="ev">3 paid, 6 attempts refused, 1 overdue</span></li>
             </ol>
           </div>
         </div>
         <div class="machine">
           <div class="slot"></div>
           <div class="keypad">
-            <button class="key confirm" type="button" data-next><span>Create a boleto</span></button>
+            <button class="key confirm" type="button" data-next><span>Subscribe on a saved card</span></button>
             <button class="key correct" type="button" data-again>Again</button>
           </div>
           <div class="progress" aria-hidden="true"></div>
         </div>
-        <p class="machine-note">A real run of the image: the calls, the events and the values, with the fine charged once and the interest pro rata die. Only the paper is drawn.</p>
+        <p class="machine-note">A real run of the image: a saved card set to approve three charges pays three invoices on their due dates, then the fourth is refused at 08:00, 14:00 and 20:00 and three more times the next day, as Asaas retries, and goes overdue. Only the paper is drawn.</p>
       </div>
     </div>
 
@@ -135,6 +142,7 @@
               <h3>Each day, a tick</h3>
               <ul>
                 <li>Subscriptions create their next charges, 40 days ahead.</li>
+                <li>A saved card is charged on the due date at 08:00, 14:00 and 20:00, and retried the next day.</li>
                 <li>Unpaid charges go <code>OVERDUE</code>; the fine once, interest per day.</li>
                 <li>Boleto credits at D+1 business day, card at D+32, debit at D+3.</li>
                 <li>Webhooks fire and retry on Asaas's own schedule.</li>
@@ -169,6 +177,22 @@
 
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
+            <article class="case" id="case-card-renewal">
+              <h3>A saved card that pays three months and fails the fourth</h3>
+              <p class="proves">Proves your subscription state machine end to end, instead of by guessing: invoices paid by the saved card on their due dates, then a refused renewal. Asaas tries the card at 08:00, 14:00 and 20:00 on the due date and three more times the next day; each refusal is a <code>PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</code> while the charge stays <code>PENDING</code>, then <code>PAYMENT_OVERDUE</code> and no more attempts. Does your app warn the customer on the first refusal, keep access during the retries, and suspend only when the charge goes overdue?</p>
+              <div class="code"><pre><code><span class="c"># a saved card that approves three charges, then declines</span>
+curl -X PUT localhost:45445/_admin/credit-cards/&lt;creditCardToken&gt; \
+  -H 'content-type: application/json' -d '{"approvalsLeft":3}'
+curl localhost:45445/v3/subscriptions -H 'access_token: $aact_hmlg_local' \
+  -H 'content-type: application/json' -d '{"customer":"cus_…","billingType":"CREDIT_CARD",
+  "value":129.9,"nextDueDate":"2026-11-05","cycle":"MONTHLY","creditCardToken":"&lt;creditCardToken&gt;",
+  "creditCardHolderInfo":{…},"remoteIp":"127.0.0.1"}'
+curl -X POST localhost:45445/_admin/clock/advance -d '{"days":102}' -H 'content-type: application/json'
+<span class="c"># from 27/10 to 06/02, the day after the fourth due date:</span>
+<span class="c"># → 3 × PAYMENT_CONFIRMED, then 6 × PAYMENT_CREDIT_CARD_CAPTURE_REFUSED and PAYMENT_OVERDUE</span></code></pre></div>
+              <p class="proves">Swap the card with <code>PUT /v3/subscriptions/{id}/creditCard</code> during the retries and the next attempt captures with the new one. The schedule is configuration: <code>CARD_CAPTURE_SCHEDULE</code> or the panel's test cards page.</p>
+            </article>
+
             <article class="case" id="case-card-credit">
               <h3>A card charge that credits 32 days later</h3>
               <p class="proves">Proves your order flow tells <code>PAYMENT_CONFIRMED</code> (the customer paid) from <code>PAYMENT_RECEIVED</code> (the money is yours), and that your balance view waits for the second.</p>

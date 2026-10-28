@@ -236,6 +236,7 @@ export async function createPayment(
     callback: input.callback ?? null,
 
     creditCardId: input.creditCardId ?? null,
+    captureAttempts: 0,
     pixQrCodeId: null,
     pixTransactionId: null,
 

@@ -68,6 +68,15 @@ This is not a mock of static responses.
   `SEQUENTIALLY` with real head-of-line blocking, and `interrupted` at the end.
 - **Real card handling.** Tokenization (the PAN is never stored), test cards,
   pre-authorization and capture, chargeback. Card installments charge the card.
+- **A subscription charges its saved card by itself, with Asaas's retries.** On the
+  due date the card is tried at 08:00, 14:00 and 20:00, and three more times the
+  next day. Every refusal is a `PAYMENT_CREDIT_CARD_CAPTURE_REFUSED` webhook while
+  the charge stays `PENDING`; when the schedule runs out it goes `OVERDUE` and is
+  not tried again. A new card on the subscription (`PUT /v3/subscriptions/{id}/creditCard`) is used by
+  the pending charges. Make a saved card approve N more charges and then decline
+  (panel, or `PUT /_admin/credit-cards/:token`): skip months on the clock and watch
+  three invoices get paid, the fourth refused six times, and your state machine
+  react. The schedule is configuration (`CARD_CAPTURE_SCHEDULE`, or the panel).
 - **Recurrence.** A subscription creates its **first charge on creation**; the
   next ones are born 40 days before their due date. In an installment plan the
   rounding remainder goes to the **last** installment, and on a card each one
@@ -195,6 +204,7 @@ Mailpit next to it and set `WHATSAPP_MOCK_URL` and `MAILPIT_URL` (the root
 | `NOTIFY_CALLBACK_BASE_URL` | `http://localhost:<PORT>` | This server as the WhatsApp mock reaches it (`http://asaas:45445` in compose) |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | The two UIs, as the browser opens them from Integrations |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Sender of the e-mails |
+| `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | When a recurring card charge is tried: days after the due date @ local time. Asaas's own account (blog.asaas.com, 2024) is the default; the panel overrides it at runtime |
 | `DATABASE_PATH` | `/data/asaas.db` | Mount a volume at `/data` to persist |
 | `TZ` | `America/Sao_Paulo` | |
 
@@ -211,6 +221,8 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET`, `POST /_admin/accounts/:id/keys` · `POST …/keys/:keyId/rotate` · `PUT`, `DELETE …/keys/:keyId` | API keys |
 | `GET /_admin/webhooks/events` · `GET /_admin/webhooks/deliveries` · `POST /_admin/webhooks/pause` | Webhook events, the delivery log, freeze the dispatcher |
 | `GET /_admin/test-cards` · `PUT /_admin/test-cards/policy` · `POST`, `DELETE /_admin/test-cards…` | Test cards and the accept-any policy |
+| `GET /_admin/credit-cards` · `PUT /_admin/credit-cards/:token` | Saved cards; `{"outcome": "DECLINE"}` or `{"approvalsLeft": 3}` (approve 3 more, then decline) |
+| `GET`, `PUT /_admin/card-capture/schedule` | The retry schedule of recurring card charges, `{"schedule": "0@08:00,1@08:00"}`; `""` is Asaas's default |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Payer notifications: sent, resend, channel health, what arrived |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operations with an engine; the fee table |
 

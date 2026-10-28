@@ -89,6 +89,7 @@
                 <li><strong>Split entre contas.</strong> Cada chave de API é uma conta, com <code>walletId</code> e saldo próprios. Um split move dinheiro e lança nos dois extratos.</li>
                 <li><strong>Webhooks como o Asaas manda.</strong> O header <code>asaas-access-token</code>; só HTTP 200 conta; 15 tentativas na tabela do Asaas; <code>SEQUENTIALLY</code> com bloqueio real da fila; <code>interrupted</code> no fim.</li>
                 <li><strong>Cartão.</strong> Tokenização (o número do cartão nunca é guardado), cartões de teste, pré-autorização e captura, chargeback. O parcelamento no cartão cobra o cartão.</li>
+                <li><strong>Cobrança recorrente no cartão.</strong> No vencimento o cartão salvo da assinatura é tentado às 8h, 14h e 20h, e mais três vezes no dia seguinte (o relato do próprio Asaas sobre o cronograma, blog.asaas.com, 2024). Cada recusa é um <code>PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</code> com a cobrança ainda <code>PENDING</code>; depois <code>OVERDUE</code>, sem novas tentativas. Um cartão novo na assinatura vale para as cobranças pendentes. Um cartão salvo pode aprovar mais N cobranças e depois recusar.</li>
                 <li><strong>Recorrência.</strong> A assinatura cria a primeira cobrança na criação; as seguintes nascem 40 dias antes do vencimento. No parcelamento, a sobra do arredondamento vai para a última parcela, e no cartão a parcela <code>n</code> cai em D+32×n.</li>
                 <li><strong>Pix que paga.</strong> <code>GET /v3/payments/{id}/pixQrCode</code> devolve um BR Code EMV de verdade, com CRC16 e a imagem do QR: a câmera do celular lê.</li>
                 <li><strong>Onboarding de subconta.</strong> Criar a subconta, listar os documentos pendentes, enviar um arquivo, aprovar.</li>
@@ -151,6 +152,7 @@
                     <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Este servidor como o mock do WhatsApp o alcança</td></tr>
                     <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>As duas telas, como o navegador as abre a partir de Integrações</td></tr>
                     <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Remetente dos e-mails</td></tr>
+                    <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O painel troca em tempo de execução</td></tr>
                     <tr><td><code>DATABASE_PATH</code></td><td><code>/data/asaas.db</code></td><td>Monte um volume em <code>/data</code> para persistir</td></tr>
                     <tr><td><code>TZ</code></td><td><code>America/Sao_Paulo</code></td><td>Fuso horário</td></tr>
                   </tbody>

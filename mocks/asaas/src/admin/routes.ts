@@ -48,6 +48,13 @@ import {
   removeTestCard,
   setCardPolicy,
 } from '../modules/credit-cards/test-cards.ts'
+import {
+  captureSchedule,
+  describeSchedule,
+  listSavedCards,
+  setCaptureSchedule,
+  setSavedCardBehavior,
+} from '../modules/credit-cards/capture.ts'
 import { serialize as serializeCustomer } from '../modules/customers/handlers.ts'
 import { WebhookEvent } from '../generated/enums.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
@@ -498,6 +505,34 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         await removeTestCard(ctx, params.number)
         return { deleted: true, number: params.number }
       })
+
+      /** The saved (tokenized) cards, with how each answers its next charge. */
+      .get('/credit-cards', async () => ({ data: await listSavedCards(ctx) }))
+
+      /**
+       * How a saved card answers from now on: `outcome` for every charge, and
+       * `approvalsLeft` to approve that many more charges and then decline.
+       */
+      .put(
+        '/credit-cards/:token',
+        async ({ params, body }) => setSavedCardBehavior(ctx, params.token, body),
+        {
+          body: t.Object({
+            outcome: t.Optional(t.Union([t.Literal('APPROVE'), t.Literal('DECLINE')])),
+            approvalsLeft: t.Optional(t.Union([t.Integer({ minimum: 0 }), t.Null()])),
+          }),
+        },
+      )
+
+      /** When recurring card charges are tried: Asaas's schedule unless changed here. */
+      .get('/card-capture/schedule', async () => describeSchedule(await captureSchedule(ctx)))
+
+      /** Sets the schedule, "0@08:00,0@14:00,0@20:00,1@08:00"; "" goes back to the default. */
+      .put(
+        '/card-capture/schedule',
+        async ({ body }) => describeSchedule(await setCaptureSchedule(ctx, body.schedule)),
+        { body: t.Object({ schedule: t.String() }) },
+      )
 
       /**
        * Todas as contas do simulador, com SALDO e CHAVE DE API.

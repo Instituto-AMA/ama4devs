@@ -69,6 +69,15 @@ Não é um mock de respostas fixas.
 - **Cartão de verdade.** Tokenização (o número nunca é guardado), cartões de
   teste, pré-autorização e captura, chargeback. Parcelamento no cartão cobra o
   cartão.
+- **A assinatura cobra o cartão salvo sozinha, com as retentativas do Asaas.** No
+  vencimento o cartão é tentado às 8h, 14h e 20h, e mais três vezes no dia
+  seguinte. Cada recusa é um webhook `PAYMENT_CREDIT_CARD_CAPTURE_REFUSED` com a
+  cobrança ainda `PENDING`; esgotado o cronograma ela vira `OVERDUE` e não é mais
+  tentada. Um cartão novo na assinatura (`PUT /v3/subscriptions/{id}/creditCard`) vale para as cobranças
+  pendentes. Faça um cartão salvo aprovar mais N cobranças e depois recusar (painel,
+  ou `PUT /_admin/credit-cards/:token`): pule meses no relógio e veja três faturas
+  pagas, a quarta recusada seis vezes, e a sua máquina de estados reagir. O
+  cronograma é configuração (`CARD_CAPTURE_SCHEDULE`, ou o painel).
 - **Recorrência.** Uma assinatura cria a **primeira cobrança na hora**; as
   seguintes nascem 40 dias antes do vencimento. No parcelamento, a sobra do
   arredondamento vai para a **última** parcela, e no cartão cada uma credita em
@@ -196,6 +205,7 @@ e o Mailpit ao lado e defina `WHATSAPP_MOCK_URL` e `MAILPIT_URL` (o
 | `NOTIFY_CALLBACK_BASE_URL` | `http://localhost:<PORT>` | Este servidor como o WhatsApp mock o alcança (`http://asaas:45445` no compose) |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | As duas telas, como o navegador as abre a partir de Integrações |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Remetente dos e-mails |
+| `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O padrão é o relato do próprio Asaas (blog.asaas.com, 2024); o painel troca em tempo de execução |
 | `DATABASE_PATH` | `/data/asaas.db` | Monte um volume em `/data` para guardar |
 | `TZ` | `America/Sao_Paulo` | |
 
@@ -212,6 +222,8 @@ Não existem no Asaas: ficam fora de `/v3`, sem `access_token`, e desligam com
 | `GET`, `POST /_admin/accounts/:id/keys` · `POST …/keys/:keyId/rotate` · `PUT`, `DELETE …/keys/:keyId` | Chaves de API |
 | `GET /_admin/webhooks/events` · `GET /_admin/webhooks/deliveries` · `POST /_admin/webhooks/pause` | Eventos de webhook, o registro de entregas, congelar o despacho |
 | `GET /_admin/test-cards` · `PUT /_admin/test-cards/policy` · `POST`, `DELETE /_admin/test-cards…` | Cartões de teste e a política de aceitar qualquer um |
+| `GET /_admin/credit-cards` · `PUT /_admin/credit-cards/:token` | Cartões salvos; `{"outcome": "DECLINE"}` ou `{"approvalsLeft": 3}` (aprova mais 3, depois recusa) |
+| `GET`, `PUT /_admin/card-capture/schedule` | O cronograma de retentativa da cobrança recorrente no cartão, `{"schedule": "0@08:00,1@08:00"}`; `""` volta ao padrão do Asaas |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operações com regra de negócio; a tabela de taxas |
 

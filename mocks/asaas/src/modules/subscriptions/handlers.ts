@@ -592,8 +592,10 @@ export const subscriptionHandlers: HandlerMap = {
   },
 
   /**
-   * Troca o cartão da assinatura. Vale para as cobranças FUTURAS — as já geradas
-   * mantêm o cartão com que nasceram.
+   * Swaps the subscription's card without charging it. Asaas: "As cobranças
+   * pendentes já vinculadas à assinatura também são atualizadas para utilizar o
+   * novo cartão." So the next capture attempts of a pending charge use it; an
+   * OVERDUE charge is not tried again.
    */
   'update-subscription-credit-card': async ({ ctx, auth, params, body }) => {
     const sub = await findOwned(ctx, auth, params.id!)
@@ -608,6 +610,17 @@ export const subscriptionHandlers: HandlerMap = {
       .update(subscriptions)
       .set({ creditCardId, billingType: 'CREDIT_CARD' })
       .where(eq(subscriptions.id, sub.id))
+
+    await ctx.db
+      .update(payments)
+      .set({ creditCardId, billingType: 'CREDIT_CARD' })
+      .where(
+        and(
+          eq(payments.subscriptionId, sub.id),
+          eq(payments.status, 'PENDING'),
+          eq(payments.deleted, false),
+        ),
+      )
 
     return serializeSubscription(ctx.db, await findOwned(ctx, auth, sub.id))
   },

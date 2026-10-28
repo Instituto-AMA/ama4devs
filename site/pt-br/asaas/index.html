@@ -55,7 +55,7 @@
     <div class="wrap hero">
       <div class="hero-copy">
         <h1>Asaas, com um relógio que você move.</h1>
-        <p class="lead">A API v3 do Asaas no <code>localhost</code>, com as regras de negócio capturadas do sandbox real. <strong>Avance dias e veja a cobrança acontecer sozinha</strong>: o boleto vence com multa e juros, o cartão cai em D+32, a assinatura cobra, e cada webhook chega na sua máquina. Depure a máquina de estados de pagamento de ponta a ponta, em vez de chutar.</p>
+        <p class="lead">A API v3 do Asaas no <code>localhost</code>, com as regras de negócio capturadas do sandbox real. <strong>Avance dias e veja a cobrança acontecer sozinha</strong>: a assinatura cobra o cartão salvo no vencimento e retenta quando ele recusa, o boleto vence com multa e juros, o cartão cai em D+32, e cada webhook chega na sua máquina. Depure a máquina de estados de pagamento de ponta a ponta, em vez de chutar.</p>
         <div class="cmd">
           <pre><code>docker run --rm -p 45445:45445 \
   -e CLOCK_MODE=VIRTUAL_FLOWING \
@@ -67,7 +67,7 @@
         </div>
       </div>
 
-      <div class="printer" data-printer='["Criar um boleto", "Pular 3 dias", "Pagar 5 dias depois", "Pular 1 dia"]'>
+      <div class="printer" data-printer='["Assinar com cartão salvo", "Pular três meses", "O quarto vencimento", "O dia seguinte"]'>
         <div class="tape-window">
           <div class="tape" aria-live="polite">
             <div class="tape-head">
@@ -79,32 +79,39 @@
               </div>
             </div>
             <ol class="lines">
-              <li class="ln day" data-step="0">30/11/2026</li>
-              <li class="ln" data-step="0"><time>20:35</time><span class="ev"><b>POST</b> /v3/payments <span class="ok">200</span><br>BOLETO R$ 120,00, vence 02/12<br>multa 2%, juros 1% ao mês<br>pay_819132726177 <b>PENDING</b></span></li>
-              <li class="ln hook" data-step="0"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CREATED <span class="ok">200</span></span></li>
-              <li class="ln" data-step="1"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":3}</span></li>
-              <li class="ln day" data-step="1">03/12/2026</li>
-              <li class="ln hook" data-step="1"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_OVERDUE <span class="ok">200</span></span></li>
-              <li class="ln" data-step="2"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":5}</span></li>
-              <li class="ln day" data-step="2">08/12/2026</li>
-              <li class="ln" data-step="2"><time>20:35</time><span class="ev"><b>POST</b> /v3/sandbox/payment/…/confirm <span class="ok">200</span><br><b>CONFIRMED</b> R$ 122,64<br>multa R$ 2,40 + juros R$ 0,24</span></li>
-              <li class="ln hook" data-step="2"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
-              <li class="ln" data-step="3"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":1}</span></li>
-              <li class="ln day" data-step="3">09/12/2026</li>
-              <li class="ln hook" data-step="3"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_RECEIVED <span class="ok">200</span></span></li>
-              <li class="ln total" data-step="3"><time></time><span class="ev">creditado R$ 120,65 líquido</span></li>
+              <li class="ln day" data-step="0">27/10/2026</li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>POST</b> /v3/creditCard/tokenizeCreditCard <span class="ok">200</span><br>MASTERCARD 8829, token 4e0459fd…</span></li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>PUT</b> /_admin/credit-cards/4e0459fd… <span class="ok">200</span><br>{"approvalsLeft":3}</span></li>
+              <li class="ln" data-step="0"><time>21:21</time><span class="ev"><b>POST</b> /v3/subscriptions <span class="ok">200</span><br>CREDIT_CARD R$ 129,90 MONTHLY<br>primeiro vencimento 05/11</span></li>
+              <li class="ln hook" data-step="0"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CREATED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/11/2026</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/12/2026</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="1">05/01/2027</li>
+              <li class="ln hook" data-step="1"><time>21:21</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln day" data-step="2">05/02/2027</li>
+              <li class="ln hook" data-step="2"><time>08:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="2"><time>14:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="2"><time>20:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span><br>cobrança ainda PENDING</span></li>
+              <li class="ln day" data-step="3">06/02/2027</li>
+              <li class="ln hook" data-step="3"><time>08:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>14:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>20:21</time><span class="ev"><i>webhook</i> <span class="bad">PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</span></span></li>
+              <li class="ln hook" data-step="3"><time>20:21</time><span class="ev"><i>webhook</i> PAYMENT_OVERDUE <span class="ok">200</span></span></li>
+              <li class="ln total" data-step="3"><time></time><span class="ev">3 pagas, 6 tentativas recusadas, 1 vencida</span></li>
             </ol>
           </div>
         </div>
         <div class="machine">
           <div class="slot"></div>
           <div class="keypad">
-            <button class="key confirm" type="button" data-next><span>Criar um boleto</span></button>
+            <button class="key confirm" type="button" data-next><span>Assinar com cartão salvo</span></button>
             <button class="key correct" type="button" data-again>De novo</button>
           </div>
           <div class="progress" aria-hidden="true"></div>
         </div>
-        <p class="machine-note">Uma execução real da imagem: as chamadas, os eventos e os valores, com a multa cobrada uma vez e os juros pro rata die. Só o papel é desenhado.</p>
+        <p class="machine-note">Uma execução real da imagem: um cartão salvo configurado para aprovar três cobranças paga três faturas no vencimento; a quarta é recusada às 8h, 14h e 20h e mais três vezes no dia seguinte, como o Asaas retenta, e vence. Só o papel é desenhado.</p>
       </div>
     </div>
 
@@ -118,6 +125,7 @@
               <h3>Cada dia, um tick</h3>
               <ul>
                 <li>Assinaturas criam as próximas cobranças, 40 dias antes.</li>
+                <li>O cartão salvo é cobrado no vencimento às 8h, 14h e 20h, e retentado no dia seguinte.</li>
                 <li>Cobranças em aberto viram <code>OVERDUE</code>; a multa uma vez, os juros por dia.</li>
                 <li>Boleto cai em D+1 útil, cartão em D+32, débito em D+3.</li>
                 <li>Webhooks disparam e retentam no cronograma do próprio Asaas.</li>
@@ -152,6 +160,22 @@
 
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
+            <article class="case" id="case-card-renewal">
+              <h3>Um cartão salvo que paga três meses e falha no quarto</h3>
+              <p class="proves">Prova a máquina de estados da sua assinatura de ponta a ponta, em vez de no chute: faturas pagas pelo cartão salvo no vencimento, e depois uma renovação recusada. O Asaas tenta o cartão às 8h, 14h e 20h no vencimento e mais três vezes no dia seguinte; cada recusa é um <code>PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</code> com a cobrança ainda <code>PENDING</code>, depois <code>PAYMENT_OVERDUE</code> e nenhuma tentativa a mais. O seu app avisa o cliente na primeira recusa, mantém o acesso durante as retentativas e só suspende quando a cobrança vence?</p>
+              <div class="code"><pre><code><span class="c"># um cartão salvo que aprova três cobranças e depois recusa</span>
+curl -X PUT localhost:45445/_admin/credit-cards/&lt;creditCardToken&gt; \
+  -H 'content-type: application/json' -d '{"approvalsLeft":3}'
+curl localhost:45445/v3/subscriptions -H 'access_token: $aact_hmlg_local' \
+  -H 'content-type: application/json' -d '{"customer":"cus_…","billingType":"CREDIT_CARD",
+  "value":129.9,"nextDueDate":"2026-11-05","cycle":"MONTHLY","creditCardToken":"&lt;creditCardToken&gt;",
+  "creditCardHolderInfo":{…},"remoteIp":"127.0.0.1"}'
+curl -X POST localhost:45445/_admin/clock/advance -d '{"days":102}' -H 'content-type: application/json'
+<span class="c"># de 27/10 a 06/02, o dia seguinte ao quarto vencimento:</span>
+<span class="c"># → 3 × PAYMENT_CONFIRMED, depois 6 × PAYMENT_CREDIT_CARD_CAPTURE_REFUSED e PAYMENT_OVERDUE</span></code></pre></div>
+              <p class="proves">Troque o cartão com <code>PUT /v3/subscriptions/{id}/creditCard</code> durante as retentativas e a próxima tentativa captura com o novo. O cronograma é configuração: <code>CARD_CAPTURE_SCHEDULE</code> ou a página de cartões de teste do painel.</p>
+            </article>
+
             <article class="case" id="case-card-credit">
               <h3>Uma cobrança no cartão que cai 32 dias depois</h3>
               <p class="proves">Prova que o seu fluxo de pedido distingue <code>PAYMENT_CONFIRMED</code> (o cliente pagou) de <code>PAYMENT_RECEIVED</code> (o dinheiro é seu), e que a tela de saldo espera o segundo.</p>

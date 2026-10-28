@@ -89,6 +89,7 @@
                 <li><strong>Split across accounts.</strong> Every API key is an account with its own <code>walletId</code> and balance. A split moves money and posts entries to both statements.</li>
                 <li><strong>Webhooks the way Asaas sends them.</strong> The <code>asaas-access-token</code> header; only HTTP 200 counts; 15 attempts on Asaas's table; <code>SEQUENTIALLY</code> with real head-of-line blocking; <code>interrupted</code> at the end.</li>
                 <li><strong>Card handling.</strong> Tokenization (the card number is never stored), test cards, pre-authorization and capture, chargeback. Card installments charge the card.</li>
+                <li><strong>Recurring card charges.</strong> On the due date the subscription's saved card is tried at 08:00, 14:00 and 20:00, and three more times the next day (Asaas's own account of its schedule, blog.asaas.com, 2024). Each refusal is a <code>PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</code> while the charge stays <code>PENDING</code>; then <code>OVERDUE</code>, never tried again. A new card on the subscription is used by its pending charges. A saved card can be set to approve N more charges and then decline.</li>
                 <li><strong>Recurrence.</strong> A subscription creates its first charge on creation; the next ones are born 40 days before their due date. In an installment plan the rounding remainder goes to the last installment, and on a card installment <code>n</code> credits at D+32×n.</li>
                 <li><strong>Pix that pays.</strong> <code>GET /v3/payments/{id}/pixQrCode</code> returns a real EMV BR Code with its CRC16 and the QR image: a phone camera reads it.</li>
                 <li><strong>Subaccount onboarding.</strong> Create the subaccount, list the pending documents, upload a file, approve it.</li>
@@ -151,6 +152,7 @@
                     <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>This server as the WhatsApp mock reaches it</td></tr>
                     <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>The two screens, as the browser opens them from Integrations</td></tr>
                     <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Sender of the e-mails</td></tr>
+                    <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>When a recurring card charge is tried: days after the due date @ local time. The panel overrides it at runtime</td></tr>
                     <tr><td><code>DATABASE_PATH</code></td><td><code>/data/asaas.db</code></td><td>Mount a volume at <code>/data</code> to persist</td></tr>
                     <tr><td><code>TZ</code></td><td><code>America/Sao_Paulo</code></td><td>Time zone</td></tr>
                   </tbody>

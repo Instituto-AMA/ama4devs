@@ -8,7 +8,7 @@
  */
 import type { Job } from '../scheduler.ts'
 import { anticipationSettlement } from './anticipation-jobs.ts'
-import { creditSettlement, overdue } from './payment-jobs.ts'
+import { cardCapture, creditSettlement, overdue } from './payment-jobs.ts'
 import { retentionPurge } from './retention-purge.ts'
 import { splitDivergenceExpiry, splitRelease } from './split-jobs.ts'
 import { subscriptionGeneration } from './subscription-jobs.ts'
@@ -27,6 +27,8 @@ export { subscriptionGeneration }
  * 2. PENDING com dueDate < hoje → OVERDUE. A partir daqui juros e multa correm.
  *    → Track A — src/scheduler/jobs/payment-jobs.ts
  */
+export { cardCapture }
+
 export { overdue }
 
 /**
@@ -86,6 +88,7 @@ export { retentionPurge }
 /** A ordem desta lista É a ordem de execução. */
 export const JOBS: Job[] = [
   subscriptionGeneration,
+  cardCapture,
   overdue,
   creditSettlement,
   splitRelease,

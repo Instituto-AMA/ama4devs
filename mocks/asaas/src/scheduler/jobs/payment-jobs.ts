@@ -5,10 +5,23 @@
  * garante que uma cobrança que vence pelo scheduler emita o mesmo webhook e o
  * mesmo lançamento que uma que vence por uma sandbox action.
  */
-import { and, eq, lt, lte } from 'drizzle-orm'
+import { and, eq, isNull, lt, lte, ne, or } from 'drizzle-orm'
 import { payments } from '../../db/schema/index.ts'
+import { captureDue } from '../../modules/credit-cards/capture.ts'
 import { applyTransition } from '../../modules/payments/apply.ts'
 import type { Job } from '../scheduler.ts'
+
+/**
+ * A recurring card charge on and after its due date: the saved card is tried on
+ * Asaas's schedule, and the charge goes OVERDUE only when the schedule runs out.
+ * Runs on every tick (attempts fall at hours of the day) and before `overdue`.
+ */
+export const cardCapture: Job = {
+  name: 'card-capture',
+  async run({ ctx, report }) {
+    await captureDue(ctx, report)
+  },
+}
 
 /**
  * PENDING com dueDate < hoje → OVERDUE.
@@ -30,6 +43,12 @@ export const overdue: Job = {
           eq(payments.status, 'PENDING'),
           eq(payments.deleted, false),
           lt(payments.dueDate, today),
+          // A recurring card charge is still being tried: card-capture owns it.
+          or(
+            ne(payments.billingType, 'CREDIT_CARD'),
+            isNull(payments.creditCardId),
+            isNull(payments.subscriptionId),
+          ),
         ),
       )
 

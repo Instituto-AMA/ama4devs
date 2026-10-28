@@ -77,6 +77,11 @@ export const payments = sqliteTable(
     callback: json<CallbackConfig>('callback'),
 
     creditCardId: text('credit_card_id'),
+    /**
+     * How many times the saved card was tried for this charge on its due date
+     * (src/domain/card-capture.ts). Only recurring card charges move it.
+     */
+    captureAttempts: cents('capture_attempts').notNull().default(0),
     pixQrCodeId: text('pix_qr_code_id'),
     pixTransactionId: text('pix_transaction_id'),
 
@@ -205,6 +210,14 @@ export const creditCards = sqliteTable(
     simulatedOutcome: text('simulated_outcome', {
       enum: ['APPROVE', 'DECLINE'],
     }).notNull(),
+
+    /**
+     * Ours, not Asaas's: how many more charges this saved card approves before it
+     * starts declining (null = no limit). It plays the card that works for months
+     * and then hits its limit or gets cancelled, which the sandbox cannot produce.
+     * Set from the panel or PUT /_admin/credit-cards/:token.
+     */
+    approvalsLeft: cents('approvals_left'),
 
     holderInfo: json<Record<string, unknown>>('holder_info'),
     dateCreated: datetime('date_created').notNull(),

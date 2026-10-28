@@ -28,6 +28,7 @@ import {
   type Tone,
 } from '../../components/ui.tsx'
 import * as I from '../../icons.ts'
+import { CaptureSchedule, SavedCards } from './SavedCards.tsx'
 import './TestCards.css'
 
 interface Trigger {
@@ -258,6 +259,10 @@ export function TestCards() {
       <Card title="Cartões de teste">
         <TestCardList />
       </Card>
+
+      <SavedCards />
+
+      <CaptureSchedule />
 
       <Card
         title="Erros que não vêm do número"
