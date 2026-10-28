@@ -6,11 +6,11 @@
 #   scripts/publish.sh asaas [whatsapp ...]
 #   DRY_RUN=1 scripts/publish.sh asaas      # builds both platforms, pushes nothing
 #
-# Image: ghcr.io/instituto-ama/<mock>-mock. Tags:
-#   <version>     the mock's package.json version; pushed only while that tag does not exist,
-#                 so a version tag never moves (projects pin it)
-#   sha-<commit>  every publish, immutable
-#   latest        every publish
+# Image: ghcr.io/instituto-ama/<mock>-mock. One image per version, two tags on it:
+#   <version>     the mock's package.json version; a version tag never moves (projects pin it)
+#   latest        the newest version, the same image
+# A mock whose version is already published is not pushed at all: bump its package.json.
+# So `latest` is always a version, and the registry holds no image without one.
 #
 # Needs `docker login ghcr.io` with write:packages (the workflow logs in with GITHUB_TOKEN).
 # Outside CI it refuses a mock directory with uncommitted changes, so an image always matches
@@ -78,15 +78,14 @@ publish() {
   [[ -n "$description" && -n "$license" ]] || die "mocks/${mock}/Dockerfile lacks the org.opencontainers.image.description or .licenses label"
   [[ "$description" != *,* ]] || die "the description label of mocks/${mock}/Dockerfile has a comma, which splits a buildx annotation"
 
-  local tags=(--tag "${image}:sha-${short}" --tag "${image}:latest")
   if docker buildx imagetools inspect "${image}:${version}" >/dev/null 2>&1; then
-    warn "${image}:${version} is already published and never moves: bump mocks/${mock}/package.json to publish a new version (pushing sha-${short} and latest only)"
+    warn "${image}:${version} is already published and never moves: bump mocks/${mock}/package.json to publish (nothing pushed for ${short})"
     if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-      printf '::warning title=%s version not bumped::%s:%s already exists; pushed sha-%s and latest only\n' "$mock" "$image" "$version" "$short"
+      printf '::warning title=%s version not bumped::%s:%s already exists; nothing pushed\n' "$mock" "$image" "$version"
     fi
-  else
-    tags+=(--tag "${image}:${version}")
+    return 0
   fi
+  local tags=(--tag "${image}:${version}" --tag "${image}:latest")
 
   local output=(--push)
   if [[ -n "${DRY_RUN:-}" ]]; then

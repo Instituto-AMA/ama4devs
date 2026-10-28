@@ -94,11 +94,12 @@ without cloning this repository:
 | Asaas | `ghcr.io/instituto-ama/asaas-mock` |
 | WhatsApp | `ghcr.io/instituto-ama/whatsapp-mock` |
 
-Tags:
+One image per version, with two tags:
 
 - `<version>`: the `version` of the mock's `package.json`. It is pushed once and never moves; pin it.
-- `sha-<commit>`: every publish, immutable.
-- `latest`: the last publish.
+- `latest`: the newest version, the same image.
+
+The registry keeps nothing else: no image without a version.
 
 How it is published:
 
@@ -113,7 +114,7 @@ How it is published:
   uncommitted changes, so an image always matches a commit. It builds with its own buildx
   builder (`ama4devs`); the foreign platform runs under emulation and is slow.
 - **Releasing a version:** bump `version` in the mock's `package.json` in the change that alters
-  it. A push without a bump publishes `sha-<commit>` and `latest` only, and the workflow warns.
+  it. A push without a bump publishes nothing for that mock, and the workflow warns.
 
 ## The Asaas Mock
 

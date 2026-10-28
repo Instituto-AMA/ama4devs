@@ -56,9 +56,28 @@
       <div class="hero-copy">
         <h1>WhatsApp, com você no outro celular.</h1>
         <p class="lead">A Cloud API da Meta Graph API v23.0 no <code>localhost</code>, roteada e validada contra o próprio arquivo OpenAPI da Meta. <strong>E você faz o papel do usuário</strong>: responde, lê, reage, manda um áudio, liga de volta para a empresa, ou faz a Meta reprovar um template, na hora que quiser. Todo webhook chega na sua máquina, assinado.</p>
-        <div class="cmd">
-          <pre><code>docker run --rm -p 3010:3010 \
-  ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
+        <div class="runbox">
+          <div class="run-tabs" role="tablist" aria-label="Como rodar">
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Baixar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Gerar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clonar o repositório</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
+            <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker run -d -p 3010:3010 whatsapp-mock</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
+            <pre><code><span class="c"># junto com o mock do Asaas e o Mailpit, já conectados entre si</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre>
+          </div>
         </div>
         <div class="actions">
           <a class="key confirm" href="quick-start/">Quick start</a>

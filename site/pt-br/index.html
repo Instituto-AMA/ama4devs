@@ -49,13 +49,41 @@
       <div class="hero-copy">
         <h1>WhatsApp e Asaas rodando na sua máquina.</h1>
         <p class="lead">Simuladores das APIs de que seu produto depende, para desenvolvimento local, testes e CI, começando pelo WhatsApp e pelo Asaas. Aponte sua aplicação para o <code>localhost</code>: mesmos caminhos, mesmos corpos, mesmos webhooks. <strong>E o tempo anda quando você manda</strong>: um mês de cobrança roda em um segundo, e você vê o seu código reagir.</p>
-        <div class="cmd" id="run">
-          <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs && make setup   <span class="c"># WhatsApp, Asaas, Mailpit</span></code></pre>
+        <div class="runbox" id="run">
+          <div class="run-tabs" role="tablist" aria-label="Como rodar">
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Baixar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Gerar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clonar o repositório</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
+            <pre><code><span class="c"># imagens prontas no GHCR, sem login</span>
+docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker pull ghcr.io/instituto-ama/asaas-mock:latest
+
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
+            <pre><code><span class="c"># a imagem gerada a partir do código-fonte</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker build -t asaas-mock mocks/asaas
+
+docker run -d -p 3010:3010 whatsapp-mock
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
+            <pre><code><span class="c"># os dois mocks e o Mailpit, já conectados entre si</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre>
+          </div>
         </div>
         <div class="actions">
-          <a class="key confirm" href="#both">Subir os dois juntos</a>
-          <a class="key" href="https://github.com/Instituto-AMA/ama4devs">Estrela no GitHub</a>
+          <a class="key confirm" href="whatsapp/quick-start/">Começar pelo WhatsApp</a>
+          <a class="key confirm" href="asaas/quick-start/">Começar pelo Asaas</a>
         </div>
       </div>
 
@@ -226,7 +254,7 @@ make setup        <span class="c"># sobe os mocks e grava os endereços no .env<
               <table>
                 <thead><tr><th>Imagem</th><th>Tags</th></tr></thead>
                 <tbody>
-                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2"><code>&lt;versão&gt;</code> é publicada uma vez e nunca muda: fixe-a. <code>sha-&lt;commit&gt;</code> a cada publicação. <code>latest</code> para a última.</td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2">Uma imagem por versão. <code>&lt;versão&gt;</code> é publicada uma vez e nunca muda: fixe-a. <code>latest</code> é a versão mais nova, a mesma imagem.</td></tr>
                   <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
                 </tbody>
               </table>

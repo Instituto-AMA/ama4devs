@@ -72,9 +72,28 @@
       <div class="hero-copy">
         <h1>WhatsApp, with you on the other phone.</h1>
         <p class="lead">The Cloud API of the Meta Graph API v23.0 on <code>localhost</code>, routed and validated against Meta's own OpenAPI file. <strong>And you play the user</strong>: answer, read, react, send a voice note, call the business back, or have Meta reject a template, on demand. Every webhook reaches your machine, signed.</p>
-        <div class="cmd">
-          <pre><code>docker run --rm -p 3010:3010 \
-  ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
+        <div class="runbox">
+          <div class="run-tabs" role="tablist" aria-label="How to run">
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Pull the image</button>
+            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Build from source</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clone the repository</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
+            <pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker run -d -p 3010:3010 whatsapp-mock</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
+            <pre><code><span class="c"># with the Asaas mock and Mailpit, already wired to each other</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre>
+          </div>
         </div>
         <div class="actions">
           <a class="key confirm" href="quick-start/">Quick start</a>

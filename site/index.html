@@ -82,13 +82,41 @@
       <div class="hero-copy">
         <h1>WhatsApp and Asaas, running on your machine.</h1>
         <p class="lead">Mock servers of the APIs your product depends on, for local development, tests and CI, starting with WhatsApp and Asaas. Point your application at <code>localhost</code>: same paths, same bodies, same webhooks. <strong>And time moves when you say so</strong>: a month of billing runs in a second, and you watch your own code react to it.</p>
-        <div class="cmd" id="run">
-          <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
-cd ama4devs && make setup   <span class="c"># WhatsApp, Asaas, Mailpit</span></code></pre>
+        <div class="runbox" id="run">
+          <div class="run-tabs" role="tablist" aria-label="How to run">
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Pull the images</button>
+            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Build from source</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clone the repository</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
+            <pre><code><span class="c"># ready images on GHCR, no login</span>
+docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
+docker pull ghcr.io/instituto-ama/asaas-mock:latest
+
+docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
+            <pre><code><span class="c"># the image built from the source</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t whatsapp-mock mocks/whatsapp
+docker build -t asaas-mock mocks/asaas
+
+docker run -d -p 3010:3010 whatsapp-mock
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
+            <pre><code><span class="c"># both mocks and Mailpit, already wired to each other</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre>
+          </div>
         </div>
         <div class="actions">
-          <a class="key confirm" href="#both">Run both together</a>
-          <a class="key" href="https://github.com/Instituto-AMA/ama4devs">Star on GitHub</a>
+          <a class="key confirm" href="whatsapp/quick-start/">Start with WhatsApp</a>
+          <a class="key confirm" href="asaas/quick-start/">Start with Asaas</a>
         </div>
       </div>
 
@@ -259,7 +287,7 @@ make setup        <span class="c"># starts the mocks and writes their addresses 
               <table>
                 <thead><tr><th>Image</th><th>Tags</th></tr></thead>
                 <tbody>
-                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2"><code>&lt;version&gt;</code> is pushed once and never moved: pin it. <code>sha-&lt;commit&gt;</code> for every publish. <code>latest</code> for the last one.</td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2">One image per version. <code>&lt;version&gt;</code> is pushed once and never moves: pin it. <code>latest</code> is the newest version, the same image.</td></tr>
                   <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
                 </tbody>
               </table>

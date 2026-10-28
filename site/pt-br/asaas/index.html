@@ -56,10 +56,29 @@
       <div class="hero-copy">
         <h1>Asaas, com um relógio que você move.</h1>
         <p class="lead">A API v3 do Asaas no <code>localhost</code>, com as regras de negócio capturadas do sandbox real. <strong>Avance dias e veja a cobrança acontecer sozinha</strong>: a assinatura cobra o cartão salvo no vencimento e retenta quando ele recusa, o boleto vence com multa e juros, o cartão cai em D+32, e cada webhook chega na sua máquina. Depure a máquina de estados de pagamento de ponta a ponta, em vez de chutar.</p>
-        <div class="cmd">
-          <pre><code>docker run --rm -p 45445:45445 \
-  -e CLOCK_MODE=VIRTUAL_FLOWING \
+        <div class="runbox">
+          <div class="run-tabs" role="tablist" aria-label="Como rodar">
+            <button class="key small" type="button" role="tab" id="tab-pull" aria-controls="run-pull" aria-selected="true">Baixar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-build" aria-controls="run-build" aria-selected="false" tabindex="-1">Gerar a imagem</button>
+            <button class="key small" type="button" role="tab" id="tab-clone" aria-controls="run-clone" aria-selected="false" tabindex="-1">Clonar o repositório</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-pull" aria-labelledby="tab-pull">
+            <pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-build" aria-labelledby="tab-build" hidden>
+            <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+docker build -t asaas-mock mocks/asaas
+docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre>
+          </div>
+          <div class="cmd" role="tabpanel" id="run-clone" aria-labelledby="tab-clone" hidden>
+            <pre><code><span class="c"># junto com o mock do WhatsApp e o Mailpit, para os avisos ao pagador</span>
+git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs
+make setup</code></pre>
+          </div>
         </div>
         <div class="actions">
           <a class="key confirm" href="quick-start/">Quick start</a>
