@@ -56,8 +56,7 @@
           <ol>
             <li><a href="#conventions">Convenções</a></li>
             <li><a href="#operations">As operações /v3</a></li>
-            <li><a href="#admin">Endpoints de administração</a></li>
-            <li><a href="#mock-routes">Rotas de controle de pagamento</a></li>
+            <li><a href="#admin">Rotas de administração e de teste</a></li>
           </ol>
         </nav>
       </aside>
@@ -94,38 +93,17 @@
               </div>
             </section>
 
-            <section id="admin" aria-labelledby="admin-title">
-              <h2 id="admin-title">Endpoints de administração</h2>
-              <p>Não existem no Asaas: ficam fora de <code>/v3</code>, sem <code>access_token</code>, e desligam com <code>ADMIN_ENABLED=false</code>. O painel é construído em cima deles.</p>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Endpoint</th><th>O que faz</th></tr></thead>
-                  <tbody>
-                    <tr><td><code>GET /_admin/clock</code><br><code>POST /_admin/clock/advance</code><br><code>POST /_admin/clock/set</code></td><td>O relógio: onde está, <code>{"days": 32}</code>, <code>{"date": "2026-08-01"}</code></td></tr>
-                    <tr><td><code>POST /_admin/tick</code></td><td>Roda os jobs do dia sem mexer no relógio</td></tr>
-                    <tr><td><code>GET /_admin/accounts</code><br><code>POST /_admin/accounts</code><br><code>DELETE /_admin/accounts/:id</code></td><td>Contas com saldo e chave válida; um perfil novo; apagar um com tudo o que é dele</td></tr>
-                    <tr><td><code>GET</code>, <code>POST /_admin/accounts/:id/keys</code><br><code>POST …/keys/:keyId/rotate</code><br><code>PUT</code>, <code>DELETE …/keys/:keyId</code></td><td>Chaves de API: gerar, rotacionar, expirar, remover</td></tr>
-                    <tr><td><code>GET /_admin/webhooks/events</code><br><code>GET /_admin/webhooks/deliveries</code><br><code>POST /_admin/webhooks/pause</code></td><td>Eventos de webhook, o log de entregas com a resposta do seu endpoint, congelar o despachante</td></tr>
-                    <tr><td><code>GET /_admin/test-cards</code><br><code>PUT /_admin/test-cards/policy</code><br><code>POST</code>, <code>DELETE /_admin/test-cards…</code></td><td>Cartões de teste, a política de aceitar qualquer cartão, um cartão com desfecho forçado</td></tr>
-                    <tr><td><code>GET /_admin/credit-cards</code><br><code>PUT /_admin/credit-cards/:token</code></td><td>Cartões salvos e como cada um responde à próxima cobrança: <code>{"outcome": "DECLINE"}</code>, ou <code>{"approvalsLeft": 3}</code> para aprovar mais três e depois recusar</td></tr>
-                    <tr><td><code>GET</code>, <code>PUT /_admin/card-capture/schedule</code></td><td>Quando a cobrança recorrente no cartão é tentada: <code>{"schedule": "0@08:00,0@14:00,1@08:00"}</code>; <code>""</code> volta ao padrão do Asaas</td></tr>
-                    <tr><td><code>GET</code>, <code>POST /_admin/notifications</code><br><code>GET /_admin/notify/status</code><br><code>GET /_admin/notify/arrivals</code><br><code>POST /_admin/notify/test</code></td><td>Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou</td></tr>
-                    <tr><td><code>GET /_admin/coverage</code><br><code>GET /_admin/fees</code></td><td>Operações com motor; a tabela de taxas</td></tr>
-                  </tbody>
-                </table>
+            <section id="admin" aria-labelledby="admin-title" data-api="../../../data/asaas-admin.json" data-kind="routes">
+              <h2 id="admin-title">Rotas de administração e de teste</h2>
+              <p>Não existem no Asaas. <code>/_admin</code> (o relógio, contas e chaves, webhooks, cartões, notificações ao pagador) e <code>/_mock</code> (uma chamada para levar uma cobrança a um estado) não pedem <code>access_token</code> e desligam com <code>ADMIN_ENABLED=false</code>; o painel é construído em cima delas. Abra uma rota para ver o que ela recebe e o que responde: toda resposta abaixo, erros incluídos, foi capturada de uma execução da imagem.</p>
+              <p>Quando o seu código também puder rodar contra o sandbox real, prefira <code>POST /v3/sandbox/payment/{id}/confirm</code> e <code>…/overdue</code>, do próprio sandbox, às rotas <code>/_mock</code>.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filtrar: clock, cards, accounts, webhooks…" aria-label="Filtrar rotas">
               </div>
-            </section>
-
-            <section id="mock-routes" aria-labelledby="mock-routes-title">
-              <h2 id="mock-routes-title">Rotas de controle de pagamento</h2>
-              <p>Atalhos sem chave em <code>/_mock</code> levam um pagamento a um estado numa chamada, para testes: listar, confirmar, receber, vencer, falhar (apelido de vencer) e estornar (total ou parcial). As transições são as mesmas da API: status, extrato, webhooks.</p>
-              <div class="code"><pre><code>curl localhost:45445/_mock/payments?limit=10
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/confirm
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/receive
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/overdue
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/refund \
-  -H 'content-type: application/json' -d '{"value": 50.00}'</code></pre></div>
-              <p>Prefira <code>POST /v3/sandbox/payment/{id}/confirm</code> e <code>…/overdue</code>, do próprio sandbox, quando o seu código também puder rodar contra o sandbox real.</p>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>A lista precisa de JavaScript. Os mesmos dados estão em <a href="../../../data/asaas-admin.json">asaas-admin.json</a>.</p></noscript>
+              </div>
             </section>
           </div>
         </div>

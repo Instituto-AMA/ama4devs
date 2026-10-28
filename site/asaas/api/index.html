@@ -56,8 +56,7 @@
           <ol>
             <li><a href="#conventions">Conventions</a></li>
             <li><a href="#operations">The /v3 operations</a></li>
-            <li><a href="#admin">Admin endpoints</a></li>
-            <li><a href="#mock-routes">Payment control routes</a></li>
+            <li><a href="#admin">Admin and test routes</a></li>
           </ol>
         </nav>
       </aside>
@@ -94,38 +93,17 @@
               </div>
             </section>
 
-            <section id="admin" aria-labelledby="admin-title">
-              <h2 id="admin-title">Admin endpoints</h2>
-              <p>They do not exist in Asaas: outside <code>/v3</code>, no <code>access_token</code>, off with <code>ADMIN_ENABLED=false</code>. The panel is built on them.</p>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Endpoint</th><th>What it does</th></tr></thead>
-                  <tbody>
-                    <tr><td><code>GET /_admin/clock</code><br><code>POST /_admin/clock/advance</code><br><code>POST /_admin/clock/set</code></td><td>The clock: where it is, <code>{"days": 32}</code>, <code>{"date": "2026-08-01"}</code></td></tr>
-                    <tr><td><code>POST /_admin/tick</code></td><td>Run the day's jobs without moving the clock</td></tr>
-                    <tr><td><code>GET /_admin/accounts</code><br><code>POST /_admin/accounts</code><br><code>DELETE /_admin/accounts/:id</code></td><td>Accounts with balance and a working key; a new profile; delete one with everything it owns</td></tr>
-                    <tr><td><code>GET</code>, <code>POST /_admin/accounts/:id/keys</code><br><code>POST …/keys/:keyId/rotate</code><br><code>PUT</code>, <code>DELETE …/keys/:keyId</code></td><td>API keys: generate, rotate, expire, remove</td></tr>
-                    <tr><td><code>GET /_admin/webhooks/events</code><br><code>GET /_admin/webhooks/deliveries</code><br><code>POST /_admin/webhooks/pause</code></td><td>Webhook events, the delivery log with your endpoint's answer, freeze the dispatcher</td></tr>
-                    <tr><td><code>GET /_admin/test-cards</code><br><code>PUT /_admin/test-cards/policy</code><br><code>POST</code>, <code>DELETE /_admin/test-cards…</code></td><td>Test cards, the accept-any policy, a card with a forced outcome</td></tr>
-                    <tr><td><code>GET /_admin/credit-cards</code><br><code>PUT /_admin/credit-cards/:token</code></td><td>Saved cards and how each answers its next charge: <code>{"outcome": "DECLINE"}</code>, or <code>{"approvalsLeft": 3}</code> to approve three more and then decline</td></tr>
-                    <tr><td><code>GET</code>, <code>PUT /_admin/card-capture/schedule</code></td><td>When a recurring card charge is tried: <code>{"schedule": "0@08:00,0@14:00,1@08:00"}</code>; <code>""</code> is Asaas's default</td></tr>
-                    <tr><td><code>GET</code>, <code>POST /_admin/notifications</code><br><code>GET /_admin/notify/status</code><br><code>GET /_admin/notify/arrivals</code><br><code>POST /_admin/notify/test</code></td><td>Payer notifications: sent, resend, channel health, what arrived</td></tr>
-                    <tr><td><code>GET /_admin/coverage</code><br><code>GET /_admin/fees</code></td><td>Operations with an engine; the fee table</td></tr>
-                  </tbody>
-                </table>
+            <section id="admin" aria-labelledby="admin-title" data-api="../../data/asaas-admin.json" data-kind="routes">
+              <h2 id="admin-title">Admin and test routes</h2>
+              <p>They do not exist in Asaas. <code>/_admin</code> (the clock, accounts and keys, webhooks, cards, payer notifications) and <code>/_mock</code> (one call to move a charge to a state) need no <code>access_token</code> and go off with <code>ADMIN_ENABLED=false</code>; the panel is built on them. Open a route for what it takes and what it answers: every answer below, errors included, was captured from a run of the image.</p>
+              <p>When your code may also run against the real sandbox, prefer its own <code>POST /v3/sandbox/payment/{id}/confirm</code> and <code>…/overdue</code> to the <code>/_mock</code> routes.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filter: clock, cards, accounts, webhooks…" aria-label="Filter routes">
               </div>
-            </section>
-
-            <section id="mock-routes" aria-labelledby="mock-routes-title">
-              <h2 id="mock-routes-title">Payment control routes</h2>
-              <p>Key-free helpers under <code>/_mock</code> move a payment to a state in one call, for tests: list, confirm, receive, overdue, fail (an alias of overdue) and refund (full or partial). The same transitions run as through the API: status, statement, webhooks.</p>
-              <div class="code"><pre><code>curl localhost:45445/_mock/payments?limit=10
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/confirm
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/receive
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/overdue
-curl -X POST localhost:45445/_mock/payments/pay_123456789012/refund \
-  -H 'content-type: application/json' -d '{"value": 50.00}'</code></pre></div>
-              <p>Prefer the sandbox's own <code>POST /v3/sandbox/payment/{id}/confirm</code> and <code>…/overdue</code> when your code may also run against the real sandbox.</p>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>The list needs JavaScript. The same data is in <a href="../../data/asaas-admin.json">asaas-admin.json</a>.</p></noscript>
+              </div>
             </section>
           </div>
         </div>

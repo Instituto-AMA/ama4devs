@@ -114,9 +114,16 @@
               </div>
             </section>
 
-            <section id="settings" aria-labelledby="settings-title">
+            <section id="settings" aria-labelledby="settings-title" data-api="../../../data/whatsapp-settings.json" data-kind="routes">
               <h2 id="settings-title">As rotas /settings</h2>
-              <p>Só para o que a Meta não tem endpoint: os ajustes do próprio mock, como o atraso de resposta do webhook, o modo de entrega e o histórico de ligações (<code>GET /settings/calls</code>). A lista com os corpos está em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md">docs/panel.md</a>.</p>
+              <p>Só para o que a Meta não tem endpoint: os ajustes do próprio mock (modo de entrega, atraso do webhook), o log de eventos, todas as conversas, a árvore de contas com o código que um número espera, e as ligações. Abra uma rota para ver o que ela recebe e o que responde: toda resposta abaixo, erros incluídos, foi capturada de uma execução da imagem.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filtrar: delivery, webhooks, accounts…" aria-label="Filtrar rotas">
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>A lista precisa de JavaScript. Os mesmos dados estão em <a href="../../../data/whatsapp-settings.json">whatsapp-settings.json</a>.</p></noscript>
+              </div>
             </section>
           </div>
         </div>

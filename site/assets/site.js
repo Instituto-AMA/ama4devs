@@ -8,6 +8,7 @@
       copied: 'Copied',
       again: 'Print again',
       ops: (shown, total, live) => `${shown} of ${total} operations, ${live} with real behavior`,
+      routes: (shown, total) => `${shown} of ${total} routes, answers captured from a run of the image`,
       live: 'real behavior',
       spec: 'spec example',
       none: 'No operation matches.',
@@ -30,6 +31,7 @@
       copied: 'Copiado',
       again: 'Imprimir de novo',
       ops: (shown, total, live) => `${shown} de ${total} operações, ${live} com comportamento real`,
+      routes: (shown, total) => `${shown} de ${total} rotas, respostas capturadas de uma execução da imagem`,
       live: 'comportamento real',
       spec: 'exemplo da spec',
       none: 'Nenhuma operação encontrada.',
@@ -168,12 +170,13 @@
   // ── API reference ──
   // data-api names the list: [{ tag, ops: [{ id, method, path, summary, live }] }].
   // Its "-details" sibling holds what a row opens to, fetched on the first open.
-  const api = document.querySelector('[data-api]')
-  if (api) {
+  for (const api of document.querySelectorAll('[data-api]')) {
     const list = api.querySelector('.api-list')
     const search = api.querySelector('input[type="search"]')
     const onlyLive = api.querySelector('input[type="checkbox"]')
     const count = api.querySelector('.api-count')
+    // A mock's own routes (data-kind="routes") have no "real behavior" badge: all are.
+    const routes = api.dataset.kind === 'routes'
     let groups = []
     let details = null
 
@@ -311,7 +314,7 @@
         total += g.ops.length
         live += g.ops.filter((o) => o.live).length
         const ops = g.ops.filter((o) =>
-          (!onlyLive.checked || o.live) &&
+          (!onlyLive?.checked || o.live) &&
           (!q || `${g.tag} ${o.method} ${o.path} ${o.summary}`.toLowerCase().includes(q)))
         if (!ops.length) continue
         shown += ops.length
@@ -323,9 +326,9 @@
           const row = el('details', 'op-row')
           row.id = `op-${o.id}`
           const head = el('summary', 'op')
-          head.append(el('span', 'm', o.method), el('span', 'p', o.path),
-            el('span', `b ${o.live ? 'live' : 'spec'}`, o.live ? words.live : words.spec),
-            el('span', 's', o.summary))
+          head.append(el('span', 'm', o.method), el('span', 'p', o.path))
+          if (!routes) head.append(el('span', `b ${o.live ? 'live' : 'spec'}`, o.live ? words.live : words.spec))
+          head.append(el('span', 's', o.summary))
           row.append(head, el('div', 'op-body'))
           row.addEventListener('toggle', () => { if (row.open) openRow(row, o) })
           section.append(row)
@@ -333,7 +336,7 @@
         list.append(section)
       }
       if (!shown) list.append(el('p', 'api-empty', words.none))
-      count.textContent = words.ops(shown, total, live)
+      count.textContent = routes ? words.routes(shown, total) : words.ops(shown, total, live)
     }
 
     fetch(api.dataset.api)
@@ -350,6 +353,6 @@
       })
       .catch(() => {})
     search.addEventListener('input', render)
-    onlyLive.addEventListener('change', render)
+    onlyLive?.addEventListener('change', render)
   }
 })()

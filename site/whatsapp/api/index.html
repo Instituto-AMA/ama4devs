@@ -114,9 +114,16 @@
               </div>
             </section>
 
-            <section id="settings" aria-labelledby="settings-title">
+            <section id="settings" aria-labelledby="settings-title" data-api="../../data/whatsapp-settings.json" data-kind="routes">
               <h2 id="settings-title">The /settings routes</h2>
-              <p>Only for what Meta has no endpoint for: the mock's own knobs, like the webhook response delay, the delivery mode and the call log (<code>GET /settings/calls</code>). The list with their bodies is in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md">docs/panel.md</a>.</p>
+              <p>Only for what Meta has no endpoint for: the mock's own knobs (delivery mode, webhook delay), the event log, every conversation, the account tree with the code a number waits for, and the calls. Open a route for what it takes and what it answers: every answer below, errors included, was captured from a run of the image.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filter: delivery, webhooks, accounts…" aria-label="Filter routes">
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>The list needs JavaScript. The same data is in <a href="../../data/whatsapp-settings.json">whatsapp-settings.json</a>.</p></noscript>
+              </div>
             </section>
           </div>
         </div>
