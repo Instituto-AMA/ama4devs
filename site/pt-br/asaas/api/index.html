@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Referência da API do mock do Asaas: todas as operações da API v3 | ama4devs</title>
+  <meta name="description" content="Todas as operações da API v3 do Asaas que o mock responde, marcadas por comportamento real, com parâmetros, corpo, exemplos e respostas, e os endpoints de administração do relógio virtual, webhooks, cartões de teste e notificações.">
+  <meta name="keywords" content="referência api asaas v3, endpoints asaas, api mock asaas, api de cobranças asaas, webhooks asaas, assinaturas asaas, relógio virtual">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/api/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/api/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/api/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/api/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Referência da API do mock do Asaas">
+  <meta property="og:description" content="213 operações da API v3 do Asaas, 125 com comportamento real, e os endpoints de administração do relógio virtual.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/pt-br/asaas/api/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/asaas/charges.jpg">
+  <meta name="theme-color" content="#0f2160">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-tool="asaas">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../../whatsapp/">Mock do WhatsApp</a>
+        <a href="../" aria-current="page">Mock do Asaas</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../asaas/api/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock do Asaas">
+    <a href="../">Visão geral</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="./" aria-current="page">API</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#conventions">Convenções</a></li>
+            <li><a href="#operations">As operações /v3</a></li>
+            <li><a href="#admin">Endpoints de administração</a></li>
+            <li><a href="#mock-routes">Rotas de controle de pagamento</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Referência da API</h1>
+          <p class="lead">Toda operação da especificação oficial da API v3 do Asaas existe aqui, com autenticação, validação e o formato de erro do Asaas. <strong>Comportamento real</strong> quer dizer um motor de negócio com estado; as demais respondem <code>501</code> nomeando a operação, nunca dado falso.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <section id="conventions" aria-labelledby="conventions-title">
+              <h2 id="conventions-title">Convenções</h2>
+              <ul>
+                <li><strong>URL base</strong>: <code>http://localhost:45445/v3</code>.</li>
+                <li><strong>Autenticação</strong>: o header <code>access_token</code> com a chave da conta, como no Asaas. Cada chave é uma conta, com <code>walletId</code> e saldo próprios.</li>
+                <li><strong>Erros</strong>: HTTP 400 com <code>{"errors":[{"code":"…","description":"…"}]}</code>, os códigos e frases que o Asaas manda (um cartão recusado é <code>invalid_action</code>, não <code>invalid_creditCard</code>).</li>
+                <li><strong>Listas</strong>: <code>offset</code> e <code>limit</code>, com <code>totalCount</code> e <code>hasMore</code> na resposta.</li>
+                <li><strong>Dinheiro</strong>: guardado em centavos inteiros por dentro, respondido em reais como no Asaas.</li>
+              </ul>
+            </section>
+
+            <section id="operations" aria-labelledby="operations-title" data-api="../../../data/asaas-api.json">
+              <h2 id="operations-title">As operações /v3</h2>
+              <p>Abra uma operação para ver os parâmetros, os campos do corpo, um exemplo de requisição e cada resposta com o seu exemplo, erros incluídos, tirados da especificação oficial.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filtrar: payments, POST, subscription, pix…" aria-label="Filtrar operações">
+                <label><input type="checkbox"> Só comportamento real</label>
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>A lista precisa de JavaScript. Os mesmos dados estão em <a href="../../../data/asaas-api.json">asaas-api.json</a>.</p></noscript>
+              </div>
+            </section>
+
+            <section id="admin" aria-labelledby="admin-title">
+              <h2 id="admin-title">Endpoints de administração</h2>
+              <p>Não existem no Asaas: ficam fora de <code>/v3</code>, sem <code>access_token</code>, e desligam com <code>ADMIN_ENABLED=false</code>. O painel é construído em cima deles.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Endpoint</th><th>O que faz</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>GET /_admin/clock</code><br><code>POST /_admin/clock/advance</code><br><code>POST /_admin/clock/set</code></td><td>O relógio: onde está, <code>{"days": 32}</code>, <code>{"date": "2026-08-01"}</code></td></tr>
+                    <tr><td><code>POST /_admin/tick</code></td><td>Roda os jobs do dia sem mexer no relógio</td></tr>
+                    <tr><td><code>GET /_admin/accounts</code><br><code>POST /_admin/accounts</code><br><code>DELETE /_admin/accounts/:id</code></td><td>Contas com saldo e chave válida; um perfil novo; apagar um com tudo o que é dele</td></tr>
+                    <tr><td><code>GET</code>, <code>POST /_admin/accounts/:id/keys</code><br><code>POST …/keys/:keyId/rotate</code><br><code>PUT</code>, <code>DELETE …/keys/:keyId</code></td><td>Chaves de API: gerar, rotacionar, expirar, remover</td></tr>
+                    <tr><td><code>GET /_admin/webhooks/events</code><br><code>GET /_admin/webhooks/deliveries</code><br><code>POST /_admin/webhooks/pause</code></td><td>Eventos de webhook, o log de entregas com a resposta do seu endpoint, congelar o despachante</td></tr>
+                    <tr><td><code>GET /_admin/test-cards</code><br><code>PUT /_admin/test-cards/policy</code><br><code>POST</code>, <code>DELETE /_admin/test-cards…</code></td><td>Cartões de teste, a política de aceitar qualquer cartão, um cartão com desfecho forçado</td></tr>
+                    <tr><td><code>GET</code>, <code>POST /_admin/notifications</code><br><code>GET /_admin/notify/status</code><br><code>GET /_admin/notify/arrivals</code><br><code>POST /_admin/notify/test</code></td><td>Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou</td></tr>
+                    <tr><td><code>GET /_admin/coverage</code><br><code>GET /_admin/fees</code></td><td>Operações com motor; a tabela de taxas</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="mock-routes" aria-labelledby="mock-routes-title">
+              <h2 id="mock-routes-title">Rotas de controle de pagamento</h2>
+              <p>Atalhos sem chave em <code>/_mock</code> levam um pagamento a um estado numa chamada, para testes: listar, confirmar, receber, vencer, falhar (apelido de vencer) e estornar (total ou parcial). As transições são as mesmas da API: status, extrato, webhooks.</p>
+              <div class="code"><pre><code>curl localhost:45445/_mock/payments?limit=10
+curl -X POST localhost:45445/_mock/payments/pay_123456789012/confirm
+curl -X POST localhost:45445/_mock/payments/pay_123456789012/receive
+curl -X POST localhost:45445/_mock/payments/pay_123456789012/overdue
+curl -X POST localhost:45445/_mock/payments/pay_123456789012/refund \
+  -H 'content-type: application/json' -d '{"value": 50.00}'</code></pre></div>
+              <p>Prefira <code>POST /v3/sandbox/payment/{id}/confirm</code> e <code>…/overdue</code>, do próprio sandbox, quando o seu código também puder rodar contra o sandbox real.</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock do Asaas é MIT. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/asaas">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Um simulador independente da API pública do Asaas, sem vínculo com o Asaas. "Asaas" é marca de seus donos. Nenhum pagamento feito aqui é real.</p>
+    </div>
+  </footer>
+  <script src="../../../assets/site.js" defer></script>
+</body>
+</html>

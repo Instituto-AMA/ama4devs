@@ -2,5 +2,7 @@
 .env.sandbox
 node_modules/
 data/
+# The Pages site's API data is source (scripts/site-api-data.mjs writes it).
+!site/data/
 .DS_Store
 _site/

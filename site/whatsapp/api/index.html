@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhatsApp mock API reference: every Cloud API v23.0 operation | ama4devs</title>
+  <meta name="description" content="Every operation of the WhatsApp Cloud API (Meta Graph API v23.0) the mock answers, marked by whether it is simulated with state, plus the test headers and the /settings routes.">
+  <meta name="keywords" content="whatsapp cloud api reference, whatsapp api endpoints, meta graph api v23.0, whatsapp mock api, whatsapp messages api, whatsapp templates api, whatsapp calling api">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/whatsapp/api/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/api/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/whatsapp/api/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/whatsapp/api/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="WhatsApp mock API reference">
+  <meta property="og:description" content="112 operations of the Cloud API v23.0, 24 simulated with state, and the test headers.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/whatsapp/api/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/api.jpg">
+  <meta name="theme-color" content="#0e3a2f">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="whatsapp">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../" aria-current="page">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/whatsapp/api/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="WhatsApp mock">
+    <a href="../">Overview</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="./" aria-current="page">API</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#conventions">Conventions</a></li>
+            <li><a href="#operations">The v23.0 operations</a></li>
+            <li><a href="#headers">Test headers</a></li>
+            <li><a href="#settings">The /settings routes</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>API reference</h1>
+          <p class="lead">Every operation of Meta's v23.0 specification is routed and validated. <strong>Real behavior</strong> means the mock simulates it with state; the others answer with Meta's own example, valid against the response schema.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <section id="conventions" aria-labelledby="conventions-title">
+              <h2 id="conventions-title">Conventions</h2>
+              <ul>
+                <li><strong>Base URL</strong>: <code>http://localhost:3010/v23.0</code>, the same path Meta uses.</li>
+                <li><strong>Authentication</strong>: <code>Authorization: Bearer &lt;any token&gt;</code>. A call without one is refused, as Meta does.</li>
+                <li><strong>Errors</strong>: Meta's envelope, <code>{"error":{"message","type":"OAuthException","code","error_data","fbtrace_id"}}</code>, with Meta's codes.</li>
+                <li><strong>Webhooks</strong>: Meta's <code>entry[].changes[]</code> body, signed with <code>x-hub-signature-256</code> when <code>WEBHOOK_SECRET</code> is set.</li>
+                <li><strong>Versions</strong>: each Graph version is its own vendored spec; a new one is a new <code>spec/&lt;version&gt;</code> folder.</li>
+              </ul>
+              <p>The panel's API tab carries the same operations with a ready <code>curl</code> for each.</p>
+            </section>
+
+            <section id="operations" aria-labelledby="operations-title" data-api="../../data/whatsapp-api.json">
+              <h2 id="operations-title">The v23.0 operations</h2>
+              <p>Open an operation for its parameters, the request examples of Meta's specification and every response with its example, errors included.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filter: messages, templates, calls, POST…" aria-label="Filter operations">
+                <label><input type="checkbox"> Only real behavior</label>
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>The list needs JavaScript. The same data is in <a href="../../data/whatsapp-api.json">whatsapp-api.json</a>.</p></noscript>
+              </div>
+            </section>
+
+            <section id="headers" aria-labelledby="headers-title">
+              <h2 id="headers-title">Test headers</h2>
+              <p>What only a test needs travels in optional headers, never in the body, so the body stays what the Cloud API expects.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Header</th><th>On</th><th>What it does</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>X-Mock-From</code></td><td><code>POST /{phone}/messages</code>, <code>/calls</code></td><td>The call comes from the user's phone: a message, a receipt, a call</td></tr>
+                    <tr><td><code>X-Mock-Contact-Name</code></td><td>same</td><td>The profile name your webhook sees</td></tr>
+                    <tr><td><code>X-Mock-Message-Status</code></td><td>a receipt with <code>X-Mock-From</code></td><td><code>delivered</code>, <code>read</code> or <code>failed</code></td></tr>
+                    <tr><td><code>X-Mock-Template-Review</code></td><td>template create and edit</td><td><code>APPROVED</code> (default), <code>REJECTED</code>, <code>PAUSED</code>, <code>DISABLED</code>, <code>PENDING</code></td></tr>
+                    <tr><td><code>X-Mock-Template-Review-Reason</code></td><td>same</td><td>The reason in the status webhook</td></tr>
+                    <tr><td><code>X-Mock-Template-Review-Delay</code></td><td>same</td><td>How long the review takes, in ms (up to 10 minutes)</td></tr>
+                    <tr><td><code>X-Mock-Skip-Callback-Verification</code></td><td>webhook override</td><td>Accept the URL without the <code>hub.challenge</code> check</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="settings" aria-labelledby="settings-title">
+              <h2 id="settings-title">The /settings routes</h2>
+              <p>Only for what Meta has no endpoint for: the mock's own knobs, like the webhook response delay, the delivery mode and the call log (<code>GET /settings/calls</code>). The list with their bodies is in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md">docs/panel.md</a>.</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The WhatsApp mock is Apache-2.0. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/whatsapp">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>An independent simulator of the public WhatsApp Cloud API, not affiliated with Meta or WhatsApp. Their names are trademarks of their owners.</p>
+    </div>
+  </footer>
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>

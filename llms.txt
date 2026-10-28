@@ -1,13 +1,19 @@
 # ama4devs
 
-> Local mock servers of the WhatsApp Cloud API (Meta Graph API v23.0, WhatsApp Business Platform) and of the Asaas API v3 (Brazilian payment gateway: Pix, boleto, credit card, installments, subscriptions, webhooks), published as Docker images on GHCR, for local development, automated tests and CI without real accounts, credentials or costs. Em português: simulador local do WhatsApp e do Asaas.
+> Local mock servers of the APIs a product depends on, published as Docker images on GHCR, for local development, automated tests and CI without real accounts, credentials or costs. Today: the WhatsApp Cloud API (Meta Graph API v23.0, WhatsApp Business Platform) and the Asaas API v3 (Brazilian payment gateway: Pix, boleto, credit card, installments, subscriptions, webhooks, with a virtual clock). Planned, not built yet: more payment providers and banks (Stripe, Rede/Itaú, Pagar.me, C6 Bank, Banco Inter). Em português: simuladores locais do WhatsApp e do Asaas.
 
-Use it when an application integrates with WhatsApp (sending messages and templates, receiving webhooks, media, voice calls) or with Asaas (charges, Pix, boleto, card, installments, subscriptions, webhooks) and needs a faithful local API to point at.
+Use it when an application integrates with WhatsApp (sending messages and templates, receiving webhooks, media, voice calls) or with Asaas (charges, Pix, boleto, card, installments, subscriptions, webhooks) and needs a faithful local API to point at. The Asaas mock's virtual clock (`POST /_admin/clock/advance`, needs `CLOCK_MODE=VIRTUAL_FLOWING` or `VIRTUAL_FROZEN`) skips days so overdue charges, D+32 card credit and subscription cycles happen in seconds.
 
 - WhatsApp mock image: `ghcr.io/instituto-ama/whatsapp-mock` (port 3010, API at `/v23.0/...`, panel at `/`)
 - Asaas mock image: `ghcr.io/instituto-ama/asaas-mock` (port 45445, API at `/v3`, panel at `/`)
 - Both mocks together: `make setup`, or `docker compose --profile asaas --profile whatsapp up -d` in the repository root, with Mailpit for the payer e-mails
-- Documentation site: https://instituto-ama.github.io/ama4devs/ (WhatsApp mock: `/whatsapp/`, Asaas mock: `/asaas/`, Portuguese under `/pt-br/`)
+
+## Documentation site
+
+- [Home](https://instituto-ama.github.io/ama4devs/) (Portuguese under `/pt-br/`)
+- WhatsApp mock: [overview and use cases](https://instituto-ama.github.io/ama4devs/whatsapp/), [quick start](https://instituto-ama.github.io/ama4devs/whatsapp/quick-start/), [API reference](https://instituto-ama.github.io/ama4devs/whatsapp/api/), [docs](https://instituto-ama.github.io/ama4devs/whatsapp/docs/)
+- Asaas mock: [overview and use cases](https://instituto-ama.github.io/ama4devs/asaas/), [quick start](https://instituto-ama.github.io/ama4devs/asaas/quick-start/), [API reference](https://instituto-ama.github.io/ama4devs/asaas/api/), [docs](https://instituto-ama.github.io/ama4devs/asaas/docs/)
+- API data: [whatsapp-api.json](https://instituto-ama.github.io/ama4devs/data/whatsapp-api.json), [asaas-api.json](https://instituto-ama.github.io/ama4devs/data/asaas-api.json) (each operation with whether the mock has real behavior), and their `-details.json` (parameters, body fields, request examples, responses)
 
 ## WhatsApp Cloud API mock
 

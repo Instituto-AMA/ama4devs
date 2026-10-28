@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WhatsApp Cloud API mock and Asaas API mock, in Docker | ama4devs</title>
-  <meta name="description" content="Two local mock servers for development and tests: the WhatsApp Cloud API (Meta Graph API v23.0: messages, templates, media, voice calls, webhooks) and the Asaas API v3 (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost). Free Docker images on GHCR.">
-  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas api simulator, pix mock, boleto mock, payment gateway mock, webhook testing, docker, ghcr">
+  <meta name="description" content="Two local mock servers for development, tests and CI: the WhatsApp Cloud API (Meta Graph API v23.0: messages, templates, media, voice calls, webhooks) and the Asaas API v3 (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost, a virtual clock). Free Docker images on GHCR.">
+  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas sandbox localhost, asaas api simulator, pix mock, boleto mock, payment gateway mock, virtual clock, webhook testing, docker, ghcr">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/">
   <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/">
@@ -13,16 +13,17 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
   <meta property="og:title" content="WhatsApp Cloud API mock and Asaas API mock, in Docker">
-  <meta property="og:description" content="Run WhatsApp and Asaas on localhost: same paths, same bodies, same webhooks. No account, no credential, no bill.">
+  <meta property="og:description" content="Run WhatsApp and Asaas on localhost: same paths, same bodies, same webhooks, and a clock you move by hand. No account, no credential, no bill.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/">
   <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/chat.jpg">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="pt_BR">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="img/asaas/icon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#1d1838">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
   <link rel="stylesheet" href="assets/style.css">
   <script type="application/ld+json">
   {
@@ -38,6 +39,7 @@
         "url": "https://instituto-ama.github.io/ama4devs/whatsapp/",
         "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       },
       {
@@ -50,6 +52,7 @@
         "url": "https://instituto-ama.github.io/ama4devs/asaas/",
         "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock",
         "license": "https://opensource.org/licenses/MIT",
+        "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     ]
@@ -61,7 +64,7 @@
 
   <header class="site-header">
     <div class="bar">
-      <a class="wordmark" href="./">ama4devs <span>mocks</span></a>
+      <a class="wordmark" href="./">ama4devs</a>
       <nav class="site-nav" aria-label="Main">
         <a href="whatsapp/">WhatsApp mock</a>
         <a href="asaas/">Asaas mock</a>
@@ -75,98 +78,202 @@
   </header>
 
   <main id="content">
-    <section class="hero">
-      <h1>WhatsApp and Asaas, running on your machine.</h1>
-      <p class="lead">Two mock servers for local development, automated tests and CI. Point your application at <code>localhost</code> instead of the real API: same paths, same bodies, same webhooks. No account, no credential, no bill.</p>
-
-      <div class="swap">
-        <p class="swap-label">WhatsApp Cloud API</p>
-        <div class="from">https://graph.facebook.com/v23.0</div>
-        <div class="to wa">http://localhost:3010/v23.0</div>
+    <div class="wrap hero">
+      <div class="hero-copy">
+        <h1>WhatsApp and Asaas, running on your machine.</h1>
+        <p class="lead">Mock servers of the APIs your product depends on, for local development, tests and CI, starting with WhatsApp and Asaas. Point your application at <code>localhost</code>: same paths, same bodies, same webhooks. <strong>And time moves when you say so</strong>: a month of billing runs in a second, and you watch your own code react to it.</p>
+        <div class="cmd" id="run">
+          <pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+cd ama4devs && make setup   <span class="c"># WhatsApp, Asaas, Mailpit</span></code></pre>
+        </div>
+        <div class="actions">
+          <a class="key confirm" href="#both">Run both together</a>
+          <a class="key" href="https://github.com/Instituto-AMA/ama4devs">Star on GitHub</a>
+        </div>
       </div>
-      <div class="swap">
-        <p class="swap-label">Asaas API v3</p>
-        <div class="from">https://api-sandbox.asaas.com/v3</div>
-        <div class="to asaas">http://localhost:45445/v3</div>
+
+      <div class="printer" data-printer='["Charge a card", "Send on WhatsApp", "Maria answers", "Skip 34 days"]'>
+        <div class="tape-window">
+          <div class="tape" aria-live="polite">
+            <div class="tape-head">
+              <div class="brand">AMA4DEVS</div>
+              <div class="sub">replay of a run of both mocks</div>
+              <div class="swaps">
+                <span class="swapline from">graph.facebook.com/v23.0</span>
+                <span class="swapline to">localhost:3010/v23.0</span>
+                <span class="swapline from">api-sandbox.asaas.com/v3</span>
+                <span class="swapline to">localhost:45445/v3</span>
+              </div>
+            </div>
+            <ol class="lines">
+              <li class="ln day" data-step="0">27/10/2026</li>
+              <li class="ln" data-step="0"><time>20:35</time><span class="ev"><b>POST</b> /v3/customers <span class="ok">200</span><br>cus_526128665490 Maria Souza</span></li>
+              <li class="ln" data-step="0"><time>20:35</time><span class="ev"><b>POST</b> /v3/creditCard/tokenizeCreditCard <span class="ok">200</span><br>MASTERCARD 8829, token 5e79adb6…</span></li>
+              <li class="ln" data-step="0"><time>20:35</time><span class="ev"><b>POST</b> /v3/payments <span class="ok">200</span><br>CREDIT_CARD R$ 350,00 <b>CONFIRMED</b><br>net R$ 339,04, credit on 30/11</span></li>
+              <li class="ln hook" data-step="0"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CREATED <span class="ok">200</span></span></li>
+              <li class="ln hook" data-step="0"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_CONFIRMED <span class="ok">200</span></span></li>
+              <li class="ln" data-step="1"><time>20:37</time><span class="ev"><b>POST</b> /v23.0/1234567890/messages <span class="ok">200</span><br>template appointment_reminder accepted</span></li>
+              <li class="ln hook" data-step="1"><time>20:37</time><span class="ev"><i>webhook</i> status <b>sent</b></span></li>
+              <li class="ln hook" data-step="1"><time>20:37</time><span class="ev"><i>webhook</i> status <b>delivered</b></span></li>
+              <li class="ln hook" data-step="1"><time>20:37</time><span class="ev"><i>webhook</i> status <b>read</b></span></li>
+              <li class="ln hook" data-step="2"><time>20:37</time><span class="ev"><i>webhook</i> messages from Maria Souza<br>"Oi! Quero remarcar."</span></li>
+              <li class="ln day" data-step="3">30/11/2026</li>
+              <li class="ln" data-step="3"><time></time><span class="ev"><b>POST</b> /_admin/clock/advance {"days":34}</span></li>
+              <li class="ln hook" data-step="3"><time>20:35</time><span class="ev"><i>webhook</i> PAYMENT_RECEIVED <span class="ok">200</span></span></li>
+              <li class="ln total" data-step="3"><time></time><span class="ev">balance R$ 339,04</span></li>
+            </ol>
+          </div>
+        </div>
+        <div class="machine">
+          <div class="slot"></div>
+          <div class="keypad">
+            <button class="key confirm" type="button" data-next><span>Charge a card</span></button>
+            <button class="key correct" type="button" data-again>Again</button>
+          </div>
+          <div class="progress" aria-hidden="true"></div>
+        </div>
+        <p class="machine-note">Every line is from a real run of the two images: the calls, the webhook events and the values. Only the paper is drawn.</p>
+      </div>
+    </div>
+
+    <section class="band" aria-labelledby="mocks-title">
+      <div class="wrap">
+        <h2 id="mocks-title">A pool of provider mocks.</h2>
+        <p class="intro">Each mock is one Docker image for <code>linux/amd64</code> and <code>linux/arm64</code>. It boots fully configured, keeps its state in a volume and comes with a panel that shows what the real API never lets you see. Two are ready today; more payment providers and banks are on the way.</p>
+
+        <div class="vias">
+          <article class="via">
+            <div class="sheet">
+              <h3>WhatsApp mock</h3>
+              <p class="what">The Cloud API of the Meta Graph API v23.0, routed and validated against Meta's own OpenAPI file, plus a WhatsApp Web like panel where you are the user on the other side.</p>
+              <figure>
+                <a href="whatsapp/"><img src="img/whatsapp/chat.jpg" width="1502" height="714" alt="The WhatsApp mock panel: a conversation with a template that has an image header, a formatted body, a footer and quick reply buttons." loading="lazy"></a>
+              </figure>
+              <ul>
+                <li>Messages of every type, templates with a review, media, voice notes, receipts.</li>
+                <li>Voice calls with real WebRTC audio and the user's call permission.</li>
+                <li>Business, WABAs and numbers with the SMS code onboarding.</li>
+                <li>Webhooks signed with <code>x-hub-signature-256</code>.</li>
+              </ul>
+              <div class="code"><pre><code>docker run --rm -p 3010:3010 \
+  ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+              <div class="links">
+                <a class="key confirm small" href="whatsapp/quick-start/">Quick start</a>
+                <a class="key small" href="whatsapp/#use-cases">Use cases</a>
+                <a class="key small" href="whatsapp/api/">API</a>
+                <a class="key small" href="whatsapp/docs/">Docs</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="via">
+            <div class="sheet">
+              <h3>Asaas mock</h3>
+              <p class="what">The Asaas API v3, the Brazilian payment gateway, with the business rules captured from the real sandbox and a virtual clock you move by hand.</p>
+              <figure>
+                <a href="asaas/"><img src="img/asaas/clock.jpg" width="1502" height="771" alt="The Asaas mock's virtual clock: the simulator's time and mode, and the buttons to advance one, seven or thirty-two days." loading="lazy"></a>
+              </figure>
+              <ul>
+                <li>Customers, Pix, boleto, credit card, installments, subscriptions, splits.</li>
+                <li>Webhooks delivered to <code>localhost</code>, with the real retry rules.</li>
+                <li>A clock you advance: charges go overdue, cards credit at D+32.</li>
+                <li>Payer notifications by e-mail and WhatsApp.</li>
+              </ul>
+              <div class="code"><pre><code>docker run --rm -p 45445:45445 \
+  -e CLOCK_MODE=VIRTUAL_FLOWING \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+              <div class="links">
+                <a class="key confirm small" href="asaas/quick-start/">Quick start</a>
+                <a class="key small" href="asaas/#use-cases">Use cases</a>
+                <a class="key small" href="asaas/api/">API</a>
+                <a class="key small" href="asaas/docs/">Docs</a>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="planned" aria-labelledby="planned-title">
+          <h3 id="planned-title">Next in payments and banking</h3>
+          <ul class="stubs">
+            <li>Stripe</li>
+            <li>Rede (Itaú)</li>
+            <li>Pagar.me</li>
+            <li>C6 Bank</li>
+            <li>Banco Inter</li>
+            <li>More bank connections</li>
+          </ul>
+          <p>Planned, not built yet. Each will keep the same promise as the two above: the real API's paths, bodies and webhooks, one image, nothing to configure by hand. The contract every mock follows is in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/README.md"><code>mocks/README.md</code></a>.</p>
+        </div>
       </div>
     </section>
 
-    <section id="mocks" aria-labelledby="mocks-title">
-      <h2 id="mocks-title">Two mocks, one per API</h2>
-      <p>Each one is a single Docker image for <code>linux/amd64</code> and <code>linux/arm64</code>, boots fully configured and keeps its state in a volume.</p>
+    <section class="band" id="both" aria-labelledby="both-title">
+      <div class="wrap">
+        <h2 id="both-title">Run both together.</h2>
+        <p class="intro">The repository's compose file runs the two mocks and Mailpit, already wired to each other. Every charge the Asaas mock creates tells the payer twice: an e-mail that lands in Mailpit and a WhatsApp template sent through the WhatsApp mock's Cloud API. No step by hand.</p>
 
-      <div class="tools">
-        <article class="tool" data-tool="whatsapp">
-          <figure class="shot">
-            <a href="whatsapp/"><img src="img/whatsapp/chat.jpg" width="1502" height="714" alt="The WhatsApp mock panel: a conversation with a template that has an image header, a formatted body, a footer and quick reply buttons." loading="lazy"></a>
-          </figure>
-          <h3><a href="whatsapp/">WhatsApp mock</a></h3>
-          <p class="what">The WhatsApp Cloud API of the Meta Graph API v23.0, simulated from Meta's own OpenAPI specification, plus a WhatsApp Web like panel where you are the user on the other side.</p>
-          <ul>
-            <li>Messages of every type, templates with a review, media, reactions, receipts.</li>
-            <li>Voice calls with real WebRTC audio, call permissions, voice notes.</li>
-            <li>Business, WABAs and phone numbers with the SMS code onboarding.</li>
-            <li>Webhooks signed with <code>x-hub-signature-256</code>.</li>
-          </ul>
-          <div class="code"><pre><code>docker run --rm -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
-          <a class="more" href="whatsapp/">Read the WhatsApp mock docs</a>
-        </article>
-
-        <article class="tool" data-tool="asaas">
-          <figure class="shot">
-            <a href="asaas/"><img src="img/asaas/dashboard.jpg" width="1502" height="714" alt="The Asaas mock dashboard: received, confirmed, pending and overdue charges with their totals, test cards and the account's API key." loading="lazy"></a>
-          </figure>
-          <h3><a href="asaas/">Asaas mock</a></h3>
-          <p class="what">The Asaas API v3, the Brazilian payment gateway, with the business rules captured from the real sandbox and a virtual clock you move by hand.</p>
-          <ul>
-            <li>Customers, charges with Pix, boleto and credit card, installments, subscriptions.</li>
-            <li>Webhooks delivered to <code>localhost</code>, with the real retry rules.</li>
-            <li>A payer invoice page with a real Pix QR code.</li>
-            <li>Payer notifications by e-mail and WhatsApp.</li>
-          </ul>
-          <div class="code"><pre><code>docker run --rm -p 45445:45445 ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-          <a class="more" href="asaas/">Read the Asaas mock docs</a>
-        </article>
-      </div>
-    </section>
-
-    <section id="together" aria-labelledby="together-title">
-      <h2 id="together-title">Both together</h2>
-      <p>The repository's compose file runs the two mocks and Mailpit. Every charge the Asaas mock creates tells the payer twice: an e-mail that lands in Mailpit and a WhatsApp template sent through the WhatsApp mock's Cloud API. Everything comes up configured, with no step by hand.</p>
-      <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <ol class="steps">
+              <li>
+                <h3>Start everything</h3>
+                <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 make setup        <span class="c"># starts the mocks and writes their addresses into .env</span></code></pre></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Service</th><th>Address</th><th>What you open there</th></tr></thead>
-          <tbody>
-            <tr><td>WhatsApp mock</td><td><code>http://localhost:3010</code></td><td>The chat panel, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
-            <tr><td>Asaas mock</td><td><code>http://localhost:45445</code></td><td>The simulator's panel; the API at <code>/v3</code></td></tr>
-            <tr><td>Mailpit</td><td><code>http://localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
-          </tbody>
-        </table>
+              </li>
+              <li>
+                <h3>Open the three screens</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Service</th><th>Address</th><th>What you open there</th></tr></thead>
+                    <tbody>
+                      <tr><td>WhatsApp mock</td><td><code>http://localhost:3010</code></td><td>The chat panel, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
+                      <tr><td>Asaas mock</td><td><code>http://localhost:45445</code></td><td>The simulator's panel and its clock; the API at <code>/v3</code></td></tr>
+                      <tr><td>Mailpit</td><td><code>http://localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </li>
+              <li>
+                <h3>Point your application at them</h3>
+                <p>Write the addresses into your own project's environment, then switch the base URLs:</p>
+                <div class="code"><pre><code>make setup TARGET_ENV=../my-app/.env</code></pre></div>
+                <div class="code"><pre><code><span class="del">- https://graph.facebook.com/v23.0</span>
+<span class="add">+ http://localhost:3010/v23.0</span>
+<span class="del">- https://api-sandbox.asaas.com/v3</span>
+<span class="add">+ http://localhost:45445/v3</span></code></pre></div>
+              </li>
+            </ol>
+          </div>
+        </div>
       </div>
-      <p>To point another application at them: <code>make setup TARGET_ENV=../my-app/.env</code>.</p>
     </section>
 
-    <section id="images" aria-labelledby="images-title">
-      <h2 id="images-title">Images and versions</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Image</th><th>Tags</th></tr></thead>
-          <tbody>
-            <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2"><code>&lt;version&gt;</code> pushed once and never moved: pin it. <code>sha-&lt;commit&gt;</code> for every publish. <code>latest</code> for the last one.</td></tr>
-            <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
-          </tbody>
-        </table>
+    <section class="band" aria-labelledby="images-title">
+      <div class="wrap">
+        <h2 id="images-title">Images and versions.</h2>
+        <div class="paper-shadow" style="margin-top: 32px">
+          <div class="sheet narrow">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Image</th><th>Tags</th></tr></thead>
+                <tbody>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2"><code>&lt;version&gt;</code> is pushed once and never moved: pin it. <code>sha-&lt;commit&gt;</code> for every publish. <code>latest</code> for the last one.</td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>The images are public: <code>docker pull</code> needs no login. A push to <code>master</code> that changes a mock runs its tests and publishes it.</p>
+          </div>
+        </div>
       </div>
-      <p>The images are public: <code>docker pull</code> needs no login. A push to <code>master</code> that changes a mock runs its tests and publishes it.</p>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="bar">
-      <p>The WhatsApp mock is Apache-2.0, the Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="llms.txt">llms.txt</a>.</p>
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The WhatsApp mock is Apache-2.0, the Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="llms.txt">llms.txt</a>.</p>
       <p>Independent simulators of public APIs, not affiliated with Meta, WhatsApp or Asaas. Their names are trademarks of their owners. No payment made here is real.</p>
     </div>
   </footer>

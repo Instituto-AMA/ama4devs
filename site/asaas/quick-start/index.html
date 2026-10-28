@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asaas mock quick start: run the Asaas API v3 on localhost | ama4devs</title>
+  <meta name="description" content="Run the Asaas API v3 mock in Docker, create a customer, register a webhook, charge with Pix and skip days with the virtual clock. Compose and CI setup included.">
+  <meta name="keywords" content="asaas mock quick start, asaas sandbox localhost, asaas webhook localhost, asaas docker, asaas api v3 test, virtual clock, ci payments test">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/asaas/quick-start/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/quick-start/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/quick-start/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/quick-start/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Asaas mock quick start">
+  <meta property="og:description" content="From docker run to a webhook on localhost and a month skipped, in a few calls.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/asaas/quick-start/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/asaas/dashboard.jpg">
+  <meta name="theme-color" content="#0f2160">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="asaas">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../" aria-current="page">Asaas mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/asaas/quick-start/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Asaas mock">
+    <a href="../">Overview</a>
+    <a href="./" aria-current="page">Quick start</a>
+    <a href="../api/">API</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#run">Run it</a></li>
+            <li><a href="#point">Point your app</a></li>
+            <li><a href="#customer">Create a customer</a></li>
+            <li><a href="#webhook">Register your webhook</a></li>
+            <li><a href="#charge">Charge and pay</a></li>
+            <li><a href="#time">Skip time</a></li>
+            <li><a href="#compose">In your compose</a></li>
+            <li><a href="#ci">In CI</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Quick start</h1>
+          <p class="lead">From <code>docker run</code> to a webhook on your machine and a month skipped. Every call below runs as written against a fresh container.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <ol class="steps">
+              <li id="run">
+                <h3>Run it</h3>
+                <p>Pin the API key, or a fresh volume prints a new one at boot (in a shell, single quotes keep the <code>$</code>). Start the clock in a virtual mode, or it follows the machine and refuses to skip.</p>
+                <div class="code"><pre><code>docker run --rm -p 45445:45445 \
+  -e 'ASAAS_API_KEY=$aact_hmlg_local' \
+  -e CLOCK_MODE=VIRTUAL_FLOWING \
+  -e WEBHOOK_LOCALHOST_REWRITE=host.docker.internal \
+  --add-host host.docker.internal:host-gateway \
+  ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
+                <p><code>WEBHOOK_LOCALHOST_REWRITE</code> lets a webhook registered as <code>http://localhost:4000/…</code> reach your machine from inside the container. The panel is at <a href="http://localhost:45445">http://localhost:45445</a>.</p>
+              </li>
+
+              <li id="point">
+                <h3>Point your application at it</h3>
+                <p>Switching from the sandbox to the mock is switching the base URL. The paths, bodies, headers and errors are Asaas's.</p>
+                <div class="code"><pre><code><span class="del">- ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3</span>
+<span class="add">+ ASAAS_BASE_URL=http://localhost:45445/v3</span>
+  ASAAS_API_KEY=$aact_hmlg_local</code></pre></div>
+              </li>
+
+              <li id="customer">
+                <h3>Create a customer</h3>
+                <div class="code"><pre><code>curl localhost:45445/v3/customers \
+  -H 'access_token: $aact_hmlg_local' -H 'content-type: application/json' \
+  -d '{"name":"Maria Souza","cpfCnpj":"24971563792","email":"maria@example.com","mobilePhone":"11987654321"}'
+<span class="c"># → {"object":"customer","id":"cus_526128665490",…}</span></code></pre></div>
+              </li>
+
+              <li id="webhook">
+                <h3>Register your webhook</h3>
+                <p>Through the real <code>/v3/webhooks</code>. The rules are Asaas's: the <code>authToken</code> needs 32 to 255 characters, and your endpoint must answer HTTP 200.</p>
+                <div class="code"><pre><code>curl localhost:45445/v3/webhooks \
+  -H 'access_token: $aact_hmlg_local' -H 'content-type: application/json' \
+  -d '{"name":"my-app","url":"http://localhost:4000/webhooks/asaas","email":"dev@example.com",
+       "enabled":true,"interrupted":false,"apiVersion":3,"sendType":"SEQUENTIALLY",
+       "authToken":"whsec_local_demo_token_0123456789abcdef",
+       "events":["PAYMENT_CREATED","PAYMENT_CONFIRMED","PAYMENT_RECEIVED","PAYMENT_OVERDUE"]}'</code></pre></div>
+                <p>Each delivery carries the <code>asaas-access-token</code> header with your token. <code>GET /_admin/webhooks/deliveries</code> shows every attempt with your endpoint's answer.</p>
+              </li>
+
+              <li id="charge">
+                <h3>Charge and pay</h3>
+                <p>A Pix charge goes straight to <code>RECEIVED</code> when paid. Pay it like the payer would, on the page at <code>invoiceUrl</code> (a real QR code), or with the sandbox's own call:</p>
+                <div class="code"><pre><code>curl localhost:45445/v3/payments \
+  -H 'access_token: $aact_hmlg_local' -H 'content-type: application/json' \
+  -d '{"customer":"cus_526128665490","billingType":"PIX","value":89.9,"dueDate":"2026-11-10"}'
+
+curl -X POST localhost:45445/v3/sandbox/payment/pay_…/confirm -H 'access_token: $aact_hmlg_local'
+<span class="c"># → your endpoint receives PAYMENT_CREATED, then PAYMENT_RECEIVED</span></code></pre></div>
+              </li>
+
+              <li id="time">
+                <h3>Skip time</h3>
+                <p>Every simulated day runs a full tick: subscriptions charge, unpaid charges go overdue, cards credit, webhooks fire.</p>
+                <div class="code"><pre><code>curl localhost:45445/_admin/clock                     <span class="c"># where the clock is</span>
+curl -X POST localhost:45445/_admin/clock/advance \
+  -H 'content-type: application/json' -d '{"days": 32}'
+curl -X POST localhost:45445/_admin/clock/set \
+  -H 'content-type: application/json' -d '{"date": "2027-01-01"}'</code></pre></div>
+                <p>The <a href="../#use-cases">use cases</a> put this to work: a card that credits at D+32, a boleto paid late, a subscription a year ahead.</p>
+              </li>
+
+              <li id="compose">
+                <h3>In your compose</h3>
+                <div class="code"><pre><code>services:
+  asaas:
+    image: ghcr.io/instituto-ama/asaas-mock:0.6.4   <span class="c"># pin a version, or :latest</span>
+    ports:
+      - '45445:45445'
+    environment:
+      <span class="c"># `$$` is a literal `$` in compose.</span>
+      ASAAS_API_KEY: '$$aact_hmlg_local'
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+      CLOCK_MODE: VIRTUAL_FLOWING
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   <span class="c"># Linux</span>
+    volumes:
+      - asaas-data:/data
+volumes:
+  asaas-data:</code></pre></div>
+                <p>From a service in the same network, the mock is <code>http://asaas:45445/v3</code>.</p>
+              </li>
+
+              <li id="ci">
+                <h3>In CI</h3>
+                <p>Use <code>CLOCK_MODE=VIRTUAL_FROZEN</code> and no volume: the clock moves only when the test says so, and every run starts from the same state. A test then reads like the business rule it checks:</p>
+                <div class="code"><pre><code><span class="c"># create the charge → assert PENDING</span>
+<span class="c"># advance 1 day after the due date → assert your order is marked overdue</span>
+<span class="c"># confirm the payment → assert the webhook handler settled the order</span></code></pre></div>
+              </li>
+            </ol>
+            <div class="next">
+              <a class="key confirm" href="../#use-cases">Use cases</a>
+              <a class="key" href="../api/">API reference</a>
+              <a class="key" href="../docs/">Docs</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/asaas">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>An independent simulator of the public Asaas API, not affiliated with Asaas. "Asaas" is a trademark of its owners. No payment made here is real.</p>
+    </div>
+  </footer>
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>
