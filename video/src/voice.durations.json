@@ -1,0 +1,152 @@
+{
+  "intro": {
+    "file": "audio/voice/intro.mp3",
+    "seconds": 2.4,
+    "frames": 72,
+    "source": "speech"
+  },
+  "cliente": {
+    "file": "audio/voice/cliente.mp3",
+    "seconds": 6,
+    "frames": 180,
+    "source": "speech"
+  },
+  "fatura": {
+    "file": "audio/voice/fatura.mp3",
+    "seconds": 4.64,
+    "frames": 140,
+    "source": "speech"
+  },
+  "pago": {
+    "file": "audio/voice/pago.mp3",
+    "seconds": 4.32,
+    "frames": 130,
+    "source": "speech"
+  },
+  "cartao": {
+    "file": "audio/voice/cartao.mp3",
+    "seconds": 8.96,
+    "frames": 269,
+    "source": "speech"
+  },
+  "whatsapp": {
+    "file": "audio/voice/whatsapp.mp3",
+    "seconds": 2.72,
+    "frames": 82,
+    "source": "speech"
+  },
+  "webhook": {
+    "file": "audio/voice/webhook.mp3",
+    "seconds": 5.04,
+    "frames": 152,
+    "source": "speech"
+  },
+  "perfis": {
+    "file": "audio/voice/perfis.mp3",
+    "seconds": 5.28,
+    "frames": 159,
+    "source": "speech"
+  },
+  "relogio": {
+    "file": "audio/voice/relogio.mp3",
+    "seconds": 7.04,
+    "frames": 212,
+    "source": "speech"
+  },
+  "vence": {
+    "file": "audio/voice/vence.mp3",
+    "seconds": 2.88,
+    "frames": 87,
+    "source": "speech"
+  },
+  "vencida": {
+    "file": "audio/voice/vencida.mp3",
+    "seconds": 3.92,
+    "frames": 118,
+    "source": "speech"
+  },
+  "overdue": {
+    "file": "audio/voice/overdue.mp3",
+    "seconds": 4.64,
+    "frames": 140,
+    "source": "speech"
+  },
+  "saldo": {
+    "file": "audio/voice/saldo.mp3",
+    "seconds": 3.28,
+    "frames": 99,
+    "source": "speech"
+  },
+  "received": {
+    "file": "audio/voice/received.mp3",
+    "seconds": 2.64,
+    "frames": 80,
+    "source": "speech"
+  },
+  "console": {
+    "file": "audio/voice/console.mp3",
+    "seconds": 5.44,
+    "frames": 164,
+    "source": "speech"
+  },
+  "logs": {
+    "file": "audio/voice/logs.mp3",
+    "seconds": 7.68,
+    "frames": 231,
+    "source": "speech"
+  },
+  "assinatura": {
+    "file": "audio/voice/assinatura.mp3",
+    "seconds": 4,
+    "frames": 120,
+    "source": "speech"
+  },
+  "mes": {
+    "file": "audio/voice/mes.mp3",
+    "seconds": 1.28,
+    "frames": 39,
+    "source": "speech"
+  },
+  "aguardando": {
+    "file": "audio/voice/aguardando.mp3",
+    "seconds": 4,
+    "frames": 120,
+    "source": "speech"
+  },
+  "recusa": {
+    "file": "audio/voice/recusa.mp3",
+    "seconds": 4.56,
+    "frames": 137,
+    "source": "speech"
+  },
+  "recusa-detalhe": {
+    "file": "audio/voice/recusa-detalhe.mp3",
+    "seconds": 2.8,
+    "frames": 84,
+    "source": "speech"
+  },
+  "vencida-recusa": {
+    "file": "audio/voice/vencida-recusa.mp3",
+    "seconds": 3.12,
+    "frames": 94,
+    "source": "speech"
+  },
+  "seis": {
+    "file": "audio/voice/seis.mp3",
+    "seconds": 4.8,
+    "frames": 144,
+    "source": "speech"
+  },
+  "fim": {
+    "file": "audio/voice/fim.mp3",
+    "seconds": 1.36,
+    "frames": 41,
+    "source": "speech"
+  },
+  "outro": {
+    "file": "audio/voice/outro.mp3",
+    "seconds": 6.64,
+    "frames": 200,
+    "source": "speech"
+  }
+}

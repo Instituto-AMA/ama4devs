@@ -1,0 +1,6 @@
+# The rendered film is a build artifact (`make video` writes it).
+out/
+
+# The generated voice is rebuilt by `make video-voice`; a human recording in
+# public/audio/recorded/ is source and stays in git.
+public/audio/voice/

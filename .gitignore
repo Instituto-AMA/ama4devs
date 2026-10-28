@@ -2,6 +2,8 @@
 .env.sandbox
 node_modules/
 data/
+# The rendered films are build artifacts; `make video` writes them.
+video/out/
 # The Pages site's API data is source (scripts/site-api-data.mjs writes it).
 !site/data/
 .DS_Store

@@ -1,0 +1,113 @@
+{
+  "voice": "pt-BR-AntonioNeural",
+  "rate": "-6%",
+  "speech": {
+    "base_url": "https://openrouter.ai/api/v1/audio/speech",
+    "models": ["elevenlabs/eleven-v3", "elevenlabs/eleven-multilingual-v2"],
+    "voice": "oi8rgjIfLgJRsQ6rbZh3",
+    "voice_name": "Amanda Kelly",
+    "response_format": "mp3"
+  },
+  "segments": [
+    {
+      "id": "intro",
+      "text": "Um mock local da API do ásas."
+    },
+    {
+      "id": "cliente",
+      "text": "Cadastro de cliente, cobrança e fatura: o mesmo caminho de uma API real."
+    },
+    {
+      "id": "fatura",
+      "text": "A fatura que o pagador recebe é a mesma que chega por e-mail e WhatsApp."
+    },
+    {
+      "id": "pago",
+      "text": "O cartão paga, e o status da cobrança vira confirmado."
+    },
+    {
+      "id": "cartao",
+      "text": "E dá para forçar o desfecho que o seu código precisa tratar: o cartão tokeniza e recusa quando alguém cobra nele."
+    },
+    {
+      "id": "whatsapp",
+      "text": "O pagador fala com a clínica pelo WhatsApp."
+    },
+    {
+      "id": "webhook",
+      "text": "Você cadastra o seu endpoint, e o mock passa a entregar cada evento lá."
+    },
+    {
+      "id": "perfis",
+      "text": "Cada conta é um tê-nent, com a própria chave e os próprios clientes."
+    },
+    {
+      "id": "relogio",
+      "text": "O relógio virtual é o coração do mock: um tick por dia, como o simulador do Asaas."
+    },
+    {
+      "id": "vence",
+      "text": "Um dia passa, e a cobrança vence."
+    },
+    {
+      "id": "vencida",
+      "text": "Uma semana depois, ela está vencida, e o evento sai."
+    },
+    {
+      "id": "overdue",
+      "text": "A sua aplicação é avisada, e o payload traz o status."
+    },
+    {
+      "id": "saldo",
+      "text": "Trinta e dois dias depois, o cartão credita a conta."
+    },
+    {
+      "id": "received",
+      "text": "O dinheiro entrou, e o evento foi entregue."
+    },
+    {
+      "id": "console",
+      "text": "Esta é a requisição que a sua aplicação faz. A resposta é real."
+    },
+    {
+      "id": "logs",
+      "text": "Nos logs de requisições, a chamada da sua aplicação: o que você mandou e o que o mock devolveu."
+    },
+    {
+      "id": "assinatura",
+      "text": "A assinatura recorrente, criada com o cartão já tokenizado."
+    },
+    {
+      "id": "mes",
+      "text": "Um mês adiante."
+    },
+    {
+      "id": "aguardando",
+      "text": "A cobrança de trezentos e quarenta e nove reais ainda espera o banco."
+    },
+    {
+      "id": "recusa",
+      "text": "O banco recusou, e cada recusa virou um evento na sua aplicação."
+    },
+    {
+      "id": "recusa-detalhe",
+      "text": "A recusa chegou com a cobrança ainda pendente."
+    },
+    {
+      "id": "vencida-recusa",
+      "text": "Sem mais tentativas, a cobrança ficou vencida."
+    },
+    {
+      "id": "seis",
+      "text": "Seis recusas, cada uma entregue com resposta duzentos."
+    },
+    {
+      "id": "fim",
+      "text": "De volta ao presente."
+    },
+    {
+      "id": "outro",
+      "text": "É o ama for devs. Mocks que se comportam como a API. Roda em Docker, sem cadastro."
+    }
+  ]
+}

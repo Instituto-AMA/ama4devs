@@ -1,0 +1,284 @@
+{
+  "title": "ama4devs",
+  "kicker": "Mock do Asaas",
+  "tagline": "O dinheiro andando de verdade",
+  "chapters": ["O dinheiro", "Os canais", "As contas", "O tempo", "A recusa", "O fim"],
+  "intro": { "voice": "intro" },
+  "outro": {
+    "voice": "outro",
+    "chips": ["Webhook de verdade", "Relógio virtual", "Recusa e saldo"],
+    "line": "Roda em Docker, na sua máquina, sem cadastro."
+  },
+  "beats": [
+    {
+      "file": "01-cliente.png",
+      "caption": "Cliente criado pela API — a ficha *abre na hora*",
+      "chapter": 0,
+      "voice": "cliente",
+      "focus": [700, 300],
+      "spot": false,
+      "zoom": 1.42
+    },
+    {
+      "file": "02-fatura.png",
+      "caption": "A fatura do pagador — a que chega por e-mail e *WhatsApp*",
+      "chapter": 0,
+      "voice": "fatura",
+      "focus": [1030, 120],
+      "spot": false,
+      "zoom": 1.5
+    },
+    {
+      "file": "03-pago.png",
+      "caption": "Pago: a cobrança vira *confirmada*",
+      "chapter": 0,
+      "voice": "pago",
+      "focus": [900, 90],
+      "spot": false,
+      "zoom": 1.42
+    },
+    {
+      "file": "04-cartao-recusante.png",
+      "caption": "Cartão de teste: *tokeniza* e *recusa* quando alguém cobra",
+      "chapter": 0,
+      "voice": "cartao",
+      "focus": [860, 700],
+      "spot": false,
+      "zoom": 1.5
+    },
+    {
+      "file": "05-whatsapp.png",
+      "caption": "O *WhatsApp* do pagador",
+      "chapter": 1,
+      "voice": "whatsapp",
+      "focus": [820, 330],
+      "spot": false,
+      "zoom": 1.42
+    },
+    {
+      "file": "06-webhook-criado.png",
+      "caption": "Seu endpoint, com os eventos que ele *escuta*",
+      "chapter": 1,
+      "voice": "webhook",
+      "focus": [860, 488],
+      "spot": true,
+      "zoom": 1.45
+    },
+    {
+      "file": "07-perfil-criado.png",
+      "caption": "Cada conta é um *tenant*: chave, carteira e clientes",
+      "chapter": 2,
+      "voice": "perfis",
+      "focus": [720, 320],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "08-conta-nova.png",
+      "caption": "Uma conta nova, *do zero*",
+      "chapter": 2,
+      "voice": null,
+      "focus": [860, 320],
+      "spot": false,
+      "zoom": 1.38
+    },
+    {
+      "file": "09-relogio.png",
+      "caption": "Relógio virtual: *um tick por dia*",
+      "chapter": 3,
+      "voice": "relogio",
+      "focus": [860, 430],
+      "spot": false,
+      "zoom": 1.42
+    },
+    {
+      "file": "10-cobranca-vence-hoje.png",
+      "caption": "Um dia passa: a cobrança *vence hoje*",
+      "chapter": 3,
+      "voice": "vence",
+      "focus": [860, 705],
+      "spot": true,
+      "zoom": 1.55
+    },
+    {
+      "file": "11-cobranca-vencida.png",
+      "caption": "Uma semana: a cobrança está *vencida*",
+      "chapter": 3,
+      "voice": "vencida",
+      "focus": [860, 705],
+      "spot": true,
+      "zoom": 1.55
+    },
+    {
+      "file": "12-log-overdue.png",
+      "caption": "O evento saiu, com resposta *duzentos*",
+      "chapter": 3,
+      "voice": "overdue",
+      "focus": [525, 450],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "13-log-overdue-detalhe.png",
+      "caption": "O *payload* que chegou no seu endpoint",
+      "chapter": 3,
+      "voice": null,
+      "focus": [1070, 400],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "14-saldo.png",
+      "caption": "O saldo: entrou o valor do cartão, *menos a taxa*",
+      "chapter": 3,
+      "voice": "saldo",
+      "focus": [860, 480],
+      "spot": false,
+      "zoom": 1.42
+    },
+    {
+      "file": "15-log-received.png",
+      "caption": "O dinheiro *entrou* — e o evento foi entregue",
+      "chapter": 3,
+      "voice": "received",
+      "focus": [525, 450],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "16-cartao-na-lista.png",
+      "caption": "O cartão *recusante*, pronto para a assinatura",
+      "chapter": 4,
+      "voice": null,
+      "focus": [860, 640],
+      "spot": false,
+      "zoom": 1.5
+    },
+    {
+      "file": "17-console-assinatura.png",
+      "caption": "A requisição que a sua aplicação faz — e a *resposta real*",
+      "chapter": 4,
+      "voice": "console",
+      "focus": [900, 380],
+      "spot": false,
+      "zoom": 1.32
+    },
+    {
+      "file": "18-log-requisicoes.png",
+      "caption": "Logs de requisições: a chamada da *sua aplicação*",
+      "chapter": 4,
+      "voice": "logs",
+      "focus": [525, 450],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "19-log-requisicao-pedido.png",
+      "caption": "POST /v3/subscriptions — o que você *mandou*",
+      "chapter": 4,
+      "voice": null,
+      "focus": [450, 400],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "20-log-requisicao-resposta.png",
+      "caption": "E o que o mock *devolveu*",
+      "chapter": 4,
+      "voice": null,
+      "focus": [1070, 400],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "21-assinatura-cartao.png",
+      "caption": "A assinatura recorrente, com o cartão *tokenizado*",
+      "chapter": 4,
+      "voice": "assinatura",
+      "focus": [860, 520],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "22-cartao-salvo.png",
+      "caption": "O banco *recusa* toda cobrança",
+      "chapter": 4,
+      "voice": null,
+      "focus": [860, 688],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "23-console-30-dias.png",
+      "caption": "Um mês *adiante*",
+      "chapter": 4,
+      "voice": "mes",
+      "focus": [900, 380],
+      "spot": false,
+      "zoom": 1.32
+    },
+    {
+      "file": "24-cobranca-aguardando.png",
+      "caption": "A cobrança de R$ 349,90 ainda espera o *banco*",
+      "chapter": 4,
+      "voice": "aguardando",
+      "focus": [860, 567],
+      "spot": true,
+      "zoom": 1.55
+    },
+    {
+      "file": "25-log-recusa.png",
+      "caption": "O banco recusou — e cada recusa virou *evento*",
+      "chapter": 4,
+      "voice": "recusa",
+      "focus": [525, 450],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "26-log-recusa-detalhe.png",
+      "caption": "*PAYMENT_CREDIT_CARD_CAPTURE_REFUSED*",
+      "chapter": 4,
+      "voice": "recusa-detalhe",
+      "focus": [1070, 400],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "27-cobranca-vencida-recusa.png",
+      "caption": "Sem mais tentativas: a cobrança ficou *vencida*",
+      "chapter": 4,
+      "voice": "vencida-recusa",
+      "focus": [860, 567],
+      "spot": true,
+      "zoom": 1.55
+    },
+    {
+      "file": "28-log-recusa-6.png",
+      "caption": "O log completo: *seis recusas*, *seis entregas*",
+      "chapter": 4,
+      "voice": "seis",
+      "focus": [525, 450],
+      "spot": true,
+      "zoom": 1.5
+    },
+    {
+      "file": "29-log-overdue-recusa.png",
+      "caption": "E o aviso final, com o *status* da cobrança",
+      "chapter": 4,
+      "voice": null,
+      "focus": [1070, 400],
+      "spot": false,
+      "zoom": 1.45
+    },
+    {
+      "file": "30-fim.png",
+      "caption": "De volta ao *presente*",
+      "chapter": 5,
+      "voice": "fim",
+      "focus": [860, 420],
+      "spot": false,
+      "zoom": 1.4
+    }
+  ]
+}

@@ -11,7 +11,7 @@ COMPOSE  := docker compose --env-file .env -f docker-compose.yml
 
 export MOCKS PROFILE TARGET_ENV
 
-.PHONY: help env setup setup-sandbox up down restart logs ps status build publish env-mock env-sandbox test clean
+.PHONY: help env setup setup-sandbox up down restart logs ps status build publish env-mock env-sandbox test clean video video-voice video-say video-shots video-studio
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -67,6 +67,33 @@ env-sandbox: ## Write the sandbox env keys into TARGET_ENV (or print them)
 test: ## Run the tests of both mocks, one after the other
 	@cd mocks/asaas && bun test
 	@cd mocks/whatsapp && bun run test
+
+video: video-voice ## Render the film and ask where to save it (default: the Desktop)
+	@if [ -n "$(out)" ]; then dest="$(out)"; \
+	else read -r -p "Save the film where? [$(HOME)/Desktop/ama4devs-asaas-mock.mp4]: " answer; \
+	dest="$${answer:-$(HOME)/Desktop/ama4devs-asaas-mock.mp4}"; fi; \
+	mkdir -p "$$(dirname "$$dest")"; \
+	echo "Rendering to $$dest"; \
+	cd video && bun run render "$$dest"
+
+video-voice: ## Regenerate the narration (needs uv and ffmpeg; reads .env.sandbox)
+	@if [ -f .env.sandbox ]; then set -a; . ./.env.sandbox; set +a; fi; \
+	cd video && node scripts/voice.mjs
+
+video-say: ## Speak one line: make video-say text="..." [duration=4.5] [pace=1] [at=12.4] [id=recusa]
+	@if [ -f .env.sandbox ]; then set -a; . ./.env.sandbox; set +a; fi; \
+	node video/scripts/say.mjs --text "$(text)" \
+		$(if $(duration),--duration $(duration)) \
+		$(if $(pace),--pace $(pace)) \
+		$(if $(at),--at $(at)) \
+		$(if $(id),--id $(id)) \
+		$(if $(voice),--voice $(voice))
+
+video-shots: ## Capture the screens of the running mock for the film (needs the mocks up)
+	@cd video && node scripts/capture.mjs
+
+video-studio: ## Preview the film with the scrubber at http://localhost:3000
+	@cd video && bun run studio
 
 clean: env ## Remove containers and volumes (FORCE=1 skips the prompt)
 	@if [ "$(FORCE)" != "1" ]; then \

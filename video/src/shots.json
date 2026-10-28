@@ -1,0 +1,437 @@
+[
+  {
+    "file": "01-cliente.png",
+    "name": "cliente",
+    "url": "http://localhost:45990/#customers/cus_470969678641",
+    "caption": "1 · Cliente criado — a ficha dele abre na hora",
+    "focus": {
+      "x": 903.0625,
+      "y": 737.5,
+      "width": 131.9375,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "02-fatura.png",
+    "name": "fatura",
+    "url": "http://localhost:45990/i/396468516877",
+    "caption": "3 · A fatura do pagador — a mesma que chega por e-mail e WhatsApp",
+    "focus": {
+      "x": 928.5625,
+      "y": 560.6875,
+      "width": 106.4375,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "03-pago.png",
+    "name": "pago",
+    "url": "http://localhost:45990/i/396468516877",
+    "caption": "3 · Pago — o status da cobrança vira Confirmada",
+    "focus": {
+      "x": 437,
+      "y": 765.5,
+      "width": 566,
+      "height": 44
+    },
+    "spot": null
+  },
+  {
+    "file": "04-cartao-recusante.png",
+    "name": "cartao-recusante",
+    "url": "http://localhost:45990/#sim-cards",
+    "caption": "6 · Cartão cadastrado — ele vive só no simulador, e recusa de verdade",
+    "focus": {
+      "x": 354,
+      "y": 380,
+      "width": 164.4375,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "05-whatsapp.png",
+    "name": "whatsapp",
+    "url": "http://localhost:3020/",
+    "caption": "9 · A mensagem no WhatsApp do pagador",
+    "focus": {
+      "x": 1150.21875,
+      "y": 294,
+      "width": 110.140625,
+      "height": 32
+    },
+    "spot": null
+  },
+  {
+    "file": "06-webhook-criado.png",
+    "name": "webhook-criado",
+    "url": "http://localhost:45990/#integrations/webhooks",
+    "caption": "14 · A URL da sua aplicação e os eventos que ela passou a escutar",
+    "focus": {
+      "x": 337,
+      "y": 351,
+      "w": 1046,
+      "h": 274
+    },
+    "spot": {
+      "x": 337,
+      "y": 351,
+      "w": 1046,
+      "h": 274
+    }
+  },
+  {
+    "file": "07-perfil-criado.png",
+    "name": "perfil-criado",
+    "url": "http://localhost:45990/#sim-profiles",
+    "caption": "16 · Perfil criado — a chave de API da conta nova, na mão",
+    "focus": {
+      "x": 337,
+      "y": 516,
+      "width": 143.296875,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "08-conta-nova.png",
+    "name": "conta-nova",
+    "url": "http://localhost:45990/#sim-profiles",
+    "caption": "17 · Entrando na conta nova — vazia, como uma clínica que acabou de abrir",
+    "focus": {
+      "x": 804.9375,
+      "y": 543.890625,
+      "width": 150.0625,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "09-relogio.png",
+    "name": "relogio",
+    "url": "http://localhost:45990/#sim-clock",
+    "caption": "18 · Um tick por dia: vencidos, cartões, assinaturas e webhooks",
+    "focus": {
+      "x": 1324.21875,
+      "y": 717,
+      "width": 72.65625,
+      "height": 32
+    },
+    "spot": null
+  },
+  {
+    "file": "10-cobranca-vence-hoje.png",
+    "name": "cobranca-vence-hoje",
+    "url": "http://localhost:45990/#payments",
+    "caption": "",
+    "focus": {
+      "x": 313,
+      "y": 682,
+      "w": 1094,
+      "h": 46
+    },
+    "spot": {
+      "x": 313,
+      "y": 682,
+      "w": 1094,
+      "h": 46
+    }
+  },
+  {
+    "file": "11-cobranca-vencida.png",
+    "name": "cobranca-vencida",
+    "url": "http://localhost:45990/#payments",
+    "caption": "",
+    "focus": {
+      "x": 313,
+      "y": 682,
+      "w": 1094,
+      "h": 46
+    },
+    "spot": {
+      "x": 313,
+      "y": 682,
+      "w": 1094,
+      "h": 46
+    }
+  },
+  {
+    "file": "12-log-overdue.png",
+    "name": "log-overdue",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "21 · PAYMENT_OVERDUE — a entrega do evento na sua aplicação",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    },
+    "spot": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    }
+  },
+  {
+    "file": "13-log-overdue-detalhe.png",
+    "name": "log-overdue-detalhe",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "22 · PAYMENT_OVERDUE — o que chegou: a cobrança de R$ 199,90 com status OVERDUE",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "width": 402.796875,
+      "height": 61
+    },
+    "spot": null
+  },
+  {
+    "file": "14-saldo.png",
+    "name": "saldo",
+    "url": "http://localhost:45990/#home",
+    "caption": "24 · O saldo: entrou o valor do cartão, menos a taxa",
+    "focus": {
+      "x": 544.734375,
+      "y": 692.375,
+      "width": 106.984375,
+      "height": 40
+    },
+    "spot": null
+  },
+  {
+    "file": "15-log-received.png",
+    "name": "log-received",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "25 · PAYMENT_RECEIVED — o dinheiro entrou e o evento foi entregue",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    },
+    "spot": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    }
+  },
+  {
+    "file": "16-cartao-na-lista.png",
+    "name": "cartao-na-lista",
+    "url": "http://localhost:45990/#sim-cards",
+    "caption": "26 · O cartão recusante, pronto para a assinatura",
+    "focus": {
+      "x": 312,
+      "y": -675,
+      "w": 1096,
+      "h": 2257
+    },
+    "spot": {
+      "x": 312,
+      "y": -675,
+      "w": 1096,
+      "h": 2257
+    }
+  },
+  {
+    "file": "17-console-assinatura.png",
+    "name": "console-assinatura",
+    "url": "http://localhost:45992/",
+    "caption": "27 · A mesma requisição que a sua aplicação faz — resposta real do mock",
+    "focus": null,
+    "spot": null
+  },
+  {
+    "file": "18-log-requisicoes.png",
+    "name": "log-requisicoes",
+    "url": "http://localhost:45990/#integrations/requests",
+    "caption": "28 · Logs de Requisições — a chamada da sua aplicação, com o que foi enviado e o que voltou",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    },
+    "spot": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    }
+  },
+  {
+    "file": "19-log-requisicao-pedido.png",
+    "name": "log-requisicao-pedido",
+    "url": "http://localhost:45990/#integrations/requests",
+    "caption": "29 · POST /v3/subscriptions — o que sua aplicação mandou: a recorrência no cartão recusante",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "width": 402.796875,
+      "height": 61
+    },
+    "spot": null
+  },
+  {
+    "file": "20-log-requisicao-resposta.png",
+    "name": "log-requisicao-resposta",
+    "url": "http://localhost:45990/#integrations/requests",
+    "caption": "30 · E o que o mock devolveu: a assinatura criada, com o cartão já tokenizado",
+    "focus": null,
+    "spot": null
+  },
+  {
+    "file": "21-assinatura-cartao.png",
+    "name": "assinatura-cartao",
+    "url": "http://localhost:45990/#payments/subscriptions",
+    "caption": "31 · A assinatura recorrente — com o cartão recusante tokenizado",
+    "focus": {
+      "x": 313,
+      "y": 497.6875,
+      "width": 1218.859375,
+      "height": 45.6875
+    },
+    "spot": null
+  },
+  {
+    "file": "22-cartao-salvo.png",
+    "name": "cartao-salvo",
+    "url": "http://localhost:45990/#sim-cards",
+    "caption": "32 · O cartão salvo: o banco recusa toda cobrança",
+    "focus": {
+      "x": 313,
+      "y": 636,
+      "w": 1094,
+      "h": 105
+    },
+    "spot": {
+      "x": 313,
+      "y": 636,
+      "w": 1094,
+      "h": 105
+    }
+  },
+  {
+    "file": "23-console-30-dias.png",
+    "name": "console-30-dias",
+    "url": "http://localhost:45992/",
+    "caption": "",
+    "focus": null,
+    "spot": null
+  },
+  {
+    "file": "24-cobranca-aguardando.png",
+    "name": "cobranca-aguardando",
+    "url": "http://localhost:45990/#payments",
+    "caption": "34 · A cobrança de R$ 349,90 ainda espera — o Asaas tenta de novo no dia seguinte",
+    "focus": {
+      "x": 313,
+      "y": 544,
+      "w": 1094,
+      "h": 46
+    },
+    "spot": {
+      "x": 313,
+      "y": 544,
+      "w": 1094,
+      "h": 46
+    }
+  },
+  {
+    "file": "25-log-recusa.png",
+    "name": "log-recusa",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "36 · O banco recusou — e cada recusa virou um evento na sua aplicação",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    },
+    "spot": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    }
+  },
+  {
+    "file": "26-log-recusa-detalhe.png",
+    "name": "log-recusa-detalhe",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "37 · PAYMENT_CREDIT_CARD_CAPTURE_REFUSED — a recusa que chegou, com a cobrança ainda pendente",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "width": 402.796875,
+      "height": 61
+    },
+    "spot": null
+  },
+  {
+    "file": "27-cobranca-vencida-recusa.png",
+    "name": "cobranca-vencida-recusa",
+    "url": "http://localhost:45990/#payments",
+    "caption": "39 · Sem mais tentativas: a cobrança de R$ 349,90 ficou vencida",
+    "focus": {
+      "x": 313,
+      "y": 544,
+      "w": 1094,
+      "h": 46
+    },
+    "spot": {
+      "x": 313,
+      "y": 544,
+      "w": 1094,
+      "h": 46
+    }
+  },
+  {
+    "file": "28-log-recusa-6.png",
+    "name": "log-recusa-6",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "40 · O log completo: seis recusas, cada uma entregue com o 200",
+    "focus": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    },
+    "spot": {
+      "x": 325,
+      "y": 419,
+      "w": 403,
+      "h": 61
+    }
+  },
+  {
+    "file": "29-log-overdue-recusa.png",
+    "name": "log-overdue-recusa",
+    "url": "http://localhost:45990/#integrations/webhook-logs",
+    "caption": "41 · PAYMENT_OVERDUE — a cobrança recusada ficou vencida, e o aviso saiu com o status OVERDUE",
+    "focus": {
+      "x": 325,
+      "y": 358,
+      "width": 402.796875,
+      "height": 61
+    },
+    "spot": null
+  },
+  {
+    "file": "30-fim.png",
+    "name": "fim",
+    "url": "http://localhost:45990/#home",
+    "caption": "",
+    "focus": {
+      "x": 1242.40625,
+      "y": 210,
+      "width": 148.59375,
+      "height": 32
+    },
+    "spot": null
+  }
+]
