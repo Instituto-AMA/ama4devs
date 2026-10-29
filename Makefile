@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-MOCKS      ?= asaas whatsapp
+MOCKS      ?= asaas whatsapp generator
 PROFILE    ?= generic
 TARGET_ENV ?=
 FORCE      ?=
@@ -43,7 +43,8 @@ ps: env ## List the mock containers
 status: env ## Health of each mock, one line each
 	@asaas_port=$$(sed -n 's/^ASAAS_PORT=//p' .env | tail -n1); asaas_port=$${asaas_port:-45445}; \
 	whatsapp_port=$$(sed -n 's/^WHATSAPP_PORT=//p' .env | tail -n1); whatsapp_port=$${whatsapp_port:-3010}; \
-	for entry in asaas:$$asaas_port whatsapp:$$whatsapp_port; do \
+	generator_port=$$(sed -n 's/^GENERATOR_PORT=//p' .env | tail -n1); generator_port=$${generator_port:-45450}; \
+	for entry in asaas:$$asaas_port whatsapp:$$whatsapp_port generator:$$generator_port; do \
 		name=$${entry%%:*}; port=$${entry##*:}; \
 		if curl --fail --silent --max-time 3 "http://localhost:$$port/health" >/dev/null; then \
 			echo "$$name: up (http://localhost:$$port)"; \
@@ -64,9 +65,10 @@ env-mock: ## Write the mock env keys into TARGET_ENV (or print them)
 env-sandbox: ## Write the sandbox env keys into TARGET_ENV (or print them)
 	@scripts/env-mode.sh $(PROFILE) sandbox $(TARGET_ENV)
 
-test: ## Run the tests of both mocks, one after the other
+test: ## Run the tests of the mocks, one after the other
 	@cd mocks/asaas && bun test
 	@cd mocks/whatsapp && bun run test
+	@cd mocks/generator && bun test
 
 video: video-voice ## Render the film and ask where to save it (default: the Desktop)
 	@if [ -n "$(out)" ]; then dest="$(out)"; \

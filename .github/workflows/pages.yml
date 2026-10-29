@@ -8,6 +8,8 @@ on:
     paths:
       - 'site/**'
       - 'mocks/*/docs/img/**'
+      - 'mocks/generator/public/**'
+      - 'mocks/generator/src/core/**'
       - 'mocks/asaas/docs/icon.svg'
       - 'llms.txt'
       - 'scripts/build-site.sh'

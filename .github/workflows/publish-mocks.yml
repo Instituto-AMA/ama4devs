@@ -17,7 +17,7 @@ on:
       mocks:
         description: 'Mocks to publish, space separated'
         required: true
-        default: 'asaas whatsapp'
+        default: 'asaas whatsapp generator'
 
 permissions:
   contents: read
