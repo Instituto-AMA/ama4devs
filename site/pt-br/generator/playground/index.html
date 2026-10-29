@@ -63,17 +63,15 @@
           <form class="sheet pg-form" data-playground>
             <h2>Requisição</h2>
 
-            <label class="pg-field">Rota
-              <select name="route">
-                <option value="kind">GET /v1/{kind} · gerar</option>
-                <option value="validate">GET /v1/validate/{type}/{value} · validar documento</option>
-                <option value="kinds">GET /v1/kinds · o que ele gera</option>
-              </select>
-            </label>
+            <fieldset class="pg-keys">
+              <legend>Rota</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Gerar</span></label><label><input type="radio" name="route" value="validate"><span>Validar</span></label><label><input type="radio" name="route" value="kinds"><span>Listar tipos</span></label></div>
+            </fieldset>
 
-            <label class="pg-field" data-for="kind">Tipo
-              <select name="kind"></select>
-            </label>
+            <div class="pg-field" data-for="kind">
+              <span class="pg-name">Tipo</span>
+              <select name="kind" data-picker></select>
+            </div>
             <div class="pg-row" data-for="kind">
               <label class="pg-field">count <small>de 1 a 1000</small>
                 <input name="count" type="number" min="1" max="1000" value="3" inputmode="numeric">
@@ -82,43 +80,46 @@
                 <input name="seed" type="text" placeholder="clinica-42" autocomplete="off" spellcheck="false">
               </label>
             </div>
-            <label class="pg-field" data-for="kind:state">state
-              <select name="state"><option value="">qualquer</option></select>
-            </label>
-            <label class="pg-field" data-for="kind:gender">gender
-              <select name="gender"><option value="">qualquer</option><option value="F">F</option><option value="M">M</option></select>
-            </label>
-            <label class="pg-field" data-for="kind:outcome">outcome <small>o que o mock do Asaas faz com o cartão</small>
-              <select name="outcome"><option value="">APPROVE (padrão)</option><option value="APPROVE">APPROVE</option><option value="DECLINE">DECLINE</option><option value="RANDOM">RANDOM</option></select>
-            </label>
-            <label class="pg-field" data-for="kind:billingType">billingType
-              <select name="billingType"><option value="">qualquer</option><option value="PIX">PIX</option><option value="BOLETO">BOLETO</option><option value="CREDIT_CARD">CREDIT_CARD</option></select>
-            </label>
-            <label class="pg-field" data-for="kind:type">type
-              <select name="type"><option value="">qualquer</option><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="EMAIL">EMAIL</option><option value="PHONE">PHONE</option><option value="EVP">EVP</option></select>
-            </label>
-            <label class="pg-field" data-for="kind:now">now <small>o dia de onde contam idades e vencimentos</small>
-              <input name="now" type="date">
-            </label>
+            <div class="pg-field" data-for="kind:state">
+              <span class="pg-name">state</span>
+              <select name="state" data-picker><option value="">qualquer</option></select>
+            </div>
+            <fieldset class="pg-keys" data-for="kind:gender">
+              <legend>gender</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="gender" value="" checked><span>qualquer</span></label><label><input type="radio" name="gender" value="F"><span>F</span></label><label><input type="radio" name="gender" value="M"><span>M</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:outcome">
+              <legend>outcome <small>o que o mock do Asaas faz com o cartão</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="outcome" value="APPROVE" checked><span>APPROVE</span></label><label><input type="radio" name="outcome" value="DECLINE"><span>DECLINE</span></label><label><input type="radio" name="outcome" value="RANDOM"><span>RANDOM</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:billingType">
+              <legend>billingType</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="billingType" value="" checked><span>qualquer</span></label><label><input type="radio" name="billingType" value="PIX"><span>PIX</span></label><label><input type="radio" name="billingType" value="BOLETO"><span>BOLETO</span></label><label><input type="radio" name="billingType" value="CREDIT_CARD"><span>CREDIT_CARD</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:type">
+              <legend>type</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="type" value="" checked><span>qualquer</span></label><label><input type="radio" name="type" value="CPF"><span>CPF</span></label><label><input type="radio" name="type" value="CNPJ"><span>CNPJ</span></label><label><input type="radio" name="type" value="EMAIL"><span>EMAIL</span></label><label><input type="radio" name="type" value="PHONE"><span>PHONE</span></label><label><input type="radio" name="type" value="EVP"><span>EVP</span></label></div>
+            </fieldset>
+            <div class="pg-field" data-for="kind:now">
+              <label class="pg-name" for="pg-now">now <small>o dia de onde contam idades e vencimentos</small></label>
+              <input id="pg-now" name="now" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off" spellcheck="false" data-date>
+            </div>
             <label class="pg-check" data-for="kind:formatted">
               <input name="formatted" type="checkbox"> formatted <small>documentos e telefones com máscara</small>
             </label>
 
-            <div class="pg-row" data-for="validate">
-              <label class="pg-field">type
-                <select name="doc"><option value="cpf">cpf</option><option value="cnpj">cnpj</option><option value="cnh">cnh</option><option value="pis">pis</option></select>
-              </label>
-              <label class="pg-field">value
-                <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
-              </label>
-            </div>
-
-            <label class="pg-field">Quem responde
-              <select name="target">
-                <option value="browser">Esta página (mesmo core do container)</option>
-                <option value="container">Seu container</option>
-              </select>
+            <fieldset class="pg-keys" data-for="validate">
+              <legend>type</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="doc" value="cpf" checked><span>cpf</span></label><label><input type="radio" name="doc" value="cnpj"><span>cnpj</span></label><label><input type="radio" name="doc" value="cnh"><span>cnh</span></label><label><input type="radio" name="doc" value="pis"><span>pis</span></label></div>
+            </fieldset>
+            <label class="pg-field" data-for="validate">value
+              <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
             </label>
+
+            <fieldset class="pg-keys">
+              <legend>Quem responde <small>esta página roda o mesmo código do container</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="target" value="browser" checked><span>Esta página</span></label><label><input type="radio" name="target" value="container"><span>Seu container</span></label></div>
+            </fieldset>
             <label class="pg-field" data-base hidden>URL base
               <input name="base" type="url" value="http://localhost:45450" spellcheck="false">
             </label>

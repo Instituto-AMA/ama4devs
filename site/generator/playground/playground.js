@@ -14,6 +14,7 @@
  * The form lives in the page's query string, so a call can be shared as a link.
  */
 import { GeneratorError, KINDS, STATES, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis } from '../app/core/index.js'
+import { enhanceDate, enhanceSelect } from './controls.js'
 
 /** The documents the validation route knows (app.ts, VALIDATORS). */
 const VALIDATORS = { cpf: isValidCpf, cnpj: isValidCnpj, cnh: isValidCnh, pis: isValidPis }
@@ -45,6 +46,7 @@ const TEXT = {
       `No answer from ${base}. Is the generator running (docker run -p 45450:45450 ghcr.io/instituto-ama/generator-mock)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
     copied: 'Copied',
     copy: 'Copy',
+    calendar: { today: 'Today', clear: 'Clear', open: 'Pick a day', prev: 'Previous month', next: 'Next month' },
   },
   pt: {
     browser: 'respondido por esta página',
@@ -53,7 +55,19 @@ const TEXT = {
       `Sem resposta de ${base}. O gerador está rodando (docker run -p 45450:45450 ghcr.io/instituto-ama/generator-mock)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
     copied: 'Copiado',
     copy: 'Copiar',
+    calendar: { today: 'Hoje', clear: 'Limpar', open: 'Escolher um dia', prev: 'Mês anterior', next: 'Próximo mês' },
   },
+}
+
+/** Portuguese labels used only by the localized interface. */
+const PRESENTATION_LABELS = {
+  person: 'Pessoa',
+  company: 'Empresa',
+  address: 'Endereço',
+  'credit-card': 'Cartão de crédito',
+  'bank-account': 'Conta bancária',
+  'pix-key': 'Chave Pix',
+  charge: 'Cobrança',
 }
 
 /**
@@ -132,7 +146,10 @@ function start(form) {
   const keep = /** @type {HTMLButtonElement} */ (out.querySelector('[data-keep-seed]'))
 
   const kinds = $('kind')
-  for (const { id, label } of KINDS) kinds.append(new Option(`${id} · ${label}`, id))
+  for (const { id, label } of KINDS) {
+    const shown = document.documentElement.lang.startsWith('pt') ? PRESENTATION_LABELS[id] ?? label : label
+    kinds.append(new Option(`${id} · ${shown}`, id))
+  }
   const states = $('state')
   for (const [code, name] of Object.entries(STATES)) states.append(new Option(`${code} · ${name}`, code))
 
@@ -145,6 +162,10 @@ function start(form) {
     else if (field instanceof RadioNodeList) field.value = value
     else field.value = value
   }
+
+  // The receipt-style controls take over once the values are in place.
+  for (const select of form.querySelectorAll('select[data-picker]')) enhanceSelect(/** @type {HTMLSelectElement} */ (select))
+  for (const input of form.querySelectorAll('input[data-date]')) enhanceDate(/** @type {HTMLInputElement} */ (input), t.calendar)
 
   /** The route the form describes, and its query string. */
   function request() {
