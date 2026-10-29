@@ -57,7 +57,8 @@ import {
   serializeSubscription,
   type SubscriptionRow,
 } from './serializer.ts'
-import { generateOne, parseSubscriptionSplits } from './service.ts'
+import { serializeInvoice } from '../invoices/serializer.ts'
+import { generateOne, parseSubscriptionSplits, removeSubscription } from './service.ts'
 
 const CYCLES: Cycle[] = [
   'WEEKLY',
@@ -489,43 +490,7 @@ export const subscriptionHandlers: HandlerMap = {
    */
   'remove-subscription': async ({ ctx, auth, params }) => {
     const sub = await findOwned(ctx, auth, params.id!)
-
-    const open = await ctx.db
-      .select({ id: payments.id })
-      .from(payments)
-      .where(
-        and(
-          eq(payments.subscriptionId, sub.id),
-          eq(payments.deleted, false),
-          inArray(payments.status, OPEN),
-        ),
-      )
-
-    for (const p of open) {
-      await applyTransition(ctx, p.id, { kind: 'DELETE' })
-    }
-
-    await ctx.db.transaction(async (tx) => {
-      await tx
-        .update(subscriptions)
-        .set({ deleted: true })
-        .where(and(eq(subscriptions.id, sub.id), eq(subscriptions.deleted, false)))
-
-      const [row] = await tx
-        .select()
-        .from(subscriptions)
-        .where(eq(subscriptions.id, sub.id))
-        .limit(1)
-
-      await ctx.emit(tx as never, {
-        accountId: auth.accountId,
-        event: 'SUBSCRIPTION_DELETED',
-        resourceType: 'subscription',
-        resourceId: sub.id,
-        resource: await serializeSubscription(tx as never, row as SubscriptionRow),
-      })
-    })
-
+    await removeSubscription(ctx, sub)
     return { deleted: true, id: sub.id }
   },
 
@@ -744,9 +709,9 @@ export const subscriptionHandlers: HandlerMap = {
   /**
    * As notas fiscais das cobranças da assinatura.
    *
-   * A EMISSÃO da nota é do track G — aqui só relacionamos as notas às cobranças
-   * geradas por esta assinatura. Enquanto o track G não emitir nenhuma, a lista
-   * vem legitimamente vazia (e não com dados inventados).
+   * A emissão mora em src/modules/invoices (e no job invoice-jobs, que agenda a
+   * nota de cada cobrança quando a assinatura tem `invoiceSettings`); aqui só
+   * relacionamos as notas às cobranças geradas por esta assinatura.
    */
   'list-invoices-for-subscription-charges': async ({ ctx, auth, params, query }) => {
     const sub = await findOwned(ctx, auth, params.id!)
@@ -791,28 +756,7 @@ export const subscriptionHandlers: HandlerMap = {
       .limit(limit)
       .offset(offset)
 
-    const data = rows.map((inv) => ({
-      object: 'invoice',
-      id: inv.id,
-      status: inv.status,
-      customer: inv.customerId,
-      payment: inv.paymentId,
-      installment: inv.installmentId,
-      type: 'NFS-e',
-      statusDescription: null,
-      serviceDescription: inv.serviceDescription,
-      pdfUrl: inv.pdfUrl,
-      xmlUrl: inv.xmlUrl,
-      rpsSerie: inv.rpsSerie,
-      rpsNumber: inv.rpsNumber,
-      number: inv.number,
-      validationCode: null,
-      value: centsToBrl(cents(inv.valueCents)),
-      deductions: inv.deductionsCents === null ? null : centsToBrl(cents(inv.deductionsCents)),
-      effectiveDate: inv.effectiveDate,
-      observations: inv.observations,
-      taxes: inv.taxes ?? null,
-    }))
+    const data = rows.map(serializeInvoice)
 
     return listEnvelope(data, total?.n ?? 0, limit, offset)
   },

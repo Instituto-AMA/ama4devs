@@ -11,12 +11,20 @@ import { and, count, desc, eq, type SQL } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import type { AppContext } from '../core/context.ts'
 import { notFound } from '../core/errors.ts'
-import { payments } from '../db/schema/index.ts'
+import { invoices, payments } from '../db/schema/index.ts'
 import { brlToCents } from '../domain/money.ts'
 import type { Trigger } from '../domain/payment-machine.ts'
 import { applyTransition, type TransitionResult } from '../modules/payments/apply.ts'
 import { recordWhatsappWebhook } from '../notify/inbound.ts'
 import { serializePayment, type PaymentRow } from '../modules/payments/serializer.ts'
+import { serializeInvoice, type InvoiceRow } from '../modules/invoices/serializer.ts'
+import {
+  answerCancellation,
+  answerInvoice,
+  issueInvoice,
+  refuseInvoice,
+} from '../modules/invoices/service.ts'
+import { badRequest } from '../core/errors.ts'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -80,7 +88,56 @@ export function mockRoutes(ctx: AppContext) {
   // no event Asaas does not have.
   const overdue = withPayment(() => ({ kind: 'OVERDUE', on: today() }))
 
+  /**
+   * The city hall's answer to a note, now instead of on the next tick. The
+   * note's own transitions (service.ts), so the INVOICE_* events are the same.
+   * `wanted` is where the note must be; anything else is a 400.
+   */
+  const withInvoice =
+    (wanted: string[], act: (inv: InvoiceRow, body: any) => Promise<InvoiceRow | null>) =>
+    async ({ params, body }: { params: { id: string }; body: any }) => {
+      const [inv] = await ctx.db.select().from(invoices).where(eq(invoices.id, params.id)).limit(1)
+      if (!inv) throw notFound('Nota fiscal')
+      if (!wanted.includes(inv.status)) {
+        throw badRequest('invalid_action', `A nota fiscal está ${inv.status}; esta ação pede ${wanted.join(' ou ')}.`)
+      }
+      const after = await act(inv, body ?? {})
+      if (!after) throw badRequest('invalid_action', 'A nota fiscal mudou de situação. Consulte-a de novo.')
+      return { invoice: serializeInvoice(after), from: inv.status, to: after.status }
+    }
+  const reason = t.Optional(t.Object({ description: t.Optional(t.String()) }))
+
   return app
+    // ── Notas fiscais: the city hall, on demand ──────────────────────────────
+    // Authorizes regardless of the fiscal information: the outcome is forced.
+    .post(
+      '/invoices/:id/authorize',
+      withInvoice(['SCHEDULED', 'ERROR', 'SYNCHRONIZED'], async (inv) => {
+        const sent = inv.status === 'SYNCHRONIZED' ? inv : await issueInvoice(ctx, inv)
+        return answerInvoice(ctx, sent, true)
+      }),
+      { params },
+    )
+    .post(
+      '/invoices/:id/error',
+      withInvoice(['SCHEDULED', 'SYNCHRONIZED'], async (inv, body) => {
+        const sent = inv.status === 'SYNCHRONIZED' ? inv : await issueInvoice(ctx, inv)
+        return refuseInvoice(ctx, sent, body.description ?? 'Rejeitada pela prefeitura: inscrição municipal não encontrada.')
+      }),
+      { params, body: reason },
+    )
+    .post(
+      '/invoices/:id/confirm-cancellation',
+      withInvoice(['PROCESSING_CANCELLATION'], (inv) => answerCancellation(ctx, inv)),
+      { params },
+    )
+    .post(
+      '/invoices/:id/deny-cancellation',
+      withInvoice(['PROCESSING_CANCELLATION'], (inv, body) =>
+        answerCancellation(ctx, inv, body.description ?? 'Cancelamento negado pela prefeitura: prazo de cancelamento expirado.'),
+      ),
+      { params, body: reason },
+    )
     // The sender number's webhook in the WhatsApp mock (registered on boot by
     // src/notify/channels.ts): GET is Meta's verification, POST the statuses and replies.
     .get('/whatsapp/webhook', ({ query }) => String(query['hub.challenge'] ?? 'ok'))

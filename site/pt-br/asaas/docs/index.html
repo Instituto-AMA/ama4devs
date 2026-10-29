@@ -300,7 +300,8 @@
                 <li><strong>Uma cobrança</strong>: o link da fatura, simular o pagamento, confirmar recebimento em dinheiro, receber, vencer, estornar, apagar, restaurar, e as notificações dela.</li>
                 <li><strong>Integrações</strong>, por conta: chaves de API, webhooks com a lista de eventos, o log de requisições (cada chamada à <code>/v3</code> com o que foi enviado e o que voltou, erros incluídos), o log de webhooks com a resposta do seu endpoint e os eventos que nenhum webhook levou, os canais de e-mail e WhatsApp.</li>
                 <li><strong>Cartões de teste</strong>: aceitar qualquer cartão bem formado ou só os da lista; adicionar um cartão com o desfecho que ele força.</li>
-                <li><strong>Perfis</strong>: uma conta raiz por tenant da sua aplicação, criada e apagada sem reiniciar.</li>
+                <li><strong>Notas fiscais</strong> (NFS-e): agendar a nota de uma cobrança, emitir, cancelar e cadastrar as informações fiscais da conta. A prefeitura responde no próximo tick (<code>SYNCHRONIZED</code> → <code>AUTHORIZED</code>, ou <code>ERROR</code> sem informações fiscais), ou na hora com os botões do simulador; o <code>pdfUrl</code> e o <code>xmlUrl</code> de uma nota autorizada abrem o documento. Uma assinatura com <code>invoiceSettings</code> ganha a nota de cada cobrança.</li>
+                <li><strong>Perfis</strong>: uma conta raiz por tenant da sua aplicação, criada e apagada sem reiniciar. <em>Zerar</em> esvazia um perfil e mantém o id e as chaves: tudo, ou só as cobranças, as notas e os logs, mantendo clientes e subcontas; cancelar antes envia <code>PAYMENT_DELETED</code>, <code>SUBSCRIPTION_DELETED</code> e <code>INVOICE_CANCELED</code> aos seus webhooks antes da limpeza.</li>
               </ul>
             </section>
 

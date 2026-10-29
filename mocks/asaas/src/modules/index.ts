@@ -22,6 +22,7 @@ import { creditCardHandlers } from './credit-cards/handlers.ts'
 import { customerHandlers } from './customers/handlers.ts'
 import { financeHandlers } from './finance/handlers.ts'
 import { installmentHandlers } from './installments/handlers.ts'
+import { invoiceHandlers } from './invoices/handlers.ts'
 import { notificationHandlers } from './notifications/handlers.ts'
 import { paymentLinkHandlers } from './payment-links/handlers.ts'
 import { paymentHandlers, sandboxHandlers } from './payments/handlers.ts'
@@ -65,4 +66,7 @@ export const HANDLERS: HandlerMap = {
   // Track E — parcelamentos e assinaturas
   ...installmentHandlers,
   ...subscriptionHandlers,
+
+  // Notas fiscais (NFS-e) e informações fiscais
+  ...invoiceHandlers,
 }

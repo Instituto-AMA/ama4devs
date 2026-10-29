@@ -72,6 +72,15 @@ export const invoices = sqliteTable(
     customerId: text('customer_id').references(() => customers.id),
     /** SCHEDULED | SYNCHRONIZED | AUTHORIZED | PROCESSING_CANCELLATION | CANCELED | CANCELLATION_DENIED | ERROR */
     status: text('status').notNull(),
+    /** Why the city hall refused it (ERROR, CANCELLATION_DENIED). */
+    statusDescription: text('status_description'),
+    externalReference: text('external_reference'),
+    municipalServiceId: text('municipal_service_id'),
+    municipalServiceCode: text('municipal_service_code'),
+    municipalServiceName: text('municipal_service_name'),
+    /** Discount the retained taxes from the charge's value when scheduling. */
+    updatePayment: bool('update_payment').notNull().default(false),
+    validationCode: text('validation_code'),
     valueCents: cents('value_cents').notNull(),
     deductionsCents: cents('deductions_cents'),
     serviceDescription: text('service_description'),

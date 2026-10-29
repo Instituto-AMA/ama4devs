@@ -8,6 +8,7 @@
  */
 import type { Job } from '../scheduler.ts'
 import { anticipationSettlement } from './anticipation-jobs.ts'
+import { invoiceIssuing } from './invoice-jobs.ts'
 import { cardCapture, creditSettlement, overdue } from './payment-jobs.ts'
 import { retentionPurge } from './retention-purge.ts'
 import { splitDivergenceExpiry, splitRelease } from './split-jobs.ts'
@@ -69,6 +70,13 @@ export { anticipationSettlement }
 export { transferSettlement }
 
 /**
+ * 7b. Notas fiscais: a prefeitura responde, a nota agendada vai para a prefeitura
+ *     no dia, a assinatura com `invoiceSettings` ganha a nota de cada cobrança.
+ *     → src/scheduler/jobs/invoice-jobs.ts
+ */
+export { invoiceIssuing }
+
+/**
  * 8. Entrega os webhooks pendentes.
  *
  *    RODA POR ÚLTIMO, e isso é deliberado: assim todos os eventos gerados pelos
@@ -95,6 +103,7 @@ export const JOBS: Job[] = [
   splitDivergenceExpiry,
   anticipationSettlement,
   transferSettlement,
+  invoiceIssuing,
   webhookDispatch,
   retentionPurge,
 ]

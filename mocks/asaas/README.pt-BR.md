@@ -149,8 +149,17 @@ mostra o que o Asaas não deixa você ver.
   eventos que nenhum webhook levou), e os canais de e-mail e WhatsApp.
 - **Cartões de teste**: a tabela que o motor lê; aceitar qualquer cartão bem
   formado ou só os listados; criar um cartão com o resultado que ele força.
+- **Notas fiscais** (NFS-e): agendar a nota de uma cobrança, emitir, cancelar,
+  e cadastrar as informações fiscais da conta. A prefeitura responde no próximo
+  tick (`SYNCHRONIZED` → `AUTHORIZED`, ou `ERROR` sem informações fiscais), ou
+  na hora com os botões do simulador; o `pdfUrl` e o `xmlUrl` de uma nota
+  autorizada abrem o documento. Uma assinatura com `invoiceSettings` ganha a
+  nota de cada cobrança.
 - **Perfis**: uma conta raiz por cliente da sua aplicação, criada e apagada sem
-  reiniciar.
+  reiniciar. **Zerar** esvazia um perfil e mantém o id e as chaves: tudo, ou só
+  as cobranças, as notas e os logs, mantendo clientes e subcontas; cancelar
+  antes passa pela API, então seus webhooks recebem `PAYMENT_DELETED`,
+  `SUBSCRIPTION_DELETED` e `INVOICE_CANCELED` antes da limpeza.
 
 ## Use no seu projeto
 
@@ -229,6 +238,7 @@ Não existem no Asaas: ficam fora de `/v3`, sem `access_token`, e desligam com
 | `GET /_admin/clock` · `POST /_admin/clock/advance` · `POST /_admin/clock/set` | O relógio: onde está, `{"days": 32}`, `{"date": "2026-08-01"}` |
 | `POST /_admin/tick` | Roda os jobs sem mexer no relógio |
 | `GET /_admin/accounts` · `POST /_admin/accounts` · `DELETE /_admin/accounts/:id` | Contas com saldo e chave que funciona; perfil novo; apagar com tudo que ele tem |
+| `POST /_admin/accounts/:id/reset` | Zerar um perfil mantendo id e chaves: `remove` escolhe os grupos (`customers`, `subaccounts`, `charges`, `invoices`, `webhooks`, `logs`); `cancelCharges` antes envia `PAYMENT_DELETED` / `SUBSCRIPTION_DELETED` / `INVOICE_CANCELED` pelo caminho da API |
 | `GET`, `POST /_admin/accounts/:id/keys` · `POST …/keys/:keyId/rotate` · `PUT`, `DELETE …/keys/:keyId` | Chaves de API |
 | `GET /_admin/webhooks/events` · `GET /_admin/webhooks/deliveries` · `POST /_admin/webhooks/pause` | Eventos de webhook, o registro de entregas, congelar o despacho |
 | `GET /_admin/test-cards` · `PUT /_admin/test-cards/policy` · `POST`, `DELETE /_admin/test-cards…` | Cartões de teste e a política de aceitar qualquer um |
@@ -236,6 +246,7 @@ Não existem no Asaas: ficam fora de `/v3`, sem `access_token`, e desligam com
 | `GET`, `PUT /_admin/card-capture/schedule` | O cronograma de retentativa da cobrança recorrente no cartão, `{"schedule": "0@08:00,1@08:00"}`; `""` volta ao padrão do Asaas |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operações com regra de negócio; a tabela de taxas |
+| `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | A resposta da prefeitura a uma nota agora, em vez do próximo tick: autorizar (com ou sem informações fiscais), recusar com `{"description": "…"}`, cancelar ou negar o cancelamento |
 
 ## Fidelidade: provada, não prometida
 

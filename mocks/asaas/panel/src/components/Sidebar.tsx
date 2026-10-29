@@ -30,6 +30,7 @@ export const ASAAS_NAV: NavItem[] = [
   { id: 'physical', label: 'Vendas físicas', icon: I.STORE, disabled: true },
   { id: 'pix', label: 'Pix', icon: I.PIX, disabled: true },
   { id: 'statement', label: 'Extrato da Conta', icon: I.STATEMENT },
+  { id: 'invoices', label: 'Notas fiscais', icon: I.NFSE },
   { id: 'anticipations', label: 'Antecipações', icon: I.ANTICIPATION, disabled: true },
   { id: 'dunning', label: 'Negativação', icon: I.ALERT, disabled: true },
   { id: 'splits', label: 'Split de pagamentos', icon: I.SPLIT },

@@ -147,8 +147,18 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
   events no webhook took), and the e-mail and WhatsApp channels.
 - **Test cards**: the table the engine reads; accept any well-formed card or
   only the listed ones; add a card with the outcome it forces.
+- **Notas fiscais** (NFS-e): schedule a note for a charge, issue it, cancel it,
+  and register the account's fiscal information. The city hall answers on the
+  next tick (`SYNCHRONIZED` → `AUTHORIZED`, or `ERROR` without fiscal
+  information), or now with the simulator's buttons; an authorized note's
+  `pdfUrl` and `xmlUrl` open its document. A subscription with
+  `invoiceSettings` gets a note for each charge.
 - **Profiles**: one root account per tenant of your application, created and
-  deleted without a restart.
+  deleted without a restart. **Reset** empties one and keeps its id and keys:
+  everything, or only the charges, notes and logs, keeping customers and
+  subaccounts; cancelling first goes through the API, so your webhooks hear
+  `PAYMENT_DELETED`, `SUBSCRIPTION_DELETED` and `INVOICE_CANCELED` before the
+  delete.
 
 ## Use it in your project
 
@@ -227,6 +237,7 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET /_admin/clock` · `POST /_admin/clock/advance` · `POST /_admin/clock/set` | The clock: where it is, `{"days": 32}`, `{"date": "2026-08-01"}` |
 | `POST /_admin/tick` | Run the jobs without moving the clock |
 | `GET /_admin/accounts` · `POST /_admin/accounts` · `DELETE /_admin/accounts/:id` | Accounts with balance and a working key; new profile; delete with everything it owns |
+| `POST /_admin/accounts/:id/reset` | Empty a profile and keep its id and keys: `remove` picks the groups (`customers`, `subaccounts`, `charges`, `invoices`, `webhooks`, `logs`); `cancelCharges` first sends `PAYMENT_DELETED` / `SUBSCRIPTION_DELETED` / `INVOICE_CANCELED` through the API path |
 | `GET`, `POST /_admin/accounts/:id/keys` · `POST …/keys/:keyId/rotate` · `PUT`, `DELETE …/keys/:keyId` | API keys |
 | `GET /_admin/webhooks/events` · `GET /_admin/webhooks/deliveries` · `POST /_admin/webhooks/pause` | Webhook events, the delivery log, freeze the dispatcher |
 | `GET /_admin/test-cards` · `PUT /_admin/test-cards/policy` · `POST`, `DELETE /_admin/test-cards…` | Test cards and the accept-any policy |
@@ -234,6 +245,7 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET`, `PUT /_admin/card-capture/schedule` | The retry schedule of recurring card charges, `{"schedule": "0@08:00,1@08:00"}`; `""` is Asaas's default |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Payer notifications: sent, resend, channel health, what arrived |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operations with an engine; the fee table |
+| `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | The city hall's answer to a note now, instead of on the next tick: authorize (fiscal information or not), refuse with `{"description": "…"}`, cancel or refuse to cancel |
 
 ## Fidelity: proven, not promised
 

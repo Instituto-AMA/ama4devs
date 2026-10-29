@@ -63,6 +63,7 @@ import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { createKey, deleteKey, listKeys, rotateKey, updateKey } from './keys.ts'
 import { createProfile, deleteProfile, seededDocuments } from './profiles.ts'
+import { RESET_GROUPS, resetProfile } from './reset.ts'
 
 /** Every event a webhook can subscribe to, in the spec's order. */
 const WEBHOOK_EVENTS: string[] = WebhookEvent.anyOf.map((s) => String(s.const))
@@ -698,6 +699,27 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
 
       /** Deletes a profile and everything it owns, subaccounts included. */
       .delete('/accounts/:id', async ({ params }) => deleteProfile(ctx, params.id))
+
+      /**
+       * Empties a profile and keeps it: the chosen groups go, the account and its
+       * keys stay. `cancelCharges` sends PAYMENT_DELETED / SUBSCRIPTION_DELETED
+       * through the API path first. See reset.ts.
+       */
+      .post(
+        '/accounts/:id/reset',
+        async ({ params, body }) =>
+          resetProfile(ctx, params.id, body ?? {}, () => scheduler.dispatchNow()),
+        {
+          body: t.Optional(
+            t.Object({
+              cancelCharges: t.Optional(t.Boolean()),
+              remove: t.Optional(
+                t.Partial(t.Object(Object.fromEntries(RESET_GROUPS.map((g) => [g, t.Boolean()])))),
+              ),
+            }),
+          ),
+        },
+      )
 
       // ── API keys of an account (the "Chaves de API" tab) ─────────────────
       .get('/accounts/:id/keys', async ({ params }) => ({
