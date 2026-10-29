@@ -61,6 +61,7 @@
             <li><a href="#validate">Validação</a></li>
             <li><a href="#asaas">Popule o Asaas</a></li>
             <li><a href="#ui">Interface web</a></li>
+            <li><a href="#off">Desligar</a></li>
           </ol>
         </nav>
       </aside>
@@ -242,7 +243,8 @@
 
               <li id="asaas">
                 <h3>Popule o Asaas</h3>
-                <p>Com o <a href="../../asaas/">mock do Asaas</a> em execução na porta <code>45445</code>, popule clientes, empresas e cobranças (com proporção de pagamentos confirmados no sandbox) com um único comando:</p>
+                <p>No compose do repositório (<code>make up</code>), o gerador sobe junto com o mock do Asaas (porta <code>45450</code>). Os dois se descobrem sozinhos sem configuração: abra o painel do <a href="../../asaas/">mock do Asaas</a> em <a href="http://localhost:45445">http://localhost:45445</a> e acesse <strong>Integrações › Gerador</strong>. Clique em <strong>Popular esta conta</strong> para cadastrar pessoas e empresas com CPF/CNPJ válidos como clientes da conta selecionada na barra superior, gerando cobranças por Pix, boleto e cartão (parte delas já pagas). Ou clique em <strong>Abrir o gerador</strong> para usar a interface interativa.</p>
+                <p>Você também pode popular via API com um único comando HTTP:</p>
                 <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
@@ -288,14 +290,13 @@
   ],
   "errors": []
 }</code></pre></div>
-                <p>Para semear automaticamente na inicialização do compose no repositório, defina no seu <code>.env</code>:</p>
+                <p>A semente no boot fica desligada a menos que definida. Para semear automaticamente na inicialização, defina <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> no seu <code>.env</code>:</p>
                 <div class="code"><pre><code>GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5</code></pre></div>
-                <p>Ao rodar <code>make up</code> no repositório ama4devs, o gerador sobe junto com o Asaas e popula a base no primeiro boot.</p>
               </li>
 
               <li id="ui">
                 <h3>Interface web</h3>
-                <p>O gerador conta com uma interface visual interativa completa. Quando executado em container local, acesse <a href="http://localhost:45445">http://localhost:45450</a>. No GitHub Pages, acesse <a href="../../../generator/app/">ama4devs/generator/app/</a> para gerar diretamente no navegador sem necessidade de instalar nada.</p>
+                <p>O gerador conta com uma interface visual interativa completa. Quando executado em container local, acesse <a href="http://localhost:45450">http://localhost:45450</a>. No GitHub Pages, acesse <a href="../../../generator/app/">ama4devs/generator/app/</a> para gerar diretamente no navegador sem necessidade de instalar nada.</p>
                 <p>Consulte o status da integração com o Asaas pela API:</p>
                 <div class="code"><pre><code>curl http://localhost:45450/_mock/asaas/status</code></pre></div>
                 <!-- real-output: ui -->
@@ -305,6 +306,11 @@
   "reachable": true,
   "customers": 28
 }</code></pre></div>
+              </li>
+
+              <li id="off">
+                <h3>Desligar</h3>
+                <p>A integração vem ligada por padrão. Para não subir o gerador no compose, use <code>GENERATOR_ENABLED=0</code> no <code>.env</code> (ele ajusta <code>deploy.replicas</code>). Para desativar a busca no mock do Asaas mesmo com o gerador rodando, defina <code>GENERATOR_URL=</code> (vazia): desligado ou não encontrado, a aba <strong>Gerador</strong> não aparece no painel do Asaas.</p>
               </li>
             </ol>
           </div>
