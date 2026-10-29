@@ -130,4 +130,9 @@ describe('the static files', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('text/javascript; charset=utf-8')
   })
+
+  test('a malformed escape in the path is a 400, not a crash', async () => {
+    const response = await request('/v1/validate/cpf/%E0%A4%A')
+    expect(response.status).toBe(400)
+  })
 })

@@ -129,7 +129,12 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
  * @param url The URL of the request.
  */
 async function generationRoute(request: Request, url: URL): Promise<Response> {
-  const pathname = url.pathname
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(url.pathname)
+  } catch {
+    return apiJson({ error: { code: 'invalid_request', message: 'Caminho com codificação inválida.' } }, 400)
+  }
 
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -148,7 +153,7 @@ async function generationRoute(request: Request, url: URL): Promise<Response> {
   const validate = /^\/v1\/validate\/([^/]+)\/([^/]+)$/.exec(pathname)
   if (validate) {
     const type = validate[1]!.toLowerCase()
-    const value = decodeURIComponent(validate[2]!)
+    const value = validate[2]!
     const validator = VALIDATORS[type]
     if (!validator) {
       return apiJson(
@@ -161,7 +166,7 @@ async function generationRoute(request: Request, url: URL): Promise<Response> {
 
   const kind = /^\/v1\/([^/]+)$/.exec(pathname)
   if (kind) {
-    const name = decodeURIComponent(kind[1]!)
+    const name = kind[1]!
     try {
       return apiJson(generate(name, optionsOf(url.searchParams)))
     } catch (error) {
