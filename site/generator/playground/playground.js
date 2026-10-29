@@ -87,8 +87,8 @@ const TEXT = {
     container: 'answered by',
     public: 'answered by the public endpoint',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
-    inPage: 'validated in this page, no request: share the link',
     curlPublic: 'Call the public endpoint',
+    notInFiles: 'not among the documents of the public files: validated in this page instead',
     curlContainer: 'The same call on your container',
     unreachable: (base) =>
       `No answer from ${base}. Is the generator running (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
@@ -99,8 +99,8 @@ const TEXT = {
     container: 'respondido por',
     public: 'respondido pelo endpoint público',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
-    inPage: 'validado nesta página, sem requisição: compartilhe o link',
     curlPublic: 'Chame o endpoint público',
+    notInFiles: 'fora dos documentos dos arquivos públicos: validado nesta página',
     curlContainer: 'A mesma chamada no seu container',
     unreachable: (base) =>
       `Sem resposta de ${base}. O gerador está rodando (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
@@ -248,12 +248,16 @@ function start(form) {
    * @param {string} seed
    * `url` is the file read, `address` the short one a person types (Pages
    * answers it from the file's .html twin): no seed is <kind>, a seed <kind>/<n>.
-   * @returns {{ url: string, address: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { local: true } | { error: string }}
+   * @returns {{ url: string, address: string, validate?: boolean } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { error: string }}
    */
   function publicPlan(seed) {
     const route = $('route').value
     if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json`, address: `${PUBLIC_BASE}kinds` }
-    if (route === 'validate') return { local: true }
+    if (route === 'validate') {
+      const value = String($('value').value).replace(/\D/g, '')
+      const file = `validate/${$('doc').value}/${value || '0'}`
+      return { url: `${PUBLIC_BASE}${file}.json`, address: `${PUBLIC_BASE}${file}`, validate: true }
+    }
     const kind = $('kind').value
     const count = Math.min(1000, Math.max(1, Math.trunc(Number($('count').value)) || 1))
     const formatted = $('formatted').checked && PUBLIC.formatted.includes(kind)
@@ -300,13 +304,6 @@ function start(form) {
       if ('error' in plan) {
         line.textContent = `GET ${PUBLIC_BASE}`
         curl.textContent = plan.error
-      } else if ('local' in plan) {
-        // A static site cannot check any document: this page does, and the
-        // container answers the same call.
-        line.textContent = `GET ${path}  (${t.inPage})`
-        curl.textContent = `curl '${base}${path}'`
-        curlTitle.textContent = t.curlContainer
-        curlHint.hidden = false
       } else if ('url' in plan) {
         line.textContent = `GET ${plan.address}`
         curl.textContent = `curl ${plan.address}`
@@ -375,12 +372,18 @@ function start(form) {
         body.textContent = plan.error
         return
       }
-      if ('local' in plan) {
-        result = answer(path, params)
-        inPage = true
-      } else try {
+      try {
         if ('url' in plan) {
-          result = { status: 200, body: await readPublic(plan.url) }
+          try {
+            result = { status: 200, body: await readPublic(plan.url) }
+          } catch (error) {
+            // The static endpoint validates the documents its files hold; any
+            // other one is checked here, by the same core.
+            if (!plan.validate) throw error
+            result = answer(path, params)
+            inPage = true
+            curl.textContent += `\n# ${t.notInFiles}`
+          }
         } else {
           const { picks, files } = plan.mix
           const read = await Promise.all(files.map((f) => readPublic(`${PUBLIC_BASE}${f.path}`)))
