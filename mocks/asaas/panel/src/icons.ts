@@ -20,6 +20,7 @@ export {
   PencilEdit02Icon as EDIT,
   SourceCodeIcon as INTEGRATION,
   UserAdd01Icon as PROFILE,
+  MagicWand01Icon as GENERATOR,
   ArrowDown01Icon as CARET,
   ArrowDown01Icon as SORT_DESC,
   ArrowReloadHorizontalIcon as REFRESH,
