@@ -179,13 +179,9 @@
             <article class="case" id="case-fill-form">
               <h3>Fill a form in a manual test</h3>
               <p class="proves">Testing a registration flow that validates CPF, phone numbers with correct DDDs, and addresses with real postal codes? Grab a complete person or company in JSON, copy it to clipboard, or generate one in your browser without inventing fake phone numbers.</p>
-              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json" data-local="curl 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json</code></pre></div>
-            </article>
-
-            <article class="case" id="case-seed-test-suite">
-              <h3>Seed a test suite with a fixed seed</h3>
-              <p class="proves">Eliminate flaky tests caused by random values. Pass <code>seed</code> and optionally a reference <code>now</code> date to obtain identical data on every test run across machines and CI runs.</p>
-              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json" data-local="curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj" data-local="curl 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre></div>
             </article>
 
             <article class="case" id="case-validate-document">
@@ -195,6 +191,12 @@
 https://instituto-ama.github.io/ama4devs/generator/playground/?route=validate&amp;doc=cnpj&amp;value=11222333000181" data-online-links data-local="curl http://localhost:45450/v1/validate/cpf/11144477735
 curl http://localhost:45450/v1/validate/cnpj/11222333000181">curl http://localhost:45450/v1/validate/cpf/11144477735
 curl http://localhost:45450/v1/validate/cnpj/11222333000181</code></pre></div>
+            </article>
+
+            <article class="case" id="case-seed-test-suite">
+              <h3>Seed a test suite with a fixed seed</h3>
+              <p class="proves">Eliminate flaky tests caused by random values. Pass <code>seed</code> and optionally a reference <code>now</code> date to obtain identical data on every test run across machines and CI runs.</p>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42" data-local="curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42</code></pre></div>
             </article>
           </div>
         </div>

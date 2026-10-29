@@ -81,13 +81,15 @@
                 <p>Run the generator container in Docker. In this repository, running <code>make up</code> brings it automatically alongside the Asaas mock.</p>
                 <div class="code"><pre><code>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
                 <p>The service listens on port <code>45450</code>. You can verify its health status:</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json" data-local="curl http://localhost:45450/health">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index" data-local="curl http://localhost:45450/health">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index</code></pre></div>
               </li>
 
               <li id="generate">
                 <h3>Generate data</h3>
                 <p>Request data for any of the 12 supported kinds. Use the <code>count</code> query parameter to fetch multiple items:</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre></div>
 <!-- real-output: generate -->
                 <div class="code"><pre><code>{
   "kind": "person",
@@ -157,7 +159,7 @@
               <li id="seed">
                 <h3>Reproducible seeds</h3>
                 <p>Same seed always produces the same output. Add <code>&amp;now=YYYY-MM-DD</code> to freeze the reference date so calculated ages, credit card expirations, and due dates remain perfectly stable over time:</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=1&amp;seed=demo&amp;now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42" data-local="curl 'http://localhost:45450/v1/person?count=1&amp;seed=demo&amp;now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42</code></pre></div>
 <!-- real-output: seed -->
                 <div class="code"><pre><code>{
   "kind": "person",

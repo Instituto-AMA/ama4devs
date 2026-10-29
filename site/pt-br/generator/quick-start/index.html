@@ -83,7 +83,7 @@
                 <p>Execute o container oficial do gerador. A porta padrão é <code>45450</code> e o serviço fica pronto em milissegundos sem dependências de banco de dados.</p>
                 <div class="code"><pre><code>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
                 <p>Verifique o status do serviço chamando o endpoint de saúde:</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json" data-local="curl http://localhost:45450/health">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index" data-local="curl http://localhost:45450/health">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index</code></pre></div>
                 <!-- real-output: run -->
                 <div class="code"><pre><code>{
   "status": "ok",
@@ -95,7 +95,9 @@
               <li id="generate">
                 <h3>Gere dados</h3>
                 <p>Gere pessoas fictícias completas com CPFs válidos, datas de nascimento coerentes e endereços reais. Você pode fixar uma data de referência com <code>now</code> para garantir que idades e vencimentos permaneçam imutáveis ao longo do tempo.</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo&amp;now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo&amp;now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre></div>
                 <!-- real-output: generate -->
                 <div class="code"><pre><code>{
   "kind": "person",
@@ -165,7 +167,7 @@
               <li id="seed">
                 <h3>Determinismo e semente</h3>
                 <p>O algoritmo pseudoaleatório (mulberry32) garante que a mesma semente gere rigorosamente o mesmo conjunto de dados em qualquer máquina ou ambiente de CI. Repita a requisição acima com <code>seed=demo</code> e receba exatamente o mesmo resultado.</p>
-                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42</code></pre></div>
                 <!-- real-output: seed -->
                 <div class="code"><pre><code>{
   "kind": "person",

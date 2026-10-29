@@ -13,7 +13,7 @@
  *
  * The form lives in the page's query string, so a call can be shared as a link.
  */
-import { GeneratorError, KINDS, STATES, createRng, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis, randomSeed } from '../app/core/index.js'
+import { GeneratorError, KINDS, STATES, createRng, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis } from '../app/core/index.js'
 import { enhanceDate, enhanceSelect } from './controls.js'
 
 /** The documents the validation route knows (app.ts, VALIDATORS). */
@@ -86,7 +86,6 @@ const TEXT = {
     browser: 'answered by this page',
     container: 'answered by',
     public: 'answered by the public endpoint',
-    drawn: 'the seed is drawn when you send',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
     inPage: 'validated in this page, no request: share the link',
     curlPublic: 'Call the public endpoint',
@@ -99,7 +98,6 @@ const TEXT = {
     browser: 'respondido por esta página',
     container: 'respondido por',
     public: 'respondido pelo endpoint público',
-    drawn: 'a seed é sorteada quando você envia',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
     inPage: 'validado nesta página, sem requisição: compartilhe o link',
     curlPublic: 'Chame o endpoint público',
@@ -248,18 +246,21 @@ function start(form) {
    * from 1 to PUBLIC.seeds with PUBLIC.count items), a mix of its files drawn by
    * any other seed or count, or why it cannot.
    * @param {string} seed
-   * @returns {{ url: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { local: true } | { error: string }}
+   * `url` is the file read, `address` the short one a person types (Pages
+   * answers it from the file's .html twin): no seed is <kind>, a seed <kind>/<n>.
+   * @returns {{ url: string, address: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { local: true } | { error: string }}
    */
   function publicPlan(seed) {
     const route = $('route').value
-    if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json` }
+    if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json`, address: `${PUBLIC_BASE}kinds` }
     if (route === 'validate') return { local: true }
     const kind = $('kind').value
     const count = Math.min(1000, Math.max(1, Math.trunc(Number($('count').value)) || 1))
     const formatted = $('formatted').checked && PUBLIC.formatted.includes(kind)
-    const n = Number(seed)
-    if (/^\d+$/.test(seed) && n >= 1 && n <= PUBLIC.seeds && count === PUBLIC.count) {
-      return { url: `${PUBLIC_BASE}${kind}/${n}${formatted ? '-formatted' : ''}.json` }
+    const n = Number(seed || '1')
+    if (/^\d*$/.test(seed) && n >= 1 && n <= PUBLIC.seeds && count === PUBLIC.count) {
+      const file = `${kind}/${n}${formatted ? '-formatted' : ''}`
+      return { url: `${PUBLIC_BASE}${file}.json`, address: !seed && !formatted ? `${PUBLIC_BASE}${kind}` : `${PUBLIC_BASE}${file}` }
     }
     return { mix: publicMix(kind, seed, count, formatted), kind, seed, count }
   }
@@ -293,21 +294,22 @@ function start(form) {
     const target = $('target').value
     if (target === 'public') {
       const seed = String($('seed').value).trim()
-      const plan = publicPlan(seed || '1')
+      const plan = publicPlan(seed)
       curlTitle.textContent = t.curlPublic
       curlHint.hidden = true
       if ('error' in plan) {
         line.textContent = `GET ${PUBLIC_BASE}`
         curl.textContent = plan.error
       } else if ('local' in plan) {
+        // A static site cannot check any document: this page does, and the
+        // container answers the same call.
         line.textContent = `GET ${path}  (${t.inPage})`
-        curl.textContent = location.href
-      } else if ('url' in plan && (seed || $('route').value !== 'kind')) {
-        line.textContent = `GET ${plan.url}`
-        curl.textContent = `curl '${plan.url}'`
-      } else if (!seed) {
-        line.textContent = `GET ${PUBLIC_BASE}${$('kind').value}/…  (${t.drawn})`
-        curl.textContent = `curl '${PUBLIC_BASE}${$('kind').value}/1.json'`
+        curl.textContent = `curl '${base}${path}'`
+        curlTitle.textContent = t.curlContainer
+        curlHint.hidden = false
+      } else if ('url' in plan) {
+        line.textContent = `GET ${plan.address}`
+        curl.textContent = `curl ${plan.address}`
       } else if ('mix' in plan) {
         const files = plan.mix.files
         line.textContent = `GET ${plan.count} × ${plan.kind} · ${t.mixed(files.length)}`
@@ -363,8 +365,10 @@ function start(form) {
 
     /** @type {{ status: number, body: any } | null} */
     let result = null
+    /** Answered by this page even in the public endpoint's mode (validation). */
+    let inPage = false
     if (target === 'public') {
-      const plan = publicPlan(String($('seed').value).trim() || ($('route').value === 'kind' ? randomSeed() : '1'))
+      const plan = publicPlan(String($('seed').value).trim())
       if ('error' in plan) {
         status.className = 'chip err'
         status.textContent = t.public
@@ -373,6 +377,7 @@ function start(form) {
       }
       if ('local' in plan) {
         result = answer(path, params)
+        inPage = true
       } else try {
         if ('url' in plan) {
           result = { status: 200, body: await readPublic(plan.url) }
@@ -414,12 +419,12 @@ function start(form) {
 
     const ms = Math.max(1, Math.round(performance.now() - began))
     status.className = `chip ${result.status < 400 ? 'ok' : 'err'}`
-    status.textContent = `${result.status} · ${ms} ms · ${target === 'public' ? t.public : remote ? `${t.container} ${base}` : t.browser}`
+    status.textContent = `${result.status} · ${ms} ms · ${inPage ? t.browser : target === 'public' ? t.public : remote ? `${t.container} ${base}` : t.browser}`
     body.textContent = JSON.stringify(result.body, null, 2)
 
     // A random seed is the answer's: offer to keep it, so the call repeats.
     const seed = result.body?.seed
-    if (seed && !$('seed').value.trim()) {
+    if (seed && !$('seed').value.trim() && target !== 'public') {
       keep.hidden = false
       keep.dataset.seed = seed
     }

@@ -176,13 +176,9 @@
             <article class="case" id="case-manual-form">
               <h3>Preencher formulários em testes manuais</h3>
               <p class="proves">Chega de digitar <code>111.444.777-35</code> ou inventar nomes repetidos ao validar telas de cadastro. Abra o gerador no navegador ou faça um curl para obter uma pessoa completa com endereço correspondente, telefone com DDD da cidade e documentos formatados prontos para copiar e colar.</p>
-              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json" data-local="curl -s 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json</code></pre></div>
-            </article>
-
-            <article class="case" id="case-fixed-seed">
-              <h3>Semear suítes de teste com determinismo</h3>
-              <p class="proves">Em testes de integração e CI, dados randômicos criam testes instáveis. Ao fornecer uma semente fixa (como <code>seed=e2e-run-42</code>), o gerador reproduz exatamente os mesmos CPFs, nomes, empresas e valores em todas as execuções, garantindo asserções previsíveis e reprodutíveis.</p>
-              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json" data-local="curl -s 'http://localhost:45450/v1/company?count=3&amp;seed=e2e-run-42'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj" data-local="curl -s 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person
+curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre></div>
             </article>
 
             <article class="case" id="case-validate">
@@ -191,6 +187,12 @@
               <div class="code" data-online-note="abra no navegador: o playground valida aí mesmo, sem container"><pre><code data-online="https://instituto-ama.github.io/ama4devs/pt-br/generator/playground/?route=validate&amp;doc=cpf&amp;value=11144477735" data-online-links data-local="curl http://localhost:45450/v1/validate/cpf/11144477735
 <span class="c"># → {"type":"cpf","value":"11144477735","valid":true}</span>">curl http://localhost:45450/v1/validate/cpf/11144477735
 <span class="c"># → {"type":"cpf","value":"11144477735","valid":true}</span></code></pre></div>
+            </article>
+
+            <article class="case" id="case-fixed-seed">
+              <h3>Semear suítes de teste com determinismo</h3>
+              <p class="proves">Em testes de integração e CI, dados randômicos criam testes instáveis. Ao fornecer uma semente fixa (como <code>seed=e2e-run-42</code>), o gerador reproduz exatamente os mesmos CPFs, nomes, empresas e valores em todas as execuções, garantindo asserções previsíveis e reprodutíveis.</p>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42" data-local="curl -s 'http://localhost:45450/v1/company?count=3&amp;seed=e2e-run-42'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42</code></pre></div>
             </article>
           </div>
         </div>
