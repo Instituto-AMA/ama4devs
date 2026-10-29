@@ -19,9 +19,12 @@ services:
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
       # Payer notifications: the e-mail to Mailpit, the WhatsApp template to the WhatsApp mock.
       # Nothing to wire: the mock finds both services by name, and the address the WhatsApp
-      # mock calls back on, by itself. Integrações opens these two pages in the browser.
+      # mock calls back on, by itself. Integrações opens these pages in the browser.
       MAILPIT_UI_URL: http://localhost:${MAILPIT_PORT:-8025}
       WHATSAPP_UI_URL: http://localhost:${WHATSAPP_PORT:-3010}
+      # The generator of fake data: the Asaas mock finds it by service name; this is where the
+      # browser opens it.
+      GENERATOR_UI_URL: http://localhost:${GENERATOR_PORT:-45450}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -72,13 +75,16 @@ services:
       - '127.0.0.1:${GENERATOR_PORT:-45450}:45450'
     environment:
       PORT: 45450
-      ASAAS_URL: http://asaas:45445
       ASAAS_API_KEY: ${ASAAS_API_KEY:-$$aact_hmlg_local_master}
       ASAAS_PANEL_URL: http://localhost:${ASAAS_PORT:-45445}
       ASAAS_SEED_ON_BOOT: ${GENERATOR_ASAAS_SEED_ON_BOOT:-}
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+    # On by default; GENERATOR_ENABLED=0 in .env keeps it down (the Asaas mock then never finds it and hides
+    # Integrações › Gerador).
+    deploy:
+      replicas: ${GENERATOR_ENABLED:-1}
     healthcheck:
       test:
         - CMD

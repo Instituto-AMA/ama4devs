@@ -1,4 +1,5 @@
 import pkg from '../package.json' with { type: 'json' }
+import { asaasPlaces } from './discovery.ts'
 
 /**
  * Everything the server needs to boot: the port it listens on, the Asaas it
@@ -7,7 +8,10 @@ import pkg from '../package.json' with { type: 'json' }
 export interface Config {
   port: number
   version: string
-  asaasUrl: string
+  /** The Asaas the calls go to; undefined until the discovery finds it. */
+  asaasUrl: string | undefined
+  /** The places the Asaas may be found at; empty when it was given as is. */
+  asaasPlaces: string[]
   asaasApiKey: string
   asaasPanelUrl: string
   seedOnBoot: string
@@ -16,8 +20,18 @@ export interface Config {
   coreDir: string
 }
 
-/** The hosts the guard admits without any configuration. */
-const DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '::1', 'host.docker.internal']
+/**
+ * The hosts the guard admits without any configuration: the local names, the
+ * Docker host and the names of this service in a compose.
+ */
+const DEFAULT_ALLOWED_HOSTS = [
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  'host.docker.internal',
+  'generator',
+  'generator-mock',
+]
 
 /** The key of the local Asaas mock: a fake placeholder, never a real one. */
 const DEFAULT_ASAAS_API_KEY = '$aact_hmlg_local_master'
@@ -31,10 +45,13 @@ const DEFAULT_PORT = 45450
  * object in the tests.
  */
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
+  const asaasUrl = env.ASAAS_URL?.trim()
+
   return {
     port: portOf(env.PORT),
     version: String(pkg.version),
-    asaasUrl: trimTrailingSlash(env.ASAAS_URL?.trim() || 'http://localhost:45445'),
+    asaasUrl: asaasUrl ? trimTrailingSlash(asaasUrl) : undefined,
+    asaasPlaces: asaasPlaces(env),
     asaasApiKey: env.ASAAS_API_KEY?.trim() || DEFAULT_ASAAS_API_KEY,
     asaasPanelUrl: trimTrailingSlash(env.ASAAS_PANEL_URL?.trim() || 'http://localhost:45445'),
     seedOnBoot: env.ASAAS_SEED_ON_BOOT?.trim() ?? '',
