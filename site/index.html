@@ -241,7 +241,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
         <div class="vias">
           <article class="via">
             <div class="sheet">
-              <h3>WhatsApp mock</h3>
+              <h3>WhatsApp mock <button type="button" class="video-btn" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/whatsapp-mock-demo.mp4" data-title="WhatsApp Mock Demo" title="Watch demo video" aria-label="Watch demo video">▶️</button></h3>
               <p class="what">The Cloud API of the Meta Graph API v23.0, routed and validated against Meta's own OpenAPI file, plus a WhatsApp Web like panel where you are the user on the other side.</p>
               <figure>
                 <a href="whatsapp/"><img src="img/whatsapp/chat.jpg" width="1502" height="714" alt="The WhatsApp mock panel: a conversation with a template that has an image header, a formatted body, a footer and quick reply buttons." loading="lazy"></a>
@@ -263,7 +263,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
 
           <article class="via">
             <div class="sheet">
-              <h3>Asaas mock</h3>
+              <h3>Asaas mock <button type="button" class="video-btn" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/asaas-mock-demo.mp4" data-title="Asaas Mock Demo" title="Watch demo video" aria-label="Watch demo video">▶️</button></h3>
               <p class="what">The Asaas API v3, the Brazilian payment gateway, with the business rules captured from the real sandbox and a virtual clock you move by hand.</p>
               <figure>
                 <a href="asaas/"><img src="img/asaas/clock.jpg" width="1502" height="771" alt="The Asaas mock's virtual clock: the simulator's time and mode, and the buttons to advance one, seven or thirty-two days." loading="lazy"></a>
@@ -329,6 +329,17 @@ make setup        <span class="c"># starts everything and writes the addresses i
       <p>Independent simulators of public APIs, not affiliated with Meta, WhatsApp or Asaas. Their names are trademarks of their owners. No payment made here is real.</p>
     </div>
   </footer>
+
+  <dialog id="video-modal" class="video-modal" aria-labelledby="video-modal-title">
+    <div class="video-modal-box">
+      <div class="video-modal-header">
+        <span id="video-modal-title" class="video-modal-title"></span>
+        <button type="button" class="video-modal-close" aria-label="Close video">✕</button>
+      </div>
+      <div class="video-modal-player"></div>
+    </div>
+  </dialog>
+
   <script src="assets/site.js" defer></script>
 </body>
 </html>

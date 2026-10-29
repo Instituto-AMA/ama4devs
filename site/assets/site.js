@@ -355,4 +355,57 @@
     search.addEventListener('input', render)
     onlyLive?.addEventListener('change', render)
   }
+
+  // ── Video modal ──
+  const videoModal = document.getElementById('video-modal')
+  if (videoModal) {
+    const player = videoModal.querySelector('.video-modal-player')
+    const titleEl = videoModal.querySelector('.video-modal-title')
+    const closeBtn = videoModal.querySelector('.video-modal-close')
+
+    const toEmbedUrl = (raw) => {
+      try {
+        const u = new URL(raw, location.href)
+        if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+          let id = u.searchParams.get('v')
+          if (!id && u.hostname.includes('youtu.be')) id = u.pathname.slice(1)
+          if (!id && u.pathname.startsWith('/embed/')) id = u.pathname.split('/')[2]
+          return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` : raw
+        }
+      } catch {}
+      return null
+    }
+
+    const openVideo = (url, title) => {
+      if (!url) return
+      if (titleEl) titleEl.textContent = title || ''
+      const embed = toEmbedUrl(url)
+      if (embed) {
+        player.innerHTML = `<iframe src="${embed}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
+      } else {
+        player.innerHTML = `<video controls autoplay playsinline><source src="${url}" type="video/mp4"></video>`
+      }
+      videoModal.showModal()
+    }
+
+    const closeVideo = () => {
+      if (videoModal.open) videoModal.close()
+      player.innerHTML = ''
+    }
+
+    document.querySelectorAll('[data-video]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault()
+        openVideo(btn.dataset.video, btn.dataset.title || btn.getAttribute('aria-label'))
+      })
+    })
+
+    closeBtn?.addEventListener('click', closeVideo)
+    videoModal.addEventListener('click', (e) => {
+      if (e.target === videoModal) closeVideo()
+    })
+    videoModal.addEventListener('close', () => {
+      player.innerHTML = ''
+    })
+  }
 })()

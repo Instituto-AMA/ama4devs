@@ -208,7 +208,7 @@ make setup        <span class="c"># sobe tudo e grava os endereços no .env</spa
         <div class="vias">
           <article class="via">
             <div class="sheet">
-              <h3>Mock do WhatsApp</h3>
+              <h3>Mock do WhatsApp <button type="button" class="video-btn" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/whatsapp-mock-demo.mp4" data-title="Demonstração do Mock do WhatsApp" title="Ver demonstração em vídeo" aria-label="Ver demonstração em vídeo">▶️</button></h3>
               <p class="what">A Cloud API da Meta Graph API v23.0, roteada e validada contra o próprio arquivo OpenAPI da Meta, e um painel no estilo WhatsApp Web onde você é o usuário do outro lado.</p>
               <figure>
                 <a href="whatsapp/"><img src="../img/whatsapp/chat.jpg" width="1502" height="714" alt="O painel do mock do WhatsApp: uma conversa com um template com cabeçalho de imagem, corpo formatado, rodapé e botões de resposta rápida." loading="lazy"></a>
@@ -230,7 +230,7 @@ make setup        <span class="c"># sobe tudo e grava os endereços no .env</spa
 
           <article class="via">
             <div class="sheet">
-              <h3>Mock do Asaas</h3>
+              <h3>Mock do Asaas <button type="button" class="video-btn" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/asaas-mock-demo.mp4" data-title="Demonstração do Mock do Asaas" title="Ver demonstração em vídeo" aria-label="Ver demonstração em vídeo">▶️</button></h3>
               <p class="what">A API v3 do Asaas, o gateway de pagamento, com as regras de negócio capturadas do sandbox real e um relógio virtual que você move na mão.</p>
               <figure>
                 <a href="asaas/"><img src="../img/asaas/clock.jpg" width="1502" height="771" alt="O relógio virtual do mock do Asaas: a hora e o modo do simulador, e os botões para avançar um, sete ou trinta e dois dias." loading="lazy"></a>
@@ -296,6 +296,17 @@ make setup        <span class="c"># sobe tudo e grava os endereços no .env</spa
       <p>Simuladores independentes de APIs públicas, sem vínculo com Meta, WhatsApp ou Asaas. Os nomes são marcas de seus donos. Nenhum pagamento feito aqui é real.</p>
     </div>
   </footer>
+
+  <dialog id="video-modal" class="video-modal" aria-labelledby="video-modal-title">
+    <div class="video-modal-box">
+      <div class="video-modal-header">
+        <span id="video-modal-title" class="video-modal-title"></span>
+        <button type="button" class="video-modal-close" aria-label="Fechar vídeo">✕</button>
+      </div>
+      <div class="video-modal-player"></div>
+    </div>
+  </dialog>
+
   <script src="../assets/site.js" defer></script>
 </body>
 </html>

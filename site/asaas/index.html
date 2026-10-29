@@ -76,6 +76,7 @@
         <div class="actions">
           <a class="key confirm" href="#run">Run it on your machine</a>
           <a class="key" href="#use-cases">Use cases</a>
+          <button type="button" class="key" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/asaas-mock-demo.mp4" data-title="Asaas Mock Demo">▶️ Watch video</button>
         </div>
       </div>
 
@@ -345,6 +346,17 @@ curl localhost:45445/v3/subscriptions/sub_…/payments -H 'access_token: $aact_h
       <p>An independent simulator of the public Asaas API, not affiliated with Asaas. "Asaas" is a trademark of its owners. No payment made here is real.</p>
     </div>
   </footer>
+
+  <dialog id="video-modal" class="video-modal" aria-labelledby="video-modal-title">
+    <div class="video-modal-box">
+      <div class="video-modal-header">
+        <span id="video-modal-title" class="video-modal-title"></span>
+        <button type="button" class="video-modal-close" aria-label="Close video">✕</button>
+      </div>
+      <div class="video-modal-player"></div>
+    </div>
+  </dialog>
+
   <script src="../assets/site.js" defer></script>
 </body>
 </html>

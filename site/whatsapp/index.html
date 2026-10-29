@@ -75,6 +75,7 @@
         <div class="actions">
           <a class="key confirm" href="#run">Run it on your machine</a>
           <a class="key" href="#use-cases">Use cases</a>
+          <button type="button" class="key" data-video="https://github.com/Instituto-AMA/ama4devs/releases/download/media-v1/whatsapp-mock-demo.mp4" data-title="WhatsApp Mock Demo">▶️ Watch video</button>
         </div>
       </div>
 
@@ -333,6 +334,17 @@ const ok = timingSafeEqual(Buffer.from(expected), Buffer.from(req.headers['x-hub
       <p>An independent simulator of the public WhatsApp Cloud API, not affiliated with Meta or WhatsApp. Their names are trademarks of their owners.</p>
     </div>
   </footer>
+
+  <dialog id="video-modal" class="video-modal" aria-labelledby="video-modal-title">
+    <div class="video-modal-box">
+      <div class="video-modal-header">
+        <span id="video-modal-title" class="video-modal-title"></span>
+        <button type="button" class="video-modal-close" aria-label="Close video">✕</button>
+      </div>
+      <div class="video-modal-player"></div>
+    </div>
+  </dialog>
+
   <script src="../assets/site.js" defer></script>
 </body>
 </html>
