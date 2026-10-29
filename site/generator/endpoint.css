@@ -56,3 +56,14 @@
   font-variation-settings: 'wdth' 87.5;
   color: var(--print-red);
 }
+
+/* Online, a call the browser answers (validation, in the playground) says how. */
+[data-endpoint='online'] .code[data-online-note]::before {
+  content: attr(data-online-note);
+  display: block;
+  padding: 10px 20px 0;
+  font: 600 12px/1.3 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--key-confirm-deep);
+}
+.code code[data-online-links] a { color: var(--ink); overflow-wrap: anywhere; }

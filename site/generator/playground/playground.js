@@ -88,7 +88,7 @@ const TEXT = {
     public: 'answered by the public endpoint',
     drawn: 'the seed is drawn when you send',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
-    noValidate: 'The public endpoint is static and does not validate documents: choose "This page" or "Your container".',
+    inPage: 'validated in this page, no request: share the link',
     curlPublic: 'Call the public endpoint',
     curlContainer: 'The same call on your container',
     unreachable: (base) =>
@@ -101,7 +101,7 @@ const TEXT = {
     public: 'respondido pelo endpoint público',
     drawn: 'a seed é sorteada quando você envia',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
-    noValidate: 'O endpoint público é estático e não valida documentos: escolha "Esta página" ou "Seu container".',
+    inPage: 'validado nesta página, sem requisição: compartilhe o link',
     curlPublic: 'Chame o endpoint público',
     curlContainer: 'A mesma chamada no seu container',
     unreachable: (base) =>
@@ -248,12 +248,12 @@ function start(form) {
    * from 1 to PUBLIC.seeds with PUBLIC.count items), a mix of its files drawn by
    * any other seed or count, or why it cannot.
    * @param {string} seed
-   * @returns {{ url: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { error: string }}
+   * @returns {{ url: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { local: true } | { error: string }}
    */
   function publicPlan(seed) {
     const route = $('route').value
     if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json` }
-    if (route === 'validate') return { error: t.noValidate }
+    if (route === 'validate') return { local: true }
     const kind = $('kind').value
     const count = Math.min(1000, Math.max(1, Math.trunc(Number($('count').value)) || 1))
     const formatted = $('formatted').checked && PUBLIC.formatted.includes(kind)
@@ -299,6 +299,9 @@ function start(form) {
       if ('error' in plan) {
         line.textContent = `GET ${PUBLIC_BASE}`
         curl.textContent = plan.error
+      } else if ('local' in plan) {
+        line.textContent = `GET ${path}  (${t.inPage})`
+        curl.textContent = location.href
       } else if ('url' in plan && (seed || $('route').value !== 'kind')) {
         line.textContent = `GET ${plan.url}`
         curl.textContent = `curl '${plan.url}'`
@@ -368,7 +371,9 @@ function start(form) {
         body.textContent = plan.error
         return
       }
-      try {
+      if ('local' in plan) {
+        result = answer(path, params)
+      } else try {
         if ('url' in plan) {
           result = { status: 200, body: await readPublic(plan.url) }
         } else {

@@ -24,7 +24,20 @@ const remember = (/** @type {string} */ mode) => {
 function show(/** @type {string} */ mode) {
   document.documentElement.dataset.endpoint = mode
   for (const code of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('code[data-online]'))) {
-    code.textContent = (mode === 'online' ? code.dataset.online : code.dataset.local) ?? ''
+    const text = (mode === 'online' ? code.dataset.online : code.dataset.local) ?? ''
+    if (mode === 'online' && 'onlineLinks' in code.dataset) {
+      // Online, a call the browser answers (the playground) is a link to open.
+      code.replaceChildren(
+        ...text.split('\n').flatMap((url, i) => {
+          const link = document.createElement('a')
+          link.href = url
+          link.textContent = url
+          return i === 0 ? [link] : ['\n', link]
+        }),
+      )
+    } else {
+      code.textContent = text
+    }
   }
   for (const input of /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll('[data-endpoint-switch] input'))) {
     input.checked = input.value === mode

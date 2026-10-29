@@ -83,7 +83,7 @@
                 <p>Execute o container oficial do gerador. A porta padrão é <code>45450</code> e o serviço fica pronto em milissegundos sem dependências de banco de dados.</p>
                 <div class="code"><pre><code>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
                 <p>Verifique o status do serviço chamando o endpoint de saúde:</p>
-                <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/health</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json" data-local="curl http://localhost:45450/health">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/index.json</code></pre></div>
                 <!-- real-output: run -->
                 <div class="code"><pre><code>{
   "status": "ok",
@@ -235,7 +235,7 @@
               <li id="validate">
                 <h3>Validação</h3>
                 <p>Valide se um CPF, CNPJ, CNH ou PIS atende aos cálculos matemáticos oficiais de dígitos verificadores e rejeição de sequências repetidas.</p>
-                <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735</code></pre></div>
+                <div class="code" data-online-note="abra no navegador: o playground valida aí mesmo, sem container"><pre><code data-online="https://instituto-ama.github.io/ama4devs/pt-br/generator/playground/?route=validate&amp;doc=cpf&amp;value=11144477735" data-online-links data-local="curl http://localhost:45450/v1/validate/cpf/11144477735">curl http://localhost:45450/v1/validate/cpf/11144477735</code></pre></div>
                 <!-- real-output: validate -->
                 <div class="code"><pre><code>{
   "type": "cpf",

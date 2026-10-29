@@ -188,18 +188,12 @@
               <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json" data-local="curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json</code></pre></div>
             </article>
 
-            <article class="case" id="case-populate-asaas">
-              <h3>Populate the Asaas mock with customers and charges in one call</h3>
-              <p class="proves">Instead of running scripts to create customers, register charges, and confirm payments on a fresh mock stack, the integration is automatic: the Asaas mock discovers the generator by itself, and its panel provides an <strong>Integrações › Gerador</strong> tab to populate the active account in one click. You can also trigger it directly via API:</p>
-              <div class="code" data-local-only="only on your container"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
-  -H 'Content-Type: application/json' \
-  -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
-            </article>
-
             <article class="case" id="case-validate-document">
               <h3>Validate a CPF or CNPJ</h3>
               <p class="proves">Verify whether a document string passes official validation rules and check digits, without importing heavy external packages into your testing scripts.</p>
-              <div class="code" data-local-only="only on your container"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735
+              <div class="code" data-online-note="open in the browser: the playground validates right there, no container"><pre><code data-online="https://instituto-ama.github.io/ama4devs/generator/playground/?route=validate&amp;doc=cpf&amp;value=11144477735
+https://instituto-ama.github.io/ama4devs/generator/playground/?route=validate&amp;doc=cnpj&amp;value=11222333000181" data-online-links data-local="curl http://localhost:45450/v1/validate/cpf/11144477735
+curl http://localhost:45450/v1/validate/cnpj/11222333000181">curl http://localhost:45450/v1/validate/cpf/11144477735
 curl http://localhost:45450/v1/validate/cnpj/11222333000181</code></pre></div>
             </article>
           </div>
