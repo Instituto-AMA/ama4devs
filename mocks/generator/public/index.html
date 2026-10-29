@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerador — ama4devs</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="bar">
+      <span class="wordmark">ama4devs · gerador</span>
+      <div id="mode-chip" class="mode-chip" aria-live="polite">
+        <span class="dot"></span>
+        <span id="mode-text">Detectando ambiente…</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sheet 1: Gerador -->
+    <section class="sheet" id="sheet-generator">
+      <h2>Gerador</h2>
+      <form id="gen-form" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="field">
+            <label for="gen-kind">Tipo de dado</label>
+            <select id="gen-kind" name="kind"></select>
+          </div>
+
+          <div class="field">
+            <label for="gen-count">Quantidade (1..1000)</label>
+            <input type="number" id="gen-count" name="count" min="1" max="1000" value="10">
+          </div>
+
+          <div class="field">
+            <label for="gen-seed">Seed</label>
+            <div class="field-seed">
+              <input type="text" id="gen-seed" name="seed" placeholder="Aleatória se vazia">
+              <button type="button" class="key correct small" id="btn-new-seed" title="Gerar nova seed">Nova seed</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="gen-state">Estado</label>
+            <select id="gen-state" name="state">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <!-- Kind-specific option: gender (person) -->
+          <div class="field kind-opt" id="opt-gender" data-for="person">
+            <label for="gen-gender">Gênero</label>
+            <select id="gen-gender" name="gender">
+              <option value="">Qualquer</option>
+              <option value="F">Feminino</option>
+              <option value="M">Masculino</option>
+            </select>
+          </div>
+
+          <!-- Kind-specific option: outcome (credit-card) -->
+          <div class="field kind-opt" id="opt-outcome" data-for="credit-card">
+            <label for="gen-outcome">Resultado do cartão</label>
+            <select id="gen-outcome" name="outcome">
+              <option value="APPROVE">APPROVE (Aprovar)</option>
+              <option value="DECLINE">DECLINE (Recusar)</option>
+              <option value="RANDOM">RANDOM (Aleatório)</option>
+            </select>
+          </div>
+
+          <!-- Kind-specific option: billingType (charge) -->
+          <div class="field kind-opt" id="opt-billing" data-for="charge">
+            <label for="gen-billing">Forma de pagamento</label>
+            <select id="gen-billing" name="billingType">
+              <option value="">Qualquer</option>
+              <option value="PIX">PIX</option>
+              <option value="BOLETO">BOLETO</option>
+              <option value="CREDIT_CARD">CREDIT_CARD</option>
+            </select>
+          </div>
+
+          <!-- Kind-specific option: pixKey type (pix-key) -->
+          <div class="field kind-opt" id="opt-pix-type" data-for="pix-key">
+            <label for="gen-pix-type">Tipo de chave</label>
+            <select id="gen-pix-type" name="type">
+              <option value="">Qualquer</option>
+              <option value="CPF">CPF</option>
+              <option value="CNPJ">CNPJ</option>
+              <option value="EMAIL">EMAIL</option>
+              <option value="PHONE">PHONE</option>
+              <option value="EVP">EVP</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field-checkbox">
+              <input type="checkbox" id="gen-formatted" name="formatted" checked>
+              <span>Formatado (com máscara)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="key confirm" id="btn-generate">Gerar</button>
+        </div>
+
+        <div id="gen-error" class="error-inline" role="alert"></div>
+      </form>
+    </section>
+
+    <!-- Sheet 2: Resultado -->
+    <section class="sheet" id="sheet-result">
+      <h2>Resultado</h2>
+
+      <div class="tab-nav" role="tablist">
+        <button type="button" class="tab-btn is-active" id="tab-btn-table" role="tab" aria-selected="true" aria-controls="pane-table">Tabela</button>
+        <button type="button" class="tab-btn" id="tab-btn-json" role="tab" aria-selected="false" aria-controls="pane-json">JSON</button>
+      </div>
+
+      <div class="tab-pane is-active" id="pane-table" role="tabpanel" aria-labelledby="tab-btn-table">
+        <div class="table-wrap">
+          <table id="result-table">
+            <thead id="result-thead"></thead>
+            <tbody id="result-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-json" role="tabpanel" aria-labelledby="tab-btn-json">
+        <pre class="json-pre"><code id="result-json"></code></pre>
+      </div>
+
+      <div class="result-actions">
+        <button type="button" class="key small" id="btn-copy-json">Copiar JSON</button>
+        <button type="button" class="key small" id="btn-copy-csv">Copiar CSV</button>
+        <button type="button" class="key small" id="btn-download-json">Baixar JSON</button>
+        <button type="button" class="key small" id="btn-download-csv">Baixar CSV</button>
+      </div>
+
+      <div class="result-meta">
+        <div>seed <code id="meta-seed"></code> · mesma seed, mesmos dados</div>
+        <div class="cmd-line">
+          <code id="meta-curl"></code>
+          <button type="button" class="key small" id="btn-copy-curl">Copiar cURL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sheet 3: Validador -->
+    <section class="sheet" id="sheet-validator">
+      <h2>Validador</h2>
+      <p>Verificação instantânea de dígitos verificadores para documentos brasileiros.</p>
+      <input type="text" id="val-input" class="validator-input" placeholder="CPF, CNPJ, CNH ou PIS" autocomplete="off" spellcheck="false">
+      <div id="val-output" class="validator-results" aria-live="polite">
+        <span class="val-hint">Digite para validar</span>
+      </div>
+    </section>
+
+    <!-- Sheet 4: Popular o mock do Asaas -->
+    <section class="sheet" id="sheet-asaas">
+      <h2>Popular o mock do Asaas</h2>
+
+      <!-- Container mode panel -->
+      <div id="asaas-container-panel" style="display: none;">
+        <div id="asaas-status-bar" class="asaas-status">
+          <span class="dot"></span>
+          <span id="asaas-status-msg">Verificando status do Asaas…</span>
+        </div>
+
+        <form id="asaas-form" onsubmit="return false;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="asaas-people">Pessoas</label>
+              <input type="number" id="asaas-people" min="0" max="1000" value="5">
+            </div>
+
+            <div class="field">
+              <label for="asaas-companies">Empresas</label>
+              <input type="number" id="asaas-companies" min="0" max="1000" value="2">
+            </div>
+
+            <div class="field">
+              <label for="asaas-charges">Cobranças por cliente</label>
+              <input type="number" id="asaas-charges" min="0" max="100" value="2">
+            </div>
+
+            <div class="field">
+              <label for="asaas-seed">Seed</label>
+              <div class="field-seed">
+                <input type="text" id="asaas-seed" placeholder="Opcional">
+                <button type="button" class="key correct small" id="btn-asaas-seed">Nova seed</button>
+              </div>
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>Formas de cobrança</label>
+              <div class="checkbox-group">
+                <label class="field-checkbox">
+                  <input type="checkbox" id="asaas-billing-pix" value="PIX" checked>
+                  <span>PIX</span>
+                </label>
+                <label class="field-checkbox">
+                  <input type="checkbox" id="asaas-billing-boleto" value="BOLETO" checked>
+                  <span>BOLETO</span>
+                </label>
+                <label class="field-checkbox">
+                  <input type="checkbox" id="asaas-billing-cc" value="CREDIT_CARD" checked>
+                  <span>CREDIT_CARD</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="asaas-confirm-range">Pagar automaticamente</label>
+              <div class="range-wrap">
+                <input type="range" id="asaas-confirm-range" min="0" max="100" value="50">
+                <span class="range-value" id="asaas-confirm-val">50%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="key confirm" id="btn-asaas-populate">Popular</button>
+          </div>
+        </form>
+
+        <div id="asaas-result-area" class="asaas-results" style="display: none;">
+          <div class="asaas-summary">
+            <span id="asaas-summary-counts"></span>
+            <a id="asaas-link-panel" href="#" target="_blank" rel="noopener" class="key small">Abrir o painel do Asaas ↗</a>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Forma</th>
+                  <th>Valor</th>
+                  <th>Vencimento</th>
+                  <th>Status</th>
+                  <th>Fatura</th>
+                </tr>
+              </thead>
+              <tbody id="asaas-payments-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="asaas-errors" class="populate-errors" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Pages mode panel -->
+      <div id="asaas-pages-panel" style="display: none;">
+        <p>A população direta requer o gerador rodando no container Docker conectado ao mock do Asaas.</p>
+        <div class="docker-guide">
+          <strong>Execute o gerador em container localmente:</strong>
+          <div class="docker-cmd">
+            <code id="docker-cmd-code">docker run --rm -p 45450:45450 -e ASAAS_URL=http://host.docker.internal:45445 ghcr.io/instituto-ama/generator-mock:latest</code>
+            <button type="button" class="key small" id="btn-copy-docker">Copiar comando</button>
+          </div>
+          <p style="margin-top: 12px; margin-bottom: 0;">
+            Após iniciar o container, acesse <a href="http://localhost:45450" class="key small" target="_blank" rel="noopener">http://localhost:45450 ↗</a> para popular o Asaas.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">Copiado</div>
+</body>
+</html>
