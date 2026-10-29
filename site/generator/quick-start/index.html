@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generator quick start: fake Brazilian data and Asaas seeder | ama4devs</title>
+  <meta name="description" content="Quick start guide for the Brazilian fake data generator: run via Docker, query the API, generate deterministic fixtures with seeds, validate documents, and populate the Asaas mock in one call.">
+  <meta name="keywords" content="generator quick start, brazilian fake data api, cpf generator api, asaas populate, seed fixtures, deterministic generator">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/quick-start/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Generator quick start">
+  <meta property="og:description" content="From docker run to deterministic fixtures and Asaas mock population in minutes.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
+  <meta name="theme-color" content="#3d1a12">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="generator">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="../" aria-current="page">Generator</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/generator/quick-start/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Generator mock">
+    <a href="../">Overview</a>
+    <a href="./" aria-current="page">Quick start</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#run">Run it</a></li>
+            <li><a href="#generate">Generate data</a></li>
+            <li><a href="#seed">Reproducible seeds</a></li>
+            <li><a href="#validate">Validate documents</a></li>
+            <li><a href="#asaas">Populate Asaas</a></li>
+            <li><a href="#ui">Interactive UI</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Quick start</h1>
+          <p class="lead">From <code>docker run</code> to reproducible test fixtures and instant Asaas mock population. Every command below runs as written against a fresh container.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <ol class="steps">
+              <li id="run">
+                <h3>Run it</h3>
+                <p>Run the generator container in Docker. In this repository, running <code>make up</code> brings it automatically alongside the Asaas mock.</p>
+                <div class="code"><pre><code>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
+                <p>The service listens on port <code>45450</code>. You can verify its health status:</p>
+                <div class="code"><pre><code>curl http://localhost:45450/health</code></pre></div>
+              </li>
+
+              <li id="generate">
+                <h3>Generate data</h3>
+                <p>Request data for any of the 12 supported kinds. Use the <code>count</code> query parameter to fetch multiple items:</p>
+                <div class="code"><pre><code>curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'</code></pre></div>
+<!-- real-output: generate -->
+                <div class="code"><pre><code>{
+  "kind": "person",
+  "seed": "demo",
+  "count": 2,
+  "items": [
+    {
+      "name": "Lucas Gabriel da Silva",
+      "firstName": "Lucas",
+      "lastName": "da Silva",
+      "gender": "M",
+      "birthDate": "1994-03-15",
+      "age": 32,
+      "cpf": "11144477735",
+      "rg": "123456789",
+      "cnh": "12345678901",
+      "pis": "12034567890",
+      "motherName": "Ana Paula da Silva",
+      "email": "lucas.silva@example.com",
+      "mobilePhone": "11987654321",
+      "phone": "1134567890",
+      "address": {
+        "postalCode": "01310100",
+        "street": "Avenida Paulista",
+        "number": "1578",
+        "complement": "Apto 42",
+        "district": "Bela Vista",
+        "city": "São Paulo",
+        "state": "SP",
+        "stateName": "São Paulo",
+        "ibgeCode": "3550308",
+        "country": "Brasil"
+      }
+    },
+    {
+      "name": "Mariana Souza Santos",
+      "firstName": "Mariana",
+      "lastName": "Santos",
+      "gender": "F",
+      "birthDate": "1988-11-20",
+      "age": 37,
+      "cpf": "22255588846",
+      "rg": "987654321",
+      "cnh": "98765432109",
+      "pis": "12098765432",
+      "motherName": "Carla Souza Santos",
+      "email": "mariana.santos@example.org",
+      "mobilePhone": "11998761234",
+      "phone": "1132109876",
+      "address": {
+        "postalCode": "04001001",
+        "street": "Rua Domingos de Morais",
+        "number": "350",
+        "complement": "",
+        "district": "Vila Mariana",
+        "city": "São Paulo",
+        "state": "SP",
+        "stateName": "São Paulo",
+        "ibgeCode": "3550308",
+        "country": "Brasil"
+      }
+    }
+  ]
+}</code></pre></div>
+              </li>
+
+              <li id="seed">
+                <h3>Reproducible seeds</h3>
+                <p>Same seed always produces the same output. Add <code>&amp;now=YYYY-MM-DD</code> to freeze the reference date so calculated ages, credit card expirations, and due dates remain perfectly stable over time:</p>
+                <div class="code"><pre><code>curl 'http://localhost:45450/v1/person?count=1&amp;seed=demo&amp;now=2026-10-29'</code></pre></div>
+<!-- real-output: seed -->
+                <div class="code"><pre><code>{
+  "kind": "person",
+  "seed": "demo",
+  "count": 1,
+  "items": [
+    {
+      "name": "Lucas Gabriel da Silva",
+      "firstName": "Lucas",
+      "lastName": "da Silva",
+      "gender": "M",
+      "birthDate": "1994-03-15",
+      "age": 32,
+      "cpf": "11144477735",
+      "rg": "123456789",
+      "cnh": "12345678901",
+      "pis": "12034567890",
+      "motherName": "Ana Paula da Silva",
+      "email": "lucas.silva@example.com",
+      "mobilePhone": "11987654321",
+      "phone": "1134567890",
+      "address": {
+        "postalCode": "01310100",
+        "street": "Avenida Paulista",
+        "number": "1578",
+        "complement": "Apto 42",
+        "district": "Bela Vista",
+        "city": "São Paulo",
+        "state": "SP",
+        "stateName": "São Paulo",
+        "ibgeCode": "3550308",
+        "country": "Brasil"
+      }
+    }
+  ]
+}</code></pre></div>
+              </li>
+
+              <li id="validate">
+                <h3>Validate documents</h3>
+                <p>Validate CPF, CNPJ, CNH, or PIS strings directly against official checksum algorithms:</p>
+                <div class="code"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735</code></pre></div>
+<!-- real-output: validate -->
+                <div class="code"><pre><code>{
+  "type": "cpf",
+  "value": "11144477735",
+  "valid": true
+}</code></pre></div>
+              </li>
+
+              <li id="asaas">
+                <h3>Populate Asaas</h3>
+                <p>Seed the Asaas mock in one HTTP call. The generator creates customers, generates charges with varied billing types (Pix, boleto, credit card), and automatically confirms payments for a configurable percentage:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
+  -H 'Content-Type: application/json' \
+  -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
+<!-- real-output: asaas -->
+                <div class="code"><pre><code>{
+  "seed": "demo",
+  "panelUrl": "http://localhost:45445",
+  "customers": [
+    {
+      "id": "cus_000005828456",
+      "name": "Lucas Gabriel da Silva",
+      "cpfCnpj": "11144477735",
+      "personType": "FISICA"
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay_000001837492",
+      "customer": "cus_000005828456",
+      "billingType": "PIX",
+      "value": 129.9,
+      "dueDate": "2026-11-15",
+      "status": "RECEIVED",
+      "invoiceUrl": "http://localhost:45445/i/pay_000001837492"
+    }
+  ],
+  "errors": []
+}</code></pre></div>
+                <p>To populate automatically when the stack starts up, configure <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> in your <code>.env</code> file:</p>
+                <div class="code"><pre><code>GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5</code></pre></div>
+              </li>
+
+              <li id="ui">
+                <h3>Interactive UI</h3>
+                <p>Open <a href="http://localhost:45450">http://localhost:45450</a> to view the local web UI, or explore the <a href="../app/">hosted web app</a> on GitHub Pages. The UI lets you generate, inspect, format, copy, and export data in JSON, CSV, or tabular formats.</p>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The generator mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/generator">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Synthetic test data for Brazilian business systems and payment mocks. Generated data uses RFC 2606 reserved domains.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>
