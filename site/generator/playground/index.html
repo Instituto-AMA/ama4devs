@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generator API playground: try every /v1 route | ama4devs</title>
+  <meta name="description" content="Try the Brazilian fake data generator's API in the browser: people, companies, addresses, CPF, CNPJ, cards, Pix keys and charges, with seeds that give the same answer as the container.">
+  <meta name="keywords" content="generator api playground, brazilian fake data, cpf generator, cnpj generator, test data api, seed">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/playground/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Generator API playground">
+  <meta property="og:description" content="Every /v1 route of the generator, runnable in the browser.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <meta name="theme-color" content="#3d1a12">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="playground.css">
+</head>
+<body data-tool="generator">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="../" aria-current="page">Generator</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/generator/playground/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Generator mock">
+    <a href="../">Overview</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="../docs/">Docs</a>
+    <a href="./" aria-current="page">Playground</a>
+  </nav>
+
+  <main id="content">
+    <div class="wrap pg">
+      <div class="doc-title">
+        <h1>API playground</h1>
+        <p class="lead">Build a call to any <code>/v1</code> route and run it. <strong>This page</strong> answers with the same core the container runs, so a seed gives the same body here and in your tests. <strong>Your container</strong> sends the call to a generator running on your machine.</p>
+      </div>
+
+      <div class="pg-grid">
+        <div class="paper-shadow">
+          <form class="sheet pg-form" data-playground>
+            <h2>Request</h2>
+
+            <label class="pg-field">Route
+              <select name="route">
+                <option value="kind">GET /v1/{kind} · generate</option>
+                <option value="validate">GET /v1/validate/{type}/{value} · check a document</option>
+                <option value="kinds">GET /v1/kinds · what it makes</option>
+              </select>
+            </label>
+
+            <label class="pg-field" data-for="kind">Kind
+              <select name="kind"></select>
+            </label>
+            <div class="pg-row" data-for="kind">
+              <label class="pg-field">count <small>1 to 1000</small>
+                <input name="count" type="number" min="1" max="1000" value="3" inputmode="numeric">
+              </label>
+              <label class="pg-field">seed <small>empty draws one</small>
+                <input name="seed" type="text" placeholder="clinic-42" autocomplete="off" spellcheck="false">
+              </label>
+            </div>
+            <label class="pg-field" data-for="kind:state">state
+              <select name="state"><option value="">any</option></select>
+            </label>
+            <label class="pg-field" data-for="kind:gender">gender
+              <select name="gender"><option value="">any</option><option value="F">F</option><option value="M">M</option></select>
+            </label>
+            <label class="pg-field" data-for="kind:outcome">outcome <small>what the Asaas mock does with the card</small>
+              <select name="outcome"><option value="">APPROVE (default)</option><option value="APPROVE">APPROVE</option><option value="DECLINE">DECLINE</option><option value="RANDOM">RANDOM</option></select>
+            </label>
+            <label class="pg-field" data-for="kind:billingType">billingType
+              <select name="billingType"><option value="">any</option><option value="PIX">PIX</option><option value="BOLETO">BOLETO</option><option value="CREDIT_CARD">CREDIT_CARD</option></select>
+            </label>
+            <label class="pg-field" data-for="kind:type">type
+              <select name="type"><option value="">any</option><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="EMAIL">EMAIL</option><option value="PHONE">PHONE</option><option value="EVP">EVP</option></select>
+            </label>
+            <label class="pg-field" data-for="kind:now">now <small>the day ages and due dates count from</small>
+              <input name="now" type="date">
+            </label>
+            <label class="pg-check" data-for="kind:formatted">
+              <input name="formatted" type="checkbox"> formatted <small>mask documents and phones</small>
+            </label>
+
+            <div class="pg-row" data-for="validate">
+              <label class="pg-field">type
+                <select name="doc"><option value="cpf">cpf</option><option value="cnpj">cnpj</option><option value="cnh">cnh</option><option value="pis">pis</option></select>
+              </label>
+              <label class="pg-field">value
+                <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
+              </label>
+            </div>
+
+            <label class="pg-field">Answered by
+              <select name="target">
+                <option value="browser">This page (same core as the container)</option>
+                <option value="container">Your container</option>
+              </select>
+            </label>
+            <label class="pg-field" data-base hidden>Base URL
+              <input name="base" type="url" value="http://localhost:45450" spellcheck="false">
+            </label>
+
+            <div class="actions">
+              <button class="key confirm" type="submit"><span>Send</span></button>
+            </div>
+          </form>
+        </div>
+
+        <div class="paper-shadow">
+          <section class="sheet pg-out" data-playground-out aria-labelledby="pg-out-title" aria-live="polite">
+            <h2 id="pg-out-title">Response</h2>
+            <p class="pg-line"><code data-line></code></p>
+            <div class="code">
+              <pre><code data-curl></code></pre>
+              <button class="key small copy" type="button" data-copy>Copy</button>
+            </div>
+            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Keep this seed</button></p>
+            <div class="code pg-body"><pre><code data-body></code></pre></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The generator mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/generator">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Synthetic test data for Brazilian business systems and payment mocks. Generated data uses RFC 2606 reserved domains.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+  <script type="module" src="playground.js"></script>
+</body>
+</html>
