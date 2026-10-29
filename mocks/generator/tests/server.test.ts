@@ -7,7 +7,7 @@ const unreachable = (async () => {
   throw new Error('the Asaas mock is not reachable in this test')
 }) as unknown as typeof fetch
 
-const config = loadConfig({})
+const config = loadConfig({ ASAAS_URL: 'http://localhost:45445' })
 const app = createApp(config, { fetch: unreachable })
 
 const request = (path: string, init?: RequestInit) =>

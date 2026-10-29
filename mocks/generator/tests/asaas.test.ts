@@ -3,7 +3,10 @@ import { asaasStatus, parseSeedSpec, populate } from '../src/asaas.ts'
 import { loadConfig } from '../src/config.ts'
 
 const API_KEY = '$aact_hmlg_local_master'
-const config = loadConfig({ ASAAS_API_KEY: API_KEY })
+const config = loadConfig({ ASAAS_URL: 'http://localhost:45445', ASAAS_API_KEY: API_KEY })
+
+/** The same server, with the Asaas still to be found. */
+const withoutAsaas = loadConfig({ ASAAS_API_KEY: API_KEY })
 
 /** A call the population made. */
 interface RecordedCall {
@@ -223,6 +226,33 @@ describe('populate', () => {
 
     expect(result.payments).toHaveLength(30)
   })
+
+  test('fills the account the caller named, with its own key', async () => {
+    const asaas = fakeAsaas()
+    const result = await populate(
+      config,
+      { people: 1, companies: 0, chargesPerCustomer: 1, seed: 's', apiKey: '$aact_other' },
+      asaas.fetch,
+    )
+
+    expect(asaas.calls.length).toBeGreaterThan(0)
+    expect(asaas.calls.every((call) => call.headers.get('access_token') === '$aact_other')).toBe(true)
+    // The key of the account is never given back.
+    expect(JSON.stringify(result)).not.toContain('$aact_other')
+  })
+
+  test('says the Asaas was not found and calls nothing', async () => {
+    const asaas = fakeAsaas()
+    const result = await populate(withoutAsaas, { people: 1, companies: 0, seed: 's' }, asaas.fetch)
+
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]!.step).toBe('asaas')
+    expect(result.errors[0]!.status).toBe(0)
+    expect(result.errors[0]!.message).toContain('Asaas não encontrado')
+    expect(result.customers).toHaveLength(0)
+    expect(result.payments).toHaveLength(0)
+    expect(asaas.calls).toHaveLength(0)
+  })
 })
 
 describe('parseSeedSpec', () => {
@@ -248,7 +278,7 @@ describe('asaasStatus', () => {
 
     expect(status.reachable).toBe(false)
     expect(status.customers).toBeNull()
-    expect(status.asaasUrl).toBe(config.asaasUrl)
+    expect(status.asaasUrl).toBe(config.asaasUrl ?? null)
     expect(status.panelUrl).toBe(config.asaasPanelUrl)
   })
 
@@ -260,5 +290,18 @@ describe('asaasStatus', () => {
 
     expect(status.reachable).toBe(true)
     expect(status.customers).toBe(2)
+  })
+
+  test('is unreachable while the Asaas was not found', async () => {
+    const throwing = (async () => {
+      throw new Error('down')
+    }) as unknown as typeof fetch
+
+    const status = await asaasStatus(withoutAsaas, throwing)
+
+    expect(status.reachable).toBe(false)
+    expect(status.customers).toBeNull()
+    expect(status.asaasUrl).toBeNull()
+    expect(status.panelUrl).toBe(withoutAsaas.asaasPanelUrl)
   })
 })

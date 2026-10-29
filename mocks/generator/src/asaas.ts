@@ -1,5 +1,6 @@
 import { charge, company, creditCard, createRng, person, randomSeed } from './core/index.js'
 import type { Config } from './config.ts'
+import { findAsaas } from './discovery.ts'
 
 /** The ways a charge can be paid. */
 export type BillingType = 'PIX' | 'BOLETO' | 'CREDIT_CARD'
@@ -21,6 +22,8 @@ export interface PopulateInput {
   billingTypes?: BillingType[]
   confirm?: number
   seed?: string
+  /** The account to fill: its key is used instead of the configured one. */
+  apiKey?: string
 }
 
 /** A customer the Asaas accepted. */
@@ -60,7 +63,7 @@ export interface PopulateResult {
 
 /** The state of the Asaas mock, as the panel shows it. */
 export interface AsaasStatus {
-  asaasUrl: string
+  asaasUrl: string | null
   panelUrl: string
   reachable: boolean
   customers: number | null
@@ -88,6 +91,25 @@ export async function populate(
   const confirmRate = clampRate(input.confirm ?? 0)
   const billingTypes = billingTypesOf(input.billingTypes)
   const seed = input.seed?.trim() ? input.seed.trim() : randomSeed()
+  const asaasUrl = config.asaasUrl
+  const apiKey = input.apiKey?.trim() ? input.apiKey.trim() : config.asaasApiKey
+
+  // Without an Asaas there is nothing to call: the run says why it did nothing.
+  if (!asaasUrl) {
+    return {
+      seed,
+      panelUrl: config.asaasPanelUrl,
+      customers: [],
+      payments: [],
+      errors: [
+        {
+          step: 'asaas',
+          status: 0,
+          message: 'Asaas não encontrado: defina ASAAS_URL ou suba o mock do Asaas.',
+        },
+      ],
+    }
+  }
 
   const rng = createRng(seed)
   const customers: PopulateCustomer[] = []
@@ -102,9 +124,9 @@ export async function populate(
   for (const [index, subject] of subjects.entries()) {
     const body = customerBody(subject.kind, subject.data, seed, index)
 
-    const created = await fetchImpl(`${config.asaasUrl}/v3/customers`, {
+    const created = await fetchImpl(`${asaasUrl}/v3/customers`, {
       method: 'POST',
-      headers: asaasHeaders(config),
+      headers: asaasHeaders(apiKey),
       body: JSON.stringify(body),
     })
     const createdBody = await readJson(created)
@@ -159,9 +181,9 @@ export async function populate(
         paymentBody.remoteIp = '127.0.0.1'
       }
 
-      const charged = await fetchImpl(`${config.asaasUrl}/v3/payments`, {
+      const charged = await fetchImpl(`${asaasUrl}/v3/payments`, {
         method: 'POST',
-        headers: asaasHeaders(config),
+        headers: asaasHeaders(apiKey),
         body: JSON.stringify(paymentBody),
       })
       const chargedBody = await readJson(charged)
@@ -188,9 +210,9 @@ export async function populate(
       // A card charge is paid at its creation, so only the other ones wait
       // for the sandbox confirmation.
       if (payment.billingType !== 'CREDIT_CARD' && payment.status === 'PENDING' && rng.bool(confirmRate)) {
-        const confirmed = await fetchImpl(`${config.asaasUrl}/v3/sandbox/payment/${payment.id}/confirm`, {
+        const confirmed = await fetchImpl(`${asaasUrl}/v3/sandbox/payment/${payment.id}/confirm`, {
           method: 'POST',
-          headers: asaasHeaders(config),
+          headers: asaasHeaders(apiKey),
         })
         if (confirmed.ok) {
           const confirmedBody = await readJson(confirmed)
@@ -221,14 +243,18 @@ export async function asaasStatus(
   config: Config,
   fetchImpl: typeof fetch = fetch,
 ): Promise<AsaasStatus> {
-  const state = { asaasUrl: config.asaasUrl, panelUrl: config.asaasPanelUrl }
+  const asaasUrl = config.asaasUrl
+  const state = { asaasUrl: asaasUrl ?? null, panelUrl: config.asaasPanelUrl }
+
+  // The Asaas was not found yet: there is nobody to ask.
+  if (!asaasUrl) return { ...state, reachable: false, customers: null }
 
   try {
-    const health = await fetchImpl(`${config.asaasUrl}/health`, { headers: asaasHeaders(config) })
+    const health = await fetchImpl(`${asaasUrl}/health`, { headers: asaasHeaders(config.asaasApiKey) })
     if (!health.ok) return { ...state, reachable: false, customers: null }
 
-    const list = await fetchImpl(`${config.asaasUrl}/v3/customers?limit=1`, {
-      headers: asaasHeaders(config),
+    const list = await fetchImpl(`${asaasUrl}/v3/customers?limit=1`, {
+      headers: asaasHeaders(config.asaasApiKey),
     })
     if (!list.ok) return { ...state, reachable: true, customers: null }
 
@@ -299,6 +325,8 @@ export async function seedOnBoot(
     let status = await asaasStatus(config, fetchImpl)
     for (let attempt = 1; attempt < BOOT_SEED_TRIES && !status.reachable; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, BOOT_SEED_WAIT_MS))
+      // The Asaas may still be coming up: it is looked for again before each try.
+      if (config.asaasPlaces.length) await findAsaas(config, fetchImpl, log)
       status = await asaasStatus(config, fetchImpl)
     }
 
@@ -365,11 +393,11 @@ function customerBody(
 
 /**
  * The headers every call to the Asaas mock carries.
- * @param config The configuration of the server.
+ * @param apiKey The key of the account the calls act on.
  */
-function asaasHeaders(config: Config): Record<string, string> {
+function asaasHeaders(apiKey: string): Record<string, string> {
   return {
-    access_token: config.asaasApiKey,
+    access_token: apiKey,
     'Content-Type': 'application/json',
     'User-Agent': 'ama4devs-generator',
   }
