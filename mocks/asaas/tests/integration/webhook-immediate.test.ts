@@ -60,6 +60,30 @@ describe('immediate webhook dispatch', () => {
     expect(h.sink.eventsOf('PAYMENT_RECEIVED').length).toBe(1)
   })
 
+  it('delivers PAYMENT_RECEIVED right after receiveInCash, with the RECEIVED_IN_CASH status', async () => {
+    await h.subscribeWebhook(['PAYMENT_RECEIVED'])
+    const id = await newPayment()
+    await settled()
+    h.sink.clear()
+
+    // The counter's manual receipt: the money enters outside the platform, but
+    // the integrator still has to know. Real Asaas sends PAYMENT_RECEIVED with
+    // status RECEIVED_IN_CASH — without it, whoever waits for the provider's
+    // fact only learns of it through the GET reconciliation.
+    const res = await h.api.call('confirm-cash-receipt', {
+      params: { id },
+      body: { paymentDate: '2026-01-12' },
+    })
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('RECEIVED_IN_CASH')
+    await settled()
+
+    const got = h.sink.eventsOf('PAYMENT_RECEIVED')
+    expect(got.length).toBe(1)
+    expect(got[0]!.payload.payment.status).toBe('RECEIVED_IN_CASH')
+    expect(got[0]!.payload.payment.paymentDate).toBe('2026-01-12')
+  })
+
   it('holds the delivery while paused, and sends it once resumed', async () => {
     await h.subscribeWebhook(['PAYMENT_RECEIVED'])
     const id = await newPayment()

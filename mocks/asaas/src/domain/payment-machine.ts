@@ -353,6 +353,13 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
        * Baixa manual: o Asaas NÃO credita saldo nem gera movimentação
        * financeira — o dinheiro foi para o bolso do lojista, fora da plataforma.
        * Por isso não há efeito de LEDGER aqui. É fácil errar isso.
+       *
+       * But the receipt DID happen, and real Asaas tells the integrator: the
+       * webhook is PAYMENT_RECEIVED carrying status RECEIVED_IN_CASH in the
+       * payload (the Hub derives received_in_cash from it). Without this
+       * effect the money lands on the charge and no webhook ever leaves —
+       * whoever waits for the provider's fact only learns of it through the
+       * GET reconciliation.
        */
       return {
         to: 'RECEIVED_IN_CASH',
@@ -361,7 +368,10 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
           paymentDate: trigger.on,
           clientPaymentDate: trigger.on,
         },
-        effects: [{ t: 'SPLIT', to: 'CANCELLED', reason: 'PAYMENT_RECEIVED_IN_CASH' }],
+        effects: [
+          { t: 'WEBHOOK', event: 'PAYMENT_RECEIVED' },
+          { t: 'SPLIT', to: 'CANCELLED', reason: 'PAYMENT_RECEIVED_IN_CASH' },
+        ],
       }
     }
 
