@@ -7,7 +7,7 @@ Rules, layout map, and instructions for agents working in this repository.
 | Path | What it is |
 |---|---|
 | `Makefile` | Root entrypoint (`help`, `setup`, `setup-sandbox`, `up`, `down`, `status`, `test`, `clean`, ...) |
-| `docker-compose.yml` | Compose definitions with profiles for each mock service (`asaas`, `whatsapp`) |
+| `docker-compose.yml` | Compose definitions with profiles for each mock service (`asaas`, `whatsapp`, `generator`; the generator also rides `asaas`) |
 | `.env.example` | Contract for root environment variables and port mappings |
 | `scripts/` | Shell helpers: `lib.sh`, `check-tools.sh`, `setup.sh`, `setup-sandbox.sh`, `env-mode.sh`, `publish.sh` (multi-platform build and push to GHCR), `changed-mocks.sh` (the mocks a push changed) |
 | `site/` | The GitHub Pages documentation site (https://instituto-ama.github.io/ama4devs/): plain HTML, one stylesheet and one script in `site/assets/`; English at the root, Portuguese under `site/pt-br/` with the same section ids. Per mock: overview with use cases (`<mock>/`), `quick-start/`, `api/`, `docs/`. The printer on the home and the overviews replays a real run of the images (calls, events, values): rerun the run before changing a line. Every command a quick start or use case prints must run as written against a fresh container. A change to a mock's behavior rewrites its pages (EN and PT) in the same change; visual decisions live in `DESIGN.md` |
@@ -18,6 +18,7 @@ Rules, layout map, and instructions for agents working in this repository.
 | `profiles/` | Environment key profiles (`generic/mock.env`, `generic/sandbox.env`) |
 | `mocks/asaas/` | Asaas mock server (Elysia, Bun, SQLite, Drizzle, TypeBox) |
 | `mocks/whatsapp/` | WhatsApp / Meta Graph API mock server (Hono, Bun, WebSockets) |
+| `mocks/generator/` | Fake Brazilian data generator (Bun.serve, no dependency): `src/core/*.js` are browser-native ES modules (JSDoc, no Bun/Node API, seeded `Rng`, never `Math.random()`) shared by the server and the UI in `public/`; `scripts/build-site.sh` publishes `public/` and `src/core/` at `generator/app/` on Pages. Populates the Asaas mock through its API (`POST /_mock/asaas/populate`) |
 | `mocks/README.md` | The contract of a mock and checklist for adding a new mock |
 | `video/` | The films, rendered from code with Remotion (`bun run render` in `video/`, or `make video` from the root): React compositions under `video/src/` (`scenes/`, `film.ts`, `film.json`, `shots.json`, `voice.json`, `voice.cues.json`, `theme.ts`), the thirty stills of the tour under `video/public/shots/`, the voice and the optional music bed under `video/public/audio/`, the voice engines in `video/scripts/tts.mjs`, the narration generator in `video/scripts/voice.mjs`, the one-line generator in `video/scripts/say.mjs` and the capture of the stills in `video/scripts/capture.mjs`. `make video` asks where to save the rendered MP4 (default: the Desktop) and leaves no film inside the repository |
 

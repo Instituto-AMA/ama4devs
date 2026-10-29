@@ -7,6 +7,7 @@ as Docker images on GHCR:
 |---|---|---|
 | [WhatsApp mock](mocks/whatsapp/) | **WhatsApp Cloud API** (Meta Graph API v23.0, WhatsApp Business Platform): messages, message templates, media, voice calls (Calling API with WebRTC), phone numbers and WABAs, webhooks, and a WhatsApp Web like panel | `docker pull ghcr.io/instituto-ama/whatsapp-mock:latest` |
 | [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail and WhatsApp notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
+| [Generator](mocks/generator/) | **Fake Brazilian data** for tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, the same for the same seed; populates the Asaas mock with customers and charges in one call. Its UI also runs in the browser at [instituto-ama.github.io/ama4devs/generator/app](https://instituto-ama.github.io/ama4devs/generator/app/) | `docker pull ghcr.io/instituto-ama/generator-mock:latest` |
 
 Em português: **simulador local do WhatsApp (API oficial da Meta) e do Asaas**
 (Pix, boleto, cartão, parcelamento, assinatura e webhooks), para desenvolver e
@@ -41,6 +42,7 @@ Once running, access the web inspection panels:
 
 - **Asaas Simulator Panel:** [http://localhost:45445](http://localhost:45445)
 - **WhatsApp Web Panel:** [http://localhost:3010](http://localhost:3010)
+- **Generator:** [http://localhost:45450](http://localhost:45450) (starts with the Asaas mock; its "Popular o mock do Asaas" sheet fills the Asaas mock with customers and charges)
 
 ## The Two Flows
 
@@ -93,6 +95,7 @@ without cloning this repository:
 |---|---|
 | Asaas | `ghcr.io/instituto-ama/asaas-mock` |
 | WhatsApp | `ghcr.io/instituto-ama/whatsapp-mock` |
+| Generator | `ghcr.io/instituto-ama/generator-mock` |
 
 One image per version, with two tags:
 
@@ -168,6 +171,20 @@ Key-free helper routes mounted under `/_mock` allow deterministic control over p
     -d '{"value": 50.00}'
   ```
 
+## The Generator
+
+A tiny service with no dependency (Bun, port 45450) that generates valid fake Brazilian data and
+fills the Asaas mock. See [mocks/generator/README.md](mocks/generator/README.md).
+
+- **API:** `GET /v1/<kind>?count=10&seed=demo&formatted=true` for `person`, `company`, `address`,
+  `cpf`, `cnpj`, `cnh`, `pis`, `rg`, `credit-card`, `bank-account`, `pix-key`, `charge`;
+  `GET /v1/validate/cpf/11144477735`. The same seed (and `now`) returns the same data.
+- **Asaas population:** `POST /_mock/asaas/populate` with `{"people": 5, "companies": 2, "chargesPerCustomer": 2, "confirm": 0.5}`
+  creates customers and charges through the Asaas API and confirms part of them;
+  `GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5` in `.env` does it once on boot,
+  while the Asaas mock has no customer.
+- **UI:** `http://localhost:45450`, and the same page on GitHub Pages, generating in the browser.
+
 ## The WhatsApp Mock
 
 The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
@@ -202,10 +219,11 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 ## Security Notes
 
 - **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445` and `127.0.0.1:3010`). They must never be exposed on `0.0.0.0` or public networks.
-- **Local Route Guard:** Both mocks implement a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
+- **Local Route Guard:** Every mock implements a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
 - **Fake Keys:** All default API keys in `.env.example` and tests are non-functional mock placeholders (e.g. `$aact_hmlg_local_master`). Never commit real credentials to this repository.
 
 ## Licenses
 
 - `mocks/asaas`: MIT License (`mocks/asaas/LICENSE`).
 - `mocks/whatsapp`: Apache License 2.0 (`mocks/whatsapp/LICENSE`).
+- `mocks/generator`: MIT License (`mocks/generator/LICENSE`).

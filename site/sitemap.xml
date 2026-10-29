@@ -90,4 +90,37 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/docs/"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/docs/"/>
   </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/generator/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/generator/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/generator/quick-start/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/quick-start/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/generator/quick-start/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/quick-start/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/generator/docs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/docs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/docs/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/generator/docs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/docs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/docs/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/generator/app/</loc>
+  </url>
 </urlset>
