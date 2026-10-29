@@ -15,6 +15,14 @@ import {
   isValidPis,
 } from './core/index.js'
 
+/**
+ * Text that came from the Asaas mock, escaped before it lands in markup.
+ * @param {unknown} value
+ */
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c)
+}
+
 /** @type {{ kind: string, seed: string, count: number, items: any[] } | null} */
 let lastResult = null
 
@@ -543,12 +551,12 @@ async function runAsaasPopulate() {
             : `R$ ${p.value}`
 
         tr.innerHTML = `
-          <td>${custName}</td>
-          <td>${p.billingType || ''}</td>
-          <td>${valFormatted}</td>
-          <td>${p.dueDate || ''}</td>
-          <td>${p.status || ''}</td>
-          <td>${p.invoiceUrl ? `<a href="${p.invoiceUrl}" target="_blank" rel="noopener">fatura ↗</a>` : '—'}</td>
+          <td>${esc(custName)}</td>
+          <td>${esc(p.billingType)}</td>
+          <td>${esc(valFormatted)}</td>
+          <td>${esc(p.dueDate)}</td>
+          <td>${esc(p.status)}</td>
+          <td>${/^https?:\/\//.test(String(p.invoiceUrl)) ? `<a href="${esc(p.invoiceUrl)}" target="_blank" rel="noopener">fatura ↗</a>` : '—'}</td>
         `
         asaasPaymentsTbody.appendChild(tr)
       }
@@ -560,7 +568,7 @@ async function runAsaasPopulate() {
       asaasErrors.innerHTML = `
         <strong>Ocorrências durante a população:</strong>
         <ul style="margin: 8px 0 0 20px; padding: 0;">
-          ${data.errors.map((/** @type {any} */ e) => `<li>[${e.step}] ${e.message} (${e.status})</li>`).join('')}
+          ${data.errors.map((/** @type {any} */ e) => `<li>[${esc(e.step)}] ${esc(e.message)} (${esc(e.status)})</li>`).join('')}
         </ul>
       `
     }
