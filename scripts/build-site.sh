@@ -19,6 +19,13 @@ done
 mkdir -p "$OUT/generator/app/core"
 cp -R "$ROOT/mocks/generator/public/." "$OUT/generator/app/"
 cp "$ROOT"/mocks/generator/src/core/*.js "$OUT/generator/app/core/"
+# The Portuguese pages answer at both pt-br/ and portuguese/: the folder is being renamed,
+# and every link to either name, old or new, keeps working. Their canonical tags name one.
+if [ -d "$OUT/pt-br" ] && [ ! -d "$OUT/portuguese" ]; then
+  cp -R "$OUT/pt-br" "$OUT/portuguese"
+elif [ -d "$OUT/portuguese" ] && [ ! -d "$OUT/pt-br" ]; then
+  cp -R "$OUT/portuguese" "$OUT/pt-br"
+fi
 cp "$ROOT/mocks/asaas/docs/icon.svg" "$OUT/img/asaas/icon.svg"
 cp "$ROOT/llms.txt" "$OUT/llms.txt"
 # Served as is: no Jekyll pass over the files.
