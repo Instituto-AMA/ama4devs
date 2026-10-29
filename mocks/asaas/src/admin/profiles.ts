@@ -97,7 +97,7 @@ export async function createProfile(
 }
 
 /** The account and every subaccount under it, at any depth. */
-async function familyOf(ctx: AppContext, rootId: string): Promise<string[]> {
+export async function familyOf(ctx: AppContext, rootId: string): Promise<string[]> {
   const family = [rootId]
   let frontier = [rootId]
   while (frontier.length > 0) {
@@ -111,7 +111,7 @@ async function familyOf(ctx: AppContext, rootId: string): Promise<string[]> {
   return family
 }
 
-interface TableShape {
+export interface TableShape {
   name: string
   ownedByAccount: boolean
   /** Foreign keys of a table with no `account_id` of its own. */
@@ -124,7 +124,7 @@ interface TableShape {
  * payment, a notification through its customer). Read from SQLite itself, so a
  * table added later is deleted with its account without touching this file.
  */
-async function tableShapes(ctx: AppContext): Promise<TableShape[]> {
+export async function tableShapes(ctx: AppContext): Promise<TableShape[]> {
   const tables = await ctx.db.all<{ name: string }>(
     sql`select name from sqlite_master where type = 'table'
         and name not like 'sqlite_%' and name not like '__drizzle%' and name <> 'accounts'`,
@@ -184,10 +184,6 @@ export async function deleteProfile(
   const family = await familyOf(ctx, account.id)
   const shapes = await tableShapes(ctx)
   const owned = new Set(shapes.filter((s) => s.ownedByAccount).map((s) => s.name))
-  const idList = sql.join(
-    family.map((id) => sql`${id}`),
-    sql`, `,
-  )
 
   // A SYNCHRONOUS callback, on purpose. bun:sqlite runs the transaction body
   // synchronously and commits when it returns: an async body would commit at
@@ -196,28 +192,51 @@ export async function deleteProfile(
   let rows = 0
   ctx.db.transaction((tx) => {
     tx.run(sql`PRAGMA defer_foreign_keys = ON`)
-
-    // Children first only for readability: the deferred check is what makes
-    // the order irrelevant.
-    for (const shape of shapes.filter((s) => !s.ownedByAccount)) {
-      for (const parent of shape.parents.filter((p) => owned.has(p.table))) {
-        rows += tx.all(
-          sql`delete from ${sql.identifier(shape.name)} where ${sql.identifier(parent.column)} in (
-                select ${sql.identifier(parent.to)} from ${sql.identifier(parent.table)}
-                where account_id in (${idList})) returning 1`,
-        ).length
-      }
-    }
-
-    for (const name of owned) {
-      rows += tx.all(
-        sql`delete from ${sql.identifier(name)} where account_id in (${idList}) returning 1`,
-      ).length
-    }
-
+    rows += purgeRows(tx, shapes, owned, family)
     tx.delete(accounts).where(inArray(accounts.id, family)).run()
   })
 
   ctx.log('info', `Perfil ${account.id} excluído com ${family.length - 1} subconta(s)`)
   return { deleted: true, id: account.id, accounts: family.length, rows }
+}
+
+/** The transaction a synchronous `ctx.db.transaction` callback receives. */
+type SyncTx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0]
+
+/**
+ * Deletes the rows of `tables` (tables with an `account_id`) that belong to
+ * `accountIds`, and the rows of the tables with no `account_id` of their own
+ * that hang from them (a split from its payment, a notification from its
+ * customer). Runs inside the caller's transaction, foreign keys deferred.
+ */
+export function purgeRows(
+  tx: SyncTx,
+  shapes: TableShape[],
+  tables: Set<string>,
+  accountIds: string[],
+): number {
+  const idList = sql.join(
+    accountIds.map((id) => sql`${id}`),
+    sql`, `,
+  )
+  let rows = 0
+
+  // Children first only for readability: the deferred check is what makes
+  // the order irrelevant.
+  for (const shape of shapes.filter((s) => !s.ownedByAccount)) {
+    for (const parent of shape.parents.filter((p) => tables.has(p.table))) {
+      rows += tx.all(
+        sql`delete from ${sql.identifier(shape.name)} where ${sql.identifier(parent.column)} in (
+              select ${sql.identifier(parent.to)} from ${sql.identifier(parent.table)}
+              where account_id in (${idList})) returning 1`,
+      ).length
+    }
+  }
+
+  for (const name of tables) {
+    rows += tx.all(
+      sql`delete from ${sql.identifier(name)} where account_id in (${idList}) returning 1`,
+    ).length
+  }
+  return rows
 }

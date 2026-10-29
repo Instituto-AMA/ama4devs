@@ -254,12 +254,14 @@ export function Toggle(props: {
   onChange: (checked: boolean) => void
   children: ComponentChildren
   hint?: ComponentChildren
+  disabled?: boolean
 }) {
   return (
-    <label class="toggle">
+    <label class={`toggle ${props.disabled ? 'disabled' : ''}`}>
       <input
         type="checkbox"
         checked={props.checked}
+        disabled={props.disabled}
         onChange={(e) => props.onChange((e.target as HTMLInputElement).checked)}
       />
       <span class="toggle-track" aria-hidden="true" />

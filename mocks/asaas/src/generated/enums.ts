@@ -446,6 +446,7 @@ export const InvoiceStatus = Type.Union([
   Type.Literal("CANCELED"),
   Type.Literal("CANCELLATION_DENIED"),
   Type.Literal("ERROR"),
+  Type.Literal("SYNCHRONIZED"),
 ])
 export type InvoiceStatus = (typeof InvoiceStatus)['static']
 

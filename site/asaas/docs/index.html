@@ -302,7 +302,8 @@
                 <li><strong>A charge</strong>: its invoice link, simulate the payment, confirm a cash receipt, receive, overdue, refund, delete, restore, and its notifications.</li>
                 <li><strong>Integrations</strong>, per account: API keys, webhooks with the event checklist, request logs (every <code>/v3</code> call with what went in and what came back, errors included), webhook logs with your endpoint's answer and the events no webhook took, the e-mail and WhatsApp channels, and the generator (Gerador).</li>
                 <li><strong>Test cards</strong>: accept any well-formed card or only the listed ones; add a card with the outcome it forces.</li>
-                <li><strong>Profiles</strong>: one root account per tenant of your application, created and deleted without a restart.</li>
+                <li><strong>Notas fiscais</strong> (NFS-e): schedule a note for a charge, issue it, cancel it, and register the account's fiscal information. The city hall answers on the next tick (<code>SYNCHRONIZED</code> → <code>AUTHORIZED</code>, or <code>ERROR</code> without fiscal information), or now with the simulator's buttons; an authorized note's <code>pdfUrl</code> and <code>xmlUrl</code> open its document. A subscription with <code>invoiceSettings</code> gets a note for each charge.</li>
+                <li><strong>Profiles</strong>: one root account per tenant of your application, created and deleted without a restart. <em>Reset</em> empties one and keeps its id and keys: everything, or only the charges, notes and logs with customers and subaccounts kept; cancelling first sends <code>PAYMENT_DELETED</code>, <code>SUBSCRIPTION_DELETED</code> and <code>INVOICE_CANCELED</code> to your webhooks before the delete.</li>
               </ul>
             </section>
 

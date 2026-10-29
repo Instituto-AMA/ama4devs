@@ -120,6 +120,23 @@ actx.token = (await v3('POST', '/creditCard/tokenizeCreditCard', {
 actx.cardPayment = (await v3('POST', '/payments', {
   customer: actx.customer, billingType: 'CREDIT_CARD', value: 350, dueDate: '2026-11-10', creditCardToken: actx.token, remoteIp: '127.0.0.1',
 })).body.id
+/** A note of a fresh charge, scheduled for today (the clock moves between routes). */
+const scheduledNote = async () => {
+  const today = (await call(asaasUrl, 'GET', '/_admin/clock')).body.today
+  const payment = (await v3('POST', '/payments', { customer: actx.customer, billingType: 'PIX', value: 150, dueDate: '2030-01-10' })).body.id
+  return (await v3('POST', '/invoices', {
+    payment, serviceDescription: 'Sessão de fisioterapia', observations: '', value: 150, deductions: 0, effectiveDate: today,
+    municipalServiceName: '4.08 - Terapia ocupacional, fisioterapia e fonoaudiologia',
+    taxes: { retainIss: false, iss: 2, pis: 0, cofins: 0, csll: 0, inss: 0, ir: 0 },
+  })).body.id
+}
+/** An authorized note whose cancellation is waiting for the city hall. */
+const cancellingNote = async () => {
+  const id = await scheduledNote()
+  await call(asaasUrl, 'POST', `/_mock/invoices/${id}/authorize`, {})
+  await v3('POST', `/invoices/${id}/cancel`, {})
+  return id
+}
 // Charges for the /_mock routes are created right before each call: the clock routes
 // tick, and a tick would turn an earlier charge overdue on its own.
 const pix = async () => (await v3('POST', '/payments', { customer: actx.customer, billingType: 'PIX', value: 89.9, dueDate: '2030-01-10' })).body.id
@@ -267,6 +284,16 @@ const ASAAS = [
     call: (c) => `/_admin/accounts/${c.newAccount}/keys/${c.newKey}`,
     params: [p('id', 'path', 'string', 'The account', true), p('keyId', 'path', 'string', 'The key', true)],
   }),
+  route('Accounts and keys', 'POST', '/_admin/accounts/:id/reset', 'Empty a root account and keep it: same id, same keys', {
+    call: (c) => `/_admin/accounts/${c.newAccount}/reset`,
+    body: { cancelCharges: true, remove: { charges: true, logs: true } },
+    params: [p('id', 'path', 'string', 'The root account', true)],
+    fields: [
+      f('cancelCharges', 'boolean', 'First remove the open charges and subscriptions through the API path, sending PAYMENT_DELETED and SUBSCRIPTION_DELETED to the webhooks'),
+      f('remove', 'object of booleans', 'The groups to delete: customers, subaccounts, charges (with the statement; the balance goes to zero), invoices, webhooks, logs. Customers take charges and invoices along; charges take invoices'),
+    ],
+    errors: [{ call: (c) => `/_admin/accounts/${c.newAccount}/reset`, body: {}, why: 'Nothing chosen to cancel or delete.' }],
+  }),
   route('Accounts and keys', 'DELETE', '/_admin/accounts/:id', 'Delete an account with everything it owns', {
     call: (c) => `/_admin/accounts/${c.newAccount}`,
     params: [p('id', 'path', 'string', 'The account', true)],
@@ -301,6 +328,32 @@ const ASAAS = [
     body: { value: 10 },
     params: [p('id', 'path', 'string', 'A paid charge', true)],
     fields: [f('value', 'number', 'The amount; empty refunds all')],
+  }),
+  route('Invoice controls (/_mock)', 'POST', '/_mock/invoices/:id/authorize', 'The city hall authorizes a note now, fiscal information or not', {
+    before: async (c) => { c.note = await scheduledNote() },
+    call: (c) => `/_mock/invoices/${c.note}/authorize`,
+    params: [p('id', 'path', 'string', 'A note SCHEDULED, SYNCHRONIZED or in ERROR', true)],
+    errors: [{ call: '/_mock/invoices/inv_000000000000/authorize', why: 'A note the simulator does not know.' }],
+  }),
+  route('Invoice controls (/_mock)', 'POST', '/_mock/invoices/:id/error', 'The city hall refuses a note, with its reason', {
+    before: async (c) => { c.note = await scheduledNote() },
+    call: (c) => `/_mock/invoices/${c.note}/error`,
+    body: { description: 'Rejeitada pela prefeitura: inscrição municipal não encontrada.' },
+    params: [p('id', 'path', 'string', 'A note SCHEDULED or SYNCHRONIZED', true)],
+    fields: [f('description', 'string', 'The reason; empty uses a default one')],
+  }),
+  route('Invoice controls (/_mock)', 'POST', '/_mock/invoices/:id/confirm-cancellation', 'The city hall cancels a note now', {
+    before: async (c) => { c.note = await cancellingNote() },
+    call: (c) => `/_mock/invoices/${c.note}/confirm-cancellation`,
+    params: [p('id', 'path', 'string', 'A note in PROCESSING_CANCELLATION', true)],
+    errors: [{ call: (c) => `/_mock/invoices/${c.note}/confirm-cancellation`, why: 'The note is no longer waiting for its cancellation.' }],
+  }),
+  route('Invoice controls (/_mock)', 'POST', '/_mock/invoices/:id/deny-cancellation', 'The city hall refuses to cancel a note', {
+    before: async (c) => { c.note = await cancellingNote() },
+    call: (c) => `/_mock/invoices/${c.note}/deny-cancellation`,
+    body: { description: 'Cancelamento negado pela prefeitura: prazo de cancelamento expirado.' },
+    params: [p('id', 'path', 'string', 'A note in PROCESSING_CANCELLATION', true)],
+    fields: [f('description', 'string', 'The reason; empty uses a default one')],
   }),
 ]
 const asaas = await capture(asaasUrl, ASAAS, actx)

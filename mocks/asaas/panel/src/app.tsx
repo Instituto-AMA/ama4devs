@@ -20,6 +20,7 @@ import { Charges, chargeTab } from './pages/Charges.tsx'
 import { Customers } from './pages/Customers.tsx'
 import { Home } from './pages/Home.tsx'
 import { integrationTab, Integrations } from './pages/Integrations.tsx'
+import { Invoices } from './pages/Invoices.tsx'
 import { ChargeForm } from './components/ChargeForm.tsx'
 import { Splits } from './pages/Splits.tsx'
 import { Statement } from './pages/Statement.tsx'
@@ -41,6 +42,7 @@ const TITLES: Record<string, string> = {
   customers: 'Meus Clientes',
   payments: 'Cobranças',
   statement: 'Extrato da Conta',
+  invoices: 'Notas fiscais',
   splits: 'Split de pagamentos',
   subaccounts: 'Subcontas',
   integrations: 'Integrações',
@@ -220,6 +222,8 @@ function Page({ page, ...p }: PageProps & { page: string }) {
       return <Charges {...p} tab={tab} />
     case 'statement':
       return <Statement {...p} />
+    case 'invoices':
+      return <Invoices {...p} />
     case 'splits':
       return <Splits {...p} />
     case 'subaccounts':

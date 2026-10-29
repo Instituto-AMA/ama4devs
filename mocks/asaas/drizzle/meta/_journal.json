@@ -50,6 +50,13 @@
       "when": 1793154769927,
       "tag": "0006_melted_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793297332267,
+      "tag": "0007_invoice_issuing",
+      "breakpoints": true
     }
   ]
 }

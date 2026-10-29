@@ -1,0 +1,9 @@
+{
+  "_why": "A spec publicada pelo Asaas omite o status SYNCHRONIZED dos enums de status da nota fiscal de resposta e de filtro. Ele existe na prática: é a nota enviada à prefeitura e ainda sem resposta, o evento INVOICE_SYNCHRONIZED a anuncia, e a própria spec o lista em SubscriptionGetInvoicesRequestInvoiceStatus. Sem este overlay, a validação de response rejeitaria uma nota legítima entre a emissão e a autorização.",
+  "_source": "https://docs.asaas.com/docs/eventos-para-notas-fiscais",
+  "patch": [
+    { "op": "add", "path": "/components/schemas/InvoiceGetResponseInvoiceStatus/enum/-", "value": "SYNCHRONIZED" },
+    { "op": "add", "path": "/components/schemas/InvoiceListRequestInvoiceStatus/enum/-", "value": "SYNCHRONIZED" },
+    { "op": "add", "path": "/components/schemas/PaymentListRequestInvoiceStatus/enum/-", "value": "SYNCHRONIZED" }
+  ]
+}

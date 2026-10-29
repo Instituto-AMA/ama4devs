@@ -14,6 +14,7 @@ export {
   Add01Icon as ADD,
   Alert02Icon as ALERT,
   Delete02Icon as DELETE,
+  DocumentValidationIcon as NFSE,
   FileScriptIcon as LOG,
   Key01Icon as KEY,
   LockIcon as LOCK,

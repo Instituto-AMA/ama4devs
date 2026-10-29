@@ -1,17 +1,19 @@
 /**
  * Assinatura — o que a criação e o job de geração compartilham. (Track E)
  */
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
 import { invalid } from '../../core/errors.ts'
 import type { DB } from '../../db/client.ts'
-import { accounts, subscriptions, subscriptionSplits } from '../../db/schema/index.ts'
+import { accounts, payments, subscriptions, subscriptionSplits } from '../../db/schema/index.ts'
 import { advanceCycle, type Cycle } from '../../domain/calendar.ts'
 import type { BillingType } from '../../domain/fees.ts'
 import { brlToCents, cents, percentE4, type Cents, type PercentE4 } from '../../domain/money.ts'
 import type { SplitSpec } from '../../domain/split.ts'
 import type { TickReport } from '../../scheduler/scheduler.ts'
+import { applyTransition } from '../payments/apply.ts'
 import { createPayment } from '../payments/service.ts'
+import { serializeSubscription } from './serializer.ts'
 
 export type SubscriptionRow = typeof subscriptions.$inferSelect
 
@@ -194,6 +196,54 @@ export async function generateOne(
 
     return claimed[0] as SubscriptionRow
   })
+}
+
+/**
+ * Remove a assinatura. As cobranças já geradas e ainda ABERTAS vão junto — o
+ * Asaas não deixa cobrança órfã de assinatura removida esperando pagamento.
+ * As já pagas ficam.
+ *
+ * Shared by `DELETE /v3/subscriptions/{id}` and the profile reset, so a reset
+ * that cancels first sends the same SUBSCRIPTION_DELETED the API does.
+ * Returns how many open charges went with it.
+ */
+export async function removeSubscription(ctx: AppContext, sub: SubscriptionRow): Promise<number> {
+  const open = await ctx.db
+    .select({ id: payments.id })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.subscriptionId, sub.id),
+        eq(payments.deleted, false),
+        inArray(payments.status, ['PENDING', 'OVERDUE']),
+      ),
+    )
+
+  for (const p of open) {
+    await applyTransition(ctx, p.id, { kind: 'DELETE' })
+  }
+
+  await ctx.db.transaction(async (tx) => {
+    await tx
+      .update(subscriptions)
+      .set({ deleted: true })
+      .where(and(eq(subscriptions.id, sub.id), eq(subscriptions.deleted, false)))
+
+    const [row] = await tx
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, sub.id))
+      .limit(1)
+
+    await ctx.emit(tx as never, {
+      accountId: sub.accountId,
+      event: 'SUBSCRIPTION_DELETED',
+      resourceType: 'subscription',
+      resourceId: sub.id,
+      resource: await serializeSubscription(tx as never, row as SubscriptionRow),
+    })
+  })
+  return open.length
 }
 
 /** A carteira da conta emissora — o split não pode apontar para ela mesma. */
