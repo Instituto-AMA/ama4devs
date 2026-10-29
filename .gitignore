@@ -1,5 +1,7 @@
 .env
 .env.sandbox
+# The official ElevenLabs CLI writes the key here (onboard connect).
+.env.local
 node_modules/
 data/
 # The rendered films are build artifacts; `make video` writes them.

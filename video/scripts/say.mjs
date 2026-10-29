@@ -34,8 +34,9 @@
  *   --engine <name>      speech (the endpoint) or edge (the free fallback).
  *   --json               Print the result as JSON, for a machine to read.
  *
- * The key comes from the environment (OPENROUTER_API_KEY, TTS_API_KEY or
- * ELEVENLABS_API_KEY) and is never written to the disk.
+ * The key comes from the environment (ELEVENLABS_API_KEY, OPENROUTER_API_KEY
+ * or TTS_API_KEY) and is never written to the disk. The engines are tried in
+ * that order: ElevenLabs, then OpenRouter, then Microsoft Edge.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -44,41 +45,27 @@ import {
   ROOT,
   SPEED_RANGE,
   VOICE_DIR,
+  activeProvider,
   durationOf,
   generateEdge,
   generateSpeech,
   hasSpeechEngine,
   narration,
+  parseArgs,
   publicPath,
   resolveSpeech,
   speechKey,
+  writeAudio,
 } from './tts.mjs'
 
-const args = process.argv.slice(2)
-
 /**
- * The arguments are read by hand: a flag that takes a value takes the next
- * one, and whatever is left over is part of the line. An agent that forgets
- * the quotes around the text still gets the whole line spoken.
+ * The arguments are read the same way in every script of the film: a flag
+ * that takes a value takes the next one, and whatever is left over is part
+ * of the line. An agent that forgets the quotes around the text still gets
+ * the whole line spoken.
  */
 const VALUE_FLAGS = new Set(['text', 'file', 'id', 'pace', 'duration', 'at', 'voice', 'style', 'out', 'engine'])
-const values = {}
-const flags = new Set()
-const loose = []
-for (let index = 0; index < args.length; index += 1) {
-  const arg = args[index]
-  if (arg.startsWith('--')) {
-    const name = arg.slice(2)
-    if (VALUE_FLAGS.has(name)) {
-      values[name] = args[index + 1]
-      index += 1
-      continue
-    }
-    flags.add(name)
-    continue
-  }
-  loose.push(arg)
-}
+const { values, flags, loose } = parseArgs(process.argv.slice(2), VALUE_FLAGS)
 
 const option = (name) => values[name]
 const flag = (name) => flags.has(name)
@@ -94,6 +81,7 @@ const pace = Number(option('pace') ?? 1)
 const target = option('duration') ? Number(option('duration')) : undefined
 const at = option('at') ? Number(option('at')) : undefined
 const voice = option('voice')
+const provider = activeProvider()
 const engine = option('engine') ?? (hasSpeechEngine() ? 'speech' : 'edge')
 const out = option('out')
 
@@ -107,7 +95,7 @@ for (const pair of (option('style') ?? '').split(',').filter(Boolean)) {
 const slug = (value) =>
   value
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
@@ -125,10 +113,15 @@ const speech = resolveSpeech()
 let model = 'edge-tts'
 let speed = clamp(pace, SPEED_RANGE.min, SPEED_RANGE.max)
 let seconds = 0
+// The voice that speaks: the one of the endpoint, or the Edge voice when the
+// free fallback speaks.
+let spokenVoice = engine === 'speech' ? (voice ?? speech.voice) : (voice ?? narration.voice)
 
 if (engine === 'speech') {
   if (!speechKey()) {
-    console.error('say.mjs: no key in the environment. Set OPENROUTER_API_KEY (or use --engine edge).')
+    console.error(
+      'say.mjs: no key in the environment. Set ELEVENLABS_API_KEY or OPENROUTER_API_KEY (or use --engine edge).',
+    )
     process.exit(2)
   }
   // The line is spoken once to learn its length; when a duration was asked
@@ -137,7 +130,7 @@ if (engine === 'speech') {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const spoken = await generateSpeech({ text, speed, voice, voiceSettings: settings })
     model = spoken.model
-    writeFileSync(targetFile, spoken.buffer)
+    writeAudio(targetFile, spoken.buffer)
     seconds = durationOf(targetFile)
     if (!target) {
       break
@@ -171,7 +164,7 @@ const measured = {
   file: publicPath(targetFile),
   seconds: Number(seconds.toFixed(3)),
   frames: Math.ceil(seconds * FPS),
-  source: engine,
+  source: engine === 'edge' ? 'edge' : (provider?.id ?? 'speech'),
 }
 if (!out) {
   durations[id] = measured
@@ -190,8 +183,9 @@ const result = {
   id,
   file: measured.file,
   engine,
+  provider: measured.source,
   model,
-  voice: voice ?? speech.voice,
+  voice: spokenVoice,
   seconds: measured.seconds,
   frames: measured.frames,
   pace,
@@ -213,4 +207,5 @@ if (flag('json')) {
     console.log(`   starts at ${at}s (frame ${Math.round(at * FPS)})`)
   }
   console.log(`   ${measured.file}`)
+  console.log(`   engine: ${measured.source}${provider ? ` (${provider.label})` : ''}`)
 }

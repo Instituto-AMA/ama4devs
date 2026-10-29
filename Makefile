@@ -11,7 +11,7 @@ COMPOSE  := docker compose --env-file .env -f docker-compose.yml
 
 export MOCKS PROFILE TARGET_ENV
 
-.PHONY: help env setup setup-sandbox up down restart logs ps status build publish env-mock env-sandbox test clean video video-voice video-say video-shots video-studio
+.PHONY: help env setup setup-sandbox up down restart logs ps status build publish env-mock env-sandbox test clean video video-voice video-listen video-say video-try video-shots video-studio video-key
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -78,9 +78,19 @@ video: video-voice ## Render the film and ask where to save it (default: the Des
 	echo "Rendering to $$dest"; \
 	cd video && bun run render "$$dest"
 
-video-voice: ## Regenerate the narration (needs uv and ffmpeg; reads .env.sandbox)
+video-voice: ## Regenerate the narration and listen to it (reads .env.sandbox; needs the MCP connector)
 	@if [ -f .env.sandbox ]; then set -a; . ./.env.sandbox; set +a; fi; \
-	cd video && node scripts/voice.mjs
+	cd video && node scripts/voice.mjs --require-engine
+	@$(MAKE) video-listen
+
+video-listen: ## Listen to the generated narration and report what it heard (needs mcode-tools)
+	@command -v mcode-tools >/dev/null 2>&1 || \
+		{ echo "mcode-tools not found: the narration was generated, but nobody listened to it."; \
+		  echo "The check is part of the build: install the MCP connector and run it again."; exit 1; }; \
+	cd video && node scripts/listen.mjs
+
+video-key: ## Set up the voice key (ElevenLabs first, OpenRouter second): make video-key [engine=elevenlabs]
+	@scripts/voice-key.sh $(engine)
 
 video-say: ## Speak one line: make video-say text="..." [duration=4.5] [pace=1] [at=12.4] [id=recusa]
 	@if [ -f .env.sandbox ]; then set -a; . ./.env.sandbox; set +a; fi; \
@@ -90,6 +100,20 @@ video-say: ## Speak one line: make video-say text="..." [duration=4.5] [pace=1] 
 		$(if $(at),--at $(at)) \
 		$(if $(id),--id $(id)) \
 		$(if $(voice),--voice $(voice))
+
+video-try: ## Try the voice with the v4 options, saved to the Desktop: make video-try text="..." [name=meu-teste]
+	@if [ -f .env.sandbox ]; then set -a; . ./.env.sandbox; set +a; fi; \
+	node video/scripts/try-voice.mjs --text "$(text)" \
+		$(if $(name),--name $(name)) \
+		$(if $(model),--model $(model)) \
+		$(if $(voice),--voice $(voice)) \
+		$(if $(style),--style $(style)) \
+		$(if $(language),--language $(language)) \
+		$(if $(filter),--filter $(filter)) \
+		$(if $(room),--room $(room)) \
+		$(if $(noise),--noise $(noise)) \
+		$(if $(seed),--seed $(seed)) \
+		$(if $(pace),--pace $(pace))
 
 video-shots: ## Capture the screens of the running mock for the film (needs the mocks up)
 	@cd video && node scripts/capture.mjs

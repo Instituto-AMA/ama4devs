@@ -53,7 +53,8 @@ mock's, and the events are the ones the mock really delivered.
 
 - Bun (or Node 18+) and ffmpeg on the PATH
 - `uv`, only for the Edge fallback of the generated voice (`uvx --from edge-tts edge-tts`)
-- An OpenRouter key in `.env.sandbox` for the ElevenLabs voice (`OPENROUTER_API_KEY=`)
+- An ElevenLabs key in `.env.sandbox` for the generated voice (`ELEVENLABS_API_KEY=`) — the primary engine
+- An OpenRouter key in `.env.sandbox` (`OPENROUTER_API_KEY=`) — the secondary engine, used only when there is no ElevenLabs key
 - Playwright, for the capture only (`bun add -d playwright`)
 - The first render downloads Remotion's headless Chromium (~150 MB, once)
 
@@ -64,7 +65,10 @@ From the repository root:
 ```bash
 make video         # render the film; asks where to save it (default: the Desktop)
 make video out=~/Movies/film.mp4   # render without the question
-make video-voice   # regenerate the narration (needs uv and ffmpeg)
+make video-key     # set up the voice key (ElevenLabs first, OpenRouter second)
+make video-voice   # regenerate the narration and listen to it
+make video-listen  # listen to the narration alone and report what it heard
+make video-try text="Um teste." name=meu-teste   # try the voice, saved to the Desktop
 make video-shots   # take the stills again, from the running mock
 make video-studio  # preview at http://localhost:3000, with the scrubber
 ```
@@ -125,9 +129,11 @@ at every beat. Every address can be changed with an environment variable
 | `public/audio/` | The voice and the optional music bed |
 | `scripts/capture.mjs` | Takes the stills from the running mock |
 | `scripts/console.mjs` | The API console the film shows |
-| `scripts/tts.mjs` | The voice engines: the speech endpoint and the Edge fallback |
+| `scripts/tts.mjs` | The voice engines: ElevenLabs first, OpenRouter second, Edge last |
 | `scripts/voice.mjs` | Generates and measures the whole narration |
 | `scripts/say.mjs` | Speaks one line on demand — the door an LLM uses |
+| `scripts/listen.mjs` | Listens to the narration (MCP connector) and says what it heard |
+| `scripts/try-voice.mjs` | Tries one short line with the v4 options, saved to the Desktop |
 
 A caption may emphasize a word: the words between asterisks in `film.json` come
 out in gold and in italic.
@@ -165,19 +171,34 @@ narration needs, plus a breath, and two narrations never talk over each other.
    `recusa`, `recusa-detalhe`, `vencida-recusa`, `seis`, `fim`, `outro`. Run
    `make video-voice` and the timeline follows the length of your file.
    Nothing else changes.
-2. **The generated voice (default).** ElevenLabs through OpenRouter, with the
-   Brazilian community voice **Amanda Kelly** (`oi8rgjIfLgJRsQ6rbZh3`,
-   "Sweet, Warm and Clear"). The endpoint, the models and the voice live in
-   `src/voice.json`; the key comes from the environment — `OPENROUTER_API_KEY`
-   in `.env.sandbox`, gitignored, never in the repository. Regenerate with
-   `make video-voice`; `node scripts/voice.mjs --force` rewrites the files that
-   already exist. Without a key the script falls back to Microsoft Edge neural
-   voices (`pt-BR-AntonioNeural`), free and without an account.
+2. **The generated voice (default).** The engines are tried in this order, and
+   the first one with a key speaks the film:
+   1. **ElevenLabs** — the official provider, straight from `api.elevenlabs.io`
+      (`ELEVENLABS_API_KEY`), with the Brazilian professional voice **Mayla —
+      Engaging, Versatile, Smooth** (`NS7yU4WmAouJsg84X3Mg`), fine-tuned for
+      the `eleven_v4` model;
+   2. **OpenRouter** — the OpenAI-compatible endpoint
+      (`OPENROUTER_API_KEY`);
+   3. **Microsoft Edge** — free neural voices, no account, the last resort.
+
+   The endpoint, the models, the voice and the settings live in
+   `src/voice.json` (`speech` for ElevenLabs, `speech_fallback` for
+   OpenRouter); the key comes from the environment — `.env.sandbox`,
+   gitignored, never in the repository. Regenerate with `make video-voice`;
+   `node scripts/voice.mjs --force` rewrites the files that already exist.
+   The voice of the provider has its own knobs — emotion, tone, the sound
+   effects of a scene — and `make video-try` speaks one short line with them,
+   saved to the Desktop to listen to.
 3. **Another TTS.** Point the script at your engine and keep the same output:
    one file per segment in `public/audio/voice/` and the same
    `src/voice.durations.json` shape. Any server that speaks the OpenAI audio
    API works (`TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE`), a local Kokoro
    included.
+
+The key is set up with `make video-key`: the script asks for it with the input
+hidden, verifies it against the provider and saves it in `.env.sandbox`. It
+never goes through the chat. The full guide for an agent that speaks the film
+is in [VOICE.md](VOICE.md).
 
 ### How an LLM calls the voice
 
@@ -206,8 +227,9 @@ The JSON answer:
   "id": "recusa",
   "file": "public/audio/voice/recusa.mp3",
   "engine": "speech",
-  "model": "elevenlabs/eleven-v3",
-  "voice": "oi8rgjIfLgJRsQ6rbZh3",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "voice": "NS7yU4WmAouJsg84X3Mg",
   "seconds": 4.4,
   "frames": 132,
   "pace": 0.9,
@@ -220,6 +242,8 @@ The JSON answer:
   "cue": "src/voice.cues.json"
 }
 ```
+
+`provider` says which engine spoke: `elevenlabs`, `openrouter` or `edge`.
 
 | Option | What it does |
 |---|---|

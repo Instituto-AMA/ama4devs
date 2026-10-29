@@ -1,152 +1,177 @@
 {
   "intro": {
     "file": "audio/voice/intro.mp3",
-    "seconds": 2.4,
-    "frames": 72,
-    "source": "speech"
+    "seconds": 2.88,
+    "frames": 87,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "cliente": {
     "file": "audio/voice/cliente.mp3",
-    "seconds": 6,
-    "frames": 180,
-    "source": "speech"
+    "seconds": 5.68,
+    "frames": 171,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "fatura": {
     "file": "audio/voice/fatura.mp3",
-    "seconds": 4.64,
-    "frames": 140,
-    "source": "speech"
+    "seconds": 4.72,
+    "frames": 142,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "pago": {
     "file": "audio/voice/pago.mp3",
-    "seconds": 4.32,
-    "frames": 130,
-    "source": "speech"
+    "seconds": 3.84,
+    "frames": 116,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "cartao": {
     "file": "audio/voice/cartao.mp3",
-    "seconds": 8.96,
-    "frames": 269,
-    "source": "speech"
+    "seconds": 7.36,
+    "frames": 221,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "whatsapp": {
     "file": "audio/voice/whatsapp.mp3",
-    "seconds": 2.72,
-    "frames": 82,
-    "source": "speech"
+    "seconds": 2.96,
+    "frames": 89,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "webhook": {
     "file": "audio/voice/webhook.mp3",
-    "seconds": 5.04,
-    "frames": 152,
-    "source": "speech"
+    "seconds": 4.56,
+    "frames": 137,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "perfis": {
     "file": "audio/voice/perfis.mp3",
-    "seconds": 5.28,
-    "frames": 159,
-    "source": "speech"
+    "seconds": 4.8,
+    "frames": 144,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "relogio": {
     "file": "audio/voice/relogio.mp3",
-    "seconds": 7.04,
-    "frames": 212,
-    "source": "speech"
+    "seconds": 6.4,
+    "frames": 192,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "vence": {
     "file": "audio/voice/vence.mp3",
     "seconds": 2.88,
     "frames": 87,
-    "source": "speech"
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "vencida": {
     "file": "audio/voice/vencida.mp3",
-    "seconds": 3.92,
-    "frames": 118,
-    "source": "speech"
+    "seconds": 4.08,
+    "frames": 123,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "overdue": {
     "file": "audio/voice/overdue.mp3",
-    "seconds": 4.64,
-    "frames": 140,
-    "source": "speech"
+    "seconds": 4.08,
+    "frames": 123,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "saldo": {
     "file": "audio/voice/saldo.mp3",
-    "seconds": 3.28,
-    "frames": 99,
-    "source": "speech"
+    "seconds": 3.52,
+    "frames": 106,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "received": {
     "file": "audio/voice/received.mp3",
-    "seconds": 2.64,
-    "frames": 80,
-    "source": "speech"
+    "seconds": 2.88,
+    "frames": 87,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "console": {
     "file": "audio/voice/console.mp3",
-    "seconds": 5.44,
-    "frames": 164,
-    "source": "speech"
+    "seconds": 4.72,
+    "frames": 142,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "logs": {
     "file": "audio/voice/logs.mp3",
-    "seconds": 7.68,
-    "frames": 231,
-    "source": "speech"
+    "seconds": 6.24,
+    "frames": 188,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "assinatura": {
     "file": "audio/voice/assinatura.mp3",
-    "seconds": 4,
-    "frames": 120,
-    "source": "speech"
+    "seconds": 4.16,
+    "frames": 125,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "mes": {
     "file": "audio/voice/mes.mp3",
-    "seconds": 1.28,
-    "frames": 39,
-    "source": "speech"
+    "seconds": 1.44,
+    "frames": 44,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "aguardando": {
     "file": "audio/voice/aguardando.mp3",
-    "seconds": 4,
-    "frames": 120,
-    "source": "speech"
+    "seconds": 4.48,
+    "frames": 135,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "recusa": {
     "file": "audio/voice/recusa.mp3",
     "seconds": 4.56,
     "frames": 137,
-    "source": "speech"
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "recusa-detalhe": {
     "file": "audio/voice/recusa-detalhe.mp3",
-    "seconds": 2.8,
-    "frames": 84,
-    "source": "speech"
+    "seconds": 3.52,
+    "frames": 106,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "vencida-recusa": {
     "file": "audio/voice/vencida-recusa.mp3",
-    "seconds": 3.12,
-    "frames": 94,
-    "source": "speech"
+    "seconds": 3.52,
+    "frames": 106,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "seis": {
     "file": "audio/voice/seis.mp3",
-    "seconds": 4.8,
-    "frames": 144,
-    "source": "speech"
+    "seconds": 4.24,
+    "frames": 128,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "fim": {
     "file": "audio/voice/fim.mp3",
-    "seconds": 1.36,
-    "frames": 41,
-    "source": "speech"
+    "seconds": 1.44,
+    "frames": 44,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   },
   "outro": {
     "file": "audio/voice/outro.mp3",
-    "seconds": 6.64,
-    "frames": 200,
-    "source": "speech"
+    "seconds": 6.88,
+    "frames": 207,
+    "source": "elevenlabs",
+    "model": "eleven_v4"
   }
 }

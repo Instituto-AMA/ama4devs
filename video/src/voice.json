@@ -2,6 +2,22 @@
   "voice": "pt-BR-AntonioNeural",
   "rate": "-6%",
   "speech": {
+    "base_url": "https://api.elevenlabs.io/v1/text-to-speech/{voice}",
+    "models": ["eleven_v4", "eleven_multilingual_v2"],
+    "voice": "NS7yU4WmAouJsg84X3Mg",
+    "voice_name": "Mayla - Engaging, Versatile, Smooth",
+    "response_format": "mp3_44100_128",
+    "language_code": "pt",
+    "pronunciation_dictionary_id": "5T0DghkrQszW236Z4PSC",
+    "pronunciation_dictionary_version_id": "SZ9mTluRA3Ao0zKnXJWc",
+    "voice_settings": {
+      "stability": 0.45,
+      "similarity_boost": 0.8,
+      "style": 0.35,
+      "use_speaker_boost": true
+    }
+  },
+  "speech_fallback": {
     "base_url": "https://openrouter.ai/api/v1/audio/speech",
     "models": ["elevenlabs/eleven-v3", "elevenlabs/eleven-multilingual-v2"],
     "voice": "oi8rgjIfLgJRsQ6rbZh3",
@@ -39,7 +55,7 @@
     },
     {
       "id": "perfis",
-      "text": "Cada conta é um tê-nent, com a própria chave e os próprios clientes."
+      "text": "Cada conta é um tenente, com a própria chave e os próprios clientes."
     },
     {
       "id": "relogio",
@@ -59,7 +75,7 @@
     },
     {
       "id": "saldo",
-      "text": "Trinta e dois dias depois, o cartão credita a conta."
+      "text": "32 dias depois, o cartão credita a conta."
     },
     {
       "id": "received",
@@ -75,7 +91,7 @@
     },
     {
       "id": "assinatura",
-      "text": "A assinatura recorrente, criada com o cartão já tokenizado."
+      "text": "A assinatura recorrente foi criada com o cartão já tokenizado."
     },
     {
       "id": "mes",
@@ -83,7 +99,7 @@
     },
     {
       "id": "aguardando",
-      "text": "A cobrança de trezentos e quarenta e nove reais ainda espera o banco."
+      "text": "A cobrança de R$ 349 ainda espera o banco."
     },
     {
       "id": "recusa",
@@ -99,7 +115,7 @@
     },
     {
       "id": "seis",
-      "text": "Seis recusas, cada uma entregue com resposta duzentos."
+      "text": "Seis recusas, cada uma entregue com resposta 200."
     },
     {
       "id": "fim",
@@ -107,7 +123,7 @@
     },
     {
       "id": "outro",
-      "text": "É o ama for devs. Mocks que se comportam como a API. Roda em Docker, sem cadastro."
+      "text": "É o ama for deves: mocks que se comportam como a API. Roda em Docker, sem cadastro."
     }
   ]
 }

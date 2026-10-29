@@ -37,3 +37,99 @@ Use it when an application integrates with WhatsApp (sending messages and templa
 
 - [Root README](https://github.com/Instituto-AMA/ama4devs/blob/master/README.md): quick start, profiles, environment
 - [Mocks contract](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/README.md): what every mock in this repository guarantees
+
+## Generating speech with a custom pronunciation
+
+A text-to-speech model reads a word it does not know as another word — a brand
+name becomes "Llama", an abbreviation is said in full, an accent is dropped.
+The fix is the **pronunciation dictionary** of ElevenLabs: rules that force how
+a word is heard. This is the generic contract; the repository's own voice
+(`video/`) is one application of it.
+
+### Passing text with a custom pronunciation
+
+**1. Create the dictionary from rules.** The rules are phonemes (IPA), which
+force the sound of the word:
+
+```bash
+npx -y @elevenlabs/cli@latest pronunciation-dictionaries create_from_rules \
+  --json '{"name":"my-dictionary","rules":[
+    {"type":"phoneme","string_to_replace":"koru","phoneme":"ˈko.ɾu","alphabet":"ipa"},
+    {"type":"phoneme","string_to_replace":"cobrança","phoneme":"koˈbɾã.sɐ","alphabet":"ipa"}
+  ]}' --format json
+```
+
+The answer carries `pronunciation_dictionary_id` and `version_id`. The fields
+of a rule are `string_to_replace`, `phoneme` and `alphabet` — **not** `from` and
+`to`, which is what the CLI's help shows.
+
+**2. Add rules to a dictionary you already have.** `rules set` replaces the
+whole set, `rules add` adds to it:
+
+```bash
+npx -y @elevenlabs/cli@latest pronunciation-dictionaries rules set \
+  --pronunciation-dictionary-id <ID> \
+  --json '{"rules":[
+    {"type":"phoneme","string_to_replace":"koru","phoneme":"ˈko.ɾu","alphabet":"ipa"}
+  ]}' --format json
+```
+
+**3. Pass the dictionary in the request.** The locator goes in the body of
+`POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`:
+
+```bash
+curl -X POST "https://api.elevenlabs.io/v1/text-to-speech/$VOICE_ID?output_format=mp3_44100_128" \
+  -H "xi-api-key: $ELEVENLABS_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "text": "É o koru que fala.",
+    "model_id": "eleven_v4",
+    "language_code": "pt",
+    "pronunciation_dictionary_locators": [
+      {"pronunciation_dictionary_id": "<ID>", "version_id": "<VERSION>"}
+    ]
+  }' --output audio.mp3
+```
+
+The version is optional: without it, the latest version of the dictionary is
+used. Up to three locators may be sent in one request.
+
+**4. Keep the version id.** A rule added to the dictionary does nothing until
+the request points at the version that has it. Store the `version_id` next to
+the dictionary id (in the project config) and update it when the rules change.
+
+### The rules that matter
+
+- **A phoneme forces the sound; an alias rewrites the text.** An alias
+  ("asaas" → "a-za-as") changes what the model reads; a phoneme changes how
+  it sounds. For a word the model does not know, the phoneme is the one that
+  works.
+- **A phoneme is a guess until it is heard.** Write the phrase, generate it
+  and listen to the file. The IPA that looks right on paper can be heard as a
+  completely different word — one character is the difference between "Herma"
+  and the brand it was meant to be. An automatic transcription is not the
+  judge either: it drops the accents ("cobranca" for "cobrança") and invents
+  the words it does not know ("Llama", "Alma", "LLM"). Only the ear decides.
+- **When every phoneme fails, remove the rule.** A brand the model reads right
+  on its own is better than a brand that a wrong phoneme breaks: write the
+  text the way it must be heard and let the model read it.
+- **Never repeat a request to see if the answer changes.** The model reads a
+  number either way ("32 dias" or "trinta e dois") and the choice changes
+  between identical requests, so repeating proves nothing and costs
+  characters. Fix the text or the rule instead.
+- **Write the text the way it should be heard.** If a word has to be spelled
+  in the script for the model to say it right, write it that way in the
+  script too.
+
+### The permission
+
+The API key of a project usually cannot write dictionaries (it has no
+`pronunciation_dictionaries_write`). The rules go through the official CLI,
+which is authenticated by the browser:
+
+```bash
+npx -y @elevenlabs/cli@latest onboard connect --env-path .env.local
+```
+
+The key lands in `.env.local` (gitignored). It is never printed and never
+copied into the chat.
