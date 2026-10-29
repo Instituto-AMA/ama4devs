@@ -138,6 +138,28 @@ describe('populate', () => {
     expect(asaas.calls.filter((call) => call.url.endsWith('/v3/payments'))).toHaveLength(0)
   })
 
+  test('confirms a share of the charges when confirm is a fraction', async () => {
+    const asaas = fakeAsaas()
+    const result = await populate(
+      config,
+      { people: 10, companies: 0, chargesPerCustomer: 4, billingTypes: ['PIX'], confirm: 0.5, seed: 's' },
+      asaas.fetch,
+      new Date('2026-10-29T12:00:00Z'),
+    )
+
+    const confirmed = result.payments.filter((payment) => payment.status === 'RECEIVED').length
+    expect(confirmed).toBeGreaterThan(0)
+    expect(confirmed).toBeLessThan(result.payments.length)
+  })
+
+  test('sends the address number as a string, as the spec types it', async () => {
+    const asaas = fakeAsaas()
+    await populate(config, { people: 3, companies: 1, chargesPerCustomer: 0, seed: 's' }, asaas.fetch)
+
+    const bodies = asaas.calls.filter((call) => call.url.endsWith('/v3/customers')).map((call) => call.body)
+    expect(bodies.every((body) => typeof body.addressNumber === 'string')).toBe(true)
+  })
+
   test('sends the approved test card and never confirms a card charge', async () => {
     const asaas = fakeAsaas()
     const result = await populate(
@@ -155,7 +177,11 @@ describe('populate', () => {
 
     const payment = asaas.calls.find((call) => call.url.endsWith('/v3/payments'))
     expect(payment?.body.creditCard.number).toBe('4444444444444444')
-    expect(payment?.body.creditCardHolderInfo).toBeDefined()
+    // Every field the spec requires of the holder, typed as the spec types them.
+    const holder = payment?.body.creditCardHolderInfo
+    for (const field of ['name', 'email', 'cpfCnpj', 'postalCode', 'addressNumber', 'phone']) {
+      expect(typeof holder[field]).toBe('string')
+    }
     expect(payment?.body.remoteIp).toBe('127.0.0.1')
     expect(asaas.calls.filter((call) => call.url.endsWith('/confirm'))).toHaveLength(0)
     expect(result.payments[0]!.status).toBe('PENDING')

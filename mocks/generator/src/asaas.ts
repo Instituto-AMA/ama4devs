@@ -85,7 +85,7 @@ export async function populate(
   const people = clamp(input.people ?? 5, 0, 100)
   const companies = clamp(input.companies ?? 2, 0, 100)
   const chargesPerCustomer = clamp(input.chargesPerCustomer ?? 2, 0, 10)
-  const confirmRate = clamp(input.confirm ?? 0, 0, 1)
+  const confirmRate = clampRate(input.confirm ?? 0)
   const billingTypes = billingTypesOf(input.billingTypes)
   const seed = input.seed?.trim() ? input.seed.trim() : randomSeed()
 
@@ -152,6 +152,8 @@ export async function populate(
           cpfCnpj: customer.cpfCnpj,
           postalCode: body.postalCode,
           addressNumber: body.addressNumber,
+          // `phone` is required by the spec; a person without a landline gives the mobile.
+          phone: body.phone ?? body.mobilePhone,
           mobilePhone: body.mobilePhone,
         }
         paymentBody.remoteIp = '127.0.0.1'
@@ -402,12 +404,12 @@ function errorMessage(body: any, response: Response): string {
 }
 
 /**
- * The number of the address of a subject.
- * @param value The number the core made: digits, or `S/N`.
+ * The number of the address of a subject, as the Asaas API takes it: a string
+ * (`addressNumber` is `string` in the spec), `S/N` included.
+ * @param value The number the core made.
  */
-function addressNumberOf(value: unknown): number {
-  const digits = String(value ?? '').replace(/\D/g, '')
-  return digits ? Number(digits) : 0
+function addressNumberOf(value: unknown): string {
+  return String(value ?? '')
 }
 
 /**
@@ -437,6 +439,16 @@ function billingTypesOf(requested: BillingType[] | undefined): BillingType[] {
  * @param min The lowest value.
  * @param max The highest value.
  */
+/**
+ * A share between 0 and 1, kept fractional: `confirm: 0.5` confirms about half.
+ * @param value The share asked for.
+ */
+function clampRate(value: number): number {
+  const rate = Number(value)
+  if (!Number.isFinite(rate)) return 0
+  return Math.min(1, Math.max(0, rate))
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
   return Math.min(max, Math.max(min, Math.trunc(value)))
