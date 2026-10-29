@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generator docs: kinds, fields, parameters, and Asaas seeder | ama4devs</title>
+  <meta name="description" content="Technical reference for the Brazilian fake data generator: entity fields, query parameters, deterministic PRNG, safe data guarantees, Asaas population details, configuration, and security guard.">
+  <meta name="keywords" content="generator documentation, brazilian fake data schema, deterministic seed, safe test data, asaas mock seeder, fake data api reference">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Generator docs: reference &amp; rules">
+  <meta property="og:description" content="Reference documentation for all 12 generated kinds, query parameters, determinism, and Asaas mock integration.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/docs/">
+  <meta name="theme-color" content="#3d1a12">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="generator">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="../" aria-current="page">Generator</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/generator/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Generator mock">
+    <a href="../">Overview</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="./" aria-current="page">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#kinds">Kinds &amp; fields</a></li>
+            <li><a href="#params">Query parameters</a></li>
+            <li><a href="#determinism">Determinism</a></li>
+            <li><a href="#safe-data">Safe data</a></li>
+            <li><a href="#asaas">Asaas population</a></li>
+            <li><a href="#config">Configuration</a></li>
+            <li><a href="#local-guard">Local guard</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Docs</h1>
+          <p class="lead">Complete reference of generated entities, parameters, determinism guarantees, Asaas population mechanics, and configuration.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <article class="sheet">
+            <section id="kinds" aria-labelledby="kinds-title">
+              <h2 id="kinds-title">Kinds &amp; fields</h2>
+              <p>The core generation engine supports 12 distinct kinds. Standalone document kinds (<code>cpf</code>, <code>cnpj</code>, <code>cnh</code>, <code>pis</code>, <code>rg</code>) produce an object containing <code>value</code> and optional <code>formatted</code> representations, while complex entity kinds return rich structured objects.</p>
+
+              <h3><code>person</code></h3>
+              <p>Realistic individual with valid documents, contact details, and address matching the individual's location:</p>
+              <ul>
+                <li><code>name</code> (string): Full name</li>
+                <li><code>firstName</code> (string): Given name</li>
+                <li><code>lastName</code> (string): Family name</li>
+                <li><code>gender</code> (<code>'F' | 'M'</code>): Gender indicator</li>
+                <li><code>birthDate</code> (string): Birth date formatted as <code>YYYY-MM-DD</code></li>
+                <li><code>age</code> (number): Calculated age in years relative to <code>now</code></li>
+                <li><code>cpf</code> (string): Valid CPF check digits</li>
+                <li><code>rg</code> (string): SP identity document number</li>
+                <li><code>cnh</code> (string): 11-digit DENATRAN driver license number</li>
+                <li><code>pis</code> (string): 11-digit mod-11 PIS number</li>
+                <li><code>motherName</code> (string): Mother's full name</li>
+                <li><code>email</code> (string): Safe email address on an RFC 2606 domain</li>
+                <li><code>mobilePhone</code> (string): DDD matching address city + <code>9</code> + 8 subscriber digits</li>
+                <li><code>phone</code> (string): Landline phone (DDD + <code>[2-5]</code> + 7 digits)</li>
+                <li><code>address</code> (object): Complete nested <code>address</code> object</li>
+              </ul>
+
+              <h3><code>company</code></h3>
+              <p>Brazilian business entity with active tax numbers, partners, and CNAE activity:</p>
+              <ul>
+                <li><code>corporateName</code> (string): Legal entity name (Razão Social)</li>
+                <li><code>tradeName</code> (string): Commercial name (Nome Fantasia)</li>
+                <li><code>cnpj</code> (string): Valid CNPJ branch <code>0001</code></li>
+                <li><code>stateRegistration</code> (string): State tax registration (Inscrição Estadual)</li>
+                <li><code>municipalRegistration</code> (string): Municipal registration (Inscrição Municipal)</li>
+                <li><code>openingDate</code> (string): Formation date formatted as <code>YYYY-MM-DD</code></li>
+                <li><code>size</code> (<code>'MEI' | 'ME' | 'EPP' | 'DEMAIS'</code>): Company size</li>
+                <li><code>activity</code> (object): <code>{ cnae: string, description: string }</code></li>
+                <li><code>email</code> (string): Company contact email</li>
+                <li><code>phone</code> (string): Landline phone</li>
+                <li><code>mobilePhone</code> (string): Mobile phone</li>
+                <li><code>website</code> (string): Domain format <code>https://www.slug.example.com</code></li>
+                <li><code>address</code> (object): Company address</li>
+                <li><code>partners</code> (array): 1 to 3 <code>person</code> objects (minimum age 21, matching state)</li>
+              </ul>
+
+              <h3><code>address</code></h3>
+              <p>Postal address with verified Brazilian postal code (CEP) range and IBGE code:</p>
+              <ul>
+                <li><code>postalCode</code> (string): 8-digit postal code within the city's assigned range</li>
+                <li><code>street</code> (string): Street type and name</li>
+                <li><code>number</code> (string): Building number (or <code>'S/N'</code>)</li>
+                <li><code>complement</code> (string): Apartment, suite, room, or empty</li>
+                <li><code>district</code> (string): Neighborhood name (Bairro)</li>
+                <li><code>city</code> (string): Municipality name</li>
+                <li><code>state</code> (string): 2-letter state abbreviation (UF)</li>
+                <li><code>stateName</code> (string): Full state name</li>
+                <li><code>ibgeCode</code> (string): Official 7-digit IBGE city code</li>
+                <li><code>country</code> (string): <code>'Brasil'</code></li>
+              </ul>
+
+              <h3><code>credit-card</code></h3>
+              <p>Test credit card details with expiration dates in the future:</p>
+              <ul>
+                <li><code>holderName</code> (string): Cardholder name</li>
+                <li><code>number</code> (string): 16-digit card number (<code>4444444444444444</code> for <code>APPROVE</code>, <code>5184019740373151</code> for <code>DECLINE</code>, or random Luhn-valid)</li>
+                <li><code>brand</code> (string): Card network (Visa, Mastercard, Elo, Amex)</li>
+                <li><code>expiryMonth</code> (string): 2-digit month (<code>01</code>–<code>12</code>)</li>
+                <li><code>expiryYear</code> (string): 4-digit expiration year (1 to 6 years ahead of <code>now</code>)</li>
+                <li><code>ccv</code> (string): 3-digit security code</li>
+                <li><code>outcome</code> (<code>'APPROVE' | 'DECLINE' | 'UNKNOWN'</code>): Configured transaction result</li>
+              </ul>
+
+              <h3><code>bank-account</code></h3>
+              <p>Bank account with verified Brazilian clearing codes:</p>
+              <ul>
+                <li><code>bank</code> (object): <code>{ code: string, name: string, ispb: string }</code></li>
+                <li><code>agency</code> (string): 4-digit branch code</li>
+                <li><code>agencyDigit</code> (string): Branch check digit</li>
+                <li><code>account</code> (string): Account number</li>
+                <li><code>accountDigit</code> (string): Account check digit</li>
+                <li><code>type</code> (<code>'CONTA_CORRENTE' | 'CONTA_POUPANCA'</code>): Account type</li>
+              </ul>
+
+              <h3><code>pix-key</code></h3>
+              <p>Pix identification key:</p>
+              <ul>
+                <li><code>type</code> (<code>'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'</code>): Key category</li>
+                <li><code>key</code> (string): Generated key value (UUIDv4 for EVP, E.164 format for phone)</li>
+              </ul>
+
+              <h3><code>charge</code></h3>
+              <p>Financial invoice or charge for payment processing:</p>
+              <ul>
+                <li><code>billingType</code> (<code>'PIX' | 'BOLETO' | 'CREDIT_CARD'</code>): Payment method</li>
+                <li><code>valueCents</code> (number): Total amount in centavos</li>
+                <li><code>value</code> (number): Amount in BRL with 2 decimal places</li>
+                <li><code>dueDate</code> (string): Due date between 0 and 30 days after <code>now</code></li>
+                <li><code>description</code> (string): Line-item service or product description</li>
+                <li><code>externalReference</code> (string): Unique identifier prefixed with <code>GEN-</code></li>
+              </ul>
+
+              <h3>Document Kinds (<code>cpf</code>, <code>cnpj</code>, <code>cnh</code>, <code>pis</code>, <code>rg</code>)</h3>
+              <p>Stand-alone document generations produce:</p>
+              <ul>
+                <li><code>value</code> (string): Digits-only string (SP RG check digit may be <code>'X'</code>)</li>
+                <li><code>formatted</code> (string, optional): Masked string when <code>formatted=true</code> (e.g. <code>123.456.789-09</code>)</li>
+              </ul>
+            </section>
+
+            <section id="params" aria-labelledby="params-title">
+              <h2 id="params-title">Query parameters</h2>
+              <p>The <code>GET /v1/:kind</code> endpoint accepts the following query parameters:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Parameter</th>
+                      <th>Type &amp; Default</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>count</code></td>
+                      <td>Integer (1–1000, default <code>1</code>)</td>
+                      <td>Number of items to generate. Values outside range are automatically clamped.</td>
+                    </tr>
+                    <tr>
+                      <td><code>seed</code></td>
+                      <td>String (default random)</td>
+                      <td>Seed for the deterministic PRNG. Same seed produces identical items.</td>
+                    </tr>
+                    <tr>
+                      <td><code>formatted</code></td>
+                      <td>Boolean (default <code>false</code>)</td>
+                      <td>When <code>true</code>, applies standard punctuation and masks to documents, phones, and CEPs.</td>
+                    </tr>
+                    <tr>
+                      <td><code>state</code></td>
+                      <td>String (2-letter UF)</td>
+                      <td>Restricts generated address, DDD, and registration numbers to the specified state (e.g. <code>SP</code>, <code>RJ</code>, <code>MG</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>gender</code></td>
+                      <td><code>'F' | 'M'</code></td>
+                      <td>Specifies name list and gender for <code>person</code> kind.</td>
+                    </tr>
+                    <tr>
+                      <td><code>outcome</code></td>
+                      <td><code>'APPROVE' | 'DECLINE' | 'RANDOM'</code></td>
+                      <td>Applies to <code>credit-card</code>. <code>APPROVE</code> yields 4444..., <code>DECLINE</code> yields 5184..., and <code>RANDOM</code> produces Luhn-valid card numbers.</td>
+                    </tr>
+                    <tr>
+                      <td><code>billingType</code></td>
+                      <td><code>'PIX' | 'BOLETO' | 'CREDIT_CARD'</code></td>
+                      <td>Forces payment method for <code>charge</code> kind.</td>
+                    </tr>
+                    <tr>
+                      <td><code>now</code></td>
+                      <td>Date / <code>YYYY-MM-DD</code></td>
+                      <td>Reference date for age calculation, card expiration, and charge due dates. Defaults to current server time.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="determinism" aria-labelledby="determinism-title">
+              <h2 id="determinism-title">Determinism</h2>
+              <p>All core generation functions use an internal <strong>mulberry32</strong> pseudo-random number generator initialized from the provided seed string. There is no call to <code>Math.random()</code> inside the core generation modules.</p>
+              <p>Given identical inputs (<code>kind</code>, <code>seed</code>, parameters, and reference date <code>now</code>), the output is guaranteed to be 100% identical. This makes the generator ideal for end-to-end regression suites, reproducible snapshot tests, and deterministic database fixtures.</p>
+            </section>
+
+            <section id="safe-data" aria-labelledby="safe-data-title">
+              <h2 id="safe-data-title">Safe data guarantees</h2>
+              <p>Generated data is designed never to collide with real-world credentials or deliver emails to unintended recipients:</p>
+              <ul>
+                <li><strong>RFC 2606 Domains:</strong> All email addresses use reserved testing domains (<code>example.com</code>, <code>example.org</code>, <code>example.net</code>).</li>
+                <li><strong>Websites:</strong> Formatted with RFC 2606 domains as <code>https://www.<slug>.example.com</code>.</li>
+                <li><strong>Test Cards:</strong> Approvals and declines use the well-known test card numbers accepted by the Asaas mock (<code>4444444444444444</code> and <code>5184019740373151</code>).</li>
+                <li><strong>Phone numbers:</strong> Adhere to telecommunication standards without repeated subscriber digits, preventing spam flags during automated tests.</li>
+              </ul>
+            </section>
+
+            <section id="asaas" aria-labelledby="asaas-title">
+              <h2 id="asaas-title">Asaas population</h2>
+              <p>The <code>POST /_mock/asaas/populate</code> endpoint populates the Asaas mock server with customers and payments in a single operation.</p>
+
+              <h3>Request Body</h3>
+              <div class="code"><pre><code>{
+  "people": 5,
+  "companies": 2,
+  "chargesPerCustomer": 2,
+  "billingTypes": ["PIX", "BOLETO", "CREDIT_CARD"],
+  "confirm": 0.5,
+  "seed": "optional-seed"
+}</code></pre></div>
+
+              <h3>Execution Steps</h3>
+              <ol>
+                <li><strong>Create Customers:</strong> For each person and company generated, issues a <code>POST /v3/customers</code> request to the Asaas mock API.</li>
+                <li><strong>Create Payments:</strong> For each customer, creates charges using <code>POST /v3/payments</code> matching the specified <code>chargesPerCustomer</code> and <code>billingTypes</code>.</li>
+                <li><strong>Confirm Payments:</strong> Based on the <code>confirm</code> ratio (0.0 to 1.0), issues <code>POST /v3/sandbox/payment/{id}/confirm</code> to transition selected charges from pending to confirmed/received status.</li>
+                <li><strong>Report Results:</strong> Returns an array of customer IDs, payment records with invoice links, and an <code>errors</code> array listing any failed steps with status codes and error messages.</li>
+              </ol>
+            </section>
+
+            <section id="config" aria-labelledby="config-title">
+              <h2 id="config-title">Configuration</h2>
+              <p>The generator server is configured via environment variables:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Variable</th>
+                      <th>Default</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PORT</code></td>
+                      <td><code>45450</code></td>
+                      <td>Port the HTTP server listens on.</td>
+                    </tr>
+                    <tr>
+                      <td><code>ASAAS_URL</code></td>
+                      <td><code>http://localhost:45445</code></td>
+                      <td>Base URL of the target Asaas mock service for population requests.</td>
+                    </tr>
+                    <tr>
+                      <td><code>ASAAS_API_KEY</code></td>
+                      <td><code>$aact_hmlg_local_master</code></td>
+                      <td>API key used to authenticate customer and charge creation in Asaas.</td>
+                    </tr>
+                    <tr>
+                      <td><code>ASAAS_PANEL_URL</code></td>
+                      <td><code>http://localhost:45445</code></td>
+                      <td>Browser-accessible URL for the Asaas simulator panel (used in response links).</td>
+                    </tr>
+                    <tr>
+                      <td><code>ASAAS_SEED_ON_BOOT</code></td>
+                      <td><code>""</code></td>
+                      <td>Specifies auto-population parameters on container startup (e.g. <code>people=10,companies=3,charges=2,confirm=0.5</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>MOCK_ALLOWED_HOSTS</code></td>
+                      <td><code>""</code></td>
+                      <td>Comma-separated list of additional host header values allowed by the local guard.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="local-guard" aria-labelledby="local-guard-title">
+              <h2 id="local-guard-title">Local guard</h2>
+              <p>To prevent unauthorized access or cross-site request attacks against developer environments, the server enforces a Host and Origin security guard on the root UI route (<code>/</code>) and mock management endpoints (<code>/_mock/*</code>).</p>
+              <p>Allowed hosts default to <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, and <code>host.docker.internal</code>. On <code>POST</code> requests, the <code>Origin</code> header is validated against the permitted origins. Public API endpoints under <code>/v1/*</code> remain unrestricted with <code>Access-Control-Allow-Origin: *</code>.</p>
+            </section>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The generator mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/generator">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Synthetic test data for Brazilian business systems and payment mocks. Generated data uses RFC 2606 reserved domains.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>
