@@ -42,7 +42,7 @@ Once running, access the web inspection panels:
 
 - **Asaas Simulator Panel:** [http://localhost:45445](http://localhost:45445)
 - **WhatsApp Web Panel:** [http://localhost:3010](http://localhost:3010)
-- **Generator:** [http://localhost:45450](http://localhost:45450) (starts with the Asaas mock; its "Popular o mock do Asaas" sheet fills the Asaas mock with customers and charges)
+- **Generator:** [http://localhost:45450](http://localhost:45450) (starts with the Asaas mock; `GENERATOR_ENABLED=0` in `.env` keeps it down). The Asaas mock finds it by itself and shows **Integrações › Gerador**, which fills the selected account with customers and charges
 
 ## The Two Flows
 
@@ -183,6 +183,9 @@ fills the Asaas mock. See [mocks/generator/README.md](mocks/generator/README.md)
   creates customers and charges through the Asaas API and confirms part of them;
   `GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5` in `.env` does it once on boot,
   while the Asaas mock has no customer.
+- **Joins the Asaas mock by itself:** each finds the other on boot and every 10 s (compose service name, this
+  machine, the Docker host), like Mailpit and the WhatsApp mock. The Asaas panel then has **Integrações › Gerador**
+  to populate the selected account. `GENERATOR_URL=` (empty) on the Asaas mock turns it off and hides the tab.
 - **UI:** `http://localhost:45450`, and the same page on GitHub Pages, generating in the browser.
 
 ## The WhatsApp Mock
