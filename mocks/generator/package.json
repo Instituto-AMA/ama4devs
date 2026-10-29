@@ -1,0 +1,35 @@
+{
+  "name": "generator-mock",
+  "version": "0.1.0",
+  "description": "Brazilian fake data generator for development and tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, plus one-call population of the Asaas mock. Gerador de dados fake.",
+  "keywords": [
+    "fake-data",
+    "gerador",
+    "cpf",
+    "cnpj",
+    "cep",
+    "brazil",
+    "asaas",
+    "mock-server",
+    "testing",
+    "docker"
+  ],
+  "homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/generator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Instituto-AMA/ama4devs.git",
+    "directory": "mocks/generator"
+  },
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.17",
+    "typescript": "^5.8.3"
+  }
+}
