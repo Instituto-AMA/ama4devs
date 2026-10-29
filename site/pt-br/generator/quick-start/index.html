@@ -23,6 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
   <link rel="stylesheet" href="../../../assets/style.css">
+  <link rel="stylesheet" href="../../../generator/endpoint.css">
 </head>
 <body data-tool="generator">
   <a class="skip" href="#content">Pular para o conteúdo</a>
@@ -75,13 +76,14 @@
 
         <div class="paper-shadow" style="margin-top: 36px">
           <div class="sheet">
+            <fieldset class="ep-switch" data-endpoint-switch><legend>Os exemplos chamam</legend><div class="ep-keys"><label><input type="radio" name="endpoint" value="online" checked><span>Online <small>GitHub Pages</small></span></label><label><input type="radio" name="endpoint" value="local"><span>Localhost <small>seu container</small></span></label></div></fieldset>
             <ol class="steps">
               <li id="run">
                 <h3>Suba</h3>
                 <p>Execute o container oficial do gerador. A porta padrão é <code>45450</code> e o serviço fica pronto em milissegundos sem dependências de banco de dados.</p>
                 <div class="code"><pre><code>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
                 <p>Verifique o status do serviço chamando o endpoint de saúde:</p>
-                <div class="code"><pre><code>curl http://localhost:45450/health</code></pre></div>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/health</code></pre></div>
                 <!-- real-output: run -->
                 <div class="code"><pre><code>{
   "status": "ok",
@@ -93,7 +95,7 @@
               <li id="generate">
                 <h3>Gere dados</h3>
                 <p>Gere pessoas fictícias completas com CPFs válidos, datas de nascimento coerentes e endereços reais. Você pode fixar uma data de referência com <code>now</code> para garantir que idades e vencimentos permaneçam imutáveis ao longo do tempo.</p>
-                <div class="code"><pre><code>curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo&amp;now=2026-10-29'</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo&amp;now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
                 <!-- real-output: generate -->
                 <div class="code"><pre><code>{
   "kind": "person",
@@ -163,7 +165,7 @@
               <li id="seed">
                 <h3>Determinismo e semente</h3>
                 <p>O algoritmo pseudoaleatório (mulberry32) garante que a mesma semente gere rigorosamente o mesmo conjunto de dados em qualquer máquina ou ambiente de CI. Repita a requisição acima com <code>seed=demo</code> e receba exatamente o mesmo resultado.</p>
-                <div class="code"><pre><code>curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'</code></pre></div>
+                <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json" data-local="curl 'http://localhost:45450/v1/person?count=2&amp;seed=demo'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/42.json</code></pre></div>
                 <!-- real-output: seed -->
                 <div class="code"><pre><code>{
   "kind": "person",
@@ -233,7 +235,7 @@
               <li id="validate">
                 <h3>Validação</h3>
                 <p>Valide se um CPF, CNPJ, CNH ou PIS atende aos cálculos matemáticos oficiais de dígitos verificadores e rejeição de sequências repetidas.</p>
-                <div class="code"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735</code></pre></div>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735</code></pre></div>
                 <!-- real-output: validate -->
                 <div class="code"><pre><code>{
   "type": "cpf",
@@ -246,7 +248,7 @@
                 <h3>Popule o Asaas</h3>
                 <p>No compose do repositório (<code>make up</code>), o gerador sobe junto com o mock do Asaas (porta <code>45450</code>). Os dois se descobrem sozinhos sem configuração: abra o painel do <a href="../../asaas/">mock do Asaas</a> em <a href="http://localhost:45445">http://localhost:45445</a> e acesse <strong>Integrações › Gerador</strong>. Clique em <strong>Popular esta conta</strong> para cadastrar pessoas e empresas com CPF/CNPJ válidos como clientes da conta selecionada na barra superior, gerando cobranças por Pix, boleto e cartão (parte delas já pagas). Ou clique em <strong>Abrir o gerador</strong> para usar a interface interativa.</p>
                 <p>Você também pode popular via API com um único comando HTTP:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
+                <div class="code" data-local-only="só no seu container"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
                 <!-- real-output: asaas -->
@@ -299,7 +301,7 @@
                 <h3>Interface web</h3>
                 <p>O gerador conta com uma interface visual interativa completa. Quando executado em container local, acesse <a href="http://localhost:45450">http://localhost:45450</a>. No GitHub Pages, acesse <a href="../../../generator/app/">ama4devs/generator/app/</a> para gerar diretamente no navegador sem necessidade de instalar nada.</p>
                 <p>Consulte o status da integração com o Asaas pela API:</p>
-                <div class="code"><pre><code>curl http://localhost:45450/_mock/asaas/status</code></pre></div>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/_mock/asaas/status</code></pre></div>
                 <!-- real-output: ui -->
                 <div class="code"><pre><code>{
   "asaasUrl": "http://localhost:45445",
@@ -329,5 +331,6 @@
   </footer>
 
   <script src="../../../assets/site.js" defer></script>
+  <script type="module" src="../../../generator/endpoint.js"></script>
 </body>
 </html>

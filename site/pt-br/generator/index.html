@@ -24,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../../generator/endpoint.css">
 </head>
 <body data-tool="generator">
   <a class="skip" href="#content">Pular para o conteúdo</a>
@@ -171,22 +172,23 @@
 
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
+            <fieldset class="ep-switch" data-endpoint-switch><legend>Os exemplos chamam</legend><div class="ep-keys"><label><input type="radio" name="endpoint" value="online" checked><span>Online <small>GitHub Pages</small></span></label><label><input type="radio" name="endpoint" value="local"><span>Localhost <small>seu container</small></span></label></div></fieldset>
             <article class="case" id="case-manual-form">
               <h3>Preencher formulários em testes manuais</h3>
               <p class="proves">Chega de digitar <code>111.444.777-35</code> ou inventar nomes repetidos ao validar telas de cadastro. Abra o gerador no navegador ou faça um curl para obter uma pessoa completa com endereço correspondente, telefone com DDD da cidade e documentos formatados prontos para copiar e colar.</p>
-              <div class="code"><pre><code>curl -s 'http://localhost:45450/v1/person?formatted=true'</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json" data-local="curl -s 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json</code></pre></div>
             </article>
 
             <article class="case" id="case-fixed-seed">
               <h3>Semear suítes de teste com determinismo</h3>
               <p class="proves">Em testes de integração e CI, dados randômicos criam testes instáveis. Ao fornecer uma semente fixa (como <code>seed=e2e-run-42</code>), o gerador reproduz exatamente os mesmos CPFs, nomes, empresas e valores em todas as execuções, garantindo asserções previsíveis e reprodutíveis.</p>
-              <div class="code"><pre><code>curl -s 'http://localhost:45450/v1/company?count=3&amp;seed=e2e-run-42'</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json" data-local="curl -s 'http://localhost:45450/v1/company?count=3&amp;seed=e2e-run-42'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json</code></pre></div>
             </article>
 
             <article class="case" id="case-asaas-populate">
               <h3>Popular o mock do Asaas numa única chamada</h3>
               <p class="proves">Ao subir um ambiente de desenvolvimento limpo com o mock do Asaas (<code>make up</code>), a integração é automática: o gerador é descoberto sozinho e aparece no painel do Asaas em <strong>Integrações › Gerador</strong> com o botão <strong>Popular esta conta</strong> para a conta selecionada na topbar. Pela API, o gerador cria clientes, emite cobranças e simula pagamentos com um único <code>POST</code>.</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
+              <div class="code" data-local-only="só no seu container"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people": 5, "companies": 2, "chargesPerCustomer": 2, "confirm": 0.5}'</code></pre></div>
             </article>
@@ -194,7 +196,7 @@
             <article class="case" id="case-validate">
               <h3>Validar CPF e CNPJ antes de processar</h3>
               <p class="proves">Use o endpoint de validação rápido para verificar documentos em testes unitários e de API sem precisar carregar bibliotecas externas adicionais no seu backend de desenvolvimento.</p>
-              <div class="code"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735
+              <div class="code" data-local-only="só no seu container"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735
 <span class="c"># → {"type":"cpf","value":"11144477735","valid":true}</span></code></pre></div>
             </article>
           </div>
@@ -283,5 +285,6 @@
   </footer>
 
   <script src="../../assets/site.js" defer></script>
+  <script type="module" src="../../generator/endpoint.js"></script>
 </body>
 </html>

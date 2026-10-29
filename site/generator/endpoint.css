@@ -1,0 +1,58 @@
+/* The endpoint switch of the generator's pages (endpoint.js): two keypad keys,
+   the chosen one pressed in with its LED lit, as in the playground. */
+
+.ep-switch { border: 0; margin: 0 0 32px; padding: 0; min-width: 0; }
+.ep-switch legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font: 600 13px/1.3 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--ink);
+}
+.ep-keys { display: flex; flex-wrap: wrap; gap: 8px; }
+.ep-keys label { position: relative; display: inline-flex; }
+.ep-keys input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.ep-keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 13px 7px 11px;
+  font: 600 13px/1 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--ink);
+  background: var(--key-face);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 #b9bab3, 0 5px 10px -6px color-mix(in srgb, var(--ink) 40%, transparent);
+  pointer-events: none;
+}
+.ep-keys span small { font: 400 12px/1 var(--sans); color: var(--fade); }
+.ep-keys span::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--paper-rule);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+.ep-keys input:checked + span {
+  transform: translateY(3px);
+  background: var(--paper-band);
+  box-shadow: 0 0 0 #b9bab3, inset 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.ep-keys input:checked + span::before {
+  background: var(--key-confirm);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--key-confirm) 20%, transparent), 0 0 6px 1px color-mix(in srgb, var(--key-confirm) 60%, transparent);
+}
+.ep-keys input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* Online, an example only the container answers says so. */
+[data-endpoint='online'] .code[data-local-only]::before {
+  content: attr(data-local-only);
+  display: block;
+  padding: 10px 20px 0;
+  font: 600 12px/1.3 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--print-red);
+}

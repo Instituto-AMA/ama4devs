@@ -41,6 +41,7 @@
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
   }
   </script>
+  <link rel="stylesheet" href="endpoint.css">
 </head>
 <body data-tool="generator">
   <a class="skip" href="#content">Skip to content</a>
@@ -174,22 +175,23 @@
 
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
+            <fieldset class="ep-switch" data-endpoint-switch><legend>The examples call</legend><div class="ep-keys"><label><input type="radio" name="endpoint" value="online" checked><span>Online <small>GitHub Pages</small></span></label><label><input type="radio" name="endpoint" value="local"><span>Localhost <small>your container</small></span></label></div></fieldset>
             <article class="case" id="case-fill-form">
               <h3>Fill a form in a manual test</h3>
               <p class="proves">Testing a registration flow that validates CPF, phone numbers with correct DDDs, and addresses with real postal codes? Grab a complete person or company in JSON, copy it to clipboard, or generate one in your browser without inventing fake phone numbers.</p>
-              <div class="code"><pre><code>curl 'http://localhost:45450/v1/person?formatted=true'</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json" data-local="curl 'http://localhost:45450/v1/person?formatted=true'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/person/1-formatted.json</code></pre></div>
             </article>
 
             <article class="case" id="case-seed-test-suite">
               <h3>Seed a test suite with a fixed seed</h3>
               <p class="proves">Eliminate flaky tests caused by random values. Pass <code>seed</code> and optionally a reference <code>now</code> date to obtain identical data on every test run across machines and CI runs.</p>
-              <div class="code"><pre><code>curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'</code></pre></div>
+              <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json" data-local="curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42.json</code></pre></div>
             </article>
 
             <article class="case" id="case-populate-asaas">
               <h3>Populate the Asaas mock with customers and charges in one call</h3>
               <p class="proves">Instead of running scripts to create customers, register charges, and confirm payments on a fresh mock stack, the integration is automatic: the Asaas mock discovers the generator by itself, and its panel provides an <strong>Integrações › Gerador</strong> tab to populate the active account in one click. You can also trigger it directly via API:</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
+              <div class="code" data-local-only="only on your container"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
             </article>
@@ -197,7 +199,7 @@
             <article class="case" id="case-validate-document">
               <h3>Validate a CPF or CNPJ</h3>
               <p class="proves">Verify whether a document string passes official validation rules and check digits, without importing heavy external packages into your testing scripts.</p>
-              <div class="code"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735
+              <div class="code" data-local-only="only on your container"><pre><code>curl http://localhost:45450/v1/validate/cpf/11144477735
 curl http://localhost:45450/v1/validate/cnpj/11222333000181</code></pre></div>
             </article>
           </div>
@@ -274,5 +276,6 @@ curl http://localhost:45450/v1/validate/cnpj/11222333000181</code></pre></div>
   </footer>
 
   <script src="../assets/site.js" defer></script>
+  <script type="module" src="endpoint.js"></script>
 </body>
 </html>
