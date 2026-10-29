@@ -13,7 +13,7 @@
  *
  * The form lives in the page's query string, so a call can be shared as a link.
  */
-import { GeneratorError, KINDS, STATES, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis } from '../app/core/index.js'
+import { GeneratorError, KINDS, STATES, createRng, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis, randomSeed } from '../app/core/index.js'
 import { enhanceDate, enhanceSelect } from './controls.js'
 
 /** The documents the validation route knows (app.ts, VALIDATORS). */
@@ -35,6 +35,49 @@ const KIND_OPTIONS = {
   charge: ['billingType', 'now'],
 }
 
+/**
+ * The generator's public endpoint: static answers on GitHub Pages, written at
+ * build time by scripts/build-generator-api.mjs (keep both in step). One file
+ * per kind and seed, each the container's answer for COUNT items on NOW.
+ */
+const PUBLIC = { count: 10, now: '2026-01-01', seeds: 100, formatted: ['person', 'company', 'address'] }
+const PUBLIC_BASE = new URL('../api/v1/', import.meta.url).href
+/** The files of the public endpoint already read, by URL. */
+/** @type {Map<string, Promise<any>>} */
+const publicFiles = new Map()
+
+/** A file of the public endpoint, read once. */
+function readPublic(/** @type {string} */ url) {
+  if (!publicFiles.has(url)) {
+    const read = fetch(url, { signal: AbortSignal.timeout(8000) }).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`)
+      return res.json()
+    })
+    read.catch(() => publicFiles.delete(url))
+    publicFiles.set(url, read)
+  }
+  return /** @type {Promise<any>} */ (publicFiles.get(url))
+}
+
+/**
+ * Any seed and count from the public endpoint's files: the seed draws, for each
+ * item, a file and a place in it, always the same ones for the same seed.
+ * @param {string} kind
+ * @param {string} seed
+ * @param {number} count
+ * @param {boolean} formatted
+ */
+export function publicMix(kind, seed, count, formatted) {
+  const rng = createRng(`public:${kind}:${seed}`)
+  const suffix = formatted ? '-formatted' : ''
+  const picks = Array.from({ length: count }, () => ({ file: rng.int(1, PUBLIC.seeds), at: rng.int(0, PUBLIC.count - 1) }))
+  const files = [...new Set(picks.map((p) => p.file))].map((n) => ({ n, path: `${kind}/${n}${suffix}.json` }))
+  return { picks, files, suffix }
+}
+
+/** The options a static file cannot vary: hidden while the public endpoint answers. */
+const NOT_PUBLIC = ['state', 'gender', 'outcome', 'billingType', 'type', 'now']
+
 /** The query parameters of a generation, in the order the URL shows them. */
 const PARAMS = ['count', 'seed', 'formatted', 'state', 'gender', 'outcome', 'billingType', 'type', 'now']
 
@@ -42,19 +85,27 @@ const TEXT = {
   en: {
     browser: 'answered by this page',
     container: 'answered by',
+    public: 'answered by the public endpoint',
+    drawn: 'the seed is drawn when you send',
+    mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
+    noValidate: 'The public endpoint is static and does not validate documents: choose "This page" or "Your container".',
+    curlPublic: 'Call the public endpoint',
+    curlContainer: 'The same call on your container',
     unreachable: (base) =>
-      `No answer from ${base}. Is the generator running (docker run -p 45450:45450 ghcr.io/instituto-ama/generator-mock)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
-    copied: 'Copied',
-    copy: 'Copy',
+      `No answer from ${base}. Is the generator running (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
     calendar: { today: 'Today', clear: 'Clear', open: 'Pick a day', prev: 'Previous month', next: 'Next month' },
   },
   pt: {
     browser: 'respondido por esta página',
     container: 'respondido por',
+    public: 'respondido pelo endpoint público',
+    drawn: 'a seed é sorteada quando você envia',
+    mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
+    noValidate: 'O endpoint público é estático e não valida documentos: escolha "Esta página" ou "Seu container".',
+    curlPublic: 'Chame o endpoint público',
+    curlContainer: 'A mesma chamada no seu container',
     unreachable: (base) =>
-      `Sem resposta de ${base}. O gerador está rodando (docker run -p 45450:45450 ghcr.io/instituto-ama/generator-mock)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
-    copied: 'Copiado',
-    copy: 'Copiar',
+      `Sem resposta de ${base}. O gerador está rodando (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
     calendar: { today: 'Hoje', clear: 'Limpar', open: 'Escolher um dia', prev: 'Mês anterior', next: 'Próximo mês' },
   },
 }
@@ -142,8 +193,10 @@ function start(form) {
   const curl = /** @type {HTMLElement} */ (out.querySelector('[data-curl]'))
   const status = /** @type {HTMLElement} */ (out.querySelector('[data-status]'))
   const body = /** @type {HTMLElement} */ (out.querySelector('[data-body]'))
-  const copy = /** @type {HTMLButtonElement} */ (out.querySelector('[data-copy]'))
+  const link = /** @type {HTMLElement} */ (out.querySelector('[data-link]'))
   const keep = /** @type {HTMLButtonElement} */ (out.querySelector('[data-keep-seed]'))
+  const curlTitle = /** @type {HTMLElement} */ (out.querySelector('[data-curl-title]'))
+  const curlHint = /** @type {HTMLElement} */ (out.querySelector('[data-curl-hint]'))
 
   const kinds = $('kind')
   for (const { id, label } of KINDS) {
@@ -190,15 +243,43 @@ function start(form) {
     return { path: `/v1/${kind}`, params }
   }
 
+  /**
+   * How the public endpoint answers the form's call: one file to curl (a seed
+   * from 1 to PUBLIC.seeds with PUBLIC.count items), a mix of its files drawn by
+   * any other seed or count, or why it cannot.
+   * @param {string} seed
+   * @returns {{ url: string } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { error: string }}
+   */
+  function publicPlan(seed) {
+    const route = $('route').value
+    if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json` }
+    if (route === 'validate') return { error: t.noValidate }
+    const kind = $('kind').value
+    const count = Math.min(1000, Math.max(1, Math.trunc(Number($('count').value)) || 1))
+    const formatted = $('formatted').checked && PUBLIC.formatted.includes(kind)
+    const n = Number(seed)
+    if (/^\d+$/.test(seed) && n >= 1 && n <= PUBLIC.seeds && count === PUBLIC.count) {
+      return { url: `${PUBLIC_BASE}${kind}/${n}${formatted ? '-formatted' : ''}.json` }
+    }
+    return { mix: publicMix(kind, seed, count, formatted), kind, seed, count }
+  }
+
   /** Shows only the fields the chosen route and kind read. */
   function shape() {
     const route = $('route').value
     const reads = KIND_OPTIONS[$('kind').value] ?? []
+    const isPublic = $('target').value === 'public'
     for (const el of form.querySelectorAll('[data-for]')) {
       const field = /** @type {HTMLElement} */ (el)
       const [forRoute, option] = (field.dataset.for ?? '').split(':')
-      field.hidden = forRoute !== route || (option !== undefined && !reads.includes(option))
+      field.hidden =
+        forRoute !== route ||
+        (option !== undefined && !reads.includes(option)) ||
+        (isPublic && option !== undefined && NOT_PUBLIC.includes(option))
     }
+    const note = /** @type {HTMLElement} */ (form.querySelector('[data-public-note]'))
+    note.hidden = !isPublic || route !== 'kind'
+    $('seed').placeholder = isPublic ? `1–${PUBLIC.seeds}` : $('seed').dataset.placeholder ?? ''
     const base = /** @type {HTMLElement} */ (form.querySelector('[data-base]'))
     base.hidden = $('target').value !== 'container'
     preview()
@@ -209,25 +290,69 @@ function start(form) {
     const { path, params } = request()
     const query = params.toString()
     const base = String($('base').value).replace(/\/+$/, '') || 'http://localhost:45450'
-    line.textContent = `GET ${path}${query ? `?${query}` : ''}`
-    curl.textContent = `curl '${base}${path}${query ? `?${query}` : ''}'`
-
-    const page = new URLSearchParams()
-    for (const name of ['route', 'kind', 'doc', 'value', 'target', 'base', ...PARAMS]) {
-      const field = $(name)
-      if (!field) continue
-      if (field.type === 'checkbox') {
-        if (field.checked) page.set(name, 'true')
-      } else if (field.value && !(name === 'base' && field.value === 'http://localhost:45450')) page.set(name, field.value)
+    const target = $('target').value
+    if (target === 'public') {
+      const seed = String($('seed').value).trim()
+      const plan = publicPlan(seed || '1')
+      curlTitle.textContent = t.curlPublic
+      curlHint.hidden = true
+      if ('error' in plan) {
+        line.textContent = `GET ${PUBLIC_BASE}`
+        curl.textContent = plan.error
+      } else if ('url' in plan && (seed || $('route').value !== 'kind')) {
+        line.textContent = `GET ${plan.url}`
+        curl.textContent = `curl '${plan.url}'`
+      } else if (!seed) {
+        line.textContent = `GET ${PUBLIC_BASE}${$('kind').value}/…  (${t.drawn})`
+        curl.textContent = `curl '${PUBLIC_BASE}${$('kind').value}/1.json'`
+      } else if ('mix' in plan) {
+        const files = plan.mix.files
+        line.textContent = `GET ${plan.count} × ${plan.kind} · ${t.mixed(files.length)}`
+        curl.textContent = files
+          .slice(0, 3)
+          .map((f) => `curl '${PUBLIC_BASE}${f.path}'`)
+          .concat(files.length > 3 ? [`# … +${files.length - 3}`] : [])
+          .join('\n')
+      }
+    } else {
+      line.textContent = `GET ${path}${query ? `?${query}` : ''}`
+      curl.textContent = `curl '${base}${path}${query ? `?${query}` : ''}'`
+      curlTitle.textContent = t.curlContainer
+      curlHint.hidden = false
     }
-    history.replaceState(null, '', `${location.pathname}?${page}`)
+
+    // The page's own address replays the call: only what the call is made of,
+    // defaults left out (generate, the public endpoint, the usual base).
+    const page = new URLSearchParams()
+    const route = $('route').value
+    if (route !== 'kind') page.set('route', route)
+    if (route === 'kind') {
+      page.set('kind', $('kind').value)
+      if (target === 'public') {
+        if (String($('seed').value).trim()) page.set('seed', String($('seed').value).trim())
+        if (Number($('count').value) !== PUBLIC.count) page.set('count', String($('count').value))
+        if ($('formatted').checked && PUBLIC.formatted.includes($('kind').value)) page.set('formatted', 'true')
+      } else {
+        for (const [key, value] of params) page.set(key, value)
+      }
+    }
+    if (route === 'validate') {
+      page.set('doc', $('doc').value)
+      page.set('value', String($('value').value).trim())
+    }
+    if (target !== 'public') page.set('target', target)
+    if (target === 'container' && base !== 'http://localhost:45450') page.set('base', base)
+    const shared = page.toString()
+    history.replaceState(null, '', `${location.pathname}${shared ? `?${shared}` : ''}`)
+    link.textContent = location.href
   }
 
   /** Runs the call and prints its answer. */
   async function run() {
     const { path, params } = request()
     const base = String($('base').value).replace(/\/+$/, '') || 'http://localhost:45450'
-    const remote = $('target').value === 'container'
+    const target = $('target').value
+    const remote = target === 'container'
     const began = performance.now()
     status.className = 'chip'
     status.textContent = '…'
@@ -235,7 +360,39 @@ function start(form) {
 
     /** @type {{ status: number, body: any } | null} */
     let result = null
-    if (remote) {
+    if (target === 'public') {
+      const plan = publicPlan(String($('seed').value).trim() || ($('route').value === 'kind' ? randomSeed() : '1'))
+      if ('error' in plan) {
+        status.className = 'chip err'
+        status.textContent = t.public
+        body.textContent = plan.error
+        return
+      }
+      try {
+        if ('url' in plan) {
+          result = { status: 200, body: await readPublic(plan.url) }
+        } else {
+          const { picks, files } = plan.mix
+          const read = await Promise.all(files.map((f) => readPublic(`${PUBLIC_BASE}${f.path}`)))
+          const byFile = new Map(files.map((f, i) => [f.n, read[i]]))
+          result = {
+            status: 200,
+            body: {
+              kind: plan.kind,
+              seed: plan.seed,
+              count: plan.count,
+              items: picks.map((p) => byFile.get(p.file).items[p.at]),
+              from: picks.map((p) => `${plan.kind}/${p.file}${plan.mix.suffix}.json#${p.at}`),
+            },
+          }
+        }
+      } catch (error) {
+        status.className = 'chip err'
+        status.textContent = 'network error'
+        body.textContent = error instanceof Error ? error.message : String(error)
+        return
+      }
+    } else if (remote) {
       try {
         const query = params.toString()
         const res = await fetch(`${base}${path}${query ? `?${query}` : ''}`, { signal: AbortSignal.timeout(5000) })
@@ -252,7 +409,7 @@ function start(form) {
 
     const ms = Math.max(1, Math.round(performance.now() - began))
     status.className = `chip ${result.status < 400 ? 'ok' : 'err'}`
-    status.textContent = `${result.status} · ${ms} ms · ${remote ? `${t.container} ${base}` : t.browser}`
+    status.textContent = `${result.status} · ${ms} ms · ${target === 'public' ? t.public : remote ? `${t.container} ${base}` : t.browser}`
     body.textContent = JSON.stringify(result.body, null, 2)
 
     // A random seed is the answer's: offer to keep it, so the call repeats.
@@ -273,15 +430,6 @@ function start(form) {
     $('seed').value = keep.dataset.seed ?? ''
     keep.hidden = true
     preview()
-  })
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(curl.textContent ?? '')
-      copy.textContent = t.copied
-      setTimeout(() => (copy.textContent = t.copy), 1500)
-    } catch {
-      // No clipboard (an insecure context): the command stays on screen to select.
-    }
   })
 
   shape()

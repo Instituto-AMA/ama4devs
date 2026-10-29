@@ -19,6 +19,9 @@ done
 mkdir -p "$OUT/generator/app/core"
 cp -R "$ROOT/mocks/generator/public/." "$OUT/generator/app/"
 cp "$ROOT"/mocks/generator/src/core/*.js "$OUT/generator/app/core/"
+# The generator's public endpoint: Pages runs no code, so every answer is a static JSON file
+# (each kind, seeds 1 to 100), built from the same core.
+node "$ROOT/scripts/build-generator-api.mjs" "$OUT/generator/api/v1"
 # The Portuguese pages answer at both pt-br/ and portuguese/: the folder is being renamed,
 # and every link to either name, old or new, keeps working. Their canonical tags name one.
 if [ -d "$OUT/pt-br" ] && [ ! -d "$OUT/portuguese" ]; then

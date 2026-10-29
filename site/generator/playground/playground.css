@@ -299,3 +299,9 @@
   padding-top: 12px;
   background: radial-gradient(circle, var(--paper-rule) 1.6px, #0000 2px) top left / 12px 4px repeat-x;
 }
+
+/* The labels over the link and the curl line. */
+.pg-label { margin: 0 0 6px; font: 600 13px/1.3 var(--mono); font-variation-settings: 'wdth' 87.5; color: var(--ink); }
+.pg-label small { display: block; margin-top: 2px; font: 400 12px/1.4 var(--mono); color: var(--fade); overflow-wrap: anywhere; }
+.pg-out .code { margin-bottom: 18px; }
+.pg-note { margin: 0; padding: 10px 12px; font: 400 13px/1.5 var(--sans); color: var(--ink-soft); background: var(--paper-band); border-radius: 6px; }

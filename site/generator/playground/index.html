@@ -72,12 +72,13 @@
             </div>
             <div class="pg-row" data-for="kind">
               <label class="pg-field">count <small>1 to 1000</small>
-                <input name="count" type="number" min="1" max="1000" value="3" inputmode="numeric">
+                <input name="count" type="number" min="1" max="1000" value="10" inputmode="numeric">
               </label>
               <label class="pg-field">seed <small>empty draws one</small>
-                <input name="seed" type="text" placeholder="clinic-42" autocomplete="off" spellcheck="false">
+                <input name="seed" type="text" placeholder="clinic-42" data-placeholder="clinic-42" autocomplete="off" spellcheck="false">
               </label>
             </div>
+            <p class="pg-note" data-public-note hidden>Seed 1 to 100 with count 10 is a file on Pages anyone can <code>curl</code>: the container's answer for that call (<code>now</code> at 2026-01-01). Any other seed or count is built here by the seed, mixing items of those files, always the same for the same seed. State, gender and the other options live in <strong>This page</strong>.</p>
             <div class="pg-field" data-for="kind:state">
               <span class="pg-name">state</span>
               <select name="state" data-picker><option value="">any</option></select>
@@ -115,8 +116,8 @@
             </label>
 
             <fieldset class="pg-keys">
-              <legend>Answered by <small>this page runs the container's own code</small></legend>
-              <div class="pg-keyrow"><label><input type="radio" name="target" value="browser" checked><span>This page</span></label><label><input type="radio" name="target" value="container"><span>Your container</span></label></div>
+              <legend>Answered by <small>the public endpoint lives on Pages; this page runs the container's own code</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="target" value="public" checked><span>Public endpoint</span></label><label><input type="radio" name="target" value="browser"><span>This page</span></label><label><input type="radio" name="target" value="container"><span>Your container</span></label></div>
             </fieldset>
             <label class="pg-field" data-base hidden>Base URL
               <input name="base" type="url" value="http://localhost:45450" spellcheck="false">
@@ -132,10 +133,10 @@
           <section class="sheet pg-out" data-playground-out aria-labelledby="pg-out-title" aria-live="polite">
             <h2 id="pg-out-title">Response</h2>
             <p class="pg-line"><code data-line></code></p>
-            <div class="code">
-              <pre><code data-curl></code></pre>
-              <button class="key small copy" type="button" data-copy>Copy</button>
-            </div>
+            <p class="pg-label">Link to this call</p>
+            <div class="code"><pre><code data-link></code></pre></div>
+            <p class="pg-label"><span data-curl-title>The same call on your container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
+            <div class="code"><pre><code data-curl></code></pre></div>
             <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Keep this seed</button></p>
             <div class="code pg-body"><pre><code data-body></code></pre></div>
           </section>

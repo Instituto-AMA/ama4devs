@@ -13,6 +13,7 @@ on:
       - 'mocks/asaas/docs/icon.svg'
       - 'llms.txt'
       - 'scripts/build-site.sh'
+      - 'scripts/build-generator-api.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
