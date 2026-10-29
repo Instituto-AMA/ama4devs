@@ -408,4 +408,41 @@
       player.innerHTML = ''
     })
   }
+
+  // ── Screenshot Lightbox ──
+  let lightbox = document.getElementById('lightbox-modal')
+  document.querySelectorAll('.shot img').forEach((img) => {
+    img.addEventListener('click', () => {
+      if (!lightbox) {
+        lightbox = document.createElement('dialog')
+        lightbox.id = 'lightbox-modal'
+        lightbox.className = 'lightbox-modal'
+        lightbox.innerHTML = `
+          <div class="lightbox-box">
+            <div class="lightbox-header">
+              <span class="lightbox-title"></span>
+              <button type="button" class="lightbox-close" aria-label="Close">✕</button>
+            </div>
+            <div class="lightbox-img-wrap">
+              <img src="" alt="" />
+            </div>
+          </div>
+        `
+        document.body.appendChild(lightbox)
+        const close = () => { if (lightbox.open) lightbox.close() }
+        lightbox.querySelector('.lightbox-close')?.addEventListener('click', close)
+        lightbox.querySelector('.lightbox-img-wrap')?.addEventListener('click', close)
+        lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close() })
+      }
+      const title = img.closest('.shot')?.querySelector('figcaption')?.textContent || img.alt || ''
+      const titleSpan = lightbox.querySelector('.lightbox-title')
+      if (titleSpan) titleSpan.textContent = title
+      const bigImg = lightbox.querySelector('.lightbox-img-wrap img')
+      if (bigImg) {
+        bigImg.src = img.src
+        bigImg.alt = img.alt
+      }
+      lightbox.showModal()
+    })
+  })
 })()

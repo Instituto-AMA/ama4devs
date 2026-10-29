@@ -309,6 +309,84 @@ curl localhost:45445/v3/subscriptions/sub_…/payments -H 'access_token: $aact_h
       </div>
     </section>
 
+    <section class="band" id="panel" aria-labelledby="panel-title">
+      <div class="wrap">
+        <h2 id="panel-title">O painel: veja o que a API real esconde.</h2>
+        <p class="intro">Abra <code>http://localhost:45445</code>. Gerencie clientes, cobranças, pagamentos com cartão, webhooks, notificações e simule a passagem do tempo com o relógio virtual.</p>
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <div class="gallery">
+              <figure class="shot wide">
+                <img src="../../img/asaas/dashboard.jpg" width="1502" height="714" alt="Painel do mock do Asaas: visão geral de cobranças recebidas, confirmadas, pendentes e vencidas." loading="lazy">
+                <figcaption><strong>Painel de controle.</strong> Visão geral de cobranças por status com totais, carteiras e chaves de API.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/customers.jpg" width="1502" height="714" alt="Lista de clientes no painel." loading="lazy">
+                <figcaption><strong>Lista de clientes.</strong> Gestão de pagadores com CPF/CNPJ, e-mail, celular e histórico financeiro.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/customer-create.jpg" width="1502" height="714" alt="Modal de criação de novo cliente." loading="lazy">
+                <figcaption><strong>Criar cliente.</strong> Cadastro rápido de clientes com validação em tempo real.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/charges.jpg" width="1502" height="714" alt="Lista de cobranças no painel." loading="lazy">
+                <figcaption><strong>Cobranças e faturas.</strong> Acompanhamento de cobranças únicas, parceladas e assinaturas.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/charge-create.jpg" width="1502" height="714" alt="Modal de criação de cobrança." loading="lazy">
+                <figcaption><strong>Criar cobrança.</strong> Configure valor, vencimento, parcelamento, juros e forma de pagamento.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/invoice-view.jpg" width="1502" height="714" alt="Página pública da fatura do pagador." loading="lazy">
+                <figcaption><strong>Link da fatura.</strong> A tela pública em <code>invoiceUrl</code> com simulação de pagamento pelo pagador.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="QR code Pix e copia e cola na fatura." loading="lazy">
+                <figcaption><strong>Pagamento via Pix.</strong> QR Code dinâmico com payload EMV real e confirmação instantânea.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Boleto bancário com linha digitável." loading="lazy">
+                <figcaption><strong>Boleto Bancário.</strong> Fatura com linha digitável válida e visualização para impressão.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/webhooks.jpg" width="1502" height="714" alt="Configurações de webhook." loading="lazy">
+                <figcaption><strong>Webhooks e integrações.</strong> Endpoints cadastrados, token de autenticação e status da fila.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/webhook-create.jpg" width="1502" height="714" alt="Modal de criação de webhook." loading="lazy">
+                <figcaption><strong>Criar webhook.</strong> Seleção de eventos de cobranças, transferências e assinaturas.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/webhook-logs.jpg" width="1502" height="714" alt="Logs de entrega de webhooks." loading="lazy">
+                <figcaption><strong>Logs de webhooks.</strong> Inspeção detalhada de payloads enviados, respostas HTTP e retentativas.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/request-logs.jpg" width="1502" height="714" alt="Logs de requisições da API." loading="lazy">
+                <figcaption><strong>Logs de requisições.</strong> Histórico de todas as chamadas HTTP recebidas pelo mock server.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/clock.jpg" width="1502" height="714" alt="Controle do relógio virtual." loading="lazy">
+                <figcaption><strong>Relógio virtual.</strong> Avance o tempo na mão para testar vencimentos, juros e liquidação.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/test-cards.jpg" width="1502" height="714" alt="Tabela de cartões de teste." loading="lazy">
+                <figcaption><strong>Cartões de teste.</strong> Cartões para simular aprovação, recusa, limite insuficiente e roubo.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../../img/asaas/statement.jpg" width="1502" height="714" alt="Extrato financeiro da conta." loading="lazy">
+                <figcaption><strong>Extrato financeiro.</strong> Lançamentos completos com desconto de taxas e saldo conciliado.</figcaption>
+              </figure>
+            </div>
+            <div class="next">
+              <a class="key confirm" href="quick-start/">Comece em dois minutos</a>
+              <a class="key" href="api/">Veja as 213 operações</a>
+              <a class="key" href="docs/">Leia a documentação</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="band" id="fidelity" aria-labelledby="fidelity-title">
       <div class="wrap">
         <h2 id="fidelity-title">Provado contra o sandbox real.</h2>

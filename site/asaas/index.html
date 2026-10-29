@@ -326,6 +326,84 @@ curl localhost:45445/v3/subscriptions/sub_…/payments -H 'access_token: $aact_h
       </div>
     </section>
 
+    <section class="band" id="panel" aria-labelledby="panel-title">
+      <div class="wrap">
+        <h2 id="panel-title">The panel: see what the real API hides.</h2>
+        <p class="intro">Open <code>http://localhost:45445</code>. Manage customers, invoices, credit card payments, webhooks, notifications, and simulate time progression with the virtual clock.</p>
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <div class="gallery">
+              <figure class="shot wide">
+                <img src="../img/asaas/dashboard.jpg" width="1502" height="714" alt="The Asaas mock dashboard: overview of received, confirmed, pending and overdue charges." loading="lazy">
+                <figcaption><strong>Dashboard.</strong> Overview of charges by status with their totals, account wallets and API keys.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/customers.jpg" width="1502" height="714" alt="Customers list in the panel." loading="lazy">
+                <figcaption><strong>Customers list.</strong> Manage payer profiles, CPF/CNPJ, contacts and billing history.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/customer-create.jpg" width="1502" height="714" alt="Create new customer dialog." loading="lazy">
+                <figcaption><strong>Create customer.</strong> Instant customer registration modal with validation.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/charges.jpg" width="1502" height="714" alt="Charges list in the panel." loading="lazy">
+                <figcaption><strong>Charges & invoices.</strong> Real-time view of Pix, Boleto, and credit card payments.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/charge-create.jpg" width="1502" height="714" alt="Create new charge dialog." loading="lazy">
+                <figcaption><strong>Create charge.</strong> Configure value, due date, installments, subscriptions and billing types.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/invoice-view.jpg" width="1502" height="714" alt="Public invoice page viewed by the payer." loading="lazy">
+                <figcaption><strong>Payer invoice page.</strong> The hosted payment page at <code>invoiceUrl</code> with live payment simulator.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="Pix QR code and copy-paste code on invoice." loading="lazy">
+                <figcaption><strong>Pix payment.</strong> Scannable EMV QR code with instant payment confirmation simulation.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Bank slip / Boleto with digitable line." loading="lazy">
+                <figcaption><strong>Boleto Bancário.</strong> Bank slip with valid digitable line and barcode view.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/webhooks.jpg" width="1502" height="714" alt="Webhooks configuration." loading="lazy">
+                <figcaption><strong>Webhooks & integrations.</strong> Configure endpoint URLs, authentication tokens and queue status.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/webhook-create.jpg" width="1502" height="714" alt="Create webhook configuration dialog." loading="lazy">
+                <figcaption><strong>Create webhook.</strong> Subscribe to specific payment, transfer and account event groups.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/webhook-logs.jpg" width="1502" height="714" alt="Webhook delivery logs." loading="lazy">
+                <figcaption><strong>Webhook delivery logs.</strong> Full inspection of outgoing payloads, HTTP responses and retries.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/request-logs.jpg" width="1502" height="714" alt="API request logs." loading="lazy">
+                <figcaption><strong>API request logs.</strong> In-depth log of every inbound HTTP call received by the mock server.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/clock.jpg" width="1502" height="714" alt="Virtual clock control." loading="lazy">
+                <figcaption><strong>Virtual clock.</strong> Fast-forward time to test due dates, interest calculations and overdue transitions.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/test-cards.jpg" width="1502" height="714" alt="Test credit cards table." loading="lazy">
+                <figcaption><strong>Test cards.</strong> Pre-configured cards for success, insufficient funds, stolen and refused captures.</figcaption>
+              </figure>
+              <figure class="shot">
+                <img src="../img/asaas/statement.jpg" width="1502" height="714" alt="Account financial statement." loading="lazy">
+                <figcaption><strong>Statement & ledger.</strong> Complete financial ledger with fee deductions and net balance tracking.</figcaption>
+              </figure>
+            </div>
+            <div class="next">
+              <a class="key confirm" href="quick-start/">Start in two minutes</a>
+              <a class="key" href="api/">See the 213 operations</a>
+              <a class="key" href="docs/">Read the docs</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="band" id="fidelity" aria-labelledby="fidelity-title">
       <div class="wrap">
         <h2 id="fidelity-title">Proven against the real sandbox.</h2>
