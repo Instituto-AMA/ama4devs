@@ -84,7 +84,7 @@ describe('the channels are found where they answer', () => {
   it('takes the first place that is the service, skipping one that is something else', async () => {
     const mailpit = fakeMailpit()
     const wa = fakeWhatsapp()
-    await boot({ mailpit: [dead, someoneElse(), mailpit], whatsapp: [someoneElse(), wa.url, dead], callback: true })
+    await boot({ mailpit: [dead, someoneElse(), mailpit], whatsapp: [someoneElse(), wa.url, dead], generator: [], callback: true })
 
     await lookForChannels(h.app.ctx)
     expect(h.app.ctx.config.notify.mailpitUrl).toBe(mailpit)
@@ -99,7 +99,7 @@ describe('the channels are found where they answer', () => {
         ? Response.json({ Version: 'v1.31.4' })
         : new Response('starting', { status: 503 }),
     )
-    await boot({ mailpit: [close, far], whatsapp: [], callback: true })
+    await boot({ mailpit: [close, far], whatsapp: [], generator: [], callback: true })
     await lookForChannels(h.app.ctx)
     expect(h.app.ctx.config.notify.mailpitUrl).toBe(far)
 
@@ -110,7 +110,7 @@ describe('the channels are found where they answer', () => {
 
   it('drops a channel that stops answering and finds it again', async () => {
     const mailpit = fakeMailpit()
-    await boot({ mailpit: [mailpit], whatsapp: [dead], callback: true })
+    await boot({ mailpit: [mailpit], whatsapp: [dead], generator: [], callback: true })
     await lookForChannels(h.app.ctx)
     expect(h.app.ctx.config.notify.mailpitUrl).toBe(mailpit)
     expect(h.app.ctx.config.notify.whatsappUrl).toBeUndefined()
@@ -135,7 +135,7 @@ describe('the channels are found where they answer', () => {
   })
 
   it('an off channel says in Integrações where it was looked for', async () => {
-    await boot({ mailpit: [dead], whatsapp: [dead], callback: true })
+    await boot({ mailpit: [dead], whatsapp: [dead], generator: [], callback: true })
     await lookForChannels(h.app.ctx)
     const status = await h.app.app.handle(new Request('http://localhost/_admin/notify/status'))
     const body = (await status.json()) as any
@@ -146,7 +146,7 @@ describe('the channels are found where they answer', () => {
 
 describe('the callback is the address the WhatsApp mock verifies', () => {
   it('offers each address in turn and admits only the one that works', async () => {
-    await boot({ mailpit: [], whatsapp: [], callback: true })
+    await boot({ mailpit: [], whatsapp: [], generator: [], callback: true })
     const ctx = h.app.ctx
     const wa = fakeWhatsapp({ reaches: (uri) => uri.startsWith('http://host.docker.internal:') })
     ctx.config.notify.whatsappUrl = wa.url
@@ -165,7 +165,7 @@ describe('the callback is the address the WhatsApp mock verifies', () => {
   })
 
   it('a container address that works joins the guard, the refused ones do not', async () => {
-    await boot({ mailpit: [], whatsapp: [], callback: true })
+    await boot({ mailpit: [], whatsapp: [], generator: [], callback: true })
     const ctx = h.app.ctx
     const own = callbackCandidates(ctx, 'http://whatsapp:3010').filter((u) => !/localhost|host\.docker/.test(u))
     if (own.length === 0) return // no network interface but loopback: nothing to offer
@@ -186,7 +186,7 @@ describe('the callback is the address the WhatsApp mock verifies', () => {
   })
 
   it("replaces an earlier run's callback and keeps a person's", async () => {
-    await boot({ mailpit: [], whatsapp: [], callback: true })
+    await boot({ mailpit: [], whatsapp: [], generator: [], callback: true })
     const ctx = h.app.ctx
     const stale = fakeWhatsapp({ registered: 'http://172.30.0.9:45445/_mock/whatsapp/webhook' })
     ctx.config.notify.whatsappUrl = stale.url

@@ -202,12 +202,24 @@ export interface Config {
     whatsappUiUrl: string
     /**
      * What this server looks for by itself (src/notify/discovery.ts): the places
-     * Mailpit and the WhatsApp mock may answer on, and whether the address the
-     * WhatsApp mock calls back on is found too. Left out, nothing is looked for: the
-     * process entry fills it from the environment (`notifyDiscoveryFromEnv`), the
-     * tests leave it unset.
+     * Mailpit, the WhatsApp mock and the generator may answer on, and whether the
+     * address the WhatsApp mock calls back on is found too. Left out, nothing is
+     * looked for: the process entry fills it from the environment
+     * (`notifyDiscoveryFromEnv`), the tests leave it unset.
      */
     discover?: NotifyDiscovery
+  }
+
+  /**
+   * The generator of fake data (mocks/generator). It is found by itself like the
+   * payer channels (src/notify/discovery.ts): `GENERATOR_URL` says where it
+   * answers, empty turns it off, and unset it is looked for.
+   */
+  generator: {
+    /** Where the generator answers; undefined while it is off or not found yet. */
+    url: string | undefined
+    /** Where the browser opens the generator's UI. */
+    uiUrl: string
   }
 
   webhook: {
@@ -288,6 +300,11 @@ export function loadConfig(): Config {
       whatsappUiUrl: str('WHATSAPP_UI_URL', 'http://localhost:3010').replace(/\/+$/, ''),
     },
 
+    generator: {
+      url: optionalStr('GENERATOR_URL')?.replace(/\/+$/, ''),
+      uiUrl: str('GENERATOR_UI_URL', 'http://localhost:45450'),
+    },
+
     webhook: {
       localhostRewrite: optionalStr('WEBHOOK_LOCALHOST_REWRITE'),
       timeoutMs: num('WEBHOOK_TIMEOUT_MS', 10_000),
@@ -346,12 +363,14 @@ export function loadConfig(): Config {
   }
 }
 
-/** The payer channels this server finds by itself, and where it looks. */
+/** The payer channels and the generator this server finds by itself, and where it looks. */
 export interface NotifyDiscovery {
   /** The base URLs Mailpit may answer on, in order; empty when MAILPIT_URL says where. */
   mailpit: string[]
   /** The base URLs the WhatsApp mock may answer on, in order; empty when WHATSAPP_MOCK_URL says where. */
   whatsapp: string[]
+  /** The base URLs the generator may answer on, in order; empty when GENERATOR_URL says where. */
+  generator: string[]
   /** Whether the address the WhatsApp mock calls back on is found (NOTIFY_CALLBACK_BASE_URL unset). */
   callback: boolean
 }
@@ -374,7 +393,7 @@ function dockerHosts(): string[] {
 }
 
 /**
- * What to look for, from the environment. A channel whose variable is set is used
+ * What to look for, from the environment. A service whose variable is set is used
  * as given, and set empty it is off; unset, it is looked for where it usually
  * answers: the compose service name, this machine, the Docker host.
  */
@@ -384,6 +403,7 @@ export function notifyDiscoveryFromEnv(env: Record<string, string | undefined> =
   return {
     mailpit: env.MAILPIT_URL === undefined ? places(['mailpit'], 8025) : [],
     whatsapp: env.WHATSAPP_MOCK_URL === undefined ? places(['whatsapp', 'whatsapp-mock'], 3010) : [],
+    generator: env.GENERATOR_URL === undefined ? places(['generator', 'generator-mock'], 45450) : [],
     callback: env.NOTIFY_CALLBACK_BASE_URL === undefined,
   }
 }
