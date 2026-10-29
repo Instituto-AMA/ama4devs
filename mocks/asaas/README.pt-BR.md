@@ -110,6 +110,12 @@ O que o Asaas avisa a quem paga, entregue de verdade na sua máquina:
 - Tudo sobe configurado: na subida e a cada ciclo, o número remetente recebe o
   webhook deste servidor e os templates do pagador são criados no WhatsApp
   mock, pelas chamadas da própria Meta.
+- O [gerador de dados](../generator/README.md) também é achado sozinho na
+  porta `45450` (no boot e a cada 10 s, no serviço `generator` ou
+  `generator-mock` do compose, nesta máquina ou no host do Docker): aceita quem
+  responder `service: "generator"` no `GET /health`, liberando a aba
+  **Integrações › Gerador** no painel para popular a conta selecionada na
+  barra superior com pessoas, empresas e cobranças em um clique.
 - O `notificationDisabled` do cliente e as configurações de notificação são
   respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia
   quando você pede.
@@ -146,7 +152,8 @@ mostra o que o Asaas não deixa você ver.
   virtual), webhooks (com a lista de eventos, pela `/v3/webhooks` real), logs
   de requisições (cada chamada à `/v3`, com o que foi enviado e o que voltou,
   erros incluídos), logs de webhook com a resposta do seu endpoint (e os
-  eventos que nenhum webhook levou), e os canais de e-mail e WhatsApp.
+  eventos que nenhum webhook levou), os canais de e-mail e WhatsApp, e o
+  gerador (Gerador).
 - **Cartões de teste**: a tabela que o motor lê; aceitar qualquer cartão bem
   formado ou só os listados; criar um cartão com o resultado que ele força.
 - **Perfis**: uma conta raiz por cliente da sua aplicação, criada e apagada sem
@@ -198,6 +205,13 @@ pagador) é achado do mesmo jeito: cada endereço em que este servidor pode ser
 alcançado é oferecido, e fica o primeiro que o WhatsApp mock verifica. Uma
 variável abaixo fixa o lugar; vazia, desliga o canal.
 
+O mesmo vale para o [gerador de dados](../generator/README.md) (`generator:45450` ou `generator-mock:45450`):
+achado sozinho no boot e a cada 10 s na porta 45450, o mais próximo primeiro, só aceita
+quem responder `GET /health` com `service: "generator"`. Encontrado, o painel do Asaas
+habilita **Integrações › Gerador** com "Abrir o gerador" e "Popular esta conta" (pessoas e
+empresas viram clientes da conta selecionada na barra superior, via `POST /_admin/generator/populate`).
+Definir `GENERATOR_URL` fixa o endereço; vazia (`GENERATOR_URL=`), desliga o gerador e oculta a aba.
+
 ## Configuração
 
 | Variável | Padrão | |
@@ -210,10 +224,12 @@ variável abaixo fixa o lugar; vazia, desliga o canal.
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Para onde `invoiceUrl` e `bankSlipUrl` apontam, como o navegador chega neste servidor |
 | `MAILPIT_URL` | *(sem valor: achado sozinho)* | O Mailpit dos e-mails ao pagador; vazio, desliga o e-mail |
 | `WHATSAPP_MOCK_URL` | *(sem valor: achado sozinho)* | O WhatsApp mock dos templates ao pagador; vazio, desliga o WhatsApp |
+| `GENERATOR_URL` | *(sem valor: achado sozinho)* | O gerador para popular o mock; vazio, desliga o gerador |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | O número remetente no WhatsApp mock |
 | `WHATSAPP_WABA_ID` | `100000000000001` | A WABA cuja biblioteca guarda os templates do pagador |
 | `NOTIFY_CALLBACK_BASE_URL` | *(sem valor: achado sozinho)* | Este servidor como o WhatsApp mock o alcança |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | As duas telas, como o navegador as abre a partir de Integrações |
+| `GENERATOR_UI_URL` | `http://localhost:45450` | A tela do gerador, como o navegador a abre a partir de Integrações |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Remetente dos e-mails |
 | `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O padrão é o relato do próprio Asaas (blog.asaas.com, 2024); o painel troca em tempo de execução |
 | `DATABASE_PATH` | `/data/asaas.db` | Monte um volume em `/data` para guardar |
@@ -235,6 +251,7 @@ Não existem no Asaas: ficam fora de `/v3`, sem `access_token`, e desligam com
 | `GET /_admin/credit-cards` · `PUT /_admin/credit-cards/:token` | Cartões salvos; `{"outcome": "DECLINE"}` ou `{"approvalsLeft": 3}` (aprova mais 3, depois recusa) |
 | `GET`, `PUT /_admin/card-capture/schedule` | O cronograma de retentativa da cobrança recorrente no cartão, `{"schedule": "0@08:00,1@08:00"}`; `""` volta ao padrão do Asaas |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Notificações ao pagador: enviadas, reenviar, saúde dos canais, o que chegou |
+| `GET /_admin/generator/status` · `POST /_admin/generator/populate` | Status da integração; popular a conta selecionada com clientes e cobranças |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operações com regra de negócio; a tabela de taxas |
 
 ## Fidelidade: provada, não prometida

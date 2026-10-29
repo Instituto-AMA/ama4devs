@@ -184,7 +184,7 @@
 
             <article class="case" id="case-asaas-populate">
               <h3>Popular o mock do Asaas numa única chamada</h3>
-              <p class="proves">Ao subir um ambiente de desenvolvimento limpo com o mock do Asaas, você precisa de clientes, cobranças pendentes e pagamentos confirmados para ver telas preenchidas e webhooks chegando. O gerador cria clientes, emite cobranças e simula pagamentos com um único <code>POST</code>.</p>
+              <p class="proves">Ao subir um ambiente de desenvolvimento limpo com o mock do Asaas (<code>make up</code>), a integração é automática: o gerador é descoberto sozinho e aparece no painel do Asaas em <strong>Integrações › Gerador</strong> com o botão <strong>Popular esta conta</strong> para a conta selecionada na topbar. Pela API, o gerador cria clientes, emite cobranças e simula pagamentos com um único <code>POST</code>.</p>
               <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people": 5, "companies": 2, "chargesPerCustomer": 2, "confirm": 0.5}'</code></pre></div>

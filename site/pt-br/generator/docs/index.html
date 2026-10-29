@@ -59,7 +59,8 @@
             <li><a href="#params">Parâmetros</a></li>
             <li><a href="#determinism">Determinismo</a></li>
             <li><a href="#safe-data">Dados seguros</a></li>
-            <li><a href="#asaas-integration">População do Asaas</a></li>
+            <li><a href="#asaas">Integração com Asaas</a></li>
+            <li><a href="#compose">Compose em outro projeto</a></li>
             <li><a href="#env">Variáveis de ambiente</a></li>
             <li><a href="#local-guard">Proteção local</a></li>
           </ol>
@@ -260,9 +261,19 @@
               </ul>
             </section>
 
-            <section id="asaas-integration" aria-labelledby="asaas-title">
-              <h2 id="asaas-title">População do Asaas</h2>
-              <p>O endpoint <code>POST /_mock/asaas/populate</code> permite popular o <a href="../../asaas/">mock do Asaas</a> conectado, orquestrando as chamadas necessárias para criar clientes e cobranças reais.</p>
+            <section id="asaas" aria-labelledby="asaas-title">
+              <h2 id="asaas-title">Integração com Asaas</h2>
+              <p>A integração entre o gerador e o <a href="../../asaas/">mock do Asaas</a> opera com <strong>descoberta automática nos dois sentidos</strong>, sem necessidade de configurar URLs:</p>
+              <ul>
+                <li><strong>O gerador acha o Asaas</strong>: quando <code>ASAAS_URL</code> não estiver definida, o gerador procura o mock nos serviços <code>asaas</code> e <code>asaas-mock</code> do compose, nesta máquina (<code>localhost</code>) e no host do Docker (<code>host.docker.internal</code>) na porta <code>45445</code>, identificado por <code>GET /health</code> (com <code>status: "ok"</code> e <code>clockMode</code>). A busca ocorre no boot e a cada 10 segundos. Assim, rodar ambos via <code>docker run</code> ou em qualquer compose funciona imediatamente sem variáveis.</li>
+                <li><strong>O Asaas acha o gerador</strong>: o mock do Asaas busca o serviço <code>generator</code> ou <code>generator-mock</code> na porta <code>45450</code> (no compose, nesta máquina ou no host do Docker) no boot e a cada 10 s, aceitando apenas serviços que respondam <code>GET /health</code> com <code>service: "generator"</code>. A variável <code>GENERATOR_URL</code> quando definida fixa o destino; vazia, desativa a busca. O navegador o abre por <code>GENERATOR_UI_URL</code> (padrão <code>http://localhost:45450</code>).</li>
+              </ul>
+
+              <h3>A aba do painel do Asaas</h3>
+              <p>Enquanto o gerador for encontrado, o painel do Asaas exibe a aba <strong>Integrações › Gerador</strong> com as ações <strong>Abrir o gerador</strong> e <strong>Popular esta conta</strong>. Ao clicar em popular, pessoas e empresas com CPF/CNPJ válidos tornam-se clientes da conta selecionada na barra superior, com cobranças geradas por Pix, boleto e cartão (parte delas já pagas). Essa ação dispara <code>POST /_admin/generator/populate</code> no Asaas, que repassa a chave de API dessa conta para o gerador. Quando o gerador não é encontrado ou está desligado, a aba não existe no painel.</p>
+
+              <h3>Endpoint <code>POST /_mock/asaas/populate</code></h3>
+              <p>O endpoint no gerador pode ser invocado diretamente. O campo <code>apiKey</code> no corpo é opcional e direciona a população para a conta informada (caso omitido, usa <code>ASAAS_API_KEY</code>):</p>
               <div class="code"><pre><code>POST /_mock/asaas/populate
 Content-Type: application/json
 
@@ -272,7 +283,8 @@ Content-Type: application/json
   "chargesPerCustomer": 2,
   "billingTypes": ["PIX", "BOLETO", "CREDIT_CARD"],
   "confirm": 0.5,
-  "seed": "minha-semente-opcional"
+  "seed": "minha-semente-opcional",
+  "apiKey": "$aact_hmlg_local_master"
 }</code></pre></div>
 
               <h3>O que cada passo executa</h3>
@@ -284,6 +296,17 @@ Content-Type: application/json
 
               <h3>Tratamento de falhas</h3>
               <p>Se alguma chamada ao Asaas falhar ou retornar erro HTTP, o endpoint não aborta: ele acumula o erro na lista <code>errors: [{ step, status, message }]</code> e continua o processo para os registros restantes, devolvendo o relatório consolidado ao final.</p>
+            </section>
+
+            <section id="compose" aria-labelledby="compose-title">
+              <h2 id="compose-title">Compose em outro projeto</h2>
+              <p>Para usar o gerador no <code>docker-compose.yml</code> de outro projeto, basta adicionar o serviço <code>generator</code> ao lado do serviço <code>asaas</code>. Os dois serviços se acham automaticamente pelo nome na rede interna, sem precisar definir variáveis de URL:</p>
+              <div class="code"><pre><code>  generator:
+    image: ghcr.io/instituto-ama/generator-mock:latest
+    ports:
+      - '45450:45450'
+    environment:
+      PORT: 45450</code></pre></div>
             </section>
 
             <section id="env" aria-labelledby="env-title">
@@ -300,9 +323,14 @@ Content-Type: application/json
                       <td>Porta do servidor HTTP do gerador</td>
                     </tr>
                     <tr>
+                      <td><code>GENERATOR_ENABLED</code></td>
+                      <td><code>1</code></td>
+                      <td>No compose do repositório: <code>1</code> sobe o gerador; <code>0</code> desliga (<code>deploy.replicas: 0</code>)</td>
+                    </tr>
+                    <tr>
                       <td><code>ASAAS_URL</code></td>
-                      <td><code>http://localhost:45445</code></td>
-                      <td>URL base do mock da API v3 do Asaas como o container do gerador o alcança</td>
+                      <td><em>(sem valor: achado sozinho)</em></td>
+                      <td>URL base do mock do Asaas. Quando não definida, é encontrado sozinho (<code>asaas</code>, <code>asaas-mock</code>, <code>localhost</code>, host do Docker na porta 45445) no boot e a cada 10 s</td>
                     </tr>
                     <tr>
                       <td><code>ASAAS_API_KEY</code></td>
@@ -315,9 +343,9 @@ Content-Type: application/json
                       <td>URL do painel do Asaas como o navegador do desenvolvedor o alcança (usada em links retornados)</td>
                     </tr>
                     <tr>
-                      <td><code>ASAAS_SEED_ON_BOOT</code></td>
+                      <td><code>GENERATOR_ASAAS_SEED_ON_BOOT</code></td>
                       <td><em>(vazio)</em></td>
-                      <td>Configuração de população automática no boot do container, no formato <code>people=10,companies=3,charges=2,confirm=0.5</code></td>
+                      <td>Configuração de população automática no boot do container, no formato <code>people=10,companies=3,charges=2,confirm=0.5</code>. Fica desligada a menos que definida</td>
                     </tr>
                     <tr>
                       <td><code>MOCK_ALLOWED_HOSTS</code></td>
