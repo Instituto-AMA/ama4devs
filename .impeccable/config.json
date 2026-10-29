@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#b9bab3",
+        "createdAt": "2026-10-29T22:36:21.921Z",
+        "reason": "Claude: the key depth color assets/style.css already defines for .key (--deep: #b9bab3); playground keys reuse it"
+      }
+    ]
+  }
+}
