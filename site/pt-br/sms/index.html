@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock de SMS: simulador local de gateway com webhooks, OTP e API compatível com Twilio | ama4devs</title>
+  <meta name="description" content="Mock de SMS em Docker: API nativa em JSON, API compatível com Twilio, envio simples, ciclo de vida da mensagem, números mágicos para falhar, extração de OTP, webhooks de status e de resposta assinados, e um painel ao vivo onde você é o aparelho.">
+  <meta name="keywords" content="mock de sms, mock sms gateway, simulador de sms, api twilio mock, teste de otp, webhook de sms, numeros magicos sms, mock sms docker">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Mock de SMS, o gateway local da sua aplicação">
+  <meta property="og:description" content="A sua aplicação envia, o mock captura: ciclo de vida da mensagem, falhas por números mágicos, OTP extraído, webhooks assinados e um painel ao vivo.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/pt-br/sms/">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#1b1b4b">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SMS Mock",
+    "alternateName": "Mock de SMS",
+    "description": "Simulador local de gateway de SMS: API nativa em JSON, API compatível com Twilio, envio simples, ciclo de vida da mensagem, números mágicos de falha, extração de OTP, webhooks de status e de resposta assinados com HMAC e um painel ao vivo da caixa do aparelho.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Docker (linux/amd64, linux/arm64), Browser",
+    "softwareVersion": "0.1.0",
+    "url": "https://instituto-ama.github.io/ama4devs/pt-br/sms/",
+    "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../whatsapp/">Mock do WhatsApp</a>
+        <a href="../asaas/">Mock do Asaas</a>
+        <a href="../generator/">Gerador</a>
+        <a href="./" aria-current="page">Mock de SMS</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../sms/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock de SMS">
+    <a href="./" aria-current="page">Visão geral</a>
+    <a href="quick-start/">Início rápido</a>
+    <a href="docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="wrap hero" style="grid-template-columns: minmax(0, 1fr)">
+      <div class="hero-copy" style="max-width: 860px">
+        <h1>O gateway de SMS da sua aplicação, sem depender da operadora.</h1>
+        <p class="lead">A sua aplicação envia, o mock captura. Três interfaces para enviar (nativa em JSON, compatível com Twilio e um <code>GET</code>/<code>POST</code> simples), um ciclo de vida de verdade (<code>queued</code> → <code>sent</code> → <code>delivered</code>, ou a falha), <strong>números mágicos</strong> que reproduzem os erros da operadora, o código de OTP extraído do texto, webhooks de status e de resposta assinados com HMAC — e um painel ao vivo onde <strong>você é o aparelho</strong>, no <code>localhost</code>.</p>
+        <div class="cmd">
+          <pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
+        </div>
+        <div class="actions">
+          <a class="key confirm" href="quick-start/">Início rápido</a>
+          <a class="key" href="#use-cases">Casos de uso</a>
+        </div>
+      </div>
+    </div>
+
+    <section class="band" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <h2 id="features-title">O que ele entrega.</h2>
+        <p class="intro">O comportamento de uma operadora, sem a operadora: o que a sua aplicação envia, o que chega, quanto custa e o que falha.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recurso</th>
+                    <th>O que faz</th>
+                    <th>Na prática</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Ciclo de vida</strong></td>
+                    <td>A mensagem sai de <code>queued</code>, passa por <code>sent</code> e chega a <code>delivered</code> — ou termina em <code>failed</code> e <code>undelivered</code></td>
+                    <td><code>sent</code> em 500 ms, <code>delivered</code> em 1500 ms</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Números mágicos</strong></td>
+                    <td>Os quatro últimos dígitos do destino decidem o desfecho da mensagem</td>
+                    <td>final <code>0001</code> → <code>failed</code> com código 30003</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Extração de OTP</strong></td>
+                    <td>Varre o corpo e encontra o código de verificação, de 4 a 8 dígitos</td>
+                    <td><code>"código 482913"</code> → <code>codes: ["482913"]</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Segmentos</strong></td>
+                    <td>Conta as partes cobradas do texto, em GSM-7 ou UCS-2</td>
+                    <td>160 e 153 caracteres no GSM-7, 70 e 67 no UCS-2</td>
+                  </tr>
+                  <tr>
+                    <td><strong>API compatível com Twilio</strong></td>
+                    <td>O mesmo caminho, os mesmos corpos de formulário e os mesmos códigos de erro do Twilio</td>
+                    <td><code>POST /2010-04-01/Accounts/{sid}/Messages.json</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Webhooks</strong></td>
+                    <td>Uma chamada a cada mudança de status e outra quando o aparelho responde, com assinatura HMAC</td>
+                    <td><code>x-sms-signature: sha256=…</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Long poll</strong></td>
+                    <td>A listagem espera a mensagem chegar, para o teste não precisar de <code>sleep</code></td>
+                    <td><code>GET /v1/messages?wait=5000</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Painel ao vivo</strong></td>
+                    <td>A caixa do aparelho, com as conversas por número, atualizada por WebSocket</td>
+                    <td><code>ws://localhost:3020/ws</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet">
+            <h3>Números mágicos.</h3>
+            <p class="intro">O destino decide o desfecho pelos quatro últimos dígitos. O mesmo número falha em qualquer máquina, em qualquer teste.</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Final do número</th>
+                    <th>Desfecho</th>
+                    <th>Status final</th>
+                    <th>Código</th>
+                    <th>Resposta HTTP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>0001</code></td>
+                    <td>Handset inalcançável</td>
+                    <td><code>failed</code></td>
+                    <td>30003</td>
+                    <td>201</td>
+                  </tr>
+                  <tr>
+                    <td><code>0002</code></td>
+                    <td>Handset desconhecido</td>
+                    <td><code>undelivered</code></td>
+                    <td>30005</td>
+                    <td>201</td>
+                  </tr>
+                  <tr>
+                    <td><code>0003</code></td>
+                    <td>Rejeitado pela API, na hora do envio</td>
+                    <td>—</td>
+                    <td>21211</td>
+                    <td>400</td>
+                  </tr>
+                  <tr>
+                    <td><code>0004</code></td>
+                    <td>Parece enviado e nunca confirma a entrega</td>
+                    <td><code>sent</code></td>
+                    <td>—</td>
+                    <td>201</td>
+                  </tr>
+                  <tr>
+                    <td><code>0005</code></td>
+                    <td>Filtrado pela operadora</td>
+                    <td><code>failed</code></td>
+                    <td>30007</td>
+                    <td>201</td>
+                  </tr>
+                  <tr>
+                    <td>qualquer outro</td>
+                    <td>Entrega normal</td>
+                    <td><code>delivered</code></td>
+                    <td>—</td>
+                    <td>201</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="use-cases" aria-labelledby="cases-title">
+      <div class="wrap">
+        <h2 id="cases-title">Casos de uso.</h2>
+        <p class="intro">Quatro problemas que aparecem na hora de integrar qualquer envio de SMS.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <article class="case" id="case-otp-login">
+              <h3>Testar um login com OTP</h3>
+              <p class="proves">O código sai do texto, não de um regex no seu teste: o mock separa a sequência de 4 a 8 dígitos do corpo, guarda em <code>codes</code> e mostra um botão de copiar no painel. Aponte a sua aplicação para o mock, mande o código para um número fixo e o teste acompanha a entrega como ela acontece: enfileirado, enviado, entregue.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"to": "+5511912340010", "body": "Seu código de verificação é 482913"}'</code></pre></div>
+            </article>
+
+            <article class="case" id="case-delivery-failure">
+              <h3>Testar as falhas de entrega</h3>
+              <p class="proves">O número que termina em <code>0001</code> sempre falha com o código 30003, o <code>0002</code> fica <code>undelivered</code> com 30005 e o <code>0004</code> nunca passa de <code>sent</code>. Com isso o seu tratamento de erro é exercitado com o mesmo número, na sua máquina e no CI, sem depender de uma operadora real.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"to": "+5511912340001", "body": "Teste de falha na entrega"}'</code></pre></div>
+            </article>
+
+            <article class="case" id="case-webhooks">
+              <h3>Testar os webhooks</h3>
+              <p class="proves">Aponte <code>SMS_WEBHOOK_URL</code> para a sua aplicação e receba <code>message.status</code> a cada mudança de status e <code>message.inbound</code> quando o aparelho responde. Com <code>SMS_WEBHOOK_SECRET</code> cada chamada vem com o header <code>x-sms-signature: sha256=&lt;hmac&gt;</code> do corpo, para você validar a assinatura como faria em produção.</p>
+              <div class="code"><pre><code>docker run --rm -p 127.0.0.1:3020:3020 \
+  -e SMS_WEBHOOK_URL=http://host.docker.internal:4000/webhooks/sms \
+  -e SMS_WEBHOOK_SECRET=my-app-secret \
+  ghcr.io/instituto-ama/sms-mock:latest
+
+curl http://localhost:3020/_mock/sms/webhooks/deliveries</code></pre></div>
+            </article>
+
+            <article class="case" id="case-twilio-client">
+              <h3>Apontar um SDK da Twilio para o mock</h3>
+              <p class="proves">O caminho <code>/2010-04-01/Accounts/{sid}/Messages.json</code>, os corpos de formulário e os códigos de erro são os do Twilio. Troque a URL base do cliente e o seu código de produção continua igual; qualquer credencial é aceita, porque o mock não valida token.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock00000000000000000000000000/Messages.json \
+  -u ACmock00000000000000000000000000:mock-auth-token \
+  -d "To=+5511912340010" \
+  -d "From=AMA4DEVS" \
+  -d "Body=Seu codigo e 482913"</code></pre></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="api" aria-labelledby="api-title">
+      <div class="wrap">
+        <h2 id="api-title">A API numa tabela.</h2>
+        <p class="intro">Três interfaces de envio, uma de controle e um WebSocket. Tudo em memória, tudo no seu <code>localhost</code>.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Método e rota</th>
+                    <th>Descrição</th>
+                    <th>Resposta de sucesso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>GET /health</code></td>
+                    <td>Verificação de saúde do serviço</td>
+                    <td><code>{"status": "ok", "service": "sms", "version": "..."}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /v1/messages</code></td>
+                    <td>Cria e enfileira uma mensagem de saída</td>
+                    <td>201 com a mensagem</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /v1/messages</code></td>
+                    <td>Lista as mensagens por filtro, com long poll em <code>wait</code></td>
+                    <td><code>{"messages": [...], "count": 1}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /v1/messages/:id</code></td>
+                    <td>Busca uma mensagem pelo identificador</td>
+                    <td>Mensagem</td>
+                  </tr>
+                  <tr>
+                    <td><code>DELETE /v1/messages/:id</code></td>
+                    <td>Apaga uma mensagem</td>
+                    <td>204</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /2010-04-01/Accounts/:sid/Messages.json</code></td>
+                    <td>Envio no formato do Twilio</td>
+                    <td>201 com o recurso do Twilio</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET|POST /sms/send</code></td>
+                    <td>Envio simples, por query ou por corpo</td>
+                    <td><code>{"status": "ok", "id": "...", "to": "...", "segments": 1}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/inbound</code></td>
+                    <td>Resposta escrita pelo aparelho</td>
+                    <td>201 com a mensagem recebida</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/messages/:id/status</code></td>
+                    <td>Muda o status de uma mensagem de saída</td>
+                    <td>Mensagem</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET|PUT /_mock/sms/settings</code></td>
+                    <td>Lê e muda os ajustes em tempo real</td>
+                    <td><code>{"deliveryDelayMs": 1500, "autoDeliver": true, ...}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /_mock/sms/webhooks/deliveries</code></td>
+                    <td>Lista as tentativas de webhook</td>
+                    <td><code>{"deliveries": [...]}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/demo</code></td>
+                    <td>Popula a caixa de exemplo do painel</td>
+                    <td>201 com as mensagens criadas</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /ws</code></td>
+                    <td>WebSocket com o estado e os eventos do mock</td>
+                    <td>Quadros de evento</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="next">
+              <a class="key confirm" href="quick-start/">Ir para o início rápido</a>
+              <a class="key" href="docs/">Ver documentação completa</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock de SMS é MIT. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. Para modelos de linguagem: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Mensagens simuladas para desenvolvimento local e testes. Nenhum SMS é enviado a uma operadora real e nada é gravado em disco.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>

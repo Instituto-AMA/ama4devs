@@ -5,7 +5,7 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$ROOT_DIR"
 
-MOCKS="${MOCKS:-asaas whatsapp generator}"
+MOCKS="${MOCKS:-asaas whatsapp generator sms}"
 PROFILE="${PROFILE:-generic}"
 TARGET_ENV="${TARGET_ENV:-}"
 export PROFILE
@@ -29,6 +29,7 @@ fi
 asaas_port="$(env_get .env ASAAS_PORT)"
 whatsapp_port="$(env_get .env WHATSAPP_PORT)"
 generator_port="$(env_get .env GENERATOR_PORT)"
+sms_port="$(env_get .env SMS_PORT)"
 log ""
 log "Mocks are up:"
 for m in $MOCKS; do
@@ -36,6 +37,7 @@ for m in $MOCKS; do
     asaas) log "  asaas     http://localhost:${asaas_port:-45445}" ;;
     whatsapp) log "  whatsapp  http://localhost:${whatsapp_port:-3010}" ;;
     generator) log "  generator http://localhost:${generator_port:-45450}" ;;
+    sms) log "  sms       http://localhost:${sms_port:-3020}" ;;
   esac
 done
 fake_key='$aact_hmlg_local_master'

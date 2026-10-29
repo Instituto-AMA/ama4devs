@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMS mock: local SMS gateway simulator with webhooks, OTP and Twilio-compatible API | ama4devs</title>
+  <meta name="description" content="Local SMS gateway simulator in Docker: message lifecycle with realistic delivery delays, magic failure numbers, OTP extraction, Twilio-compatible API, signed webhooks, and a live phone-inbox web panel.">
+  <meta name="keywords" content="sms mock, sms gateway simulator, twilio mock, local sms, otp testing, sms webhooks, delivery failure testing, docker">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/sms/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="SMS mock: local SMS gateway simulator with webhooks, OTP and Twilio-compatible API">
+  <meta property="og:description" content="Simulate SMS gateways on localhost: message lifecycle, magic failure numbers, OTP extraction, Twilio-compatible API, signed webhooks, and a live phone-inbox panel.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/sms/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#1b1b4b">
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SMS Mock",
+    "alternateName": "SMS Gateway Mock",
+    "description": "Local SMS gateway simulator: message lifecycle, magic failure numbers, OTP extraction, Twilio-compatible API, signed webhooks, and a live phone-inbox panel.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+    "softwareVersion": "0.1.0",
+    "url": "https://instituto-ama.github.io/ama4devs/sms/",
+    "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../whatsapp/">WhatsApp mock</a>
+        <a href="../asaas/">Asaas mock</a>
+        <a href="../generator/">Generator</a>
+        <a href="./" aria-current="page">SMS mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../pt-br/sms/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="SMS mock">
+    <a href="./" aria-current="page">Overview</a>
+    <a href="quick-start/">Quick start</a>
+  </nav>
+
+  <main id="content">
+    <div class="wrap hero" style="grid-template-columns: minmax(0, 1fr); max-width: 900px;">
+      <div class="hero-copy">
+        <h1>Local SMS gateway with a live handset inbox.</h1>
+        <p class="lead">Send SMS via a clean REST API, simple endpoints, or your existing Twilio SDK. Watch messages advance through <code>queued</code>, <code>sent</code>, and <code>delivered</code> with realistic timing, extract OTP verification codes automatically, trigger delivery failures with magic numbers, and test signed webhooks without real carrier credentials or fees. Zero dependencies, in-memory, and paired with a real-time web panel.</p>
+        <div class="cmd">
+          <pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
+        </div>
+        <div class="actions">
+          <a class="key confirm" href="http://localhost:3020">Open the panel</a>
+          <a class="key" href="quick-start/">Quick start</a>
+        </div>
+      </div>
+    </div>
+
+    <section class="band" id="what-it-provides" aria-labelledby="capabilities-title">
+      <div class="wrap">
+        <h2 id="capabilities-title">What it gives.</h2>
+        <p class="intro">Everything you need to test SMS notifications, authentication codes, delivery reports, and two-way conversations locally.</p>
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Capability</th>
+                    <th>Description</th>
+                    <th>Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Lifecycle</code></td>
+                    <td>Automatic transitions: <code>queued</code> &rarr; <code>sent</code> &rarr; <code>delivered</code></td>
+                    <td>Configurable delay via <code>SMS_DELIVERY_DELAY_MS</code> (default 1500 ms) or manual stepping</td>
+                  </tr>
+                  <tr>
+                    <td><code>Magic numbers</code></td>
+                    <td>Deterministic failures based on the last 4 digits of the recipient number</td>
+                    <td><code>0001</code> failed, <code>0002</code> undelivered, <code>0003</code> rejected (400), <code>0004</code> stuck, <code>0005</code> filtered</td>
+                  </tr>
+                  <tr>
+                    <td><code>OTP extraction</code></td>
+                    <td>Identifies 4&ndash;8 digit verification codes from message bodies</td>
+                    <td>Surfaced in JSON response, long-poll queries, and one-click copy chips in the panel</td>
+                  </tr>
+                  <tr>
+                    <td><code>Encoding &amp; segments</code></td>
+                    <td>Full GSM-7 and UCS-2 segment calculation</td>
+                    <td>160/153 chars for GSM-7; 70/67 chars for UCS-2 with emoji and Unicode support</td>
+                  </tr>
+                  <tr>
+                    <td><code>Twilio API</code></td>
+                    <td>Drop-in compatibility for Twilio SDKs and HTTP clients</td>
+                    <td><code>/2010-04-01/Accounts/{sid}/Messages.json</code> with form body and status callbacks</td>
+                  </tr>
+                  <tr>
+                    <td><code>Webhooks</code></td>
+                    <td>Signed delivery receipts and inbound notifications</td>
+                    <td>Dispatched on lifecycle events and inbound replies; signed with HMAC-SHA256</td>
+                  </tr>
+                  <tr>
+                    <td><code>Live panel</code></td>
+                    <td>Interactive phone-inbox web UI over WebSocket (<code>/ws</code>)</td>
+                    <td>Conversation threads, message inspection, delivery logs, settings dialog, and reply composer</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="use-cases" aria-labelledby="cases-title">
+      <div class="wrap">
+        <h2 id="cases-title">Use cases.</h2>
+        <p class="intro">From verifying OTP login flows in automated test suites to testing carrier failures and webhook retries, the mock handles common communication patterns without third-party services.</p>
+
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <article class="case" id="case-otp-flow">
+              <h3>Test an OTP login flow</h3>
+              <p class="proves">When testing authentication or passwordless login, your test suite can send a verification SMS and read back the generated code via the long-polling query endpoint without polling loops or arbitrary wait timers. The extracted code is also available in the <code>codes</code> array.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"+5511912340010","body":"Your verification code is 481920"}'
+
+curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+            </article>
+
+            <article class="case" id="case-delivery-failures">
+              <h3>Test delivery failures</h3>
+              <p class="proves">Trigger carrier errors and delivery status changes deterministically using the last 4 digits of the recipient number. Test how your application responds to undelivered SMS, blacklisted numbers, or immediate API rejections without changing server code.</p>
+              <div class="code"><pre><code># 0001: fails delivery with error 30003
+curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"+5511912340001","body":"Test failure"}'
+
+# 0003: rejected immediately by the API with HTTP 400
+curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"+5511912340003","body":"Test rejection"}'</code></pre></div>
+            </article>
+
+            <article class="case" id="case-test-webhooks">
+              <h3>Test webhooks</h3>
+              <p class="proves">Verify that your application handles delivery receipts and inbound messages correctly. Provide a <code>callbackUrl</code> per message or configure <code>SMS_WEBHOOK_URL</code>. Webhooks include the <code>x-sms-signature</code> header when <code>SMS_WEBHOOK_SECRET</code> is configured. You can also simulate an inbound reply from a handset:</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"+5511912340010","body":"SIM"}'</code></pre></div>
+            </article>
+
+            <article class="case" id="case-twilio-sdk">
+              <h3>Point a Twilio SDK at the mock</h3>
+              <p class="proves">Reuse your existing Twilio integration by overriding the API base URL to <code>http://localhost:3020</code>. The mock accepts Twilio form-encoded requests, authenticates mock credentials, and delivers status callbacks formatted to Twilio standards.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock/Messages.json \
+  -u ACmock:mocktoken \
+  -d "To=+5511912340010" \
+  -d "From=AMA4DEVS" \
+  -d "Body=Testing Twilio compatibility"</code></pre></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="api" aria-labelledby="api-title">
+      <div class="wrap">
+        <h2 id="api-title">The API in one table.</h2>
+        <p class="intro">A lightweight HTTP server with zero runtime dependencies. Includes native JSON endpoints, Twilio compatibility, simple send routes, and internal control tools.</p>
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Method &amp; Route</th>
+                    <th>Response / Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>GET /health</code></td>
+                    <td><code>{"status":"ok","service":"sms","version":"0.1.0"}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /</code></td>
+                    <td>Phone-inbox web UI and WebSocket live updates at <code>/ws</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /v1/messages</code></td>
+                    <td>Send outbound SMS (<code>{to, body, from?, callbackUrl?}</code>) &rarr; 201 Message</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /v1/messages</code></td>
+                    <td>List messages (<code>?to=&amp;from=&amp;status=&amp;direction=&amp;wait=&amp;limit=</code>)</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /v1/messages/:id</code></td>
+                    <td>Retrieve message by ID &rarr; 200 Message or 404</td>
+                  </tr>
+                  <tr>
+                    <td><code>DELETE /v1/messages/:id</code></td>
+                    <td>Delete message &rarr; 204 or 404</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /2010-04-01/Accounts/:sid/Messages.json</code></td>
+                    <td>Twilio-compatible message creation &rarr; 201 Twilio Message JSON</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /2010-04-01/Accounts/:sid/Messages.json</code></td>
+                    <td>Twilio-compatible message listing with pagination</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET|POST /sms/send</code></td>
+                    <td>Simple endpoint with query or form (<code>to</code>, <code>message</code>, <code>sender</code>)</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET|PUT /_mock/sms/settings</code></td>
+                    <td>Get or update runtime settings (<code>deliveryDelayMs</code>, <code>autoDeliver</code>, etc.)</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/inbound</code></td>
+                    <td>Simulate an incoming SMS reply from a handset &rarr; 201 Message</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/messages/:id/status</code></td>
+                    <td>Manually update message status (<code>sent</code>, <code>delivered</code>, <code>failed</code>)</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/reset</code></td>
+                    <td>Clear all stored messages and delivery receipts &rarr; 204</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET|DELETE /_mock/sms/webhooks/deliveries</code></td>
+                    <td>Inspect or clear webhook delivery attempt logs</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /_mock/sms/demo</code></td>
+                    <td>Seed the inbox with representative demo conversations &rarr; 201</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="actions" style="margin-top: 24px">
+              <a class="key confirm" href="quick-start/">Quick start guide</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The SMS mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. For language models: <a href="../llms.txt">llms.txt</a>.</p>
+      <p>Local SMS gateway and phone inbox simulator for automated tests and CI.</p>
+    </div>
+  </footer>
+
+  <script src="../assets/site.js" defer></script>
+</body>
+</html>

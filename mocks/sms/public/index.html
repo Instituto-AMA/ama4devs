@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>SMS Mock</title>
+  <meta name="description" content="Simulador local de SMS: caixa de entrada do celular, webhooks, números mágicos e códigos OTP.">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="currentColor"></rect>
+        <path d="M9 10.5h14a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-7.2L12 24v-3.5H9A1.5 1.5 0 0 1 7.5 19v-7A1.5 1.5 0 0 1 9 10.5Z" fill="#fff"></path>
+      </svg>
+      <span class="brand-name">SMS</span>
+      <span class="brand-sub">ama4devs mock</span>
+    </div>
+    <div id="conn" class="pill" data-state="connecting">Conectando…</div>
+    <div class="topbar-spacer"></div>
+    <input id="search" type="search" placeholder="Buscar mensagens, números ou códigos" autocomplete="off" aria-label="Buscar">
+    <button id="btn-new" class="btn primary" type="button">Novo SMS</button>
+    <button id="btn-demo" class="btn" type="button">Exemplos</button>
+    <button id="btn-inspector" class="btn icon" type="button" aria-label="Inspetor" title="Inspetor">&#9776;</button>
+    <button id="btn-settings" class="btn icon" type="button" aria-label="Configurações" title="Configurações">&#9881;</button>
+    <button id="btn-theme" class="btn icon" type="button" aria-label="Alternar tema" title="Alternar tema">&#9680;</button>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar" aria-label="Conversas">
+      <div class="sidebar-head">
+        <h2>Conversas</h2>
+        <span id="count" class="count">0</span>
+      </div>
+      <div id="conversation-list" class="conversation-list"></div>
+    </aside>
+
+    <section class="thread-pane" aria-label="Mensagens">
+      <div id="thread-header" class="thread-header">
+        <button id="btn-back" class="btn icon" type="button" aria-label="Voltar às conversas">&#8592;</button>
+        <div class="thread-id">
+          <div class="thread-title"></div>
+          <div class="thread-sub"></div>
+        </div>
+      </div>
+      <div id="thread" class="thread" aria-live="polite"></div>
+      <form id="composer" class="composer" autocomplete="off">
+        <textarea id="composer-input" rows="1" placeholder="Responder como o celular…" aria-label="Responder como o celular"></textarea>
+        <div id="composer-meta" class="composer-meta"></div>
+        <button id="composer-send" class="btn primary" type="submit">Responder</button>
+      </form>
+    </section>
+
+    <aside id="inspector" class="inspector" aria-label="Inspetor">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" type="button" data-tab="json">Resposta</button>
+        <button class="tab" role="tab" type="button" data-tab="webhooks">Webhooks</button>
+        <button class="tab" role="tab" type="button" data-tab="guide">Guia</button>
+      </div>
+      <div id="inspector-body" class="inspector-body"></div>
+    </aside>
+  </main>
+
+  <dialog id="dlg-new" class="dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Novo SMS</h2>
+      <p class="dialog-hint">Envia pela API, como o seu app faria: a mensagem chega no celular e segue o ciclo de entrega.</p>
+      <label class="field">Para
+        <input id="new-to" type="text" inputmode="tel" placeholder="+55 11 91234-5678" autocomplete="off">
+      </label>
+      <label class="field">De
+        <input id="new-from" type="text" placeholder="AMA4DEVS" autocomplete="off">
+      </label>
+      <label class="field">Mensagem
+        <textarea id="new-body" rows="4" placeholder="Seu código é 482913"></textarea>
+      </label>
+      <div id="new-meta" class="composer-meta"></div>
+      <div class="dialog-actions">
+        <button class="btn" type="submit" value="cancel">Cancelar</button>
+        <button id="new-submit" class="btn primary" type="button">Enviar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-settings" class="dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Configurações</h2>
+      <label class="field">Atraso até a entrega (ms)
+        <input id="set-delay" type="number" min="0" step="100">
+      </label>
+      <label class="field field--check">
+        <input id="set-auto" type="checkbox">
+        <span>Entregar automaticamente</span>
+      </label>
+      <label class="field">URL dos webhooks
+        <input id="set-webhook-url" type="url" placeholder="http://localhost:4000/sms/webhook" autocomplete="off">
+      </label>
+      <label class="field">Segredo dos webhooks (HMAC-SHA256)
+        <input id="set-webhook-secret" type="text" placeholder="vazio = sem assinatura" autocomplete="off">
+      </label>
+      <label class="field">Remetente padrão
+        <input id="set-default-from" type="text" placeholder="AMA4DEVS" autocomplete="off">
+      </label>
+      <div class="dialog-actions">
+        <button id="btn-reset" class="btn danger" type="button">Apagar tudo</button>
+        <span class="topbar-spacer"></span>
+        <button class="btn" type="submit" value="cancel">Cancelar</button>
+        <button id="set-submit" class="btn primary" type="button">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

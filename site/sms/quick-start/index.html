@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMS mock quick start: local gateway, OTP and webhooks | ama4devs</title>
+  <meta name="description" content="Quick start guide for the SMS mock: run via Docker, send messages via REST or Twilio endpoints, extract OTP codes, trigger magic failure numbers, simulate handset replies, and test webhooks.">
+  <meta name="keywords" content="sms mock quick start, local sms gateway, twilio mock quick start, sms otp testing, mock sms webhooks">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/sms/quick-start/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/quick-start/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/quick-start/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/quick-start/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="SMS mock quick start">
+  <meta property="og:description" content="From docker run to sending messages, extracting OTP codes, and testing webhooks in minutes.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/sms/quick-start/">
+  <meta name="theme-color" content="#1b1b4b">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="../../generator/">Generator</a>
+        <a href="../" aria-current="page">SMS mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/sms/quick-start/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="SMS mock">
+    <a href="../">Overview</a>
+    <a href="./" aria-current="page">Quick start</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#run">Run it</a></li>
+            <li><a href="#panel">Open the panel</a></li>
+            <li><a href="#send">Send an SMS</a></li>
+            <li><a href="#read">Read it back</a></li>
+            <li><a href="#reply">Reply as handset</a></li>
+            <li><a href="#fail">Trigger a failure</a></li>
+            <li><a href="#twilio">Point Twilio client</a></li>
+            <li><a href="#off">Turn it off</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Quick start</h1>
+          <p class="lead">From <code>docker run</code> to OTP verification, failure handling, and Twilio integration. Every command below runs as written against a fresh container.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <ol class="steps">
+              <li id="run">
+                <h3>Run it</h3>
+                <p>Run the SMS mock container in Docker. In this repository, running <code>make up MOCKS=sms</code> starts it automatically.</p>
+                <div class="code"><pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+                <p>The mock listens on port <code>3020</code>. Verify that the server is ready:</p>
+                <div class="code"><pre><code>curl http://localhost:3020/health</code></pre></div>
+                <div class="code"><pre><code>{
+  "status": "ok",
+  "service": "sms",
+  "version": "0.1.0"
+}</code></pre></div>
+              </li>
+
+              <li id="panel">
+                <h3>Open the panel</h3>
+                <p>Open <a href="http://localhost:3020">http://localhost:3020</a> in your browser. The web UI functions like a mobile phone inbox, connected in real time over WebSocket (<code>/ws</code>). You can inspect conversations, view message metadata and delivery status histories, compose replies, and test settings. To seed sample threads, click <strong>Exemplos</strong> or trigger the demo endpoint:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/demo</code></pre></div>
+              </li>
+
+              <li id="send">
+                <h3>Send an SMS</h3>
+                <p>Send an outbound SMS using the native REST API to <code>+5511912340010</code>. The mock parses the message body, detects GSM-7 or UCS-2 encoding, calculates segments, extracts OTP codes, and places the message in <code>queued</code> status:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to": "+5511912340010",
+    "body": "Your authentication code is 849201",
+    "from": "AUTH"
+  }'</code></pre></div>
+                <div class="code"><pre><code>{
+  "id": "msg_01JB0000000000000000000001",
+  "direction": "outbound",
+  "from": "AUTH",
+  "to": "+5511912340010",
+  "body": "Your authentication code is 849201",
+  "status": "queued",
+  "api": "native",
+  "encoding": "GSM-7",
+  "segments": 1,
+  "codes": [
+    "849201"
+  ],
+  "errorCode": null,
+  "errorMessage": null,
+  "callbackUrl": null,
+  "createdAt": "2026-10-29T21:00:00.000Z",
+  "updatedAt": "2026-10-29T21:00:00.000Z",
+  "sentAt": null,
+  "deliveredAt": null,
+  "history": [
+    {
+      "status": "queued",
+      "at": "2026-10-29T21:00:00.000Z"
+    }
+  ]
+}</code></pre></div>
+                <p>By default (<code>SMS_AUTO_DELIVER=1</code>), the message automatically transitions to <code>sent</code> after delay/3, then to <code>delivered</code> after <code>SMS_DELIVERY_DELAY_MS</code> (default 1500 ms).</p>
+              </li>
+
+              <li id="read">
+                <h3>Read it back</h3>
+                <p>Query messages for a given phone number. In automated tests, pass <code>wait=5000</code> to wait up to 5 seconds for the message to arrive and deliver, resolving as soon as a match exists without polling:</p>
+                <div class="code"><pre><code>curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+                <div class="code"><pre><code>{
+  "messages": [
+    {
+      "id": "msg_01JB0000000000000000000001",
+      "direction": "outbound",
+      "from": "AUTH",
+      "to": "+5511912340010",
+      "body": "Your authentication code is 849201",
+      "status": "delivered",
+      "api": "native",
+      "encoding": "GSM-7",
+      "segments": 1,
+      "codes": [
+        "849201"
+      ],
+      "errorCode": null,
+      "errorMessage": null,
+      "callbackUrl": null,
+      "createdAt": "2026-10-29T21:00:00.000Z",
+      "updatedAt": "2026-10-29T21:00:01.500Z",
+      "sentAt": "2026-10-29T21:00:00.500Z",
+      "deliveredAt": "2026-10-29T21:00:01.500Z",
+      "history": [
+        {
+          "status": "queued",
+          "at": "2026-10-29T21:00:00.000Z"
+        },
+        {
+          "status": "sent",
+          "at": "2026-10-29T21:00:00.500Z"
+        },
+        {
+          "status": "delivered",
+          "at": "2026-10-29T21:00:01.500Z"
+        }
+      ]
+    }
+  ],
+  "count": 1
+}</code></pre></div>
+              </li>
+
+              <li id="reply">
+                <h3>Reply as handset</h3>
+                <p>Simulate the handset user replying to your outbound SMS. Inbound messages have <code>direction: "inbound"</code> and <code>status: "received"</code>, update the conversation thread in the panel in real time, and dispatch an inbound webhook if configured:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "from": "+5511912340010",
+    "body": "CONFIRMAR"
+  }'</code></pre></div>
+                <div class="code"><pre><code>{
+  "id": "msg_01JB0000000000000000000002",
+  "direction": "inbound",
+  "from": "+5511912340010",
+  "to": "AMA4DEVS",
+  "body": "CONFIRMAR",
+  "status": "received",
+  "api": "mock",
+  "encoding": "GSM-7",
+  "segments": 1,
+  "codes": [],
+  "errorCode": null,
+  "errorMessage": null,
+  "callbackUrl": null,
+  "createdAt": "2026-10-29T21:00:05.000Z",
+  "updatedAt": "2026-10-29T21:00:05.000Z",
+  "sentAt": null,
+  "deliveredAt": null,
+  "history": [
+    {
+      "status": "received",
+      "at": "2026-10-29T21:00:05.000Z"
+    }
+  ]
+}</code></pre></div>
+              </li>
+
+              <li id="fail">
+                <h3>Trigger a failure</h3>
+                <p>Test error handling deterministically by sending to numbers with specific endings. Sending to a number ending in <code>0001</code> produces a delivery failure with error code <code>30003</code>:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to": "+5511912340001",
+    "body": "Delivery failure simulation"
+  }'</code></pre></div>
+                <p>Magic number suffixes supported:</p>
+                <ul>
+                  <li><code>0001</code> &mdash; Delivery failure (transitions to <code>failed</code> with error <code>30003</code>)</li>
+                  <li><code>0002</code> &mdash; Undelivered handset (transitions to <code>undelivered</code> with error <code>30005</code>)</li>
+                  <li><code>0003</code> &mdash; Immediate rejection at submission (HTTP 400 <code>rejected_number</code> / Twilio code <code>21211</code>)</li>
+                  <li><code>0004</code> &mdash; Stuck indefinitely in <code>sent</code> status</li>
+                  <li><code>0005</code> &mdash; Filtered by carrier spam protections (status <code>failed</code> with error <code>30007</code>)</li>
+                </ul>
+              </li>
+
+              <li id="twilio">
+                <h3>Point Twilio client</h3>
+                <p>Integrate with existing Twilio applications without changing SDK calls. Point your Twilio client to <code>http://localhost:3020</code> or submit standard form requests:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock/Messages.json \
+  -u ACmock:mocktoken \
+  -d "To=+5511912340010" \
+  -d "From=AMA4DEVS" \
+  -d "Body=Testing Twilio compatibility"</code></pre></div>
+                <div class="code"><pre><code>{
+  "sid": "SM01JB0000000000000000000003",
+  "account_sid": "ACmock",
+  "api_version": "2010-04-01",
+  "body": "Testing Twilio compatibility",
+  "date_created": "Thu, 29 Oct 2026 21:00:00 +0000",
+  "date_updated": "Thu, 29 Oct 2026 21:00:00 +0000",
+  "date_sent": null,
+  "direction": "outbound-api",
+  "error_code": null,
+  "error_message": null,
+  "from": "AMA4DEVS",
+  "to": "+5511912340010",
+  "num_segments": "1",
+  "num_media": "0",
+  "price": null,
+  "price_unit": "USD",
+  "status": "queued",
+  "messaging_service_sid": null,
+  "uri": "/2010-04-01/Accounts/ACmock/Messages/SM01JB0000000000000000000003.json",
+  "subresource_uris": {
+    "media": "/2010-04-01/Accounts/ACmock/Messages/SM01JB0000000000000000000003/Media.json"
+  }
+}</code></pre></div>
+              </li>
+
+              <li id="off">
+                <h3>Turn it off</h3>
+                <p>The SMS mock stores all messages, conversations, and webhook logs in memory. Stop the container with <code>Ctrl+C</code> or <code>docker stop</code>; restarting provides a completely clean slate.</p>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The SMS mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Local SMS gateway and phone inbox simulator for automated tests and CI.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>

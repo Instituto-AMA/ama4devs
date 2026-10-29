@@ -97,6 +97,34 @@ services:
       start_period: 3s
     restart: unless-stopped
 
+  # The SMS gateway simulator: it sends the messages, runs their lifecycle and posts the
+  # webhooks. Its own profile: `make up MOCKS=sms` starts only it.
+  sms:
+    build: ./mocks/sms
+    image: ama4devs/sms:local
+    profiles: [sms]
+    ports:
+      - '127.0.0.1:${SMS_PORT:-3020}:3020'
+    environment:
+      PORT: 3020
+      SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+      SMS_WEBHOOK_SECRET: ${SMS_WEBHOOK_SECRET:-}
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    # The store is in memory: the messages live only while the container runs, so there is no volume.
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "await fetch('http://localhost:3020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
+    restart: unless-stopped
+
   # The mailbox of the payer e-mails the Asaas mock sends (UI on :8025). Starts with
   # the asaas profile; `MAILPIT_PORT` moves it when another Mailpit holds 8025.
   mailpit:

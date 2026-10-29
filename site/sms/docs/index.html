@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMS mock docs: send APIs, lifecycle, magic numbers, webhooks | ama4devs</title>
+  <meta name="description" content="Technical reference for the SMS mock: the native, Twilio-compatible and simple send APIs, the message lifecycle, the magic numbers, webhooks and their signature, inbound replies, long polling, segment counting, OTP extraction, control routes, configuration and limits.">
+  <meta name="keywords" content="sms mock documentation, twilio compatible sms api, sms webhook signature, sms delivery lifecycle, magic numbers, otp extraction, sms panel, fake sms gateway">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="SMS mock docs: reference &amp; rules">
+  <meta property="og:description" content="Reference of the SMS mock: three send APIs, the delivery lifecycle, magic numbers, signed webhooks, inbound replies, long polling, segments, OTP codes, control routes and limits.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <meta name="theme-color" content="#1b1b4b">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../../whatsapp/">WhatsApp mock</a>
+        <a href="../../asaas/">Asaas mock</a>
+        <a href="../" aria-current="page">SMS mock</a>
+        <a href="../../generator/">Generator</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/sms/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="SMS mock">
+    <a href="../">Overview</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="./" aria-current="page">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#api">Send APIs</a></li>
+            <li><a href="#lifecycle">Lifecycle</a></li>
+            <li><a href="#magic-numbers">Magic numbers</a></li>
+            <li><a href="#webhooks">Webhooks</a></li>
+            <li><a href="#inbound">Inbound replies</a></li>
+            <li><a href="#testing">Testing</a></li>
+            <li><a href="#segments-otp">Segments &amp; OTP</a></li>
+            <li><a href="#control">Control routes</a></li>
+            <li><a href="#config">Configuration</a></li>
+            <li><a href="#guard">Local guard</a></li>
+            <li><a href="#limits">Limits</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Docs</h1>
+          <p class="lead">The three send APIs, the life of a message, the failures you can stage on purpose, the webhooks, and every setting of the SMS mock.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <article class="sheet">
+            <section id="api" aria-labelledby="api-title">
+              <h2 id="api-title">Send APIs</h2>
+              <p>The mock speaks three send APIs. All of them create the same message, run the same lifecycle and read the same in-memory store, so an application under test can keep its own client and only change the base URL.</p>
+
+              <h3>Native — <code>POST /v1/messages</code></h3>
+              <p>A JSON body with <code>to</code> and <code>body</code>, and optionally <code>from</code> and <code>callbackUrl</code>. The number is normalized to E.164 and the sender falls back to the default sender of the settings.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+  -H 'content-type: application/json' \
+  -d '{"to":"+5511912340010","body":"Your code is 482913","from":"AMA4DEVS"}'</code></pre></div>
+              <p>The answer is <code>201</code> with the message as it was stored, still <code>queued</code>:</p>
+              <div class="code"><pre><code>{
+  "id": "SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0",
+  "direction": "outbound",
+  "from": "AMA4DEVS",
+  "to": "+5511912340010",
+  "body": "Your code is 482913",
+  "status": "queued",
+  "api": "native",
+  "encoding": "GSM-7",
+  "segments": 1,
+  "codes": ["482913"],
+  "errorCode": null,
+  "errorMessage": null,
+  "callbackUrl": null,
+  "createdAt": "2026-02-03T10:15:00.000Z",
+  "updatedAt": "2026-02-03T10:15:00.000Z",
+  "sentAt": null,
+  "deliveredAt": null,
+  "history": [{ "status": "queued", "at": "2026-02-03T10:15:00.000Z" }]
+}</code></pre></div>
+
+              <h3>Listing the messages</h3>
+              <p><code>GET /v1/messages</code> answers <code>{ "messages": [...], "count": 2 }</code>, oldest first. Every filter narrows the result and can be combined:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Parameter</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>to</code></td>
+                      <td>Keeps the messages sent to this number.</td>
+                    </tr>
+                    <tr>
+                      <td><code>from</code></td>
+                      <td>Keeps the messages sent from this number or sender id.</td>
+                    </tr>
+                    <tr>
+                      <td><code>number</code></td>
+                      <td>Keeps the messages with this number on either side.</td>
+                    </tr>
+                    <tr>
+                      <td><code>status</code></td>
+                      <td>Keeps one status: <code>queued</code>, <code>sent</code>, <code>delivered</code>, <code>undelivered</code>, <code>failed</code> or <code>received</code>. An unknown status is ignored.</td>
+                    </tr>
+                    <tr>
+                      <td><code>direction</code></td>
+                      <td>Keeps <code>outbound</code> (app to handset) or <code>inbound</code> (handset to app). An unknown direction is ignored.</td>
+                    </tr>
+                    <tr>
+                      <td><code>q</code></td>
+                      <td>Keeps the messages whose body, numbers or codes contain this text, ignoring the case.</td>
+                    </tr>
+                    <tr>
+                      <td><code>after</code></td>
+                      <td>Keeps only the messages created after the one with this id: the cursor of a polling loop.</td>
+                    </tr>
+                    <tr>
+                      <td><code>limit</code></td>
+                      <td>Keeps the newest messages, oldest first among them.</td>
+                    </tr>
+                    <tr>
+                      <td><code>wait</code></td>
+                      <td>Long-polls for the first message that answers the filters, up to 30000 ms.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p><code>GET /v1/messages/{id}</code> answers one message (404 <code>not_found</code> when the id is unknown) and <code>DELETE /v1/messages/{id}</code> drops it (204, or 404 when the id is unknown).</p>
+
+              <h3>Twilio-compatible — <code>POST /2010-04-01/Accounts/{AccountSid}/Messages.json</code></h3>
+              <p>The paths and the answers a Twilio SDK expects, with the form fields <code>To</code>, <code>From</code>, <code>Body</code> and <code>StatusCallback</code> (a <code>MessagingServiceSid</code> with no <code>From</code> uses the default sender). Authorization is ignored: the mock has no key.</p>
+              <div class="code"><pre><code>curl -X POST 'http://localhost:3020/2010-04-01/Accounts/ACdemo/Messages.json' \
+  -d 'To=+5511912340010' \
+  -d 'From=AMA4DEVS' \
+  -d 'Body=Your code is 482913'</code></pre></div>
+              <p>The answer is <code>201</code> with the message in the Twilio shape (dates in RFC 2822, the segment count as a string):</p>
+              <div class="code"><pre><code>{
+  "sid": "SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0",
+  "account_sid": "ACdemo",
+  "api_version": "2010-04-01",
+  "body": "Your code is 482913",
+  "date_created": "Tue, 03 Feb 2026 10:15:00 +0000",
+  "date_updated": "Tue, 03 Feb 2026 10:15:00 +0000",
+  "date_sent": null,
+  "direction": "outbound-api",
+  "error_code": null,
+  "error_message": null,
+  "from": "AMA4DEVS",
+  "to": "+5511912340010",
+  "num_segments": "1",
+  "num_media": "0",
+  "price": null,
+  "price_unit": "USD",
+  "status": "queued",
+  "messaging_service_sid": null,
+  "uri": "/2010-04-01/Accounts/ACdemo/Messages/SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0.json",
+  "subresource_uris": {
+    "media": "/2010-04-01/Accounts/ACdemo/Messages/SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0/Media.json"
+  }
+}</code></pre></div>
+              <p><code>GET /2010-04-01/Accounts/{AccountSid}/Messages.json</code> lists the messages newest first, narrowed by <code>To</code> and <code>From</code> and cut to <code>PageSize</code> (50 by default, 1000 at most), with the paging fields a Twilio client reads. <code>GET .../Messages/{sid}.json</code> answers one message and <code>DELETE .../Messages/{sid}.json</code> drops it.</p>
+
+              <h3>Simple — <code>GET|POST /sms/send</code></h3>
+              <p>The shortest way to send a message: <code>to</code>, <code>message</code> (aliases <code>text</code> and <code>body</code>), <code>sender</code> (alias <code>from</code>) and <code>callbackUrl</code>, in the query of a <code>GET</code> or in the form body of a <code>POST</code>.</p>
+              <div class="code"><pre><code>curl 'http://localhost:3020/sms/send?to=%2B5511912340010&amp;message=Your+code+is+482913'</code></pre></div>
+              <div class="code"><pre><code>{ "status": "ok", "id": "SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0", "to": "+5511912340010", "segments": 1 }</code></pre></div>
+
+              <h3>Errors</h3>
+              <p>The native API refuses a request with <code>{ "error": { "code", "message", "field" } }</code> and HTTP 400; the simple API uses its own short shape, <code>{ "status": "error", "code", "message" }</code>, with the same codes:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>HTTP</th>
+                      <th>When it happens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>invalid_json</code></td>
+                      <td>400</td>
+                      <td>The request body is not valid JSON.</td>
+                    </tr>
+                    <tr>
+                      <td><code>invalid_to</code></td>
+                      <td>400</td>
+                      <td>The number is not E.164 and cannot be normalized.</td>
+                    </tr>
+                    <tr>
+                      <td><code>rejected_number</code></td>
+                      <td>400</td>
+                      <td>The number ends in the magic suffix <code>0003</code>: the API refuses it and no message is stored.</td>
+                    </tr>
+                    <tr>
+                      <td><code>empty_body</code></td>
+                      <td>400</td>
+                      <td>The body is empty.</td>
+                    </tr>
+                    <tr>
+                      <td><code>body_too_long</code></td>
+                      <td>400</td>
+                      <td>The body is longer than 1600 characters.</td>
+                    </tr>
+                    <tr>
+                      <td><code>invalid_from</code></td>
+                      <td>400</td>
+                      <td>The sender is neither E.164 nor an alphanumeric sender id.</td>
+                    </tr>
+                    <tr>
+                      <td><code>method_not_allowed</code></td>
+                      <td>405</td>
+                      <td>The route does not answer that method.</td>
+                    </tr>
+                    <tr>
+                      <td><code>not_found</code></td>
+                      <td>404</td>
+                      <td>The message id is unknown.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The Twilio API refuses with its own shape, <code>{ "code", "message", "more_info", "status" }</code>, always with HTTP 400: <code>21211</code> for an invalid <code>To</code> (and for the magic suffix <code>0003</code>), <code>21212</code> for an invalid <code>From</code>, <code>21602</code> when the body is missing and <code>21617</code> when the body is too long. A missing resource answers <code>20404</code> with HTTP 404.</p>
+            </section>
+
+            <section id="lifecycle" aria-labelledby="lifecycle-title">
+              <h2 id="lifecycle-title">Lifecycle</h2>
+              <p>A message is created <code>queued</code>, leaves the queue as <code>sent</code> and ends in <code>delivered</code>, <code>undelivered</code> or <code>failed</code>. An inbound message is always <code>received</code> and has no life of its own.</p>
+              <div class="code"><pre><code>queued  ──▶  sent  ──▶  delivered
+   │          │
+   │          ├──▶  undelivered  (30005)
+   │          └──▶  failed       (30003, 30007)</code></pre></div>
+              <p>The life takes <code>SMS_DELIVERY_DELAY_MS</code> milliseconds (1500 by default): the message is <code>sent</code> at a third of the delay and reaches its final status at the whole delay. With a delay of zero the whole life happens synchronously, inside the request.</p>
+              <ul>
+                <li><strong>Manual delivery:</strong> with <code>SMS_AUTO_DELIVER=0</code> (or <code>autoDeliver: false</code> in the settings) the message waits in <code>queued</code> until a status is set by hand.</li>
+                <li><strong>History:</strong> every status change appends <code>{ "status", "at" }</code> to <code>history</code>; <code>sentAt</code> is written the first time the message is sent and <code>deliveredAt</code> when it is delivered.</li>
+                <li><strong>Manual wins:</strong> a message that already reached <code>delivered</code>, <code>failed</code> or <code>undelivered</code> is not moved again by the timer, and a deleted message is not resurrected by it.</li>
+                <li><strong>The error of a failure:</strong> <code>failed</code> carries 30003 (<em>Unreachable destination handset</em>), <code>undelivered</code> carries 30005 (<em>Unknown destination handset</em>) and the filtered number carries 30007 (<em>Message filtered by the carrier</em>). A status set by hand takes the code of its kind; a code the mock does not know keeps a plain <em>Delivery error</em> message.</li>
+              </ul>
+            </section>
+
+            <section id="magic-numbers" aria-labelledby="magic-numbers-title">
+              <h2 id="magic-numbers-title">Magic numbers</h2>
+              <p>Five endings stage a failure on purpose. The mock looks at the last four digits of the normalized number, so <code>+5511912340001</code> and <code>11912340001</code> are the same number for the mock.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Last four digits</th>
+                      <th>What happens</th>
+                      <th>Final status</th>
+                      <th>Error code</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>0001</code></td>
+                      <td>The handset is unreachable.</td>
+                      <td><code>failed</code></td>
+                      <td>30003</td>
+                    </tr>
+                    <tr>
+                      <td><code>0002</code></td>
+                      <td>The handset is unknown.</td>
+                      <td><code>undelivered</code></td>
+                      <td>30005</td>
+                    </tr>
+                    <tr>
+                      <td><code>0003</code></td>
+                      <td>The API refuses the number; the request answers HTTP 400 and nothing is stored.</td>
+                      <td>—</td>
+                      <td>21211</td>
+                    </tr>
+                    <tr>
+                      <td><code>0004</code></td>
+                      <td>The message is sent and the handset never answers.</td>
+                      <td><code>sent</code></td>
+                      <td>—</td>
+                    </tr>
+                    <tr>
+                      <td><code>0005</code></td>
+                      <td>The carrier filters the message.</td>
+                      <td><code>failed</code></td>
+                      <td>30007</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Every other number delivers normally.</p>
+            </section>
+
+            <section id="webhooks" aria-labelledby="webhooks-title">
+              <h2 id="webhooks-title">Webhooks</h2>
+              <p>Two events leave the mock: a <code>status</code> event for every status change (the first one is the <code>queued</code> message itself) and an <code>inbound</code> event when the handset writes a reply. A status event goes to the <code>callbackUrl</code> of the message or to the webhook URL of the settings; an inbound event always goes to the webhook URL of the settings.</p>
+
+              <h3>The body</h3>
+              <p>A message that did not come through the Twilio API is posted as JSON:</p>
+              <div class="code"><pre><code>{ "event": "message.status", "message": { "id": "SM3f8c...", "status": "delivered", ... } }</code></pre></div>
+              <p>A message that came through the Twilio API is posted as a form, the way a Twilio status callback arrives:</p>
+              <div class="code"><pre><code>MessageSid=SM3f8c...&amp;SmsSid=SM3f8c...&amp;AccountSid=ACmock00000000000000000000000000&amp;MessageStatus=delivered&amp;SmsStatus=delivered&amp;From=AMA4DEVS&amp;To=%2B5511912340010&amp;NumSegments=1</code></pre></div>
+              <p>The form of an inbound event carries <code>Body</code> as well, and a failure carries <code>ErrorCode</code> and <code>ErrorMessage</code>.</p>
+
+              <h3>The signature</h3>
+              <p>When <code>SMS_WEBHOOK_SECRET</code> is set, the exact body that goes out is signed with HMAC-SHA256 and the digest is sent in the header <code>x-sms-signature: sha256=&lt;hex&gt;</code>. The header is absent when no secret is set. To check it, hash the raw body with the same secret:</p>
+              <div class="code"><pre><code>printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SMS_WEBHOOK_SECRET" | sed 's/^.* //'</code></pre></div>
+              <p>Every request also carries <code>x-sms-event</code> (<code>status</code> or <code>inbound</code>) and <code>user-agent: sms-mock</code>.</p>
+
+              <h3>The loopback rewrite</h3>
+              <p>When <code>WEBHOOK_LOCALHOST_REWRITE</code> is set, a webhook URL that points at <code>localhost</code>, <code>127.0.0.1</code> or <code>::1</code> is rewritten to that host: a mock running in a container reaches the machine of the developer, not itself.</p>
+
+              <h3>What happens when the target fails</h3>
+              <ul>
+                <li>A non-2xx answer or a network error is recorded with <code>ok: false</code> and never breaks the mock.</li>
+                <li>A webhook request takes at most 5 seconds.</li>
+                <li>The last 200 attempts are kept and can be read at <code>GET /_mock/sms/webhooks/deliveries</code>.</li>
+              </ul>
+            </section>
+
+            <section id="inbound" aria-labelledby="inbound-title">
+              <h2 id="inbound-title">Inbound replies</h2>
+              <p>The panel is the handset. What the application sends is what the handset receives; what the handset writes is what the application receives. The reply is stored as an inbound message and fires the inbound webhook.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+  -H 'content-type: application/json' \
+  -d '{"from":"+5511912340010","to":"AMA4DEVS","body":"Received, thank you!"}'</code></pre></div>
+              <p>The answer is <code>201</code> with the message: <code>direction</code> is <code>inbound</code>, <code>status</code> is <code>received</code> and <code>api</code> is <code>mock</code>. The <code>to</code> is optional and falls back to the default sender; the refusals are the same as the ones of the send API (<code>invalid_from</code>, <code>invalid_to</code>, <code>empty_body</code>, <code>body_too_long</code>).</p>
+            </section>
+
+            <section id="testing" aria-labelledby="testing-title">
+              <h2 id="testing-title">Testing</h2>
+
+              <h3>Long polling</h3>
+              <p><code>GET /v1/messages</code> with <code>wait</code> holds the request until a message answers the filters: it answers at once when one already does, and with an empty list when the wait ends. The longest wait is 30000 ms.</p>
+              <div class="code"><pre><code>curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+              <p>The <code>after</code> parameter is the cursor of a polling loop: it lists only the messages created after the one with that id, so a test never reads the same message twice.</p>
+
+              <h3>A clean store between tests</h3>
+              <p><code>POST /_mock/sms/reset</code> answers <code>204</code> and drops every message and every webhook attempt, so each test starts from an empty store.</p>
+
+              <h3>A test in CI</h3>
+              <div class="code"><pre><code>curl -s -X POST http://localhost:3020/_mock/sms/reset
+
+curl -s -X POST http://localhost:3020/v1/messages \
+  -H 'content-type: application/json' \
+  -d '{"to":"+5511912340010","body":"Your code is 482913"}'
+
+curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+              <p>The answer of the long poll carries the message: <code>status</code> is <code>delivered</code> once the delay has passed, <code>codes</code> holds <code>482913</code> and <code>segments</code> is the number of SMS parts the body costs.</p>
+            </section>
+
+            <section id="segments-otp" aria-labelledby="segments-otp-title">
+              <h2 id="segments-otp-title">Segments &amp; OTP</h2>
+
+              <h3>How many SMS parts a body costs</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Encoding</th>
+                      <th>One segment</th>
+                      <th>Each extra segment</th>
+                      <th>When it applies</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GSM-7</code></td>
+                      <td>160 septets</td>
+                      <td>153 septets</td>
+                      <td>Every character is in the GSM 03.38 table.</td>
+                    </tr>
+                    <tr>
+                      <td><code>UCS-2</code></td>
+                      <td>70 UTF-16 units</td>
+                      <td>67 UTF-16 units</td>
+                      <td>Any character is outside that table; an emoji is two UTF-16 units.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The nine characters of the extension table — <code>^ { } \ [ ] ~ | €</code> — cost two septets each in a GSM-7 message. Every message carries its <code>encoding</code> and its <code>segments</code>.</p>
+
+              <h3>The codes the reader has to type back</h3>
+              <p>The mock reads the body of every message and puts the codes it finds in the <code>codes</code> array:</p>
+              <ul>
+                <li>A run of four to eight digits that does not stick to other digits: <em>Your code is 482913</em> gives <code>482913</code>.</li>
+                <li>Two groups of three or four digits the reader joins: <code>123-456</code> or <code>123 456</code> give <code>123456</code>.</li>
+                <li>The same code is listed once, and the codes keep the order of the text.</li>
+              </ul>
+            </section>
+
+            <section id="control" aria-labelledby="control-title">
+              <h2 id="control-title">Control routes</h2>
+              <p>The routes the panel uses, under the guard of the next section. They drive the mock from a test or from a script:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Route</th>
+                      <th>Method</th>
+                      <th>What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>/_mock/sms/settings</code></td>
+                      <td>GET, PUT</td>
+                      <td>Reads the settings and changes the ones the body carries.</td>
+                    </tr>
+                    <tr>
+                      <td><code>/_mock/sms/inbound</code></td>
+                      <td>POST</td>
+                      <td>Stores the reply the handset wrote and fires the inbound event.</td>
+                    </tr>
+                    <tr>
+                      <td><code>/_mock/sms/messages/{id}/status</code></td>
+                      <td>POST</td>
+                      <td>Moves an outbound message to a status by hand.</td>
+                    </tr>
+                    <tr>
+                      <td><code>/_mock/sms/reset</code></td>
+                      <td>POST</td>
+                      <td>Drops every message and every webhook attempt.</td>
+                    </tr>
+                    <tr>
+                      <td><code>/_mock/sms/webhooks/deliveries</code></td>
+                      <td>GET, DELETE</td>
+                      <td>Reads the attempts of the webhooks and empties the log.</td>
+                    </tr>
+                    <tr>
+                      <td><code>/_mock/sms/demo</code></td>
+                      <td>POST</td>
+                      <td>Seeds a sample inbox: an OTP and its reply, a delivery notice, a long promo and a message to the number that always fails.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3>The settings at runtime</h3>
+              <div class="code"><pre><code>curl -X PUT http://localhost:3020/_mock/sms/settings \
+  -H 'content-type: application/json' \
+  -d '{"deliveryDelayMs":0,"autoDeliver":false,"webhookUrl":"http://localhost:4000/webhooks/sms"}'</code></pre></div>
+              <p>The answer is the whole settings, and the change is told to the panel at once.</p>
+
+              <h3>A status by hand</h3>
+              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/messages/SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0/status \
+  -H 'content-type: application/json' \
+  -d '{"status":"delivered"}'</code></pre></div>
+              <p>The status is one of <code>sent</code>, <code>delivered</code>, <code>undelivered</code> or <code>failed</code>, and an <code>errorCode</code> may be sent with it. The answer is the changed message; an unknown id answers 404 and an inbound message answers 409 (<code>not_outbound</code>).</p>
+
+              <h3>Health and the live panel</h3>
+              <p><code>GET /health</code> answers <code>{ "status": "ok", "service": "sms", "version": "0.1.0" }</code> and is the only route the guard does not watch. The panel listens on the WebSocket <code>/ws</code>: the first frame is a snapshot (the messages, the settings, the webhook attempts and the version) and the frames after it are the live events (<code>message.created</code>, <code>message.updated</code>, <code>message.deleted</code>, <code>reset</code>, <code>settings.updated</code>, <code>delivery</code>, <code>deliveries.cleared</code>).</p>
+            </section>
+
+            <section id="config" aria-labelledby="config-title">
+              <h2 id="config-title">Configuration</h2>
+              <p>The server reads its configuration from the environment when it starts; the settings of the mock (the delay, the automatic delivery, the webhook URL and secret, the default sender) can also be changed at runtime through <code>/_mock/sms/settings</code>.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Variable</th>
+                      <th>Default</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PORT</code></td>
+                      <td><code>3020</code></td>
+                      <td>Port the HTTP server listens on.</td>
+                    </tr>
+                    <tr>
+                      <td><code>MOCK_ALLOWED_HOSTS</code></td>
+                      <td><code>""</code></td>
+                      <td>Comma-separated list of extra hosts the local guard admits.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_WEBHOOK_URL</code></td>
+                      <td><code>""</code></td>
+                      <td>Where the status and inbound events are posted. Empty posts nothing.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_WEBHOOK_SECRET</code></td>
+                      <td><code>""</code></td>
+                      <td>Signs the webhook body with HMAC-SHA256. Empty sends the events unsigned.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DELIVERY_DELAY_MS</code></td>
+                      <td><code>1500</code></td>
+                      <td>Time from <code>queued</code> to the final status. Zero progresses the message synchronously.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_AUTO_DELIVER</code></td>
+                      <td><code>1</code></td>
+                      <td>Set it to <code>0</code> to keep the messages in <code>queued</code> until a status is set by hand.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DEFAULT_COUNTRY_CODE</code></td>
+                      <td><code>55</code></td>
+                      <td>Country code assumed for the numbers written without one.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DEFAULT_FROM</code></td>
+                      <td><code>AMA4DEVS</code></td>
+                      <td>Sender used when a request names none.</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_MAX_MESSAGES</code></td>
+                      <td><code>5000</code></td>
+                      <td>Messages kept in memory; the oldest are dropped beyond it.</td>
+                    </tr>
+                    <tr>
+                      <td><code>WEBHOOK_LOCALHOST_REWRITE</code></td>
+                      <td><em>(unset)</em></td>
+                      <td>Rewrites a loopback webhook host to this one, so a mock in a container reaches the host machine.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The repository's compose file publishes the service on the host port <code>SMS_PORT</code> (3020), the port the container itself listens on is <code>PORT</code>.</p>
+            </section>
+
+            <section id="guard" aria-labelledby="guard-title">
+              <h2 id="guard-title">Local guard</h2>
+              <p>Every route but <code>GET /health</code> carries no key, so it is bound to this machine:</p>
+              <ul>
+                <li><strong>Host check:</strong> every request must carry a <code>Host</code> header the guard admits.</li>
+                <li><strong>Origin check:</strong> on the state-changing methods (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) the <code>Origin</code>, when the request carries one, must be admitted too.</li>
+              </ul>
+              <p>The admitted hosts are <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, <code>host.docker.internal</code>, <code>sms</code> and <code>sms-mock</code>; <code>MOCK_ALLOWED_HOSTS</code> adds more, comma separated. A refused request answers HTTP 403 with <code>{ "error": { "code": "forbidden_host" } }</code> or <code>{ "error": { "code": "forbidden_origin" } }</code>.</p>
+              <h3>CORS</h3>
+              <p>When the <code>Origin</code> is admitted, it is reflected in the answer: <code>access-control-allow-origin</code> carries the origin and <code>vary: Origin</code> says that the answer depends on it. A preflight (<code>OPTIONS</code>) answers 204 with <code>access-control-allow-methods: GET,POST,PUT,DELETE,OPTIONS</code>, the headers the browser asked for echoed in <code>access-control-allow-headers</code> (<code>authorization,content-type</code> when it asks for none) and <code>access-control-max-age: 600</code>. An origin that is not admitted is refused with HTTP 403 (<code>forbidden_origin</code>).</p>
+            </section>
+
+            <section id="limits" aria-labelledby="limits-title">
+              <h2 id="limits-title">Limits</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Limit</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Body</td>
+                      <td>1600 characters (ten concatenated segments).</td>
+                    </tr>
+                    <tr>
+                      <td>Segment</td>
+                      <td>GSM-7: 160 septets in the first, 153 in each extra one. UCS-2: 70 UTF-16 units in the first, 67 in each extra one.</td>
+                    </tr>
+                    <tr>
+                      <td>Long poll</td>
+                      <td><code>wait</code> of at most 30000 ms.</td>
+                    </tr>
+                    <tr>
+                      <td>Store</td>
+                      <td><code>SMS_MAX_MESSAGES</code> messages (5000 by default); the oldest are dropped beyond it.</td>
+                    </tr>
+                    <tr>
+                      <td>Webhook log</td>
+                      <td>The last 200 attempts.</td>
+                    </tr>
+                    <tr>
+                      <td>Webhook request</td>
+                      <td>5 seconds.</td>
+                    </tr>
+                    <tr>
+                      <td>Twilio page</td>
+                      <td><code>PageSize</code> 50 by default, 1000 at most.</td>
+                    </tr>
+                    <tr>
+                      <td>Number</td>
+                      <td>E.164 with 8 to 15 digits; without a country code, 10 or 11 digits gain the default one and 12 to 15 count as international.</td>
+                    </tr>
+                    <tr>
+                      <td>Sender</td>
+                      <td>An E.164 number or an alphanumeric sender id of up to 11 characters.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Everything lives in memory: a restart empties the store, the settings and the webhook log.</p>
+            </section>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The SMS mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Fake numbers and fake messages for local development. The mock never reaches a carrier.</p>
+    </div>
+  </footer>
+
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>
