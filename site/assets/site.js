@@ -409,40 +409,138 @@
     })
   }
 
-  // ── Screenshot Lightbox ──
+  // ── Modern Carousel & Lightbox ──
+  const carousels = document.querySelectorAll('[data-carousel]')
+  let activeCards = []
+  let activeIndex = 0
+
   let lightbox = document.getElementById('lightbox-modal')
-  document.querySelectorAll('.shot img').forEach((img) => {
-    img.addEventListener('click', () => {
-      if (!lightbox) {
-        lightbox = document.createElement('dialog')
-        lightbox.id = 'lightbox-modal'
-        lightbox.className = 'lightbox-modal'
-        lightbox.innerHTML = `
-          <div class="lightbox-box">
-            <div class="lightbox-header">
-              <span class="lightbox-title"></span>
-              <button type="button" class="lightbox-close" aria-label="Close">✕</button>
+
+  const ensureLightbox = () => {
+    if (!lightbox) {
+      lightbox = document.createElement('dialog')
+      lightbox.id = 'lightbox-modal'
+      lightbox.className = 'lightbox-modal'
+      lightbox.innerHTML = `
+        <div class="lightbox-box">
+          <div class="lightbox-header">
+            <div class="lightbox-meta">
+              <span class="lightbox-tag"></span>
+              <h4 class="lightbox-title"></h4>
             </div>
+            <div class="lightbox-actions">
+              <span class="lightbox-counter"></span>
+              <button type="button" class="lightbox-close" aria-label="Close dialog">✕</button>
+            </div>
+          </div>
+          <div class="lightbox-stage">
+            <button type="button" class="lightbox-nav-btn prev" aria-label="Previous image">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
             <div class="lightbox-img-wrap">
               <img src="" alt="" />
             </div>
+            <button type="button" class="lightbox-nav-btn next" aria-label="Next image">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
           </div>
-        `
-        document.body.appendChild(lightbox)
-        const close = () => { if (lightbox.open) lightbox.close() }
-        lightbox.querySelector('.lightbox-close')?.addEventListener('click', close)
-        lightbox.querySelector('.lightbox-img-wrap')?.addEventListener('click', close)
-        lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close() })
+          <div class="lightbox-footer">
+            <p class="lightbox-desc"></p>
+          </div>
+        </div>
+      `
+      document.body.appendChild(lightbox)
+
+      const close = () => { if (lightbox.open) lightbox.close() }
+      lightbox.querySelector('.lightbox-close')?.addEventListener('click', close)
+      lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close() })
+
+      const prevBtn = lightbox.querySelector('.lightbox-nav-btn.prev')
+      const nextBtn = lightbox.querySelector('.lightbox-nav-btn.next')
+
+      const showSlide = (idx) => {
+        if (!activeCards.length) return
+        if (idx < 0) idx = activeCards.length - 1
+        if (idx >= activeCards.length) idx = 0
+        activeIndex = idx
+        const card = activeCards[idx]
+        const img = card.querySelector('img')
+        const tag = card.querySelector('.card-tag')?.textContent || ''
+        const title = card.querySelector('.card-title')?.textContent || img?.alt || ''
+        const desc = card.querySelector('.card-desc')?.textContent || ''
+
+        const tagEl = lightbox.querySelector('.lightbox-tag')
+        if (tagEl) tagEl.textContent = tag
+        const titleEl = lightbox.querySelector('.lightbox-title')
+        if (titleEl) titleEl.textContent = title
+        const descEl = lightbox.querySelector('.lightbox-desc')
+        if (descEl) descEl.textContent = desc
+        const countEl = lightbox.querySelector('.lightbox-counter')
+        if (countEl) countEl.textContent = `${String(idx + 1).padStart(2, '0')} / ${String(activeCards.length).padStart(2, '0')}`
+
+        const bigImg = lightbox.querySelector('.lightbox-img-wrap img')
+        if (bigImg && img) {
+          bigImg.style.opacity = '0.3'
+          bigImg.src = img.src
+          bigImg.alt = img.alt
+          setTimeout(() => { bigImg.style.opacity = '1' }, 40)
+        }
       }
-      const title = img.closest('.shot')?.querySelector('figcaption')?.textContent || img.alt || ''
-      const titleSpan = lightbox.querySelector('.lightbox-title')
-      if (titleSpan) titleSpan.textContent = title
-      const bigImg = lightbox.querySelector('.lightbox-img-wrap img')
-      if (bigImg) {
-        bigImg.src = img.src
-        bigImg.alt = img.alt
-      }
-      lightbox.showModal()
+
+      prevBtn?.addEventListener('click', () => showSlide(activeIndex - 1))
+      nextBtn?.addEventListener('click', () => showSlide(activeIndex + 1))
+
+      window.addEventListener('keydown', (e) => {
+        if (!lightbox.open) return
+        if (e.key === 'ArrowLeft') showSlide(activeIndex - 1)
+        if (e.key === 'ArrowRight') showSlide(activeIndex + 1)
+      })
+
+      lightbox._showSlide = showSlide
+    }
+  }
+
+  carousels.forEach((carousel) => {
+    const track = carousel.querySelector('[data-carousel-track]')
+    if (!track) return
+    const cards = [...carousel.querySelectorAll('.carousel-card')]
+    const prevBtn = carousel.querySelector('[data-carousel-prev]')
+    const nextBtn = carousel.querySelector('[data-carousel-next]')
+    const currEl = carousel.querySelector('[data-carousel-current]')
+    const totEl = carousel.querySelector('[data-carousel-total]')
+
+    if (totEl) totEl.textContent = String(cards.length).padStart(2, '0')
+
+    const updateControls = () => {
+      const scrollLeft = track.scrollLeft
+      const cardWidth = cards[0]?.offsetWidth || 340
+      const current = Math.min(cards.length, Math.max(1, Math.round(scrollLeft / (cardWidth + 20)) + 1))
+      if (currEl) currEl.textContent = String(current).padStart(2, '0')
+      if (prevBtn) prevBtn.disabled = scrollLeft <= 10
+      if (nextBtn) nextBtn.disabled = scrollLeft >= track.scrollWidth - track.clientWidth - 10
+    }
+
+    prevBtn?.addEventListener('click', () => {
+      const cardWidth = cards[0]?.offsetWidth || 340
+      track.scrollBy({ left: -(cardWidth + 20) * 1.5, behavior: 'smooth' })
+    })
+
+    nextBtn?.addEventListener('click', () => {
+      const cardWidth = cards[0]?.offsetWidth || 340
+      track.scrollBy({ left: (cardWidth + 20) * 1.5, behavior: 'smooth' })
+    })
+
+    track.addEventListener('scroll', updateControls, { passive: true })
+    window.addEventListener('resize', updateControls)
+    updateControls()
+
+    cards.forEach((card, idx) => {
+      card.addEventListener('click', () => {
+        ensureLightbox()
+        activeCards = cards
+        lightbox._showSlide(idx)
+        lightbox.showModal()
+      })
     })
   })
 })()

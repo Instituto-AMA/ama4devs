@@ -110,40 +110,190 @@
             <section id="panel" aria-labelledby="panel-title">
               <h2 id="panel-title">The panel</h2>
               <p>Open <a href="http://localhost:3010">http://localhost:3010</a>. It speaks English and Portuguese and keeps no private routes: every action is the Cloud API call your application would make.</p>
-              <div class="gallery">
-                <figure class="shot wide">
-                  <img src="../../img/whatsapp/chat.jpg" width="1502" height="714" alt="A conversation with a template that has an image header, a formatted body, a footer and quick reply buttons." loading="lazy">
-                  <figcaption><strong>Conversations.</strong> Live WhatsApp Web interface where you act as the user on the other end: receive, read, reply and react.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/chat-buttons.jpg" width="1502" height="714" alt="Interactive message with buttons and quick replies." loading="lazy">
-                  <figcaption><strong>Interactive templates.</strong> Quick reply buttons, call-to-actions, header media, URL links and formatted copy.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/templates.jpg" width="1502" height="714" alt="Template builder: header formats, body with examples, footer, buttons and carousel, next to a phone that draws the template." loading="lazy">
-                  <figcaption><strong>Template builder.</strong> Header (text, image, video, document, location), body with examples, footer, buttons and carousel.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/webhooks.jpg" width="1502" height="714" alt="Webhook configuration in the panel." loading="lazy">
-                  <figcaption><strong>Webhook settings.</strong> Configure destination endpoint, verify token and test HMAC signature delivery.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/events.jpg" width="1502" height="714" alt="Realtime event logs and status updates." loading="lazy">
-                  <figcaption><strong>Events & deliveries.</strong> Live event queue showing webhook payloads, timestamps and response codes.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/numbers.jpg" width="1502" height="714" alt="Accounts and numbers: a new number with the SMS code Meta would send and the steps to verify and register it." loading="lazy">
-                  <figcaption><strong>Accounts and numbers.</strong> Create a number, receive the code, verify, register with a PIN, turn calling on.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/call.jpg" width="1502" height="714" alt="Call screen with the timer, mute and end buttons." loading="lazy">
-                  <figcaption><strong>Voice calls.</strong> Real WebRTC audio with your microphone, from either side.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/whatsapp/api.jpg" width="1502" height="714" alt="API reference in the panel: every operation of the Cloud API with a ready curl and a table of contents." loading="lazy">
-                  <figcaption><strong>API tab.</strong> Every operation of the Cloud API v23.0 with a curl ready to copy.</figcaption>
-                </figure>
+              <div class="carousel-section" data-carousel>
+                <div class="carousel-header-bar">
+                  <div class="carousel-counter">
+                    <span class="curr" data-carousel-current>01</span>
+                    <span class="sep">/</span>
+                    <span class="tot" data-carousel-total>15</span>
+                  </div>
+                  <div class="carousel-nav">
+                    <button type="button" class="carousel-arrow" data-carousel-prev aria-label="Previous slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="carousel-arrow" data-carousel-next aria-label="Next slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="carousel-track" data-carousel-track>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat.jpg" width="1502" height="714" alt="Interactive WhatsApp Web interface in the simulator." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Chat</span>
+                      <h3 class="card-title">Live WhatsApp Web</h3>
+                      <p class="card-desc">Active customer conversation with billing templates, payment links, and delivery receipts.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat-call.jpg" width="1502" height="714" alt="WebRTC voice call simulation." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Voice / WebRTC</span>
+                      <h3 class="card-title">WebRTC Voice Calling</h3>
+                      <p class="card-desc">Full in-browser voice call simulation with audio, avatar, ringing animations, and controls.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat-voice.jpg" width="1502" height="714" alt="Voice notes and quick replies in the chat." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Audio Notes</span>
+                      <h3 class="card-title">Voice Audio & Quick Replies</h3>
+                      <p class="card-desc">Voice notes with playable waveform, audio duration, and interactive quick reply pills.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat-new.jpg" width="1502" height="714" alt="New conversation dialog." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Simulation</span>
+                      <h3 class="card-title">New Conversation Modal</h3>
+                      <p class="card-desc">Start conversations as any user, sending text, documents, or media attachments directly to your app.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat-menu.jpg" width="1502" height="714" alt="Message status context menu." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Receipts</span>
+                      <h3 class="card-title">Message Status Simulator</h3>
+                      <p class="card-desc">Manually simulate delivery progression: mark as sent, delivered, read, or delivery failure.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/chat-rafael.jpg" width="1502" height="714" alt="Interactive call permissions and call duration history." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Permissions</span>
+                      <h3 class="card-title">Permissions & Calls</h3>
+                      <p class="card-desc">Interactive call permissions and call duration event logs tracked directly in the chat timeline.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/whatsapp/tools-delivery.jpg" width="1502" height="714" alt="Delivery engine settings in the panel." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Delivery Mode</span>
+                      <h3 class="card-title">Delivery Engine Settings</h3>
+                      <p class="card-desc">Switch between automatic status advancement (sent → delivered → read) and manual simulation mode.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                    <img src="../../img/whatsapp/tools-webhooks.jpg" width="1502" height="714" alt="Webhook configuration in the panel." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Webhooks</span>
+                    <h3 class="card-title">Webhook Destinations</h3>
+                    <p class="card-desc">Map clinic numbers to endpoints, test HMAC verification, or toggle verification skip for rapid dev.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-events.jpg" width="1502" height="714" alt="Realtime event logs and status updates." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Event Stream</span>
+                    <h3 class="card-title">Webhook Deliveries Queue</h3>
+                    <p class="card-desc">Stream of outbound webhook deliveries with HTTP response codes, timing, and response delay knobs.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-event-detail.jpg" width="1502" height="714" alt="Webhook event JSON payload inspection." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Payload Inspection</span>
+                    <h3 class="card-title">Cloud API Event JSON</h3>
+                    <p class="card-desc">Expand any delivery to inspect the exact Meta Cloud API JSON structure, pricing model, and IDs.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-templates.jpg" width="1502" height="714" alt="The template catalog in the panel." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Templates</span>
+                    <h3 class="card-title">Known Template Catalog</h3>
+                    <p class="card-desc">WhatsApp templates library with APPROVED/REJECTED status chips and category badges.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-template-editor.jpg" width="1502" height="714" alt="Template builder and phone preview." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Designer</span>
+                    <h3 class="card-title">Template Builder & Preview</h3>
+                    <p class="card-desc">Create and edit templates with headers, body variables <code>{{1}}</code>, buttons, and live phone preview.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-template-carousel.jpg" width="1502" height="714" alt="Marketing carousel cards template preview." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Carousel Cards</span>
+                    <h3 class="card-title">Marketing Cards Carousel</h3>
+                    <p class="card-desc">Preview multi-card interactive carousel templates directly on the simulated phone screen.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-numbers.jpg" width="1502" height="714" alt="Accounts and numbers in the panel." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Phone Numbers</span>
+                    <h3 class="card-title">Business Numbers & WABAs</h3>
+                    <p class="card-desc">Manage Meta Business Accounts, WABAs, phone IDs, verification status, and quality ratings.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../img/whatsapp/tools-api.jpg" width="1502" height="714" alt="Meta Graph API interactive console." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">API Reference</span>
+                    <h3 class="card-title">Meta Graph API Reference</h3>
+                    <p class="card-desc">Interactive v23.0 specification reference with cURL examples and stateful operation docs.</p>
+                  </div>
+                </article>
               </div>
+            </div>
             </section>
 
             <section id="templates" aria-labelledby="templates-title">

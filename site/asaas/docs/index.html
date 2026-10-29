@@ -111,67 +111,189 @@
             <section id="panel" aria-labelledby="panel-title">
               <h2 id="panel-title">The panel</h2>
               <p>Open <a href="http://localhost:45445">http://localhost:45445</a>. It is not the Asaas dashboard: it is the simulator's, and it shows what Asaas does not let you see.</p>
-              <div class="gallery">
-                <figure class="shot wide">
-                  <img src="../../img/asaas/dashboard.jpg" width="1502" height="714" alt="The simulator's dashboard: received, confirmed, pending and overdue charges with their totals, test cards and the account's wallet and API key." loading="lazy">
-                  <figcaption><strong>Dashboard.</strong> Charges by status with their totals, the test cards and the account's wallet and key.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/customers.jpg" width="1502" height="714" alt="Customers list in the panel." loading="lazy">
-                  <figcaption><strong>Customers.</strong> Manage payer profiles, CPF/CNPJ, contacts and billing history.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/customer-create.jpg" width="1502" height="714" alt="Create new customer dialog." loading="lazy">
-                  <figcaption><strong>Create customer.</strong> Instant customer registration with complete input validation.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/charges.jpg" width="1502" height="771" alt="The charges list with single charges and installments, their status, customer, billing type, value and due date." loading="lazy">
-                  <figcaption><strong>Charges.</strong> Single charges, installments and subscriptions; real-time status tracker.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/charge-create.jpg" width="1502" height="714" alt="Create new charge dialog." loading="lazy">
-                  <figcaption><strong>Create charge.</strong> Configure customer, amount, due date, billing type (Pix, Boleto, Card).</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/invoice-view.jpg" width="1502" height="714" alt="The public invoice page the payer opens." loading="lazy">
-                  <figcaption><strong>Invoice page.</strong> What the payer opens at <code>invoiceUrl</code>: live payment simulation options.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="The invoice page the payer opens: value, due date, description and the Pix QR code with copy and paste." loading="lazy">
-                  <figcaption><strong>Pix QR Code.</strong> Scannable EMV BR Code with copy-and-paste payload.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Boleto tab with digitable line." loading="lazy">
-                  <figcaption><strong>Bank slip (Boleto).</strong> Printable layout with standard 47-digit line and barcode.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/webhooks.jpg" width="1502" height="714" alt="Webhooks configuration." loading="lazy">
-                  <figcaption><strong>Webhooks.</strong> Endpoint URLs, authentication token, and queue status controls.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/webhook-create.jpg" width="1502" height="714" alt="Create webhook configuration dialog." loading="lazy">
-                  <figcaption><strong>Create webhook.</strong> Subscribe to payment, transfer, and customer events.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/webhook-logs.jpg" width="1502" height="714" alt="Webhook delivery logs." loading="lazy">
-                  <figcaption><strong>Webhook logs.</strong> History of delivered events, request payloads and endpoint responses.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/request-logs.jpg" width="1502" height="714" alt="API request logs." loading="lazy">
-                  <figcaption><strong>Request logs.</strong> Full inspection of calls to <code>/v3</code>, parameters and status codes.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/clock.jpg" width="1502" height="714" alt="Virtual clock control." loading="lazy">
-                  <figcaption><strong>Virtual clock.</strong> Advance time by days or months to observe automatic charge state transitions.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/test-cards.jpg" width="1502" height="714" alt="Test credit cards table." loading="lazy">
-                  <figcaption><strong>Test cards.</strong> Pre-set numbers for approved, declined, stolen or insufficient limit flows.</figcaption>
-                </figure>
-                <figure class="shot">
-                  <img src="../../img/asaas/statement.jpg" width="1502" height="714" alt="Account financial statement." loading="lazy">
-                  <figcaption><strong>Financial statement.</strong> Ledger entries, fee deductions, and reconciled account balance.</figcaption>
-                </figure>
+              <div class="carousel-section" data-carousel>
+                <div class="carousel-header-bar">
+                  <div class="carousel-counter">
+                    <span class="curr" data-carousel-current>01</span>
+                    <span class="sep">/</span>
+                    <span class="tot" data-carousel-total>15</span>
+                  </div>
+                  <div class="carousel-nav">
+                    <button type="button" class="carousel-arrow" data-carousel-prev aria-label="Previous slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="carousel-arrow" data-carousel-next aria-label="Next slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="carousel-track" data-carousel-track>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/dashboard.jpg" width="1502" height="714" alt="The simulator's dashboard: received, confirmed, pending and overdue charges with their totals, test cards and the account's wallet and API key." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Dashboard</span>
+                      <h3 class="card-title">Overview</h3>
+                      <p class="card-desc">Charges by status with their totals, test cards and the account's wallet and key.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/customers.jpg" width="1502" height="714" alt="Customers list in the panel." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Customers</span>
+                      <h3 class="card-title">Customers</h3>
+                      <p class="card-desc">Manage payer profiles, CPF/CNPJ, contacts and billing history.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/customer-create.jpg" width="1502" height="714" alt="Create new customer dialog." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Registration</span>
+                      <h3 class="card-title">Create Customer</h3>
+                      <p class="card-desc">Instant customer registration with complete input validation.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/charges.jpg" width="1502" height="771" alt="The charges list with single charges and installments, their status, customer, billing type, value and due date." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Billing</span>
+                      <h3 class="card-title">Charges & Invoices</h3>
+                      <p class="card-desc">Single charges, installments and subscriptions; real-time status tracker.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/charge-create.jpg" width="1502" height="714" alt="Create new charge dialog." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Issuance</span>
+                      <h3 class="card-title">Create Charge</h3>
+                      <p class="card-desc">Configure customer, amount, due date, billing type (Pix, Boleto, Card).</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/invoice-view.jpg" width="1502" height="714" alt="The public invoice page the payer opens." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Payer</span>
+                      <h3 class="card-title">Invoice Page</h3>
+                      <p class="card-desc">What the payer opens at <code>invoiceUrl</code>: live payment simulation options.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="The invoice page the payer opens: value, due date, description and the Pix QR code with copy and paste." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Pix</span>
+                      <h3 class="card-title">Pix QR Code</h3>
+                      <p class="card-desc">Scannable EMV BR Code with copy-and-paste payload.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Boleto tab with digitable line." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Boleto</span>
+                      <h3 class="card-title">Bank Slip (Boleto)</h3>
+                      <p class="card-desc">Printable layout with standard 47-digit line and barcode.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/webhooks.jpg" width="1502" height="714" alt="Webhooks configuration." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Webhooks</span>
+                      <h3 class="card-title">Webhooks</h3>
+                      <p class="card-desc">Endpoint URLs, authentication token, and queue status controls.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/webhook-create.jpg" width="1502" height="714" alt="Create webhook configuration dialog." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Integrations</span>
+                      <h3 class="card-title">Create Webhook</h3>
+                      <p class="card-desc">Subscribe to payment, transfer, and customer events.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/webhook-logs.jpg" width="1502" height="714" alt="Webhook delivery logs." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Deliveries</span>
+                      <h3 class="card-title">Webhook Logs</h3>
+                      <p class="card-desc">History of delivered events, request payloads and endpoint responses.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/request-logs.jpg" width="1502" height="714" alt="API request logs." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Audit</span>
+                      <h3 class="card-title">Request Logs</h3>
+                      <p class="card-desc">Full inspection of calls to <code>/v3</code>, parameters and status codes.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/clock.jpg" width="1502" height="714" alt="Virtual clock control." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Simulation</span>
+                      <h3 class="card-title">Virtual Clock</h3>
+                      <p class="card-desc">Advance time by days or months to observe automatic charge state transitions.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/test-cards.jpg" width="1502" height="714" alt="Test credit cards table." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Testing</span>
+                      <h3 class="card-title">Test Cards</h3>
+                      <p class="card-desc">Pre-set numbers for approved, declined, stolen or insufficient limit flows.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../img/asaas/statement.jpg" width="1502" height="714" alt="Account financial statement." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Ledger</span>
+                      <h3 class="card-title">Financial Statement</h3>
+                      <p class="card-desc">Ledger entries, fee deductions, and reconciled account balance.</p>
+                    </div>
+                  </article>
+                </div>
               </div>
               <ul>
                 <li><strong>Customers</strong>: create, edit, remove and restore; open one to see everything billed to it.</li>
