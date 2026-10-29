@@ -83,7 +83,7 @@
   color: var(--ink);
   background: var(--key-face);
   border-radius: 8px;
-  box-shadow: 0 3px 0 #b9bab3, 0 5px 10px -6px #00000066;
+  box-shadow: 0 3px 0 #b9bab3, 0 5px 10px -6px color-mix(in srgb, var(--ink) 40%, transparent);
   transition: transform 60ms steps(2), box-shadow 60ms steps(2);
   pointer-events: none;
 }
@@ -94,17 +94,17 @@
   flex: none;
   border-radius: 50%;
   background: var(--paper-rule);
-  box-shadow: inset 0 1px 1px #00000040;
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--ink) 25%, transparent);
 }
 .pg-keyrow input:hover + span { filter: brightness(1.03); }
 .pg-keyrow input:checked + span {
   transform: translateY(3px);
-  box-shadow: 0 0 0 #b9bab3, inset 0 1px 3px #0000002e;
+  box-shadow: 0 0 0 #b9bab3, inset 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
   background: var(--paper-band);
 }
 .pg-keyrow input:checked + span::before {
   background: var(--key-confirm);
-  box-shadow: 0 0 0 2px #17804a33, 0 0 6px 1px #17804a99;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--key-confirm) 20%, transparent), 0 0 6px 1px color-mix(in srgb, var(--key-confirm) 60%, transparent);
 }
 .pg-keyrow input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 3px; }
 
@@ -169,7 +169,7 @@
 .pg-slip {
   position: fixed;
   z-index: 60;
-  filter: drop-shadow(0 14px 18px #00000047) drop-shadow(0 2px 2px #00000026);
+  filter: drop-shadow(0 14px 18px color-mix(in srgb, var(--ink) 28%, transparent)) drop-shadow(0 2px 2px color-mix(in srgb, var(--ink) 15%, transparent));
 }
 .pg-paper {
   --edge: 10px;
@@ -231,7 +231,7 @@
   margin-top: -3.5px;
   border-radius: 50%;
   background: var(--key-confirm);
-  box-shadow: 0 0 6px 1px #17804a99;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--key-confirm) 60%, transparent);
 }
 .pg-list:focus-visible li.is-active { outline: 2px solid var(--ink); outline-offset: -2px; }
 
