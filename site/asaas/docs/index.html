@@ -106,7 +106,8 @@
                 <li>Nothing to wire, however it runs (bun, <code>docker run</code>, your compose, <code>make setup</code>): Mailpit and the WhatsApp mock are found by themselves, by compose service name, on this machine or on the Docker host, on boot and every 10 s, the closest one first. The address the WhatsApp mock calls back on is found the same way: the first one it verifies is kept.</li>
                 <li>The <a href="../../generator/">generator</a> is found the same way (service <code>generator</code> or <code>generator-mock</code>, port 45450, on boot and every 10 s): while reachable, the panel's <strong>Integrações › Gerador</strong> tab lets you open it or populate the selected account with customers, charges, and confirmed payments.</li>
                 <li>Everything comes up configured: on boot and on every tick, the sender number gets this server's webhook and the payer templates are created in the WhatsApp mock, through Meta's own calls.</li>
-                <li>The customer's <code>notificationDisabled</code> and notification settings are honored, a failing channel never blocks the charge, and the panel resends on demand.</li>
+                <li>Every customer is born with Asaas's eight default notification settings (<code>GET /v3/customers/{id}/notifications</code>, changed with <code>PUT /v3/notifications/batch</code>), with e-mail, SMS and WhatsApp all on here (Asaas starts WhatsApp off). The due-date warning goes out N days before (10 by default) and on the due day; an overdue charge is told again every N days (7 by default) while unpaid; a subscription's charge is not told on creation.</li>
+                <li>The customer's <code>notificationDisabled</code> and each setting are honored, a failing channel never blocks the charge, and the panel resends on demand.</li>
               </ul>
             </section>
 

@@ -113,8 +113,14 @@ What Asaas tells the person who pays, delivered for real on your machine:
 - Everything comes up configured: on boot and on every tick the sender number
   gets this server's webhook and the payer templates are created in the
   WhatsApp mock, through Meta's own calls.
-- The customer's `notificationDisabled` and notification settings are honored,
-  a failing channel never blocks the charge, and the panel resends on demand.
+- Every customer is born with Asaas's eight default notification settings
+  (`GET /v3/customers/{id}/notifications`, changed with `PUT /v3/notifications/batch`),
+  with e-mail, SMS and WhatsApp all on here (Asaas starts WhatsApp off). The
+  due-date warning goes out N days before (10 by default) and on the due day; an
+  overdue charge is told again every N days (7 by default) while unpaid; a
+  subscription's charge is not told on creation.
+- The customer's `notificationDisabled` and each setting are honored, a failing
+  channel never blocks the charge, and the panel resends on demand.
 
 </td>
 </tr>

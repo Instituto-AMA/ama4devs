@@ -3,11 +3,12 @@
  * transaction (the emitter calls it next to the webhook fan-out).
  *
  * Which channels: those whose address is known, set or found (discovery.ts), for a
- * customer whose notifications are on, by the customer's notification settings
- * for the event when there are any, both channels otherwise. A forced send (the
- * panel's "Enviar agora") names its channels and skips the settings.
+ * customer whose notifications are on, by the customer's notification setting for
+ * the event at that offset (settings.ts; no such row, or the row off, sends
+ * nothing). A forced send (the panel's "Enviar agora") names its channels and
+ * skips the settings.
  */
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { Config } from '../core/config.ts'
 import type { Clock } from '../core/clock.ts'
 import type { Rng } from '../core/rng.ts'
@@ -18,7 +19,6 @@ import {
   customers,
   installments,
   notificationDeliveries,
-  notifications,
   payments,
 } from '../db/schema/index.ts'
 import {
@@ -28,6 +28,7 @@ import {
   type NotifiableEvent,
 } from '../domain/notification-text.ts'
 import { channelOffReason } from './channels.ts'
+import { ensureCustomerNotifications } from './settings.ts'
 
 export type Channel = 'EMAIL' | 'WHATSAPP'
 
@@ -45,6 +46,7 @@ export interface PaymentFacts {
   dueDate: string
   invoiceUrl: string
   description?: string | null
+  subscription?: string | null
 }
 
 export async function enqueuePaymentNotifications(
@@ -54,6 +56,11 @@ export async function enqueuePaymentNotifications(
     accountId: string
     event: NotifiableEvent
     payment: PaymentFacts
+    /**
+     * Which of the event's settings speaks: the days before the due date of a
+     * PAYMENT_DUEDATE_WARNING, the repeat of a PAYMENT_OVERDUE. 0 when absent.
+     */
+    scheduleOffset?: number
     /** Forced from the panel: these channels, whatever the settings. */
     forced?: Channel[]
   },
@@ -108,13 +115,15 @@ export async function enqueuePaymentNotifications(
 
   if (!args.forced) {
     if (customer.notificationDisabled) return 0
-    const [setting] = await tx
-      .select()
-      .from(notifications)
-      .where(and(eq(notifications.customerId, customer.id), eq(notifications.event, args.event), eq(notifications.deleted, false)))
-      .limit(1)
-    const email = setting ? setting.enabled && setting.emailEnabledForCustomer : true
-    const whatsapp = setting ? setting.enabled && setting.whatsappEnabledForCustomer : true
+    // Asaas tells a new charge, except a subscription's.
+    if (args.event === 'PAYMENT_CREATED' && args.payment.subscription) return 0
+    const offset = args.scheduleOffset ?? 0
+    const setting = (await ensureCustomerNotifications(tx, deps.rng, customer.id)).find(
+      (n) => n.event === args.event && n.scheduleOffset === offset,
+    )
+    if (!setting?.enabled) return 0
+    const email = setting.emailEnabledForCustomer
+    const whatsapp = setting.whatsappEnabledForCustomer
     channels = []
     if (email && mailpitUrl) channels.push('EMAIL')
     if (whatsapp && whatsappUrl) channels.push('WHATSAPP')

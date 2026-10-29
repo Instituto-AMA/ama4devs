@@ -1,22 +1,21 @@
 /**
- * Track G1 — Notification (2 operações).
+ * Track G1 — Notification (3 operations: the customer's list and the two PUTs).
  *
- * As notificações NÃO são criadas por este módulo: elas nascem junto com o
- * cliente (uma por evento notificável) e só podem ser ATUALIZADAS. É por isso que
- * a tag só tem PUT.
+ * Notifications are NOT created by this module: they are born with the customer
+ * (the eight defaults, notify/settings.ts) and can only be READ and UPDATED.
  *
- * `notifications` não tem `account_id` — a dona é a conta do CLIENTE. Todo acesso
- * passa por um join com `customers`, senão o isolamento entre contas vazaria pelo
- * id da notificação, que é adivinhável.
+ * `notifications` has no `account_id`: the owner is the CUSTOMER's account. Every
+ * access joins `customers`, or the isolation between accounts would leak through
+ * the notification id, which is guessable.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
 import { invalid, notFound } from '../../core/errors.ts'
+import { listEnvelope, paginationParams } from '../../core/pagination.ts'
 import { customers } from '../../db/schema/customers.ts'
 import { notifications } from '../../db/schema/misc.ts'
 import type { HandlerMap } from '../../http/register.ts'
-
-type NotificationRow = typeof notifications.$inferSelect
+import { ensureCustomerNotifications, type NotificationRow } from '../../notify/settings.ts'
 
 const SCHEDULE_OFFSETS = new Set([0, 1, 5, 7, 10, 15, 30])
 
@@ -48,7 +47,7 @@ function serialize(row: NotificationRow, customerId: string) {
   }
 }
 
-/** Extrai o patch do body, validando o que o TypeBox não valida. */
+/** Takes the patch out of the body, validating what TypeBox does not. */
 function buildPatch(body: Record<string, unknown>): Partial<NotificationRow> {
   const patch: Partial<NotificationRow> = {}
 
@@ -74,8 +73,8 @@ function buildPatch(body: Record<string, unknown>): Partial<NotificationRow> {
 }
 
 /**
- * A notificação existe E pertence a um cliente DESTA conta. As duas coisas na
- * mesma consulta — a segunda é o isolamento.
+ * The notification exists AND belongs to a customer of THIS account. Both in the
+ * same query: the second is the isolation.
  */
 async function loadNotification(
   ctx: AppContext,
@@ -93,18 +92,30 @@ async function loadNotification(
   return row
 }
 
-async function customerNotifications(
-  ctx: AppContext,
-  customerId: string,
-): Promise<NotificationRow[]> {
-  return ctx.db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.customerId, customerId))
-    .orderBy(asc(notifications.id))
+/** The customer, when it belongs to this account (the id is guessable). */
+async function ownCustomer(ctx: AppContext, accountId: string, id: string): Promise<string> {
+  const [customer] = await ctx.db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.id, id), eq(customers.accountId, accountId)))
+    .limit(1)
+  if (!customer) throw notFound('Cliente')
+  return customer.id
 }
 
 export const notificationHandlers: HandlerMap = {
+  'retrieve-notifications-from-a-customer': async ({ ctx, auth, params, query }) => {
+    const { limit, offset } = paginationParams(query)
+    const customerId = await ownCustomer(ctx, auth.accountId, params.id!)
+    const rows = await ensureCustomerNotifications(ctx.db, ctx.rng, customerId)
+    return listEnvelope(
+      rows.slice(offset, offset + limit).map((r) => serialize(r, customerId)),
+      rows.length,
+      limit,
+      offset,
+    )
+  },
+
   'update-existing-notification': async ({ ctx, auth, params, body }) => {
     const { notification, customerId } = await loadNotification(
       ctx,
@@ -127,14 +138,9 @@ export const notificationHandlers: HandlerMap = {
       throw invalid('customer', 'O cliente é obrigatório.')
     }
 
-    // O cliente precisa ser DESTA conta — o id de cliente é adivinhável.
-    const [customer] = await ctx.db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(and(eq(customers.id, b.customer), eq(customers.accountId, auth.accountId)))
-      .limit(1)
-
-    if (!customer) throw notFound('Cliente')
+    // The customer must belong to THIS account: customer ids are guessable.
+    const customer = { id: await ownCustomer(ctx, auth.accountId, b.customer) }
+    await ensureCustomerNotifications(ctx.db, ctx.rng, customer.id)
 
     const items = (b.notifications ?? []) as Record<string, unknown>[]
     const ids = items.map((n) => String(n.id ?? ''))
@@ -144,8 +150,8 @@ export const notificationHandlers: HandlerMap = {
     }
 
     if (ids.length > 0) {
-      // Todas as notificações do lote têm que ser DESTE cliente. Um lote parcial
-      // aplicado pela metade é pior que um lote recusado.
+      // Every notification of the batch must be THIS customer's. A batch applied
+      // halfway is worse than a refused batch.
       const owned = await ctx.db
         .select({ id: notifications.id })
         .from(notifications)
@@ -167,7 +173,7 @@ export const notificationHandlers: HandlerMap = {
       }
     }
 
-    const rows = await customerNotifications(ctx, customer.id)
+    const rows = await ensureCustomerNotifications(ctx.db, ctx.rng, customer.id)
     return { notifications: rows.map((r) => serialize(r, customer.id)) }
   },
 }

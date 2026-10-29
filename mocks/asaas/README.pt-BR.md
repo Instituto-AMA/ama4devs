@@ -116,9 +116,14 @@ O que o Asaas avisa a quem paga, entregue de verdade na sua máquina:
   responder `service: "generator"` no `GET /health`, liberando a aba
   **Integrações › Gerador** no painel para popular a conta selecionada na
   barra superior com pessoas, empresas e cobranças em um clique.
-- O `notificationDisabled` do cliente e as configurações de notificação são
-  respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia
-  quando você pede.
+- Todo cliente nasce com as oito notificações padrão do Asaas
+  (`GET /v3/customers/{id}/notifications`, alteradas com `PUT /v3/notifications/batch`),
+  aqui com e-mail, SMS e WhatsApp ligados (o Asaas começa com o WhatsApp
+  desligado). O aviso de vencimento sai N dias antes (10 por padrão) e no dia do
+  vencimento; a cobrança vencida é avisada de novo a cada N dias (7 por padrão)
+  enquanto não é paga; a cobrança de assinatura não é avisada na criação.
+- O `notificationDisabled` do cliente e cada configuração são respeitados, um
+  canal com falha nunca trava a cobrança, e o painel reenvia quando você pede.
 
 </td>
 </tr>

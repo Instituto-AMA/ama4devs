@@ -1,14 +1,14 @@
 /**
- * A lista de jobs, NA ORDEM em que rodam. A ordem é semântica — leia o comentário
- * de cada um antes de mexer.
+ * The jobs, IN THE ORDER they run. The order carries meaning: read each one's
+ * comment before changing it.
  *
- * Na Fase 0 os jobs existem mas não fazem nada: cada track preenche o seu. O que
- * já está de pé é a espinha (mutex, idempotência por dia simulado, TickReport),
- * que é o que os tracks precisam para não colidir.
+ * The scheduler's spine (mutex, once-per-simulated-day idempotency, TickReport)
+ * is what keeps the jobs from colliding.
  */
 import type { Job } from '../scheduler.ts'
 import { anticipationSettlement } from './anticipation-jobs.ts'
 import { invoiceIssuing } from './invoice-jobs.ts'
+import { paymentNotices } from './notice-jobs.ts'
 import { cardCapture, creditSettlement, overdue } from './payment-jobs.ts'
 import { retentionPurge } from './retention-purge.ts'
 import { splitDivergenceExpiry, splitRelease } from './split-jobs.ts'
@@ -17,15 +17,15 @@ import { transferSettlement } from './transfer-jobs.ts'
 import { webhookDispatch } from './webhook-dispatch.ts'
 
 /**
- * 1. Gera as cobranças das assinaturas cujo nextDueDate entrou na janela de
- *    lookahead (padrão: 40 dias). Roda PRIMEIRO para que uma cobrança gerada
- *    hoje já possa ser avaliada pelos jobs seguintes.
+ * 1. Creates the charges of the subscriptions whose nextDueDate entered the
+ *    lookahead window (default: 40 days). Runs FIRST so a charge created today
+ *    is already seen by the jobs after it.
  *    → Track E — src/scheduler/jobs/subscription-jobs.ts
  */
 export { subscriptionGeneration }
 
 /**
- * 2. PENDING com dueDate < hoje → OVERDUE. A partir daqui juros e multa correm.
+ * 2. PENDING with dueDate < today → OVERDUE. From here on interest and fine run.
  *    → Track A — src/scheduler/jobs/payment-jobs.ts
  */
 export { cardCapture }
@@ -33,71 +33,82 @@ export { cardCapture }
 export { overdue }
 
 /**
- * 3. CONFIRMED com creditDate <= hoje → RECEIVED. É aqui que o dinheiro vira
- *    saldo: lança PAYMENT_RECEIVED (+bruto) e PAYMENT_FEE (−taxa) no ledger.
- *    Pix pula esta etapa (vai direto a RECEIVED); cartão chega aqui em D+32.
+ * 2b. The payer notices that fall on a calendar day: the warning N days before
+ *    the due date and the repeat of an overdue charge. After `overdue`, so a
+ *    charge that went overdue today already counts as overdue; before
+ *    `webhook-dispatch`, which delivers the notifications.
+ *    → src/scheduler/jobs/notice-jobs.ts
+ */
+export { paymentNotices }
+
+/**
+ * 3. CONFIRMED with creditDate <= today → RECEIVED. This is where money becomes
+ *    balance: posts PAYMENT_RECEIVED (+gross) and PAYMENT_FEE (−fee) to the
+ *    ledger. Pix skips this step (straight to RECEIVED); a card lands here at D+32.
  *    → Track A — src/scheduler/jobs/payment-jobs.ts
  */
 export { creditSettlement }
 
 /**
- * 4. Splits AWAITING_CREDIT de cobranças já creditadas → DONE. Move o dinheiro
- *    entre contas e lança nos DOIS extratos. Roda depois do crédito porque só
- *    existe split do que já entrou.
+ * 4. AWAITING_CREDIT splits of credited charges → DONE. Moves the money between
+ *    accounts and posts to BOTH statements. Runs after the credit because only
+ *    money that came in can be split.
  *    → Track F — src/scheduler/jobs/split-jobs.ts
  */
 export { splitRelease }
 
 /**
- * 5. Splits BLOCKED_BY_VALUE_DIVERGENCE cujo prazo de ajuste (2 dias úteis)
- *    expirou → CANCELLED com cancellationReason VALUE_DIVERGENCE_BLOCK.
+ * 5. BLOCKED_BY_VALUE_DIVERGENCE splits whose adjustment deadline (2 business
+ *    days) expired → CANCELLED with cancellationReason VALUE_DIVERGENCE_BLOCK.
  *    → Track F — src/scheduler/jobs/split-jobs.ts
  */
 export { splitDivergenceExpiry }
 
 /**
- * 6. Antecipações SCHEDULED cuja data chegou → CREDITED; e o débito na
- *    liquidação do recebível original. Roda DEPOIS do crédito: o débito da
- *    antecipação só faz sentido depois que o recebível original entrou.
+ * 6. SCHEDULED anticipations whose date arrived → CREDITED; and the debit when
+ *    the original receivable settles. Runs AFTER the credit: the anticipation's
+ *    debit only makes sense once the original receivable came in.
  *    → Track D — src/scheduler/jobs/anticipation-jobs.ts
  */
 export { anticipationSettlement }
 
 /**
- * 7. Transferências PENDING → BANK_PROCESSING → DONE/FAILED, no dia útil.
+ * 7. Transfers PENDING → BANK_PROCESSING → DONE/FAILED, on the business day.
  *    → Track D — src/scheduler/jobs/transfer-jobs.ts
  */
 export { transferSettlement }
 
 /**
- * 7b. Notas fiscais: a prefeitura responde, a nota agendada vai para a prefeitura
- *     no dia, a assinatura com `invoiceSettings` ganha a nota de cada cobrança.
+ * 7b. Invoices (NFS-e): the city hall answers, a scheduled invoice goes to the
+ *     city hall on its day, a subscription with `invoiceSettings` gets an invoice
+ *     for each charge.
  *     → src/scheduler/jobs/invoice-jobs.ts
  */
 export { invoiceIssuing }
 
 /**
- * 8. Entrega os webhooks pendentes.
+ * 8. Delivers the pending webhooks.
  *
- *    RODA POR ÚLTIMO, e isso é deliberado: assim todos os eventos gerados pelos
- *    jobs acima já estão na fila e saem juntos, na ordem em que aconteceram.
- *    Se o dispatcher rodasse no meio, um advance() de 40 dias entregaria eventos
- *    do dia 1 antes de o dia 1 terminar de ser processado.
+ *    RUNS LAST, on purpose: every event the jobs above produced is already
+ *    queued and goes out together, in the order it happened. Were the
+ *    dispatcher to run in the middle, a 40-day advance() would deliver day 1's
+ *    events before day 1 finished processing.
  *    → Track B — src/scheduler/jobs/webhook-dispatch.ts
  */
 export { webhookDispatch }
 
 /**
- * 9. Expira entregas de webhook além da retenção (14 dias simulados).
+ * 9. Expires webhook deliveries past retention (14 simulated days).
  *    → Track B — src/scheduler/jobs/retention-purge.ts
  */
 export { retentionPurge }
 
-/** A ordem desta lista É a ordem de execução. */
+/** The order of this list IS the order of execution. */
 export const JOBS: Job[] = [
   subscriptionGeneration,
   cardCapture,
   overdue,
+  paymentNotices,
   creditSettlement,
   splitRelease,
   splitDivergenceExpiry,

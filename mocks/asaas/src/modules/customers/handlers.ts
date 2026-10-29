@@ -6,6 +6,7 @@ import type { HandlerMap } from '../../http/register.ts'
 import { customers } from '../../db/schema/index.ts'
 import { isValidCpfCnpj, isValidMobilePhone, personTypeOf } from '../../domain/cpf-cnpj.ts'
 import * as ids from '../../domain/ids.ts'
+import { ensureCustomerNotifications } from '../../notify/settings.ts'
 
 type CustomerRow = typeof customers.$inferSelect
 
@@ -48,7 +49,7 @@ async function findOwned(ctx: AppContext, auth: AuthContext, id: string): Promis
   const [row] = await ctx.db
     .select()
     .from(customers)
-    // Isolamento por conta: um cliente de outra conta simplesmente não existe.
+    // Account isolation: another account's customer simply does not exist.
     .where(and(eq(customers.id, id), eq(customers.accountId, auth.accountId)))
     .limit(1)
 
@@ -60,16 +61,16 @@ export const customerHandlers: HandlerMap = {
   'create-new-customer': async ({ ctx, auth, body }) => {
     const b = body as Record<string, any>
 
-    // O Asaas valida o dígito verificador de verdade. Um mock que aceita
-    // "11111111111" esconde um bug que só aparece em produção.
+    // Asaas really checks the check digit. A mock that accepts "11111111111"
+    // hides a bug that only shows up in production.
     //
-    // O código é `invalid_object`, NÃO `invalid_cpfCnpj` — parece errado, mas é
-    // exatamente o que o sandbox real devolve. Provado pela captura de paridade.
+    // The code is `invalid_object`, NOT `invalid_cpfCnpj`: it looks wrong, but it
+    // is exactly what the real sandbox answers. Proven by the parity capture.
     if (!isValidCpfCnpj(String(b.cpfCnpj ?? ''))) {
       throw badRequest('invalid_object', 'O CPF/CNPJ informado é inválido.')
     }
 
-    // O Asaas recusa celular com dígitos todos iguais (47999999999).
+    // Asaas refuses a mobile phone whose digits are all the same (47999999999).
     if (b.mobilePhone !== undefined && b.mobilePhone !== null && b.mobilePhone !== '') {
       if (!isValidMobilePhone(String(b.mobilePhone))) {
         throw invalid('mobilePhone', 'O celular informado é inválido.')
@@ -109,7 +110,9 @@ export const customerHandlers: HandlerMap = {
     }
 
     await ctx.db.insert(customers).values(row)
-    return serialize(row) // HTTP 200, não 201 — o Asaas nunca devolve 201.
+    // Asaas creates the customer's notification settings with it.
+    await ensureCustomerNotifications(ctx.db, ctx.rng, id)
+    return serialize(row) // HTTP 200, not 201: Asaas never answers 201.
   },
 
   'list-customers': async ({ ctx, auth, query }) => {
@@ -197,7 +200,7 @@ export const customerHandlers: HandlerMap = {
 
   'remove-customer': async ({ ctx, auth, params }) => {
     const existing = await findOwned(ctx, auth, params.id!)
-    // Remoção é lógica — dá para restaurar depois.
+    // Removal is logical: it can be restored later.
     await ctx.db.update(customers).set({ deleted: true }).where(eq(customers.id, existing.id))
     return { deleted: true, id: existing.id }
   },
