@@ -14,7 +14,10 @@
  * @property {(n: number) => string} digits `n` decimal digits.
  */
 
-/** FNV-1a over the seed's characters: the 32-bit state mulberry32 starts from. */
+/**
+ * FNV-1a over the seed's characters: the 32-bit state mulberry32 starts from.
+ * @param {string} seed
+ */
 function hashSeed(seed) {
   let h = 0x811c9dc5
   for (let i = 0; i < seed.length; i++) {

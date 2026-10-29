@@ -1,6 +1,5 @@
 // @ts-check
 /**
- * @typedef {import('./rng.js').Rng} Rng
  * @typedef {{ formatted?: boolean }} DocumentOptions
  */
 
@@ -22,7 +21,7 @@ function allSameDigit(value) {
 
 /**
  * `n` random digits, redrawn while they repeat the same digit.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {number} n
  * @returns {string}
  */
@@ -146,7 +145,7 @@ function formatRg(digits) {
 
 /**
  * A valid CPF: nine random digits plus the two check digits.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {DocumentOptions} [options]
  * @returns {string}
  */
@@ -158,7 +157,7 @@ export function cpf(rng, { formatted = false } = {}) {
 
 /**
  * A valid CNPJ: eight random digits, the `0001` branch plus the two check digits.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {DocumentOptions} [options]
  * @returns {string}
  */
@@ -171,7 +170,7 @@ export function cnpj(rng, { formatted = false } = {}) {
 /**
  * A valid CNH: nine random digits plus the two check digits. CNH has no mask,
  * so `formatted` answers the same eleven digits.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {DocumentOptions} [options]
  * @returns {string}
  */
@@ -183,7 +182,7 @@ export function cnh(rng, { formatted = false } = {}) {
 
 /**
  * A valid PIS/NIT: ten random digits plus the check digit.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {DocumentOptions} [options]
  * @returns {string}
  */
@@ -195,7 +194,7 @@ export function pis(rng, { formatted = false } = {}) {
 
 /**
  * A valid São Paulo RG: eight random digits plus the check digit.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {DocumentOptions} [options]
  * @returns {string}
  */

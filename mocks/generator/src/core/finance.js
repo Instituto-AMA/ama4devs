@@ -8,7 +8,6 @@
 import { cpf, cnpj } from './documents.js'
 import { MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, LAST_NAMES, BANKS, ACTIVITIES, EMAIL_DOMAINS } from './data.js'
 
-/** @typedef {import('./rng.js').Rng} Rng */
 
 /**
  * @typedef {object} CreditCard
@@ -37,11 +36,6 @@ import { MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, LAST_NAMES, BANKS, ACTIVITIES, EM
  * @typedef {object} PixKey
  * @property {PixKeyType} type
  * @property {string} key
- */
-
-/**
- * @typedef {object} Activity
- * @property {readonly string[]} products
  */
 
 /**
@@ -149,7 +143,7 @@ export function isLuhnValid(number) {
 /**
  * The holder name as the terminal prints it: the first and the last name, upper
  * case and without accents.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {'F' | 'M' | undefined} gender
  * @returns {string}
  */
@@ -164,7 +158,7 @@ function holderName(rng, gender) {
  * A card for a payment test. APPROVE and DECLINE are the two numbers the Asaas
  * sandbox answers with; RANDOM draws a brand and closes it with a Luhn digit.
  * The card expires between one and six years from `now`.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {{ outcome?: 'APPROVE' | 'DECLINE' | 'RANDOM', now?: Date | string, gender?: 'F' | 'M' }} [options]
  * @returns {CreditCard}
  */
@@ -204,7 +198,7 @@ export function creditCard(rng, { outcome = 'APPROVE', now = new Date(), gender 
 /**
  * A Brazilian bank account: the bank, the agency, the account and the digit
  * each of them carries. Four out of five accounts are a checking account.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @returns {BankAccount}
  */
 export function bankAccount(rng) {
@@ -223,7 +217,7 @@ export function bankAccount(rng) {
 /**
  * A UUID version 4 built from the rng: the version nibble is 4 and the variant
  * is one of 8, 9, a, b.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @returns {string}
  */
 function uuidV4(rng) {
@@ -238,7 +232,7 @@ function uuidV4(rng) {
 /**
  * A Pix key of the asked kind; the kind is drawn when it is not given. A phone
  * key carries the country code, the DDD, the nine and the subscriber digits.
- * @param {Rng} rng
+ * @param {import('./rng.js').Rng} rng
  * @param {{ type?: string }} [options]
  * @returns {PixKey}
  */
@@ -263,8 +257,8 @@ export function pixKey(rng, { type } = {}) {
 /**
  * A charge: the amount in cents and in reais, a due date between today and
  * thirty days ahead, and a reference the caller can search for.
- * @param {Rng} rng
- * @param {{ billingType?: string, minCents?: number, maxCents?: number, now?: Date | string, activity?: Activity }} [options]
+ * @param {import('./rng.js').Rng} rng
+ * @param {{ billingType?: string, minCents?: number, maxCents?: number, now?: Date | string, activity?: import('./data.js').Activity }} [options]
  * @returns {Charge}
  */
 export function charge(rng, { billingType, minCents = 1000, maxCents = 500000, now = new Date(), activity } = {}) {
