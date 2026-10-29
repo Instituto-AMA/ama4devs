@@ -62,6 +62,7 @@ import { WebhookEvent } from '../generated/enums.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 import { createKey, deleteKey, listKeys, rotateKey, updateKey } from './keys.ts'
+import { generatorStatus, populateThroughGenerator } from './generator.ts'
 import { createProfile, deleteProfile, seededDocuments } from './profiles.ts'
 
 /** Every event a webhook can subscribe to, in the spec's order. */
@@ -595,6 +596,39 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             paymentId: t.String(),
             event: t.Union(NOTIFIABLE_EVENTS.map((e) => t.Literal(e))),
             channels: t.Array(t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP')]), { minItems: 1 }),
+          }),
+        },
+      )
+
+      /**
+       * The generator of fake data: whether it answers, and where the browser
+       * opens it. Off it does not show in the panel.
+       */
+      .get('/generator/status', () => generatorStatus(ctx))
+
+      /**
+       * "Popular esta conta": the generator fills the account with customers and
+       * charges, through that account's own API key — the answer is the
+       * generator's, status and all.
+       */
+      .post(
+        '/generator/populate',
+        async ({ body, set }) => {
+          const result = await populateThroughGenerator(ctx, body)
+          set.status = result.status
+          return result.body
+        },
+        {
+          body: t.Object({
+            accountId: t.String(),
+            people: t.Optional(t.Number()),
+            companies: t.Optional(t.Number()),
+            chargesPerCustomer: t.Optional(t.Number()),
+            billingTypes: t.Optional(
+              t.Array(t.Union([t.Literal('PIX'), t.Literal('BOLETO'), t.Literal('CREDIT_CARD')])),
+            ),
+            confirm: t.Optional(t.Number()),
+            seed: t.Optional(t.String()),
           }),
         },
       )
