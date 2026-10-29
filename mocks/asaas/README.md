@@ -106,6 +106,10 @@ What Asaas tells the person who pays, delivered for real on your machine:
 - **An installment plan is told once**: the first installment's creation tells
   the whole plan (*R$ 3.000,00 em 5x de R$ 600,00*); reminders and payment
   notices stay per installment.
+- The [generator mock](../generator/) is found the same way: on boot and every 10 s
+  at `generator:45450` (or `generator-mock:45450`), on this machine and on the Docker
+  host; while reachable, the panel's **Integrações › Gerador** tab lets you open it or
+  populate the selected account with customers, charges, and confirmed payments.
 - Everything comes up configured: on boot and on every tick the sender number
   gets this server's webhook and the payer templates are created in the
   WhatsApp mock, through Meta's own calls.
@@ -144,7 +148,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
   virtual clock), webhooks (with the event checklist, through the real
   `/v3/webhooks`), request logs (every `/v3` call, with what went in and what
   came back, errors included), webhook logs with your endpoint's answer (and the
-  events no webhook took), and the e-mail and WhatsApp channels.
+  events no webhook took), the e-mail and WhatsApp channels, and the generator (Gerador).
 - **Test cards**: the table the engine reads; accept any well-formed card or
   only the listed ones; add a card with the outcome it forces.
 - **Profiles**: one root account per tenant of your application, created and
@@ -194,7 +198,9 @@ the gateway on Linux), on boot and every 10 s, and the closest one wins. The
 address the WhatsApp mock calls back on (delivery statuses, the payer's replies)
 is found the same way: each one this server may be reached on is offered, and
 the first the WhatsApp mock verifies is kept. A variable below pins a place;
-set empty, it turns that channel off.
+set empty, it turns that channel off. The [generator mock](../generator/)
+is found the same way (port 45450); while reachable, **Integrações › Gerador**
+lets you open it or populate the selected account.
 
 ## Configuration
 
@@ -208,6 +214,8 @@ set empty, it turns that channel off.
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Where `invoiceUrl` and `bankSlipUrl` point, as the browser reaches this server |
 | `MAILPIT_URL` | *(unset: found by itself)* | Mailpit for the payer e-mails; set empty, e-mail is off |
 | `WHATSAPP_MOCK_URL` | *(unset: found by itself)* | The WhatsApp mock for the payer templates; set empty, WhatsApp is off |
+| `GENERATOR_URL` | *(unset: found by itself)* | The generator mock for fake Brazilian data and account population; set empty, generator is off |
+| `GENERATOR_UI_URL` | `http://localhost:45450` | The generator screen, as the browser opens it from Integrations |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | The sender number in the WhatsApp mock |
 | `WHATSAPP_WABA_ID` | `100000000000001` | The WABA whose library holds the payer templates |
 | `NOTIFY_CALLBACK_BASE_URL` | *(unset: found by itself)* | This server as the WhatsApp mock reaches it |

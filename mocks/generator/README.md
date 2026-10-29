@@ -28,28 +28,20 @@ curl 'http://localhost:45450/v1/person?count=2&seed=demo'
 
 ### Docker Compose
 
-When running alongside the Asaas mock:
+In another project's compose, add a `generator` service next to `asaas`. Both find each other automatically by service name:
 
 ```yaml
-services:
   generator:
-    image: ghcr.io/instituto-ama/generator-mock:latest
+    image: ghcr.io/instituto-ama/generator-mock:0.1.0
     ports:
       - '45450:45450'
-    environment:
-      ASAAS_URL: http://asaas:45445
-      ASAAS_PANEL_URL: http://localhost:45445
-      ASAAS_SEED_ON_BOOT: people=5,companies=2,charges=2,confirm=0.5
     depends_on:
       - asaas
-
-  asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:latest
-    ports:
-      - '45445:45445'
 ```
 
-In this repository, running `make up` boots the generator along with the Asaas mock.
+When `ASAAS_URL` is unset, the generator discovers the Asaas mock on boot and every 10 s (`asaas`, `asaas-mock`, `localhost`, `host.docker.internal` on port 45445). So `docker run` of both, or both in any compose, needs no variable.
+
+In this repository, running `make up` boots the generator along with the Asaas mock (port 45450). Setting `GENERATOR_ENABLED=0` in `.env` keeps it down (`deploy.replicas`).
 
 ## API Endpoints
 
@@ -102,10 +94,14 @@ All synthetic data generated adheres to safety standards:
 
 ## Asaas Mock Population
 
-Populate the Asaas mock in a single HTTP call:
+Populate the Asaas mock in a single HTTP call, or directly from the Asaas panel.
+
+When both services run together, the Asaas mock discovers the generator automatically (probing `generator`, `generator-mock`, `localhost`, and the Docker host on port 45450 every 10 s). While connected, the Asaas panel (<http://localhost:45445>) displays an **Integrações › Gerador** tab showing status, "Abrir o gerador", and a "Popular esta conta" button that seeds the account selected in the topbar via `POST /_admin/generator/populate`. If the generator is unreachable or turned off, the tab does not exist.
+
+You can also call the generator endpoint directly:
 
 ```bash
-curl -X POST http://localhost:454450/_mock/asaas/populate \
+curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{
     "people": 5,
@@ -113,19 +109,21 @@ curl -X POST http://localhost:454450/_mock/asaas/populate \
     "chargesPerCustomer": 2,
     "billingTypes": ["PIX", "BOLETO", "CREDIT_CARD"],
     "confirm": 0.5,
-    "seed": "demo"
+    "seed": "demo",
+    "apiKey": "$aact_hmlg_..."
   }'
 ```
 
 ### How it works
-1. **Creates Customers:** Calls `POST /v3/customers` on the Asaas mock for each person and company generated.
-2. **Creates Payments:** Calls `POST /v3/payments` for each customer according to `chargesPerCustomer` and `billingTypes`.
-3. **Simulates Confirmations:** For a proportion of charges determined by `confirm` (0.0 to 1.0), calls `POST /v3/sandbox/payment/{id}/confirm` to simulate completed payments.
-4. **Returns Summary:** Provides IDs, direct links to the Asaas simulator panel, and any errors encountered during execution.
+1. **Target Account:** Uses the `apiKey` from the request body if specified, otherwise falling back to `ASAAS_API_KEY`.
+2. **Creates Customers:** Calls `POST /v3/customers` on the Asaas mock for each person and company generated.
+3. **Creates Payments:** Calls `POST /v3/payments` for each customer according to `chargesPerCustomer` and `billingTypes`.
+4. **Simulates Confirmations:** For a proportion of charges determined by `confirm` (0.0 to 1.0), calls `POST /v3/sandbox/payment/{id}/confirm` to simulate completed payments.
+5. **Returns Summary:** Provides IDs, direct links to the Asaas simulator panel, and any errors encountered during execution.
 
 ### Automatic Seed on Boot
 
-Set `ASAAS_SEED_ON_BOOT` in the environment to automatically populate Asaas when the container starts:
+Set `ASAAS_SEED_ON_BOOT` (or `GENERATOR_ASAAS_SEED_ON_BOOT` in the root `.env`) to automatically populate Asaas when the container starts (stays off unless set):
 
 ```bash
 ASAAS_SEED_ON_BOOT="people=10,companies=3,charges=2,confirm=0.5"
@@ -136,10 +134,11 @@ ASAAS_SEED_ON_BOOT="people=10,companies=3,charges=2,confirm=0.5"
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `45450` | Port the server listens on |
-| `ASAAS_URL` | `http://localhost:45445` | Base URL of the Asaas mock API |
-| `ASAAS_API_KEY` | `$aact_hmlg_local_master` | Asaas API key used for customer and charge creation |
+| `GENERATOR_ENABLED` | `1` | In Compose, controls service replicas (`deploy.replicas`). Set `0` to keep down |
+| `ASAAS_URL` | *(unset: found by itself)* | Base URL of the Asaas mock API. When unset, discovered automatically |
+| `ASAAS_API_KEY` | `$aact_hmlg_local_master` | Default API key for customer and charge creation (overridable via `apiKey` in populate body) |
 | `ASAAS_PANEL_URL` | `http://localhost:45445` | Browser-accessible URL for Asaas panel links |
-| `ASAAS_SEED_ON_BOOT` | `""` | Comma-separated boot seed configuration (disabled if empty) |
+| `ASAAS_SEED_ON_BOOT` | `""` | Comma-separated boot seed configuration (stays off unless set) |
 | `MOCK_ALLOWED_HOSTS` | `""` | Comma-separated list of additional host headers allowed by the local guard |
 
 ## Local Guard

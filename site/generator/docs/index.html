@@ -59,6 +59,7 @@
             <li><a href="#safe-data">Safe data</a></li>
             <li><a href="#asaas">Asaas population</a></li>
             <li><a href="#config">Configuration</a></li>
+            <li><a href="#compose">Docker Compose</a></li>
             <li><a href="#local-guard">Local guard</a></li>
           </ol>
         </nav>
@@ -258,6 +259,13 @@
               <h2 id="asaas-title">Asaas population</h2>
               <p>The <code>POST /_mock/asaas/populate</code> endpoint populates the Asaas mock server with customers and payments in a single operation.</p>
 
+              <h3>Automatic Discovery Both Ways</h3>
+              <p>The Asaas mock looks for the generator on boot and every 10 s at the compose service <code>generator</code> (or <code>generator-mock</code>), on this machine (<code>localhost</code>) and on the Docker host (<code>host.docker.internal</code>), port 45450, the closest first, and takes a place only when it answers <code>GET /health</code> with <code>service: "generator"</code>. When <code>GENERATOR_URL</code> is set, it is used as given; set empty, it is turned off. <code>GENERATOR_UI_URL</code> (default <code>http://localhost:45450</code>) specifies where the browser opens it.</p>
+              <p>The generator finds the Asaas mock by itself when <code>ASAAS_URL</code> is unset: it probes <code>asaas</code>, <code>asaas-mock</code>, <code>localhost</code>, and the Docker host on port 45445, identified by its <code>/health</code> endpoint, on boot and every 10 s. Thus, running both via <code>docker run</code> or within any Docker Compose setup requires no URL environment variables.</p>
+
+              <h3>The Panel Integration</h3>
+              <p>While the generator is found, the Asaas panel displays an <strong>Integrações › Gerador</strong> tab showing connection status, an "Abrir o gerador" link, and a "Popular esta conta" button. Clicking it creates customers (people and companies with valid CPF/CNPJ) for the account selected in the topbar, registers charges by Pix, boleto, and card, and marks a configurable share of them as paid. This executes through that account's API key via <code>POST /_admin/generator/populate</code>. When the generator is not found or turned off, the tab does not exist.</p>
+
               <h3>Request Body</h3>
               <div class="code"><pre><code>{
   "people": 5,
@@ -265,11 +273,13 @@
   "chargesPerCustomer": 2,
   "billingTypes": ["PIX", "BOLETO", "CREDIT_CARD"],
   "confirm": 0.5,
-  "seed": "optional-seed"
+  "seed": "optional-seed",
+  "apiKey": "optional-account-api-key"
 }</code></pre></div>
 
               <h3>Execution Steps</h3>
               <ol>
+                <li><strong>Target Account:</strong> Uses the <code>apiKey</code> specified in the request body to authenticate against Asaas, defaulting to the server's configured <code>ASAAS_API_KEY</code> if omitted.</li>
                 <li><strong>Create Customers:</strong> For each person and company generated, issues a <code>POST /v3/customers</code> request to the Asaas mock API.</li>
                 <li><strong>Create Payments:</strong> For each customer, creates charges using <code>POST /v3/payments</code> matching the specified <code>chargesPerCustomer</code> and <code>billingTypes</code>.</li>
                 <li><strong>Confirm Payments:</strong> Based on the <code>confirm</code> ratio (0.0 to 1.0), issues <code>POST /v3/sandbox/payment/{id}/confirm</code> to transition selected charges from pending to confirmed/received status.</li>
@@ -296,14 +306,19 @@
                       <td>Port the HTTP server listens on.</td>
                     </tr>
                     <tr>
+                      <td><code>GENERATOR_ENABLED</code></td>
+                      <td><code>1</code></td>
+                      <td>In Docker Compose, controls service replicas (<code>deploy.replicas</code>). Set <code>GENERATOR_ENABLED=0</code> in <code>.env</code> to keep the service down.</td>
+                    </tr>
+                    <tr>
                       <td><code>ASAAS_URL</code></td>
-                      <td><code>http://localhost:45445</code></td>
-                      <td>Base URL of the target Asaas mock service for population requests.</td>
+                      <td><em>(unset: found by itself)</em></td>
+                      <td>Base URL of the target Asaas mock service for population requests. When unset, discovered automatically (<code>asaas</code>, <code>asaas-mock</code>, localhost, Docker host on port 45445). Set to pin a URL; set empty to turn off.</td>
                     </tr>
                     <tr>
                       <td><code>ASAAS_API_KEY</code></td>
                       <td><code>$aact_hmlg_local_master</code></td>
-                      <td>API key used to authenticate customer and charge creation in Asaas.</td>
+                      <td>Default API key used to authenticate customer and charge creation in Asaas. Can be overridden per request via <code>apiKey</code> in the populate body.</td>
                     </tr>
                     <tr>
                       <td><code>ASAAS_PANEL_URL</code></td>
@@ -313,7 +328,7 @@
                     <tr>
                       <td><code>ASAAS_SEED_ON_BOOT</code></td>
                       <td><code>""</code></td>
-                      <td>Specifies auto-population parameters on container startup (e.g. <code>people=10,companies=3,charges=2,confirm=0.5</code>).</td>
+                      <td>Specifies auto-population parameters on container startup (e.g. <code>people=10,companies=3,charges=2,confirm=0.5</code>). Stays off unless set. In the repository's root compose, mapped from <code>GENERATOR_ASAAS_SEED_ON_BOOT</code>.</td>
                     </tr>
                     <tr>
                       <td><code>MOCK_ALLOWED_HOSTS</code></td>
@@ -323,6 +338,17 @@
                   </tbody>
                 </table>
               </div>
+            </section>
+
+            <section id="compose" aria-labelledby="compose-title">
+              <h2 id="compose-title">Docker Compose</h2>
+              <p>In another project's compose, add a <code>generator</code> service next to <code>asaas</code>. Both find each other automatically by service name without requiring any configuration variables:</p>
+              <div class="code"><pre><code>  generator:
+    image: ghcr.io/instituto-ama/generator-mock:0.1.0
+    ports:
+      - '45450:45450'
+    depends_on:
+      - asaas</code></pre></div>
             </section>
 
             <section id="local-guard" aria-labelledby="local-guard-title">
