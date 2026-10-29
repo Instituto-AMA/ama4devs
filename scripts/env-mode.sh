@@ -22,9 +22,11 @@ fi
 # Only these placeholders are expanded, from .env (with defaults) and .env.sandbox.
 asaas_port="$(env_get "$ROOT_DIR/.env" ASAAS_PORT)"
 whatsapp_port="$(env_get "$ROOT_DIR/.env" WHATSAPP_PORT)"
+generator_port="$(env_get "$ROOT_DIR/.env" GENERATOR_PORT)"
 asaas_api_key="$(env_get "$ROOT_DIR/.env" ASAAS_API_KEY)"
 asaas_port="${asaas_port:-45445}"
 whatsapp_port="${whatsapp_port:-3010}"
+generator_port="${generator_port:-45450}"
 asaas_api_key="${asaas_api_key:-\$aact_hmlg_local_master}"
 sandbox_key="${ASAAS_SANDBOX_API_KEY:-$(env_get "$ROOT_DIR/.env.sandbox" ASAAS_SANDBOX_API_KEY)}"
 
@@ -32,6 +34,7 @@ expand() {
   local v="$1"
   v="${v//'${ASAAS_PORT}'/$asaas_port}"
   v="${v//'${WHATSAPP_PORT}'/$whatsapp_port}"
+  v="${v//'${GENERATOR_PORT}'/$generator_port}"
   v="${v//'${ASAAS_API_KEY}'/$asaas_api_key}"
   v="${v//'${ASAAS_SANDBOX_API_KEY}'/$sandbox_key}"
   printf '%s' "$v"
