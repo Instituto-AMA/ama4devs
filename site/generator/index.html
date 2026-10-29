@@ -187,7 +187,7 @@
 
             <article class="case" id="case-populate-asaas">
               <h3>Populate the Asaas mock with customers and charges in one call</h3>
-              <p class="proves">Instead of running scripts to create customers, register charges, and confirm payments on a fresh mock stack, send a single request to seed your entire Asaas simulator.</p>
+              <p class="proves">Instead of running scripts to create customers, register charges, and confirm payments on a fresh mock stack, the integration is automatic: the Asaas mock discovers the generator by itself, and its panel provides an <strong>Integrações › Gerador</strong> tab to populate the active account in one click. You can also trigger it directly via API:</p>
               <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>

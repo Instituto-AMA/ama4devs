@@ -59,6 +59,7 @@
             <li><a href="#validate">Validate documents</a></li>
             <li><a href="#asaas">Populate Asaas</a></li>
             <li><a href="#ui">Interactive UI</a></li>
+            <li><a href="#off">Turn it off</a></li>
           </ol>
         </nav>
       </aside>
@@ -206,7 +207,8 @@
 
               <li id="asaas">
                 <h3>Populate Asaas</h3>
-                <p>Seed the Asaas mock in one HTTP call. The generator creates customers, generates charges with varied billing types (Pix, boleto, credit card), and automatically confirms payments for a configurable percentage:</p>
+                <p>When running alongside the Asaas mock (such as with <code>make up</code>), the integration is zero-config: the Asaas mock discovers the generator by itself on boot and every 10 s. The Asaas panel (<a href="http://localhost:45445">http://localhost:45445</a>) displays an <strong>Integrações › Gerador</strong> tab with status, a link to open the generator, and a <strong>Popular esta conta</strong> button to seed the account selected in the topbar with customers and charges.</p>
+                <p>You can also populate the mock in one HTTP call. The generator creates customers, generates charges with varied billing types (Pix, boleto, credit card), and automatically confirms payments for a configurable percentage:</p>
                 <div class="code"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
   -d '{"people":5,"companies":2,"chargesPerCustomer":2,"confirm":0.5}'</code></pre></div>
@@ -252,13 +254,18 @@
   ],
   "errors": []
 }</code></pre></div>
-                <p>To populate automatically when the stack starts up, configure <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> in your <code>.env</code> file:</p>
+                <p>To populate automatically when the stack starts up, configure <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> in your <code>.env</code> file (stays off unless set):</p>
                 <div class="code"><pre><code>GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5</code></pre></div>
               </li>
 
               <li id="ui">
                 <h3>Interactive UI</h3>
                 <p>Open <a href="http://localhost:45450">http://localhost:45450</a> to view the local web UI, or explore the <a href="../app/">hosted web app</a> on GitHub Pages. The UI lets you generate, inspect, format, copy, and export data in JSON, CSV, or tabular formats.</p>
+              </li>
+
+              <li id="off">
+                <h3>Turn it off</h3>
+                <p>The generator is enabled by default. In Docker Compose, set <code>GENERATOR_ENABLED=0</code> in <code>.env</code> to keep the service down (via <code>deploy.replicas</code>). On the Asaas mock side, setting <code>GENERATOR_URL=</code> (empty) disables generator discovery. When turned off or unreachable, the <strong>Integrações › Gerador</strong> tab does not exist in the Asaas panel.</p>
               </li>
             </ol>
           </div>
