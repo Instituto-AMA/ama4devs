@@ -61,3 +61,47 @@ export function formatDocument(value: string): string {
   if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
   return value
 }
+
+const FIRST_NAMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Elaine', 'Felipe', 'Gabriela', 'Hugo', 'Isabela', 'João', 'Larissa', 'Marcos', 'Natália', 'Otávio', 'Paula', 'Rafael']
+const LAST_NAMES = ['Almeida', 'Barbosa', 'Cardoso', 'Dias', 'Ferreira', 'Gomes', 'Lima', 'Machado', 'Nogueira', 'Oliveira', 'Pereira', 'Ramos', 'Silva', 'Teixeira']
+const STREETS = ['Rua das Flores', 'Avenida Brasil', 'Rua XV de Novembro', 'Rua Sete de Setembro', 'Avenida Paulista', 'Rua da Paz']
+const DISTRICTS = ['Centro', 'Jardim América', 'Vila Nova', 'Boa Vista', 'Santa Cruz', 'Bela Vista']
+const DESCRIPTIONS = ['Mensalidade', 'Consultoria', 'Plano Pro', 'Serviço de instalação', 'Pedido de teste', 'Taxa de adesão']
+const AREA_CODES = ['11', '21', '31', '41', '47', '51', '61', '71', '81', '85']
+
+const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)]!
+const digits = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('')
+/** An integer in [min, max]. */
+export const randomInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1))
+
+const ascii = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/** Every field of the customer form, filled with plausible fake values the mock accepts. */
+export function randomCustomer() {
+  const first = pick(FIRST_NAMES)
+  const last = pick(LAST_NAMES)
+  const code = pick(AREA_CODES)
+  return {
+    name: `${first} ${last}`,
+    cpfCnpj: randomCpf(),
+    email: `${ascii(first)}.${ascii(last)}${randomInt(10, 99)}@localhost`,
+    mobilePhone: `${code}9${randomInt(6, 9)}${digits(7)}`,
+    phone: `${code}3${randomInt(2, 9)}${digits(6)}`,
+    postalCode: `${randomInt(1, 9)}${digits(7)}`,
+    address: pick(STREETS),
+    addressNumber: String(randomInt(1, 2500)),
+    province: pick(DISTRICTS),
+    externalReference: `ext_${digits(6)}`,
+    observations: 'Cliente gerado automaticamente para teste.',
+  }
+}
+
+/** The free fields of a charge, filled with plausible fake values. */
+export function randomChargeFields() {
+  return {
+    value: `${randomInt(20, 1500)},${String(randomInt(0, 99)).padStart(2, '0')}`,
+    dueInDays: randomInt(1, 30),
+    description: `${pick(DESCRIPTIONS)} ${digits(3)}`,
+    externalReference: `ord_${digits(6)}`,
+  }
+}

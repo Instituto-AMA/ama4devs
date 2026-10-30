@@ -2,11 +2,12 @@
  * Create or edit a customer through the real `/v3/customers`, with the account's key.
  *
  * The fields are the ones the Asaas "Novo cliente" form has and the API takes; only
- * name and CPF/CNPJ are required, as in Asaas. "Gerar CPF" fills a valid test CPF.
+ * name and CPF/CNPJ are required, as in Asaas. "Gerar CPF" fills a valid test CPF;
+ * "Gerar cliente automaticamente" fills every field.
  */
 import { useState } from 'preact/hooks'
 import { v3, type Customer } from '../api.ts'
-import { randomCpf } from './forms.ts'
+import { randomCpf, randomCustomer } from './forms.ts'
 import { Banner, Button, errorText, Field, Modal } from './ui.tsx'
 
 type Draft = Record<
@@ -80,6 +81,20 @@ export function CustomerForm(props: {
     <Modal title={editing ? 'Editar cliente' : 'Novo cliente'} onClose={props.onClose} wide>
       <form class="stack" onSubmit={submit}>
         {error && <Banner tone="danger">{error}</Banner>}
+        {!editing && (
+          <div class="row">
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              title="Preenche todos os campos com dados de teste"
+              onClick={() => setDraft(randomCustomer())}
+            >
+              Gerar cliente automaticamente
+            </Button>
+            <span class="hint">Nome, CPF, contato e endereço, tudo de uma vez.</span>
+          </div>
+        )}
         <div class="form-grid">
           <Field label="Nome *">
             <input class="input" value={draft.name} onInput={set('name')} required autoFocus />

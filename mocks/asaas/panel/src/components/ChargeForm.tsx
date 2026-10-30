@@ -14,7 +14,16 @@ import { v3, type Customer, type Payment } from '../api.ts'
 import type { Store } from '../store.ts'
 import { CustomerForm } from './CustomerForm.tsx'
 import { Picker } from './Picker.tsx'
-import { addDays, BILLING_CHOICES, CYCLE_LABEL, formatDocument, parseMoney, randomCpf } from './forms.ts'
+import {
+  addDays,
+  BILLING_CHOICES,
+  CYCLE_LABEL,
+  formatDocument,
+  parseMoney,
+  randomChargeFields,
+  randomCustomer,
+  randomInt,
+} from './forms.ts'
 import { Banner, Button, Copy, errorText, Field, Modal, money, StatusBadge, Table } from './ui.tsx'
 
 type Kind = 'payment' | 'installment' | 'subscription'
@@ -108,16 +117,42 @@ export function ChargeForm(props: {
   }
 
   /** A customer with a valid random CPF, created and chosen in one click. */
+  const createTestCustomer = async (): Promise<Customer> => {
+    const c: Customer = await v3('/customers', key, {
+      method: 'POST',
+      body: JSON.stringify(randomCustomer()),
+    })
+    setCustomers((list) => [c, ...list])
+    setCustomer(c.id)
+    return c
+  }
+
   const testCustomer = async () => {
     setError(null)
     try {
-      const n = String(Math.floor(Math.random() * 900) + 100)
-      const c: Customer = await v3('/customers', key, {
-        method: 'POST',
-        body: JSON.stringify({ name: `Cliente Teste ${n}`, cpfCnpj: randomCpf(), email: `cliente${n}@localhost` }),
-      })
-      setCustomers([c, ...customers])
-      setCustomer(c.id)
+      await createTestCustomer()
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+
+  /** Fills every field of the form; creates a test customer when none is chosen. */
+  const generateCharge = async () => {
+    setError(null)
+    try {
+      if (!customer) await createTestCustomer()
+      const f = randomChargeFields()
+      setBillingType(BILLING_CHOICES[randomInt(0, BILLING_CHOICES.length - 1)]!.id)
+      setValue(f.value)
+      setDueDate(addDays(today, f.dueInDays))
+      setDescription(f.description)
+      setExternalReference(f.externalReference)
+      if (kind === 'installment') setCount(randomInt(2, 6))
+      if (kind === 'subscription') {
+        setCycle(Object.keys(CYCLE_LABEL)[randomInt(0, Object.keys(CYCLE_LABEL).length - 1)]!)
+        setEndMode('count')
+        setMaxPayments(randomInt(3, 12))
+      }
     } catch (err) {
       setError(errorText(err))
     }
@@ -280,6 +315,18 @@ export function ChargeForm(props: {
           ))}
         </div>
         <p class="hint">{KINDS.find((k) => k.id === kind)!.hint}</p>
+        <div class="row">
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            title="Preenche todos os campos e cria um cliente de teste se nenhum estiver escolhido"
+            onClick={() => void generateCharge()}
+          >
+            Gerar cobrança automaticamente
+          </Button>
+          <span class="hint">Cliente, forma de pagamento, valor, vencimento e descrição.</span>
+        </div>
 
         <Field label="Cliente *">
           <div class="row">
