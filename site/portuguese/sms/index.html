@@ -51,8 +51,8 @@
       <nav class="site-nav" aria-label="Principal">
         <a href="../whatsapp/">Mock do WhatsApp</a>
         <a href="../asaas/">Mock do Asaas</a>
-        <a href="../generator/">Gerador</a>
         <a href="./" aria-current="page">Mock de SMS</a>
+        <a href="../generator/">Gerador</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Idioma">
@@ -70,10 +70,10 @@
   </nav>
 
   <main id="content">
-    <div class="wrap hero" style="grid-template-columns: minmax(0, 1fr)">
-      <div class="hero-copy" style="max-width: 860px">
-        <h1>O gateway de SMS da sua aplicação, sem depender da operadora.</h1>
-        <p class="lead">A sua aplicação envia, o mock captura. Três interfaces para enviar (nativa em JSON, compatível com Twilio e um <code>GET</code>/<code>POST</code> simples), um ciclo de vida de verdade (<code>queued</code> → <code>sent</code> → <code>delivered</code>, ou a falha), <strong>números mágicos</strong> que reproduzem os erros da operadora, o código de OTP extraído do texto, webhooks de status e de resposta assinados com HMAC — e um painel ao vivo onde <strong>você é o aparelho</strong>, no <code>localhost</code>.</p>
+    <div class="wrap hero">
+      <div class="hero-copy">
+        <h1>SMS, com você no celular.</h1>
+        <p class="lead">Um gateway de SMS no <code>localhost</code>. A sua aplicação envia pela API nativa, pela compatível com Twilio ou por um <code>GET</code> simples, e a mensagem cai no painel, que faz o papel do celular. <strong>Você responde, copia o código e escolhe a falha</strong>: os números terminados em <code>0001</code> a <code>0005</code> reproduzem os erros da operadora. Cada status e cada resposta voltam como webhook.</p>
         <div class="cmd">
           <pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
         </div>
@@ -82,9 +82,39 @@
           <a class="key" href="#use-cases">Casos de uso</a>
         </div>
       </div>
-      <figure class="shot">
-        <img src="../../img/sms/chat-asaas.jpg" width="1568" height="763" alt="O painel do mock de SMS: na conversa de Maria Souza, a cobrança mandada pelo mock do Asaas, com o remetente ASAAS, o selo de 3 SMS em UCS-2 e o status entregue." loading="lazy">
-      </figure>
+
+      <div class="printer" data-printer='["Enviar o código", "Responder do celular", "Enviar para o final 0001"]'>
+        <div class="tape-window">
+          <div class="tape" aria-live="polite">
+            <div class="tape-head">
+              <div class="brand">MOCK SMS</div>
+              <div class="sub">reprodução de uma execução</div>
+            </div>
+            <ol class="lines">
+              <li class="ln day" data-step="0">29/10/2026</li>
+              <li class="ln" data-step="0"><time>22:07</time><span class="ev"><b>POST</b> /v1/messages <span class="ok">201</span><br>AMA → +5511912340010<br>"Seu código Ama é 482913"<br>UCS-2, 1 segmento, código 482913</span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>queued</b></span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>sent</b></span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>delivered</b></span></li>
+              <li class="ln" data-step="1"><time>22:07</time><span class="ev"><b>POST</b> /_mock/sms/inbound <span class="ok">201</span><br>+5511912340010 → AMA4DEVS<br>"CONFIRMAR"</span></li>
+              <li class="ln hook" data-step="1"><time>22:07</time><span class="ev"><i>webhook</i> message.inbound <b>received</b><br>"CONFIRMAR"</span></li>
+              <li class="ln" data-step="2"><time>22:07</time><span class="ev"><b>POST</b> /v1/messages <span class="ok">201</span><br>AMA → +5511912340001<br>"Seu código Ama é 730144"</span></li>
+              <li class="ln hook" data-step="2"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>sent</b></span></li>
+              <li class="ln hook" data-step="2"><time>22:07</time><span class="ev"><i>webhook</i> message.status <span class="bad">failed</span></span></li>
+              <li class="ln" data-step="2"><time></time><span class="ev"><span class="bad">(30003)</span> Unreachable destination handset</span></li>
+            </ol>
+          </div>
+        </div>
+        <div class="machine">
+          <div class="slot"></div>
+          <div class="keypad">
+            <button class="key confirm" type="button" data-next><span>Enviar o código</span></button>
+            <button class="key correct" type="button" data-again>De novo</button>
+          </div>
+          <div class="progress" aria-hidden="true"></div>
+        </div>
+        <p class="machine-note">Uma execução real da imagem: o código sai pela API e o webhook acompanha cada status, a resposta do celular volta como webhook e o final 0001 falha com o código 30003 da operadora. O acento de "código" já põe a mensagem em UCS-2. Só o papel é desenhado.</p>
+      </div>
     </div>
 
     <section class="band" id="port" aria-labelledby="port-title">
@@ -132,6 +162,9 @@
             </div>
             <p>O mock do Asaas (versão 0.11.0) manda os SMS do pagador para a <a href="api/">API</a> do mock de SMS — <code>POST /v1/messages</code>, com o remetente <code>ASAAS</code> — nos mesmos eventos de cobrança que avisam o e-mail e o WhatsApp, e só para quem tem celular cadastrado. Nada a configurar: se o mock de SMS estiver no ar, ele é encontrado.</p>
             <p>Uma execução verificada: uma cobrança de "Maria Souza" produziu o SMS <code>ASAAS → +5511987654321</code> — "Maria Souza: Conta Principal gerou uma cobrança de R$ 120,50 (Consulta), com vencimento em 10/11/2026. Ver fatura e pagar: …" — que terminou <code>delivered</code> no painel do mock de SMS.</p>
+            <figure class="shot">
+              <img src="../../img/sms/chat-asaas.jpg" width="1568" height="763" alt="O painel do mock de SMS: na conversa de Maria Souza, a cobrança mandada pelo mock do Asaas, com o remetente ASAAS, o selo de 3 SMS em UCS-2 e o status entregue." loading="lazy">
+            </figure>
           </div>
         </div>
       </div>

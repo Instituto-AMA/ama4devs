@@ -160,6 +160,7 @@ code, pre, kbd, samp { font-family: var(--mono); font-variation-settings: 'wdth'
 @media (max-width: 720px) {
   .site-header .bar { flex-wrap: wrap; gap: 8px 16px; }
   .site-nav { order: 3; width: 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  .site-nav a { flex: none; }
 }
 
 /* Section tabs of a mock: Overview, Quick start, API, Docs. */

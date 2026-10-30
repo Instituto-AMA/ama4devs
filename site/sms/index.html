@@ -51,8 +51,8 @@
       <nav class="site-nav" aria-label="Main">
         <a href="../whatsapp/">WhatsApp mock</a>
         <a href="../asaas/">Asaas mock</a>
-        <a href="../generator/">Generator</a>
         <a href="./" aria-current="page">SMS mock</a>
+        <a href="../generator/">Generator</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Language">
@@ -70,21 +70,51 @@
   </nav>
 
   <main id="content">
-    <div class="wrap hero" style="grid-template-columns: minmax(0, 1fr); max-width: 900px;">
+    <div class="wrap hero">
       <div class="hero-copy">
-        <h1>Local SMS gateway with a live handset inbox.</h1>
-        <p class="lead">Send SMS via a clean REST API, simple endpoints, or your existing Twilio SDK. Watch messages advance through <code>queued</code>, <code>sent</code>, and <code>delivered</code> with realistic timing, extract OTP verification codes automatically, trigger delivery failures with magic numbers, and test signed webhooks without real carrier credentials or fees. Zero dependencies, in-memory, and paired with a real-time web panel.</p>
+        <h1>SMS, with you holding the phone.</h1>
+        <p class="lead">An SMS gateway on <code>localhost</code>. Your application sends through the native API, the Twilio-compatible one or a plain <code>GET</code>, and the message lands in the panel, which plays the phone. <strong>You reply, copy the code and pick the failure</strong>: numbers ending in <code>0001</code> to <code>0005</code> reproduce the carrier's errors. Every status and every reply comes back as a webhook.</p>
         <div class="cmd">
           <pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
         </div>
         <div class="actions">
-          <a class="key confirm" href="http://localhost:8899">Open the panel</a>
-          <a class="key" href="quick-start/">Quick start</a>
+          <a class="key confirm" href="quick-start/">Quick start</a>
+          <a class="key" href="#use-cases">Use cases</a>
         </div>
       </div>
-      <figure class="shot">
-        <img src="../img/sms/chat-asaas.jpg" width="1568" height="763" alt="The panel of the SMS mock: the conversation with +55 11 98765-4321, where the SMS the Asaas mock sent to the payer sits delivered, with the sender ASAAS." loading="lazy">
-      </figure>
+
+      <div class="printer" data-printer='["Send the code", "Reply from the phone", "Send to a 0001 number"]'>
+        <div class="tape-window">
+          <div class="tape" aria-live="polite">
+            <div class="tape-head">
+              <div class="brand">SMS MOCK</div>
+              <div class="sub">replay of a run</div>
+            </div>
+            <ol class="lines">
+              <li class="ln day" data-step="0">29/10/2026</li>
+              <li class="ln" data-step="0"><time>22:07</time><span class="ev"><b>POST</b> /v1/messages <span class="ok">201</span><br>AMA → +5511912340010<br>"Seu código Ama é 482913"<br>UCS-2, 1 segment, code 482913</span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>queued</b></span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>sent</b></span></li>
+              <li class="ln hook" data-step="0"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>delivered</b></span></li>
+              <li class="ln" data-step="1"><time>22:07</time><span class="ev"><b>POST</b> /_mock/sms/inbound <span class="ok">201</span><br>+5511912340010 → AMA4DEVS<br>"CONFIRMAR"</span></li>
+              <li class="ln hook" data-step="1"><time>22:07</time><span class="ev"><i>webhook</i> message.inbound <b>received</b><br>"CONFIRMAR"</span></li>
+              <li class="ln" data-step="2"><time>22:07</time><span class="ev"><b>POST</b> /v1/messages <span class="ok">201</span><br>AMA → +5511912340001<br>"Seu código Ama é 730144"</span></li>
+              <li class="ln hook" data-step="2"><time>22:07</time><span class="ev"><i>webhook</i> message.status <b>sent</b></span></li>
+              <li class="ln hook" data-step="2"><time>22:07</time><span class="ev"><i>webhook</i> message.status <span class="bad">failed</span></span></li>
+              <li class="ln" data-step="2"><time></time><span class="ev"><span class="bad">(30003)</span> Unreachable destination handset</span></li>
+            </ol>
+          </div>
+        </div>
+        <div class="machine">
+          <div class="slot"></div>
+          <div class="keypad">
+            <button class="key confirm" type="button" data-next><span>Send the code</span></button>
+            <button class="key correct" type="button" data-again>Again</button>
+          </div>
+          <div class="progress" aria-hidden="true"></div>
+        </div>
+        <p class="machine-note">A real run of the image: the code goes out through the API and a webhook follows every status, the phone's reply comes back as a webhook, and the number ending in 0001 fails with the carrier's code 30003. The accent in "código" alone puts the message in UCS-2. Only the paper is drawn.</p>
+      </div>
     </div>
 
     <section class="band" id="port" aria-labelledby="port-title">
@@ -128,6 +158,9 @@ make up MOCKS=sms       <span class="c"># only the SMS mock</span></code></pre><
             <div class="code"><pre><code>ASAAS → +5511987654321
 Maria Souza: Conta Principal gerou uma cobrança de R$ 120,50 (Consulta), com vencimento em 10/11/2026. Ver fatura e pagar: …
 status: delivered</code></pre></div>
+            <figure class="shot">
+              <img src="../img/sms/chat-asaas.jpg" width="1568" height="763" alt="The panel of the SMS mock: the conversation with +55 11 98765-4321, where the SMS the Asaas mock sent to the payer sits delivered, with the sender ASAAS." loading="lazy">
+            </figure>
           </div>
         </div>
       </div>

@@ -52,6 +52,12 @@
   }[lang]
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  // ── The header ──
+  // On a phone the nav scrolls sideways: bring the current page into view.
+  const nav = document.querySelector('.site-nav')
+  const current = nav?.querySelector('[aria-current="page"]')
+  if (nav && current) nav.scrollLeft = current.offsetLeft - nav.offsetLeft - 16
+
   // ── The printer ──
   // The lines are in the HTML (readable with no script). Each carries the step that
   // prints it; step 0 prints on its own, every later step waits for its key.
