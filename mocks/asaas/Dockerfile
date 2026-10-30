@@ -1,4 +1,7 @@
-FROM oven/bun:1.4.2-alpine AS deps
+# deps and build run on the machine doing the build, never under emulation: Bun, tsc and vite
+# under QEMU arm64 hang the publish for hours. Their output (src/generated, src/admin/ui.html)
+# is plain text, the same on every platform; only prod-deps and runtime are per platform.
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -8,7 +11,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
-FROM oven/bun:1.4.2-alpine AS build
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
