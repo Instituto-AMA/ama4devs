@@ -75,6 +75,50 @@ export function publicMix(kind, seed, count, formatted) {
   return { picks, files, suffix }
 }
 
+/**
+ * The Receita's register of a CNPJ, read the way Ama-Hub reads it: publica.cnpj.ws,
+ * then BrasilAPI, 5 s each, the first that knows it wins. Both answer the browser
+ * (CORS). `found` is null when neither answered.
+ * @param {string} cnpj 14 digits
+ */
+export async function receita(cnpj) {
+  const providers = [
+    {
+      source: 'publica.cnpj.ws',
+      url: `https://publica.cnpj.ws/cnpj/${cnpj}`,
+      read: (/** @type {any} */ b) => ({
+        name: b.razao_social ?? null,
+        tradeName: b.estabelecimento?.nome_fantasia || null,
+        status: b.estabelecimento?.situacao_cadastral ?? null,
+        city: b.estabelecimento?.cidade?.nome ?? null,
+        state: b.estabelecimento?.estado?.sigla ?? null,
+      }),
+    },
+    {
+      source: 'brasilapi.com.br',
+      url: `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`,
+      read: (/** @type {any} */ b) => ({
+        name: b.razao_social ?? null,
+        tradeName: b.nome_fantasia || null,
+        status: b.descricao_situacao_cadastral ?? null,
+        city: b.municipio ?? null,
+        state: b.uf ?? null,
+      }),
+    },
+  ]
+  for (const provider of providers) {
+    try {
+      const res = await fetch(provider.url, { signal: AbortSignal.timeout(5000) })
+      if (res.status === 404) return { found: false, source: provider.source }
+      if (!res.ok) continue
+      return { found: true, source: provider.source, ...provider.read(await res.json()) }
+    } catch {
+      // Slow, rate limited or down: the next provider is asked.
+    }
+  }
+  return { found: null, source: null }
+}
+
 /** The options a static file cannot vary: hidden while the public endpoint answers. */
 const NOT_PUBLIC = ['state', 'gender', 'outcome', 'billingType', 'type', 'now']
 
@@ -88,7 +132,8 @@ const TEXT = {
     public: 'answered by the public endpoint',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
     curlPublic: 'Call the public endpoint',
-    notInFiles: 'not among the documents of the public files: validated in this page instead',
+    notInFiles: 'not among the documents of the public files: its check digits are calculated in this page',
+    notInFilesCnpj: 'not among the documents of the public files: check digits calculated in this page, then looked up at the Receita',
     curlContainer: 'The same call on your container',
     unreachable: (base) =>
       `No answer from ${base}. Is the generator running (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
@@ -100,7 +145,8 @@ const TEXT = {
     public: 'respondido pelo endpoint público',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
     curlPublic: 'Chame o endpoint público',
-    notInFiles: 'fora dos documentos dos arquivos públicos: validado nesta página',
+    notInFiles: 'fora dos documentos dos arquivos públicos: os dígitos verificadores são calculados nesta página',
+    notInFilesCnpj: 'fora dos documentos dos arquivos públicos: dígitos calculados nesta página e consulta na Receita',
     curlContainer: 'A mesma chamada no seu container',
     unreachable: (base) =>
       `Sem resposta de ${base}. O gerador está rodando (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
@@ -380,9 +426,13 @@ function start(form) {
             // The static endpoint validates the documents its files hold; any
             // other one is checked here, by the same core.
             if (!plan.validate) throw error
+            // Outside the list: the check digits are math, done here by the
+            // same core; a CNPJ that passes is also looked up at the Receita.
             result = answer(path, params)
             inPage = true
-            curl.textContent += `\n# ${t.notInFiles}`
+            const isCnpj = $('doc').value === 'cnpj'
+            if (isCnpj && result.body.valid) result.body.receita = await receita(result.body.value)
+            curl.textContent += `\n# ${isCnpj ? t.notInFilesCnpj : t.notInFiles}`
           }
         } else {
           const { picks, files } = plan.mix
