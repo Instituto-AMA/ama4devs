@@ -11,7 +11,7 @@ ARG REVISION=unknown
 # `source` links the GHCR package to this repository.
 # No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
 LABEL org.opencontainers.image.title="Generator Mock - Brazilian fake data for tests" \
-      org.opencontainers.image.description="Brazilian fake data generator (people and companies - CPF CNPJ and other documents - addresses with real CEP ranges - credit cards and bank accounts - Pix keys) for local development and tests, plus one-call population of the Asaas mock." \
+      org.opencontainers.image.description="Brazilian fake data generator (people and companies - CPF CNPJ and other documents - addresses with real CEP ranges - credit cards and bank accounts - Pix keys) for local development and tests - plus one-call population of the Asaas mock." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
       org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="MIT" \
