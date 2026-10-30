@@ -1,32 +1,32 @@
 /**
- * O golden aqui é um BR Code REAL, capturado do sandbox do Asaas. O CRC dele
- * (`C50D`) é o que prova a implementação do CRC16 contra dado de verdade — um CRC
- * errado gera um "copia e cola" que o app do banco recusa, e nenhum teste de
- * formato pegaria isso.
+ * The golden here is a REAL BR Code, captured from Asaas's sandbox. Its CRC
+ * (`C50D`) is what proves the CRC16 implementation against real data — a wrong
+ * CRC generates a "copy and paste" that the bank's app refuses, and no format
+ * test would catch that.
  */
 import { describe, expect, it } from 'bun:test'
 import { brCodePayload, crc16, isValidBrCode } from '../../src/domain/pix-brcode.ts'
 
-/** Capturado do sandbox do Asaas. Não "conserte" este valor. */
+/** Captured from Asaas's sandbox. Do not "fix" this value. */
 const REAL =
   '00020101021226820014br.gov.bcb.pix2560pix-h.asaas.com/qr/cobv/618c88aa-7beb-4abf-ad17-4213dc8fa3805204000053039865802BR5919Pr Solucoes Sandbox6007Itajuba61083750228062070503***6304C50D'
 
 describe('crc16 (CCITT, poly 0x1021, init 0xFFFF)', () => {
-  it('reproduz o CRC do BR Code real do sandbox', () => {
-    // Tudo até e incluindo o "6304" entra no cálculo.
+  it('reproduces the CRC of the real sandbox BR Code', () => {
+    // Everything up to and including the "6304" goes into the calculation.
     expect(crc16(REAL.slice(0, -4))).toBe('C50D')
   })
 
-  it('valida o payload real inteiro', () => {
+  it('validates the whole real payload', () => {
     expect(isValidBrCode(REAL)).toBe(true)
   })
 
-  it('detecta um único caractere trocado', () => {
+  it('detects a single swapped character', () => {
     const tampered = REAL.replace('Itajuba', 'Itajubb')
     expect(isValidBrCode(tampered)).toBe(false)
   })
 
-  it('sempre devolve 4 hex maiúsculos, zero-padded', () => {
+  it('always returns 4 uppercase hex digits, zero-padded', () => {
     for (const s of ['', 'a', 'abc', 'x'.repeat(300)]) {
       expect(crc16(s)).toMatch(/^[0-9A-F]{4}$/)
     }
@@ -34,31 +34,31 @@ describe('crc16 (CCITT, poly 0x1021, init 0xFFFF)', () => {
 })
 
 describe('brCodePayload', () => {
-  it('reproduz o payload real do sandbox byte a byte', () => {
+  it('reproduces the real sandbox payload byte by byte', () => {
     const payload = brCodePayload({
       url: 'https://pix-h.asaas.com/qr/cobv/618c88aa-7beb-4abf-ad17-4213dc8fa380',
-      merchantName: 'Pr Soluções Sandbox', // o acento tem que cair
+      merchantName: 'Pr Soluções Sandbox', // the accent has to be dropped
       merchantCity: 'Itajubá',
-      postalCode: '37502-280', // a máscara tem que cair
+      postalCode: '37502-280', // the mask has to be dropped
     })
     expect(payload).toBe(REAL)
   })
 
-  it('gera payload com CRC válido para qualquer entrada', () => {
+  it('generates a payload with a valid CRC for any input', () => {
     const payload = brCodePayload({
       url: 'pix.asaas.com/qr/cobv/abc',
-      merchantName: 'Loja Teste',
+      merchantName: 'Test Store',
       merchantCity: 'Sao Paulo',
     })
     expect(isValidBrCode(payload)).toBe(true)
   })
 
-  it('usa *** como txid padrão do QR dinâmico', () => {
+  it('uses *** as the default txid of the dynamic QR', () => {
     const payload = brCodePayload({ url: 'x.com/a', merchantName: 'N', merchantCity: 'C' })
     expect(payload).toContain('62070503***')
   })
 
-  it('respeita um txid explícito', () => {
+  it('honours an explicit txid', () => {
     const payload = brCodePayload({
       url: 'x.com/a',
       merchantName: 'N',
@@ -69,13 +69,13 @@ describe('brCodePayload', () => {
     expect(isValidBrCode(payload)).toBe(true)
   })
 
-  it('não emite campo 54 (valor) — é QR dinâmico, o valor está na URL', () => {
+  it('does not emit field 54 (amount) — it is a dynamic QR, the amount is in the URL', () => {
     const payload = brCodePayload({ url: 'x.com/a', merchantName: 'N', merchantCity: 'C' })
-    // O 53 (moeda) é seguido direto pelo 58 (país).
+    // The 53 (currency) is followed directly by the 58 (country).
     expect(payload).toContain('53039865802BR')
   })
 
-  it('trunca nome em 25 e cidade em 15 caracteres', () => {
+  it('truncates the name to 25 and the city to 15 characters', () => {
     const payload = brCodePayload({
       url: 'x.com/a',
       merchantName: 'A'.repeat(40),
@@ -86,12 +86,12 @@ describe('brCodePayload', () => {
     expect(isValidBrCode(payload)).toBe(true)
   })
 
-  it('omite o campo 61 quando não há CEP', () => {
+  it('omits field 61 when there is no postal code', () => {
     const payload = brCodePayload({ url: 'x.com/a', merchantName: 'N', merchantCity: 'C' })
     expect(payload).not.toContain('6108')
   })
 
-  it('emite os TLV com id de 2 dígitos e tamanho zero-padded', () => {
+  it('emits the TLVs with a 2-digit id and a zero-padded size', () => {
     const payload = brCodePayload({ url: 'x.com/a', merchantName: 'N', merchantCity: 'C' })
     expect(payload.startsWith('000201010212')).toBe(true) // 00 len02 "01" · 01 len02 "12"
     expect(payload).toContain('52040000') // 52 len04 "0000"

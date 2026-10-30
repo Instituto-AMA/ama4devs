@@ -1,12 +1,12 @@
 /**
- * AppContext — tudo que é impuro, num objeto só, injetado.
+ * AppContext — everything impure, in a single object, injected.
  *
- * Se uma função precisa de tempo, aleatoriedade, banco ou configuração, ela
- * recebe o contexto. Nada disso é global. É o que torna o servidor inteiro
- * instanciável em memória num teste, com relógio congelado e RNG semeado.
+ * If a function needs time, randomness, the database or the configuration, it
+ * receives the context. None of it is global. It is what makes the whole server
+ * instantiable in memory in a test, with a frozen clock and a seeded RNG.
  *
- * `src/domain/` NÃO importa isto: as funções de domínio são puras e recebem
- * `now: Date` e os valores de que precisam como argumentos.
+ * `src/domain/` does NOT import this: the domain functions are pure and receive
+ * `now: Date` and the values they need as arguments.
  */
 import type { DB } from '../db/client.ts'
 import type { Clock } from './clock.ts'
@@ -20,20 +20,20 @@ export interface AppContext {
   clock: Clock
   rng: Rng
   /**
-   * Enfileira um evento de webhook. Chame DENTRO da transação que causou o
-   * evento — o payload é congelado agora, não na hora da entrega.
+   * Queues a webhook event. Call it INSIDE the transaction that caused the
+   * event — the payload is frozen now, not at delivery time.
    */
   emit(tx: DB, event: DomainEvent): Promise<void>
   log(level: 'debug' | 'info' | 'warn' | 'error', msg: string, data?: unknown): void
 
   /**
-   * Preenchido pelo registro de rotas. É computado do manifesto — a cobertura em
-   * GET /_admin/coverage nunca é um número mantido à mão.
+   * Filled in by the route registry. It is computed from the manifest — the
+   * coverage in GET /_admin/coverage is never a number kept by hand.
    */
   coverage?: { implemented: string[]; stubbed: string[]; variants: string[] }
 }
 
-/** A conta autenticada pelo header `access_token`. */
+/** The account authenticated by the `access_token` header. */
 export interface AuthContext {
   accountId: string
   walletId: string

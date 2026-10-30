@@ -99,7 +99,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
       if (pathname === '/_mock/asaas/populate') {
         if (request.method !== 'POST') {
           return json(
-            { error: { code: 'method_not_allowed', message: 'A população usa POST.' } },
+            { error: { code: 'method_not_allowed', message: 'The population uses POST.' } },
             405,
           )
         }
@@ -109,7 +109,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
           body = await request.json()
         } catch {
           return json(
-            { error: { code: 'invalid_body', message: 'O corpo da requisição precisa ser um JSON válido.' } },
+            { error: { code: 'invalid_body', message: 'The request body must be valid JSON.' } },
             400,
           )
         }
@@ -133,7 +133,7 @@ async function generationRoute(request: Request, url: URL): Promise<Response> {
   try {
     pathname = decodeURIComponent(url.pathname)
   } catch {
-    return apiJson({ error: { code: 'invalid_request', message: 'Caminho com codificação inválida.' } }, 400)
+    return apiJson({ error: { code: 'invalid_request', message: 'Path with an invalid encoding.' } }, 400)
   }
 
   if (request.method === 'OPTIONS') {
@@ -157,7 +157,7 @@ async function generationRoute(request: Request, url: URL): Promise<Response> {
     const validator = VALIDATORS[type]
     if (!validator) {
       return apiJson(
-        { error: { code: 'unknown_type', message: `Tipo de documento desconhecido: ${type}` } },
+        { error: { code: 'unknown_type', message: `Unknown document type: ${type}` } },
         400,
       )
     }
@@ -178,7 +178,7 @@ async function generationRoute(request: Request, url: URL): Promise<Response> {
     }
   }
 
-  return apiJson({ error: { code: 'not_found', message: 'Rota não encontrada.' } }, 404)
+  return apiJson({ error: { code: 'not_found', message: 'Route not found.' } }, 404)
 }
 
 /**
@@ -257,7 +257,7 @@ function notFound(cors: boolean): Response {
   if (cors) headers['access-control-allow-origin'] = '*'
 
   return new Response(
-    JSON.stringify({ error: { code: 'not_found', message: 'Rota não encontrada.' } }, null, 2),
+    JSON.stringify({ error: { code: 'not_found', message: 'Route not found.' } }, null, 2),
     { status: 404, headers },
   )
 }

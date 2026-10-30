@@ -1,40 +1,41 @@
 /**
- * Antecipação de recebíveis. PURO.
+ * Anticipation of receivables. PURE.
  *
- * TODO(regra): **A FÓRMULA DA TAXA NÃO É DOCUMENTADA PELO ASAAS.** A doc publica
- * as taxas comerciais ("a partir de 1,99% a.m.") mas não diz como o valor da taxa
- * é derivado delas. Escolhemos a fórmula abaixo — a mesma que o Asaas usa para
- * juros de mora, e a única defensável sem acesso ao motor real:
+ * TODO(rule): **THE FEE FORMULA IS NOT DOCUMENTED BY ASAAS.** The docs publish the
+ * commercial rates ("from 1.99% a.m.") but do not say how the fee amount is derived
+ * from them. We chose the formula below — the same one Asaas uses for late
+ * interest, and the only defensible one without access to the real engine:
  *
- *     taxa = valor × (taxaMensalBp / 10000) / 30 × diasAntecipados
+ *     fee = value × (monthlyRateBp / 10000) / 30 × daysAnticipated
  *
- * Ou seja: pro-rata die sobre a taxa AO MÊS, com mês comercial de 30 dias. Sem
- * capitalização (juro simples) e sem taxa mínima.
+ * That is: pro-rata die over the MONTHLY rate, with a 30-day commercial month.
+ * Without capitalization (simple interest) and without a minimum fee.
  *
- * Consequência que o integrador precisa saber: antecipar um recebível de cartão
- * de 32 dias custa ≈ a taxa mensal cheia; antecipar de 5 dias custa 1/6 dela.
+ * The consequence an integrator needs to know: anticipating a 32-day card
+ * receivable costs ≈ the full monthly rate; anticipating 5 days costs 1/6 of it.
  *
- * Está registrado em progress.md, na tabela "Regras que a documentação não
- * define", e os números vivem em `config.fees.anticipation` (variáveis de
- * ambiente `FEE_ANTICIPATION_*`) justamente para que a correção, quando
- * descobrirmos a fórmula real, seja de configuração — não de código.
+ * It is recorded in progress.md, in the table "Rules the documentation does not
+ * define", and the numbers live in `config.fees.anticipation` (environment
+ * variables `FEE_ANTICIPATION_*`) precisely so that the correction, when we
+ * discover the real formula, is a configuration change — not a code change.
  */
 import type { FeeTable } from '../core/config.ts'
 import { daysBetween, type IsoDate } from './calendar.ts'
 import type { BillingType } from './fees.ts'
 import { cents, roundCents, type BasisPoints, type Cents } from './money.ts'
 
-/** Dias no "mês comercial" usado no pro-rata. */
+/** Days in the "commercial month" used in the pro-rata. */
 export const COMMERCIAL_MONTH_DAYS = 30
 
-/** Só cartão de crédito e boleto têm recebível a antecipar. */
+/** Only credit card and bank slip have a receivable to anticipate. */
 export function isAnticipableBillingType(billingType: BillingType): boolean {
   return billingType === 'CREDIT_CARD' || billingType === 'BOLETO'
 }
 
 /**
- * A taxa AO MÊS aplicável. Cartão parcelado tem taxa menor que cartão à vista
- * (o risco é diluído no tempo) — é o que a tabela pública do Asaas mostra.
+ * The applicable MONTHLY rate. An installment card has a lower rate than a
+ * single-payment card (the risk is diluted over time) — that is what Asaas's
+ * public table shows.
  */
 export function anticipationRateBp(
   fees: FeeTable,
@@ -53,36 +54,36 @@ export interface AnticipationQuoteInput {
   fees: FeeTable
   billingType: BillingType
   installmentCount: number
-  /** Valor BRUTO da cobrança. */
+  /** The GROSS value of the charge. */
   totalValueCents: Cents
-  /** A taxa que o Asaas já cobra pela cobrança em si (R$ 1,99 do boleto, etc.). */
+  /** The fee Asaas already charges for the charge itself (the bank slip's R$ 1.99, etc.). */
   paymentFeeCents: Cents
-  /** Quando o recebível cairia sem a antecipação. */
+  /** When the receivable would land without the anticipation. */
   expectedCreditDate: IsoDate
   today: IsoDate
 }
 
 export interface AnticipationQuote {
-  /** Dias que estão sendo antecipados. Nunca negativo. */
+  /** The days being anticipated. Never negative. */
   anticipationDays: number
-  /** Valor bruto da cobrança. */
+  /** The gross value of the charge. */
   totalValueCents: Cents
-  /** Base da antecipação: o líquido da cobrança (bruto − taxa da cobrança). */
+  /** The anticipation base: the net of the charge (gross − the charge's fee). */
   valueCents: Cents
-  /** A taxa de antecipação. */
+  /** The anticipation fee. */
   feeCents: Cents
-  /** O que de fato cai na conta hoje. */
+  /** What actually lands in the account today. */
   netValueCents: Cents
   monthlyRateBp: BasisPoints
 }
 
 /**
- * A conta inteira, num lugar só.
+ * The whole calculation, in one place.
  *
- * Note que a base NÃO é o valor bruto: é o líquido da cobrança. Antecipar não
- * devolve a taxa da cobrança — ela continua sendo cobrada quando o recebível
- * liquidar. É o que os exemplos da própria spec mostram
- * (totalValue 80 → value 76,01 → fee 2,33 → netValue 73,68).
+ * Note that the base is NOT the gross amount: it is the net of the charge.
+ * Anticipating does not give back the charge's fee — it keeps being charged when
+ * the receivable settles. That is what the spec's own examples show
+ * (totalValue 80 → value 76.01 → fee 2.33 → netValue 73.68).
  */
 export function quoteAnticipation(input: AnticipationQuoteInput): AnticipationQuote {
   const days = Math.max(0, daysBetween(input.expectedCreditDate, input.today))

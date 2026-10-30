@@ -1,9 +1,9 @@
 /**
- * Detector de drift: baixa a spec do Asaas e compara estruturalmente com o lock
- * vendorizado. Não escreve nada.
+ * Drift detector: downloads the Asaas spec and compares it structurally with the vendored
+ * lock. It writes nothing.
  *
- * Roda num job agendado (semanal), separado do build. Sai com código 1 se houver
- * drift, para que o CI abra uma issue.
+ * It runs in a scheduled job (weekly), separate from the build. It exits with code 1 if there is
+ * drift, so that the CI opens an issue.
  *
  *   bun run spec:diff
  */
@@ -12,7 +12,7 @@ import { fetchSpec } from './spec.ts'
 
 const lock = await readLock()
 if (!lock) {
-  console.error('spec/openapi.lock.json não existe. Rode "bun run spec:fetch" primeiro.')
+  console.error('spec/openapi.lock.json does not exist. Run "bun run spec:fetch" first.')
   process.exit(1)
 }
 
@@ -20,7 +20,7 @@ const raw = await fetchSpec()
 const fresh = await buildLock(`${JSON.stringify(JSON.parse(raw), null, 2)}\n`, 'n/a')
 
 if (fresh.sha256 === lock.sha256) {
-  console.log('Sem drift. A spec vendorizada está em dia com o Asaas.')
+  console.log('No drift. The vendored spec is up to date with Asaas.')
   process.exit(0)
 }
 
@@ -42,13 +42,13 @@ const report = (label: string, d: ReturnType<typeof diffKeys>) => {
 }
 
 console.log('DRIFT DETECTADO — a spec do Asaas mudou.')
-console.log(`  operações  ${lock.operationCount} → ${fresh.operationCount}`)
+console.log(`  operations  ${lock.operationCount} → ${fresh.operationCount}`)
 console.log(`  schemas    ${lock.schemaCount} → ${fresh.schemaCount}`)
-report('Operações', ops)
+report('Operations', ops)
 report('Schemas', schemas)
 console.log(
   `\nPara adotar: "bun run spec:fetch" && "bun run codegen" && "bun test".` +
-    `\nAtenção especial aos overlays em spec/overlays/ — se o Asaas corrigiu o que o` +
-    `\noverlay remendava, o codegen vai falhar apontando o path que não resolve mais.`,
+    `\nPay special attention to the overlays in spec/overlays/ — if Asaas fixed what the` +
+    `\noverlay was patching, the codegen will fail pointing at the path that no longer resolves.`,
 )
 process.exit(1)

@@ -1,10 +1,10 @@
 /**
- * O motor de webhook — o teste que justifica o projeto.
+ * The webhook engine — the test that justifies the project.
  *
- * Tudo aqui roda contra um servidor HTTP DE VERDADE (o WebhookSink), com fetch de
- * verdade: é a única forma de exercitar o header `asaas-access-token`, o timeout,
- * e a regra de que só HTTP 200 é sucesso. Um espião em memória passaria nos
- * mesmos asserts sem testar nada do que quebra na vida real.
+ * Everything here runs against a REAL HTTP server (the WebhookSink), with fetch from
+ * for real: it is the only way to exercise the `asaas-access-token` header, the timeout,
+ * and the rule that only HTTP 200 is a success. An in-memory spy would pass the
+ * same asserts without testing any of what breaks in real life.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { and, eq } from 'drizzle-orm'
@@ -22,11 +22,11 @@ beforeEach(async () => {
 })
 afterEach(() => h.close())
 
-/** Cria o webhook pela API — é assim que o usuário do simulador faz. */
+/** Creates the webhook through the API — it is how the simulator's user does it. */
 async function createWebhook(overrides: Record<string, unknown> = {}) {
   const res = await h.api.call('create-new-webhook', {
     body: {
-      name: 'Integração',
+      name: 'Integration',
       url: h.sink.url,
       email: 'dev@localhost',
       sendType: 'NON_SEQUENTIALLY',
@@ -40,8 +40,8 @@ async function createWebhook(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * Emite um evento de domínio direto, como um handler de cobrança faria dentro da
- * sua transação. O payload é CONGELADO aqui.
+ * Emits a domain event directly, the way a charge handler would do it inside its
+ * transaction. The payload is FROZEN here.
  */
 async function emit(event: string, resource: Record<string, unknown>): Promise<void> {
   const domainEvent: DomainEvent = {
@@ -65,37 +65,37 @@ const webhookRow = (id: string) =>
     .limit(1)
     .then((r) => r[0]!)
 
-// ──────────────────────────────────── viagem no tempo × fila de entregas
+// ──────────────────────────────────── time travel × delivery queue
 
-describe('voltar o relógio destrava a fila', () => {
+describe('turning the clock back unblocks the queue', () => {
   /**
-   * O BUG QUE ESTE TESTE IMPEDE DE VOLTAR — e ele custou uma tarde.
+   * THE BUG THIS TEST KEEPS FROM COMING BACK — and it cost an afternoon.
    *
-   * Alguém clica `+32` no painel para ver um cartão creditar. Nesse meio-tempo uma
-   * entrega falha, e o backoff a reagenda para "daqui a 30 segundos" — só que esse
-   * instante está um mês à frente do tempo REAL. Voltar o relógio ao presente não
-   * desfaz o agendamento: a entrega vira inalcançável e, como o `sendType` é
-   * SEQUENTIALLY, ela trava a fila INTEIRA por trás dela. Nenhum webhook chega mais.
+   * Someone clicks `+32` in the panel to watch a card credit. Meanwhile a
+   * delivery fails, and the backoff reschedules it for "30 seconds from now" — except that
+   * instant is a month ahead of the REAL time. Turning the clock back to the present does not
+   * undo the scheduling: the delivery becomes unreachable and, since the `sendType` is
+   * SEQUENTIALLY, it freezes the WHOLE queue behind it. No webhook arrives anymore.
    *
-   * Na ponta, o sintoma não parece nada disso. Parece "o Asaas diz que o pagamento
-   * foi RECEIVED, mas meu pedido continua pendente" — e você vai procurar o bug na
-   * sua rota de status, que está certa.
+   * At the end, the symptom looks like none of that. It looks like "Asaas says the payment
+   * was RECEIVED, but my order is still pending" — and you will look for the bug in
+   * your status route, which is right.
    */
-  it('reset puxa de volta as entregas que ficaram agendadas no futuro', async () => {
+  it('reset pulls back the deliveries that were scheduled in the future', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
 
-    // Viaja para o futuro e falha uma entrega LÁ: o backoff a reagenda para um
-    // instante que, visto do presente, ainda não chegou.
+    // Travels to the future and fails a delivery THERE: the backoff reschedules it for an
+    // instant that, seen from the present, has not arrived yet.
     //
-    // Tem de ser o futuro do relógio REAL, não o do harness — ele parte de janeiro
-    // de 2026, então `advance({days: 30})` ainda cairia no passado e a entrega não
-    // ficaria presa. É justamente a assimetria que torna o bug difícil de ver.
-    const futuro = new Date(Date.now() + 30 * 86_400_000).toISOString()
+    // It has to be the future of the REAL clock, not the harness's — it starts in January
+    // 2026, so `advance({days: 30})` would still land in the past and the delivery would not
+    // get stuck. It is exactly that asymmetry that makes the bug hard to see.
+    const futureDate = new Date(Date.now() + 30 * 86_400_000).toISOString()
     await h.app.app.handle(
       new Request('http://localhost/_admin/clock/set', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ date: futuro }),
+        body: JSON.stringify({ date: futureDate }),
       }),
     )
 
@@ -105,9 +105,9 @@ describe('voltar o relógio destrava a fila', () => {
 
     const [failed] = await deliveries()
     expect(failed!.attempt).toBe(1)
-    expect(failed!.nextAttemptAtMs).toBeGreaterThan(Date.now()) // presa no futuro
+    expect(failed!.nextAttemptAtMs).toBeGreaterThan(Date.now()) // stuck in the future
 
-    // O endpoint volta ao ar e um evento novo acontece no PRESENTE.
+    // The endpoint comes back up and a new event happens in the PRESENT.
     const res = await h.app.app.handle(
       new Request('http://localhost/_admin/clock/reset', { method: 'POST' }),
     )
@@ -117,15 +117,15 @@ describe('voltar o relógio destrava a fila', () => {
     h.sink.respondWith(200)
     await h.tick()
 
-    // Sem o pull-back, estes expects falham: a fila ficaria parada atrás da entrega
-    // agendada para daqui a 30 dias, e o sink nunca veria a reentrega.
+    // Without the pull-back, these expects fail: the queue would be stuck behind the delivery
+    // scheduled for 30 days from now, and the sink would never see the redelivery.
     const [drained] = await deliveries()
     expect(drained!.status).toBe('DELIVERED')
-    expect(drained!.attempt).toBe(2) // a que tomou 500, e a que passou
+    expect(drained!.attempt).toBe(2) // the one that took the 500, and the one that passed
     expect(h.sink.received.length).toBe(2)
   })
 
-  it('o pull-back não mexe em entrega já entregue nem ressuscita expirada', async () => {
+  it('the pull-back does not touch an already delivered one nor resurrect an expired one', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
 
     h.sink.respondWith(200)
@@ -144,9 +144,9 @@ describe('voltar o relógio destrava a fila', () => {
   })
 })
 
-// ──────────────────────────────────── diagnóstico da fila (o card do painel)
+// ──────────────────────────────────── queue diagnosis (the panel's card)
 
-describe('queueHealth — por que a fila não anda', () => {
+describe('queueHealth — why the queue is not moving', () => {
   const health = async () => {
     const res = await h.app.app.handle(new Request('http://localhost/_admin/webhooks/queue'))
     const body = (await res.json()) as { webhooks: any[] }
@@ -154,22 +154,22 @@ describe('queueHealth — por que a fila não anda', () => {
   }
 
   /**
-   * Cada conta tem os SEUS webhooks, e a chave dela é a única que os enxerga.
+   * Each account has ITS OWN webhooks, and its key is the only one that sees them.
    *
-   * Sem o dono nesta resposta, o painel listava os 8 webhooks de 8 contas
-   * diferentes como se fossem 8 registros duplicados da mesma ("por que tenho 8
-   * webhooks?"), e o botão "Reativar fila" chamava a /v3 com a chave da conta
-   * selecionada — 404 em todos, menos no dela.
+   * Without the owner in this response, the panel listed the 8 webhooks of 8 accounts
+   * as if they were 8 duplicated records of the same one ("why do I have 8
+   * webhooks?"), and the "Reactivate queue" button called the /v3 with the account's key
+   * selected one — 404 on all of them, except on its own.
    */
-  it('cada webhook vem com a conta DONA — a chave de outra conta não o enxerga', async () => {
+  it("each webhook comes with its OWNING account — another account's key does not see it", async () => {
     await createWebhook({ name: 'do master' })
 
     const w = await health()
     expect(w.accountId).toBe(h.accountId)
     expect(w.accountName).toBeString()
 
-    // A prova de que o dono importa: a chave de outra conta devolve 404.
-    const outra = await h.api.call('create-subaccount', {
+    // The proof that the owner matters: the key of another account returns 404.
+    const other = await h.api.call('create-subaccount', {
       body: {
         name: 'Produtora',
         email: 'produtora@localhost',
@@ -182,18 +182,18 @@ describe('queueHealth — por que a fila não anda', () => {
         postalCode: '01310100',
       },
     })
-    expect(outra.status).toBe(200)
+    expect(other.status).toBe(200)
 
     const res = await h.app.app.handle(
       new Request(`http://localhost/v3/webhooks/${w.webhookId}/removeBackoff`, {
         method: 'POST',
-        headers: { access_token: outra.body.apiKey },
+        headers: { access_token: other.body.apiKey },
       }),
     )
     expect(res.status).toBe(404)
   })
 
-  it('fila que anda não reporta bloqueio', async () => {
+  it('a queue that is moving does not report a block', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
     h.sink.respondWith(200)
     await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
@@ -205,12 +205,12 @@ describe('queueHealth — por que a fila não anda', () => {
   })
 
   /**
-   * O caso que motivou o card. O endpoint devolve 500, a cabeça da fila trava, e
-   * TODAS as entregas atrás dela param. O painel precisa dizer isso com todas as
-   * letras — inclusive o HTTP que o endpoint devolveu, porque é a informação que
-   * manda o dev olhar para o lugar certo.
+   * The case that motivated the card. The endpoint answers 500, the head of the queue freezes, and
+   * ALL the deliveries behind it stop. The panel has to say that in so many
+   * words — including the HTTP the endpoint returned, because it is the information that
+   * sends the developer to the right place.
    */
-  it('em SEQUENTIALLY, a cabeça falhando trava as de trás — e o card diz quantas', async () => {
+  it('in SEQUENTIALLY, the failing head freezes the ones behind it — and the card says how many', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
     h.sink.respondWith(500)
 
@@ -224,26 +224,26 @@ describe('queueHealth — por que a fila não anda', () => {
     expect(w.blocked.reason).toBe('HEAD_FAILING')
     expect(w.blocked.event).toBe('PAYMENT_CREATED') // a de MENOR sequence
     expect(w.blocked.lastStatusCode).toBe(500)
-    expect(w.blocked.behind).toBe(2) // as outras duas, presas atrás
+    expect(w.blocked.behind).toBe(2) // the other two, stuck behind
   })
 
-  it('NON_SEQUENTIALLY não tem head-of-line: uma falha não trava as outras', async () => {
+  it('NON_SEQUENTIALLY has no head-of-line: one failure does not freeze the others', async () => {
     await createWebhook({ sendType: 'NON_SEQUENTIALLY' })
     h.sink.respondWith(500)
     await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
     await h.tick()
 
     const w = await health()
-    expect(w.pending).toBe(1) // ela falhou e vai reentregar
-    expect(w.blocked).toBeNull() // mas não segura ninguém
+    expect(w.pending).toBe(1) // it failed and will redeliver
+    expect(w.blocked).toBeNull() // but it holds nobody
   })
 
-  it('esgotar o backoff vira INTERRUPTED — e removeBackoff destrava', async () => {
+  it('exhausting the backoff becomes INTERRUPTED — and removeBackoff unlocks it', async () => {
     const wh = await createWebhook({ sendType: 'SEQUENTIALLY' })
     h.sink.respondWith(500)
     await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
 
-    // As 15 tentativas, cada uma no seu passo exato de backoff. Fim da linha.
+    // The 15 attempts, each one at its exact backoff step. End of the line.
     await h.tick()
     for (const offset of BACKOFF_MS.slice(1)) {
       h.clock.advance(offset)
@@ -253,7 +253,7 @@ describe('queueHealth — por que a fila não anda', () => {
     expect((await webhookRow(wh.id)).interrupted).toBe(true)
     expect((await health()).blocked.reason).toBe('INTERRUPTED')
 
-    // O dev conserta o endpoint e aperta o botão. É a operação REAL do Asaas.
+    // The developer fixes the endpoint and presses the button. It is the REAL Asaas operation.
     h.sink.respondWith(200)
     const res = await h.api.call('remove-webhook-backoff', { params: { id: wh.id } })
     expect(res.status).toBe(204)
@@ -269,7 +269,7 @@ describe('queueHealth — por que a fila não anda', () => {
 // ────────────────────────────────────────────────────────── CRUD
 
 describe('webhooks — CRUD', () => {
-  it('cria, recupera, lista e remove — e nunca devolve o authToken', async () => {
+  it('creates, retrieves, lists and removes — and never returns the authToken', async () => {
     const created = await createWebhook({ name: 'Meu webhook' })
 
     expect(created.id).toBeString()
@@ -277,7 +277,7 @@ describe('webhooks — CRUD', () => {
     expect(created.enabled).toBe(true)
     expect(created.interrupted).toBe(false)
     expect(created.apiVersion).toBe(3)
-    // O token só sai daqui dentro do header de uma entrega.
+    // The token only leaves from here, inside the header of a delivery.
     expect(created.hasAuthToken).toBe(true)
     expect(created).not.toHaveProperty('authToken')
     expect(created.events).toEqual([
@@ -305,12 +305,12 @@ describe('webhooks — CRUD', () => {
     expect(gone.status).toBe(404)
   })
 
-  it('recusa o 11º webhook da conta', async () => {
+  it('refuses the 11th webhook of the account', async () => {
     for (let i = 0; i < 10; i++) await createWebhook({ name: `w${i}` })
 
     const res = await h.api.call('create-new-webhook', {
       body: {
-        name: 'o décimo primeiro',
+        name: 'the eleventh',
         url: h.sink.url,
         email: 'dev@localhost',
         sendType: 'NON_SEQUENTIALLY',
@@ -321,7 +321,7 @@ describe('webhooks — CRUD', () => {
     expect(res.body.errors[0].description).toContain('limite de 10 webhooks')
   })
 
-  it('recusa authToken fora de 32–255 caracteres', async () => {
+  it('refuses an authToken outside 32–255 characters', async () => {
     const res = await h.api.call('create-new-webhook', {
       body: {
         name: 'curto demais',
@@ -337,10 +337,10 @@ describe('webhooks — CRUD', () => {
   })
 })
 
-// ────────────────────────────────────────────────────────── entrega
+// ────────────────────────────────────────────────────────── delivery
 
-describe('webhooks — entrega', () => {
-  it('entrega o evento no envelope do Asaas, com o header asaas-access-token', async () => {
+describe('webhooks — delivery', () => {
+  it('delivers the event in Asaas’s envelope, with the asaas-access-token header', async () => {
     const wh = await createWebhook({ authToken: 'tok_'.padEnd(40, 'x') })
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001', value: 100 })
 
@@ -369,11 +369,11 @@ describe('webhooks — entrega', () => {
     expect(d!.attempt).toBe(1)
     expect(d!.lastAttemptAt).toBe(h.app.ctx.clock.timestamp())
 
-    // O webhook não trava quando tudo dá certo.
+    // The webhook does not freeze when everything goes right.
     expect((await webhookRow(wh.id)).interrupted).toBe(false)
   })
 
-  it('não manda o header quando o webhook não tem authToken', async () => {
+  it('does not send the header when the webhook has no authToken', async () => {
     await createWebhook({ authToken: undefined })
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001' })
     await h.tick()
@@ -381,7 +381,7 @@ describe('webhooks — entrega', () => {
     expect(h.sink.received[0]!.headers['asaas-access-token']).toBeUndefined()
   })
 
-  it('HTTP 201 é FALHA — só 200 é sucesso no Asaas', async () => {
+  it('HTTP 201 is a FAILURE — only 200 is a success in Asaas', async () => {
     await createWebhook()
     h.sink.respondWith(201)
 
@@ -389,7 +389,7 @@ describe('webhooks — entrega', () => {
     const report = await h.tick()
 
     expect(h.sink.received).toHaveLength(1) // chegou…
-    expect(report.webhooks.delivered).toEqual([]) // …mas NÃO conta como entregue.
+    expect(report.webhooks.delivered).toEqual([]) // …but it does NOT count as delivered.
     expect(report.webhooks.failed).toHaveLength(1)
 
     const [d] = await deliveries()
@@ -397,13 +397,13 @@ describe('webhooks — entrega', () => {
     expect(d!.attempt).toBe(1)
     expect(d!.lastStatusCode).toBe(201)
     expect(d!.lastError).toContain('HTTP 201')
-    // Reagendada para o offset 2 da tabela: 30s.
+    // Rescheduled to offset 2 of the table: 30s.
     expect(d!.nextAttemptAtMs).toBe(h.clock.nowMs() + 30_000)
   })
 
-  it('204 também é falha; 200 no retry fecha a entrega', async () => {
+  it('204 is a failure too; a 200 on the retry closes the delivery', async () => {
     await createWebhook()
-    h.sink.failNext(1, 204) // a primeira responde 204, as seguintes 200
+    h.sink.failNext(1, 204) // the first one answers 204, the following ones 200
 
     await emit('PAYMENT_CONFIRMED', { id: 'pay_000000000001' })
     await h.tick()
@@ -422,7 +422,7 @@ describe('webhooks — entrega', () => {
     expect(h.sink.received).toHaveLength(2)
   })
 
-  it('o dispatcher pausado não entrega nada', async () => {
+  it('the paused dispatcher delivers nothing', async () => {
     await createWebhook()
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001' })
 
@@ -435,7 +435,7 @@ describe('webhooks — entrega', () => {
     expect(h.sink.received).toHaveLength(1)
   })
 
-  it('webhook desabilitado não recebe nada', async () => {
+  it('a disabled webhook receives nothing', async () => {
     const wh = await createWebhook()
     await h.api.call('update-existing-webhook', {
       params: { id: wh.id },
@@ -451,14 +451,14 @@ describe('webhooks — entrega', () => {
 
 // ────────────────────────────────────────────────────────── backoff
 
-describe('webhooks — backoff de 15 tentativas', () => {
-  it('percorre os offsets EXATOS da tabela, interrompe, e removeBackoff destrava', async () => {
+describe('webhooks — backoff of 15 attempts', () => {
+  it('walks the EXACT offsets of the table, interrupts, and removeBackoff unlocks it', async () => {
     const wh = await createWebhook()
     h.sink.respondWith(500)
 
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001', value: 4990 })
 
-    // 1ª tentativa: imediata (offset 0 da tabela).
+    // 1st attempt: immediate (offset 0 of the table).
     await h.tick()
     expect(h.sink.received).toHaveLength(1)
 
@@ -466,7 +466,7 @@ describe('webhooks — backoff de 15 tentativas', () => {
     expect(d!.attempt).toBe(1)
     expect(d!.lastStatusCode).toBe(500)
 
-    // As 14 esperas seguintes. A tabela do Asaas, decorada:
+    // The 14 following waits. Asaas's table, annotated:
     const expected = [
       30_000,
       MINUTE_MS,
@@ -490,12 +490,12 @@ describe('webhooks — backoff de 15 tentativas', () => {
       ;[d] = await deliveries()
       expect(d!.nextAttemptAtMs).toBe(h.clock.nowMs() + offset)
 
-      // Um instante ANTES do offset: nada acontece. É o backoff funcionando.
+      // One instant BEFORE the offset: nothing happens. It is the backoff working.
       h.clock.advance(offset - 1)
       await h.tick()
       expect(h.sink.received).toHaveLength(attemptsBefore)
 
-      // No offset exato: a tentativa sai.
+      // At the exact offset: the attempt goes out.
       h.clock.advance(1)
       await h.tick()
       expect(h.sink.received).toHaveLength(attemptsBefore + 1)
@@ -503,27 +503,27 @@ describe('webhooks — backoff de 15 tentativas', () => {
       expect(d!.attempt).toBe(attemptsBefore + 1)
     }
 
-    // 15 tentativas, todas com 500. Fim da linha.
+    // 15 attempts, all with 500. End of the line.
     expect(h.sink.received).toHaveLength(15)
     ;[d] = await deliveries()
     expect(d!.attempt).toBe(15)
     expect(d!.status).toBe('INTERRUPTED')
     expect(d!.nextAttemptAtMs).toBeNull()
 
-    // E a fila INTEIRA do webhook congela — é o que o Asaas faz.
+    // And the webhook's WHOLE queue freezes — that is what Asaas does.
     expect((await webhookRow(wh.id)).interrupted).toBe(true)
     const view = await h.api.call('retrieve-a-single-webhook', { params: { id: wh.id } })
     expect(view.body.interrupted).toBe(true)
 
-    // Um tick a mais não tenta de novo: interrompido é interrompido.
+    // One more tick does not try again: interrupted is interrupted.
     h.clock.advance(24 * HOUR_MS)
     await h.tick()
     expect(h.sink.received).toHaveLength(15)
 
-    // O dev conserta a rota dele…
+    // The developer fixes their route…
     h.sink.respondWith(200)
 
-    // …e destrava a fila.
+    // …and unfreezes the queue.
     const un = await h.api.call('remove-webhook-backoff', { params: { id: wh.id } })
     expect(un.status).toBe(204)
 
@@ -536,7 +536,7 @@ describe('webhooks — backoff de 15 tentativas', () => {
 
     expect(h.sink.received).toHaveLength(16)
     expect(h.sink.received[15]!.payload.event).toBe('PAYMENT_RECEIVED')
-    // O payload reentregue é o do emit — não uma consulta ao estado atual.
+    // The redelivered payload is the one from the emit — not a query of the current state.
     expect(h.sink.received[15]!.payload.payment).toEqual({
       id: 'pay_000000000001',
       value: 4990,
@@ -545,7 +545,7 @@ describe('webhooks — backoff de 15 tentativas', () => {
     expect(d!.status).toBe('DELIVERED')
   })
 
-  it('um PUT com interrupted: false também reativa a fila', async () => {
+  it('a PUT with interrupted: false also reactivates the queue', async () => {
     const wh = await createWebhook()
 
     await h.app.db
@@ -555,7 +555,7 @@ describe('webhooks — backoff de 15 tentativas', () => {
 
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001' })
     await h.tick()
-    expect(h.sink.received).toHaveLength(0) // interrompido: não entrega
+    expect(h.sink.received).toHaveLength(0) // interrupted: it does not deliver
 
     const res = await h.api.call('update-existing-webhook', {
       params: { id: wh.id },
@@ -570,8 +570,8 @@ describe('webhooks — backoff de 15 tentativas', () => {
 
 // ────────────────────────────────────────────────────────── SEQUENTIALLY
 
-describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
-  it('o 1º evento travado segura os eventos 2 e 3; quando ele passa, os 3 chegam em ordem', async () => {
+describe('webhooks — SEQUENTIALLY does head-of-line blocking', () => {
+  it('the 1st blocked event holds events 2 and 3; when it passes, the 3 arrive in order', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
     h.sink.respondWith(500)
 
@@ -584,14 +584,14 @@ describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
 
     await h.tick()
 
-    // SÓ a cabeça da fila foi tentada. Os outros dois estão vencidos e mesmo
-    // assim NÃO saíram: é o head-of-line blocking do Asaas.
+    // ONLY the head of the queue was attempted. The other two are overdue and even
+    // so they did NOT go out: it is Asaas's head-of-line blocking.
     expect(h.sink.eventNames).toEqual(['PAYMENT_CREATED'])
     let all = await deliveries()
     expect(all.map((r) => r.attempt)).toEqual([1, 0, 0])
     expect(all.map((r) => r.status)).toEqual(['PENDING', 'PENDING', 'PENDING'])
 
-    // Passa o tempo: a fila continua travada na mesma entrega.
+    // Time passes: the queue stays stuck on the same delivery.
     h.clock.advance(30_000)
     await h.tick()
     expect(h.sink.eventNames).toEqual(['PAYMENT_CREATED', 'PAYMENT_CREATED'])
@@ -599,7 +599,7 @@ describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
     all = await deliveries()
     expect(all.map((r) => r.attempt)).toEqual([2, 0, 0])
 
-    // O endpoint volta. Agora a fila drena — em ordem.
+    // The endpoint comes back. Now the queue drains — in order.
     h.sink.respondWith(200)
     h.clock.advance(MINUTE_MS)
     await h.tick()
@@ -616,9 +616,9 @@ describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
     expect(all.map((r) => r.status)).toEqual(['DELIVERED', 'DELIVERED', 'DELIVERED'])
   })
 
-  it('NON_SEQUENTIALLY entrega os vencidos mesmo com um falhando', async () => {
+  it('NON_SEQUENTIALLY delivers the due ones even with one failing', async () => {
     await createWebhook({ sendType: 'NON_SEQUENTIALLY' })
-    h.sink.failNext(1, 500) // só a PRIMEIRA requisição falha
+    h.sink.failNext(1, 500) // only the FIRST request fails
 
     await emit('PAYMENT_CREATED', { id: 'pay_000000000001' })
     await emit('PAYMENT_CONFIRMED', { id: 'pay_000000000001' })
@@ -626,7 +626,7 @@ describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
 
     await h.tick()
 
-    // As três foram tentadas no mesmo tick — sem bloqueio de fila.
+    // All three were attempted in the same tick — with no queue blocking.
     expect(h.sink.received).toHaveLength(3)
 
     const all = await deliveries()
@@ -636,19 +636,19 @@ describe('webhooks — SEQUENTIALLY faz head-of-line blocking', () => {
   })
 })
 
-// ────────────────────────────────────────────────────────── payload congelado
+// ────────────────────────────────────────────────────────── frozen payload
 
-describe('webhooks — o payload é congelado no emit', () => {
-  it('entrega o recurso como ele era no emit, não como está agora', async () => {
+describe('webhooks — the payload is frozen at the emit', () => {
+  it('delivers the resource as it was at the emit, not as it is now', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
-    // Nada é entregue enquanto o dispatcher estiver pausado — é a viagem no
-    // tempo "pura", com a fila parada.
+    // Nothing is delivered while the dispatcher is paused — it is time travel with
+    // the queue stopped.
     h.app.scheduler.paused = true
 
     const payment = { id: 'pay_000000000001', status: 'PENDING', value: 10_000 }
     await emit('PAYMENT_CREATED', { ...payment })
 
-    // O recurso muda depois do emit: é pago, e o valor é corrigido.
+    // The resource changes after the emit: it is paid, and the amount is corrected.
     payment.status = 'RECEIVED'
     payment.value = 12_345
     await emit('PAYMENT_RECEIVED', { ...payment })
@@ -659,8 +659,8 @@ describe('webhooks — o payload é congelado no emit', () => {
 
     expect(h.sink.received).toHaveLength(2)
 
-    // A 1ª entrega carrega o fato como ele era — PENDING, 10.000 —, e não o
-    // estado atual do recurso. O evento descreve um instante, não uma consulta.
+    // The 1st delivery carries the fact as it was — PENDING, 10.000 — and not the
+    // resource's current state. The event describes an instant, not a query.
     expect(h.sink.received[0]!.payload.event).toBe('PAYMENT_CREATED')
     expect(h.sink.received[0]!.payload.payment).toEqual({
       id: 'pay_000000000001',
@@ -677,16 +677,16 @@ describe('webhooks — o payload é congelado no emit', () => {
   })
 })
 
-// ────────────────────────────────────────────────────────── retenção
+// ────────────────────────────────────────────────────────── retention
 
-describe('webhooks — retenção', () => {
-  it('entrega pendente além da janela de retenção vira EXPIRED', async () => {
+describe('webhooks — retention', () => {
+  it('a pending delivery beyond the retention window becomes EXPIRED', async () => {
     const wh = await createWebhook()
-    h.app.scheduler.paused = true // a fila para, o tempo não
+    h.app.scheduler.paused = true // the queue stops, time does not
 
     await emit('PAYMENT_RECEIVED', { id: 'pay_000000000001' })
 
-    h.clock.advance(15 * 24 * HOUR_MS) // retenção = 14 dias
+    h.clock.advance(15 * 24 * HOUR_MS) // retention = 14 days
     h.app.scheduler.paused = false
     await h.tick()
 
@@ -701,12 +701,12 @@ describe('webhooks — retenção', () => {
   })
 })
 
-// ────────────────────────────────────────────────────────── a pegadinha do Docker
+// ────────────────────────────────────────────────────────── the Docker trap
 
-describe('webhooks — reescrita de host para o Docker', () => {
+describe('webhooks — host rewriting for Docker', () => {
   beforeEach(() => resetRewriteNotice())
 
-  it('reescreve localhost preservando porta, path e query', () => {
+  it('rewrites localhost preserving port, path and query', () => {
     expect(
       rewriteForContainer('http://localhost:3000/hook?x=1#f', 'host.docker.internal'),
     ).toBe('http://host.docker.internal:3000/hook?x=1#f')
@@ -720,17 +720,17 @@ describe('webhooks — reescrita de host para o Docker', () => {
     )
   })
 
-  it('não toca em host externo, e não reescreve nada sem o target', () => {
+  it('does not touch an external host, and rewrites nothing without the target', () => {
     expect(rewriteForContainer('https://api.exemplo.com/hook', 'host.docker.internal')).toBe(
       'https://api.exemplo.com/hook',
     )
-    // Fora do Docker (o caso dos testes e do `bun run dev`): nada muda.
+    // Outside Docker (the case of the tests and of `bun run dev`): nothing changes.
     expect(rewriteForContainer('http://localhost:3000/hook', undefined)).toBe(
       'http://localhost:3000/hook',
     )
   })
 
-  it('avisa UMA vez, em nível info — é a pegadinha nº 1 do projeto', () => {
+  it('warns ONCE, at info level — it is the #1 trap of the project', () => {
     const logged: { level: string; msg: string }[] = []
     const log = (level: string, msg: string) => logged.push({ level, msg })
 
@@ -743,4 +743,4 @@ describe('webhooks — reescrita de host para o Docker', () => {
   })
 })
 
-void and // mantém o import usado pela tipagem do drizzle
+void and // keeps the import used by drizzle's typing

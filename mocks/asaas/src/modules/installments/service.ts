@@ -1,18 +1,19 @@
 /**
- * Parcelamento — a criação. (Track E)
+ * Installment plans — the creation. (Track E)
  *
- * A diferença que define o recurso: **o parcelamento cria as N cobranças NA
- * HORA**. A assinatura não — ela gera sob demanda, 40 dias antes de cada
- * vencimento. São dois modelos opostos e é fácil confundi-los.
+ * The difference that defines the resource: **the installment plan creates the N
+ * charges RIGHT AWAY**. The subscription does not — it generates on demand, 40
+ * days before each due date. They are two opposite models, and it is easy to
+ * confuse them.
  *
- * Cada parcela nasce do MESMO `createPayment()` de uma cobrança avulsa. É isso
- * que garante que a parcela 7/12 tenha exatamente o mesmo formato, os mesmos
- * webhooks e o mesmo caminho de liquidação de qualquer outra cobrança — e que
- * uma correção no ciclo de vida da cobrança valha para as três origens de uma
- * vez.
+ * Each installment is born from the SAME `createPayment()` of a one-off charge.
+ * It is what guarantees that the 7th of 12 installments has exactly the same
+ * shape, the same webhooks and the same settlement path of any other charge —
+ * and that a fix in the charge lifecycle is worth the three origins at once.
  *
- * A REGRA DO RESTO: a sobra do arredondamento vai na ÚLTIMA parcela.
- *   R$ 350,00 em 12x → 11 × R$ 29,16 + 1 × R$ 29,24  (soma exata: R$ 350,00)
+ * THE RULE OF THE REMAINDER: the rounding remainder goes in the LAST
+ * installment.
+ *   R$ 350.00 in 12x → 11 × R$ 29.16 + 1 × R$ 29.24  (exact sum: R$ 350.00)
  */
 import { asc, eq } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -46,22 +47,23 @@ import { createPayment } from '../payments/service.ts'
 export type InstallmentRow = typeof installments.$inferSelect
 
 /**
- * O split de um parcelamento tem DOIS campos de valor fixo, e a diferença entre
- * eles é a pegadinha do recurso:
+ * The split of an installment plan has TWO fixed value fields, and the difference
+ * between them is the trap of the resource:
  *
- *   fixedValue       → aplicado EM CADA parcela.   R$ 10 em 4x = R$ 40 no total.
- *   totalFixedValue  → dividido ENTRE as parcelas, com a sobra na última
- *                      (mesma regra do valor das parcelas).
- *                      R$ 100 em 3x = 33,33 | 33,33 | 33,34.
+ *   fixedValue       → applied TO EACH installment.   R$ 10 in 4x = R$ 40 in total.
+ *   totalFixedValue  → divided BETWEEN the installments, with the remainder in
+ *                      the last one (the same rule as the value of the
+ *                      installments).
+ *                      R$ 100 in 3x = 33.33 | 33.33 | 33.34.
  *
- * A nomenclatura não ajuda em nada e é onde as integrações se queimam.
+ * The naming helps nobody at all and it is where integrations burn.
  */
 export interface InstallmentSplitInput {
   walletId: string
   fixedValueCents: Cents | null
   percentualValueE4: PercentE4 | null
   totalFixedValueCents: Cents | null
-  /** Vincula o split a UMA parcela só. Incompatível com totalFixedValue. */
+  /** Links the split to ONE installment only. Incompatible with totalFixedValue. */
   installmentNumber: number | null
   externalReference: string | null
   description: string | null
@@ -71,7 +73,7 @@ export interface CreateInstallmentInput {
   customerId: string
   billingType: BillingType
   installmentCount: number
-  /** O total do parcelamento, já resolvido (de `totalValue` ou de `value × N`). */
+  /** The total of the installment plan, already resolved (from `totalValue` or from `value × N`). */
   totalValueCents: Cents
   dueDate: IsoDate
   description?: string | null
@@ -93,7 +95,7 @@ export function parseInstallmentSplits(raw: unknown): InstallmentSplitInput[] {
     const hasInstallmentNumber =
       s.installmentNumber !== undefined && s.installmentNumber !== null
 
-    // A própria spec diz: "Cannot be provided along with the 'totalFixedValue'".
+    // The spec itself says: "Cannot be provided along with the 'totalFixedValue'".
     if (hasTotalFixed && hasInstallmentNumber) {
       throw invalid(
         'split',
@@ -107,7 +109,7 @@ export function parseInstallmentSplits(raw: unknown): InstallmentSplitInput[] {
         s.fixedValue !== undefined && s.fixedValue !== null
           ? brlToCents(Number(s.fixedValue))
           : null,
-      // 4 casas decimais → escala 1e4. 92.3444% → 923444.
+      // 4 decimal places → 1e4 scale. 92.3444% → 923444.
       percentualValueE4:
         s.percentualValue !== undefined && s.percentualValue !== null
           ? percentE4(Math.round(Number(s.percentualValue) * 10_000))
@@ -121,9 +123,9 @@ export function parseInstallmentSplits(raw: unknown): InstallmentSplitInput[] {
 }
 
 /**
- * Os splits que valem para UMA parcela (0-based), já com o `totalFixedValue`
- * distribuído. É aqui que a diferença entre `fixedValue` e `totalFixedValue`
- * vira aritmética.
+ * The splits that hold for ONE installment (0-based), already with the
+ * `totalFixedValue` distributed. It is here that the difference between
+ * `fixedValue` and `totalFixedValue` becomes arithmetic.
  */
 export function splitsForInstallment(
   specs: readonly InstallmentSplitInput[],
@@ -133,7 +135,7 @@ export function splitsForInstallment(
   const out: SplitSpec[] = []
 
   for (const spec of specs) {
-    // Split preso a uma parcela específica não vale para as outras.
+    // A split tied to a specific installment does not hold for the others.
     if (spec.installmentNumber !== null && spec.installmentNumber !== index + 1) continue
 
     const fixed =
@@ -154,17 +156,18 @@ export function splitsForInstallment(
 }
 
 /**
- * Traduz o body de **POST /v3/payments** (com `installmentCount`) para o mesmo
- * input do parcelamento.
+ * Translates the body of **POST /v3/payments** (with `installmentCount`) into the
+ * same installment plan input.
  *
- * Existem duas portas para o mesmo recurso, e os nomes dos campos DIVERGEM entre
- * elas — é exatamente aí que a integração se queima:
+ * There are two doors to the same resource, and the field names DIVERGE between
+ * them — that is exactly where the integration burns:
  *
- *   POST /v3/installments   `value` (valor da parcela) · `splits` · `paymentExternalReference`
- *   POST /v3/payments       `installmentValue`         · `split`  · `externalReference`
+ *   POST /v3/installments   `value` (value of the installment) · `splits` · `paymentExternalReference`
+ *   POST /v3/payments       `installmentValue`                · `split`  · `externalReference`
  *
- * E em POST /v3/payments o `value` NÃO é o valor da parcela: quem carrega isso é
- * `installmentValue`. Usar `value` aqui multiplicaria o total por N.
+ * And in POST /v3/payments the `value` is NOT the value of the installment: what
+ * carries it is `installmentValue`. Using `value` here would multiply the total
+ * by N.
  */
 export function installmentInputFromPaymentBody(b: Record<string, any>): CreateInstallmentInput {
   const installmentCount = Number(b.installmentCount)
@@ -210,7 +213,7 @@ export function installmentInputFromPaymentBody(b: Record<string, any>): CreateI
   }
 }
 
-/** Traduz o body de POST /v3/installments. */
+/** Translates the body of POST /v3/installments. */
 export function parseCreateInstallmentBody(b: Record<string, any>): CreateInstallmentInput {
   const installmentCount = Number(b.installmentCount)
   if (!Number.isInteger(installmentCount) || installmentCount < 1) {
@@ -222,9 +225,10 @@ export function parseCreateInstallmentBody(b: Record<string, any>): CreateInstal
   }
 
   /**
-   * `value` é o valor DE CADA PARCELA; `totalValue` é o total a dividir. Informa-se
-   * um OU outro. Quando vêm os dois, `totalValue` manda — é o que carrega a
-   * intenção de "divida isto", e é o único que expressa R$ 350 em 12x.
+   * `value` is the value OF EACH INSTALLMENT; `totalValue` is the total to
+   * divide. One or the other is given. When both come, `totalValue` wins — it is
+   * what carries the intention of "split this", and it is the only one that
+   * expresses R$ 350 in 12x.
    */
   let totalValueCents: Cents
   if (b.totalValue !== undefined && b.totalValue !== null) {
@@ -261,11 +265,12 @@ export function parseCreateInstallmentBody(b: Record<string, any>): CreateInstal
 }
 
 /**
- * Cria o parcelamento e TODAS as suas cobranças, numa transação só.
+ * Creates the installment plan and ALL of its charges, in one single
+ * transaction.
  *
- * `installmentCount` é passado a cada `createPayment` porque a faixa da taxa do
- * cartão depende do TOTAL de parcelas (1x: 2,99% · 2–6x: 3,49% · 7–12x: 3,99% ·
- * 13–21x: 4,29%) — e não do número da parcela.
+ * `installmentCount` is passed to each `createPayment` because the card fee
+ * range depends on the TOTAL number of installments (1x: 2.99% · 2–6x: 3.49% ·
+ * 7–12x: 3.99% · 13–21x: 4.29%) — and not on the number of the installment.
  */
 export async function createInstallment(
   ctx: AppContext,
@@ -278,7 +283,7 @@ export async function createInstallment(
   const parts = splitTotal(input.totalValueCents, count)
   const dueDates = installmentDueDates(input.dueDate, count)
 
-  const id = ids.installmentId(ctx.rng) // UUID puro — NÃO tem prefixo. É de propósito.
+  const id = ids.installmentId(ctx.rng) // A plain UUID — it has NO prefix. On purpose.
 
   /*
    * The plan is written before its charges: the creation event of each charge
@@ -291,13 +296,16 @@ export async function createInstallment(
     customerId: input.customerId,
     billingType: input.billingType,
     installmentCount: count,
-    // O valor "da parcela" é o das N−1 primeiras; a última carrega a sobra.
+    // The "installment" value is the one of the first N−1; the last one carries
+    // the remainder.
     /**
-     * O Asaas real reporta em `paymentValue` o valor da ÚLTIMA parcela — a que
-     * carrega a sobra do arredondamento —, não o das outras onze.
+     * The real Asaas reports in `paymentValue` the value of the LAST installment —
+     * the one that carries the rounding remainder —, not the one of the other
+     * eleven.
      *
-     * R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24, e `paymentValue` = **29,24**.
-     * Provado contra o sandbox; é contraintuitivo, e não teríamos adivinhado.
+     * R$ 350 in 12x → 11 × R$ 29.16 + R$ 29.24, and `paymentValue` = **29.24**.
+     * Proven against the sandbox; it is counterintuitive, and we would not have
+     * guessed it.
      */
     installmentValueCents: parts[parts.length - 1]!,
     totalValueCents: input.totalValueCents,
@@ -318,16 +326,16 @@ export async function createInstallment(
       customerId: input.customerId,
       billingType: input.billingType,
       valueCents: parts[i]!,
-      // A taxa do cartão parcelado sai do TOTAL, não da parcela. Ver
-      // calcInstallmentFee — provado contra o sandbox real.
+      // The fee of the installment card comes from the TOTAL, not from the
+      // installment. See calcInstallmentFee — proven against the real sandbox.
       installmentTotalCents: input.totalValueCents,
       /**
-       * Sem descrição, o Asaas GERA uma: "Parcela 3 de 12." — devolvíamos null.
-       * Provado contra o sandbox real.
+       * Without a description, Asaas GENERATES one: "Parcela 3 de 12." — we used
+       * to return null. Proven against the real sandbox.
        *
-       * TODO(regra): não sabemos o que ele faz quando a descrição É informada
-       * (substitui? concatena?). Aqui a informada vence. Um roteiro de paridade
-       * com descrição resolve.
+       * TODO(rule): we do not know what it does when the description IS given
+       * (replaces? concatenates?). Here the given one wins. A parity script with
+       * a description settles it.
        */
       description: input.description ?? `Parcela ${i + 1} de ${count}.`,
       dueDate: dueDates[i]!,
@@ -354,17 +362,17 @@ export async function createInstallment(
 }
 
 /**
- * O fluxo completo de criação de um parcelamento: valida o cartão, cria as N
- * cobranças e — havendo cartão — confirma todas.
+ * The complete creation flow of an installment plan: validates the card, creates
+ * the N charges and — with a card — confirms all of them.
  *
- * Vive aqui, e não no handler, porque tem DUAS portas de entrada:
+ * It lives here, and not in the handler, because it has TWO entry doors:
  *
- *   POST /v3/installments  → devolve o objeto do parcelamento
- *   POST /v3/payments      → devolve a PRIMEIRA PARCELA (com `installment` preenchido)
+ *   POST /v3/installments  → returns the installment plan object
+ *   POST /v3/payments      → returns the FIRST INSTALLMENT (with `installment` filled in)
  *
- * Provado contra o sandbox real: as duas criam o mesmo parcelamento; muda só o
- * que sai na resposta. Duplicar o fluxo faria as duas portas divergirem no
- * primeiro conserto que alguém esquecesse de aplicar nas duas.
+ * Proven against the real sandbox: both create the same installment plan; only
+ * what comes out in the response changes. Duplicating the flow would make the
+ * two doors diverge on the first fix someone forgot to apply to both.
  */
 export async function createInstallmentFlow(
   ctx: AppContext,
@@ -372,8 +380,8 @@ export async function createInstallmentFlow(
   body: Record<string, any>,
   input: CreateInstallmentInput,
 ): Promise<{ installment: InstallmentRow; payments: PaymentRow[] }> {
-  // Resolve e VALIDA o cartão antes de gravar qualquer coisa: um cartão recusado
-  // não pode deixar um parcelamento órfão para trás.
+  // Resolves and VALIDATES the card before writing anything: a refused card
+  // must not leave an orphan installment plan behind.
   const card = hasCreditCard(body)
     ? await resolveCard(ctx, ctx.db, auth.accountId, body, input.customerId)
     : null
@@ -399,12 +407,13 @@ export async function createInstallmentFlow(
 
       for (const p of result.payments) {
         await tx.update(payments).set({ creditCardId: saved.id }).where(eq(payments.id, p.id))
-        // O status SEMPRE se move por aqui — nunca UPDATE payments SET status.
+        // The status ALWAYS moves through here — never UPDATE payments SET status.
         await applyTransition(ctx, p.id, { kind: 'CONFIRM', on }, tx)
       }
 
-      // As linhas em memória são anteriores ao CONFIRM; relê-las é o que faz
-      // POST /v3/payments devolver a parcela já CONFIRMED, e não PENDING.
+      // The rows in memory are older than the CONFIRM; reading them again is what
+      // makes POST /v3/payments return the installment already CONFIRMED, and not
+      // PENDING.
       const fresh = await tx
         .select()
         .from(payments)

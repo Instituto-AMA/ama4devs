@@ -1,14 +1,16 @@
 /**
- * O catálogo. TODA tela importa daqui, nunca de `@hugeicons/core-free-icons` direto.
+ * The catalog. EVERY screen imports from here, never from
+ * `@hugeicons/core-free-icons` directly.
  *
- * O motivo é o mesmo do resto do projeto: existe um lugar só onde a decisão mora. São
- * 13.624 ícones no pacote, e sem este arquivo a Home escolheria `UserGroup02` para
- * "clientes", a lista escolheria `UserMultiple03`, e o painel teria três desenhos
- * diferentes para a mesma coisa — cada um plausível, nenhum errado, e o conjunto
- * parecendo remendo.
+ * The reason is the same as the rest of the project: there is one place where
+ * the decision lives. The package has 13,624 icons, and without this file the
+ * Home would pick `UserGroup02` for "customers", the list would pick
+ * `UserMultiple03`, and the panel would have three different drawings of the
+ * same thing — each one plausible, none of them wrong, and the whole looking
+ * like a patchwork.
  *
- * Os nomes aqui são o CONCEITO ("cliente"), não o desenho ("UserGroup02"). Trocar o
- * desenho depois é mudar uma linha.
+ * The names here are the CONCEPT ("customer"), not the drawing ("UserGroup02").
+ * Changing the drawing later is changing one line.
  */
 export {
   Add01Icon as ADD,

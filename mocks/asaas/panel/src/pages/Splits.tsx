@@ -1,14 +1,17 @@
 /**
- * Split — as duas pontas, lado a lado. É a tela que justifica o multiconta.
+ * Split — the two ends, side by side. It is the screen that justifies the
+ * multi-account.
  *
- * "Recebidos" é dinheiro que ENTRA nesta conta porque outra a incluiu num split.
- * "Pagos" é dinheiro que SAI dela para outra. Trocar de conta no seletor da topbar e
- * ver o mesmo split aparecer do outro lado, com o sinal invertido, é o único jeito de
- * confirmar que o dinheiro andou de verdade — e não só que a API respondeu 200.
+ * "Recebidos" is money that COMES IN to this account because another one
+ * included it in a split. "Pagos" is money that LEAVES it for another one.
+ * Switching account in the selector of the topbar and seeing the same split show
+ * up on the other side, with the sign inverted, is the only way to confirm that
+ * the money really moved — and not only that the API answered 200.
  *
- * `BLOCKED_BY_VALUE_DIVERGENCE` é o estado que morde: a soma dos splits passou do
- * netValue e o Asaas BLOQUEIA em vez de rejeitar a cobrança, dando 2 dias úteis para
- * ajustar. Um split que nunca credita, sem erro nenhum, é exatamente isto.
+ * `BLOCKED_BY_VALUE_DIVERGENCE` is the state that bites: the sum of the splits
+ * went over the netValue and Asaas BLOCKS instead of rejecting the charge,
+ * giving 2 business days to adjust. A split that never credits, with no error
+ * at all, is exactly this.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
@@ -70,8 +73,9 @@ function SplitTable({ rows, empty }: { rows: Split[]; empty: string }) {
               : '—'}
         </span>
       ),
-      // Percentual e fixo não são comparáveis entre si. Ordenar por esta coluna
-      // misturaria "10%" com "R$ 50" e produziria uma ordem sem significado.
+      // A percentage and a fixed value are not comparable with each other.
+      // Sorting by this column would mix "10%" with "R$ 50" and produce an order
+      // without meaning.
     },
     {
       key: 'totalValue',

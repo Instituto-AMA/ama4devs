@@ -1,5 +1,5 @@
 /**
- * Logs de Requisições and the events no webhook took.
+ * Request Logs and the events no webhook took.
  *
  * What this file proves: every call to the API is recorded for its account, the
  * successes and the refusals (a validation 400, a 404, a disabled key's 401) with
@@ -30,14 +30,14 @@ const raw = (path: string, init: RequestInit & { key?: string } = {}) =>
     }),
   )
 
-describe('Logs de Requisições', () => {
+describe('Request Logs', () => {
   it('records successes and refusals with what went in and what came back', async () => {
     h = await createHarness()
     const created = await h.api.call('create-new-customer', {
       body: { name: 'Maria Souza', cpfCnpj: '24971563792' },
     })
     expect(created.status).toBe(200)
-    await raw('/v3/customers', { method: 'POST', body: JSON.stringify({ name: 'Sem documento', cpfCnpj: 'abc' }) })
+    await raw('/v3/customers', { method: 'POST', body: JSON.stringify({ name: 'No document', cpfCnpj: 'abc' }) })
     await raw('/v3/customers?limit=5&offset=0')
     await raw('/v3/does-not-exist')
 
@@ -99,7 +99,7 @@ describe('Logs de Requisições', () => {
   })
 })
 
-describe('Logs de Webhooks', () => {
+describe('Webhook Logs', () => {
   it('lists the events no webhook took next to the deliveries', async () => {
     h = await createHarness()
     const customer = await h.api.call('create-new-customer', { body: { name: 'Maria', cpfCnpj: '24971563792' } })
@@ -114,7 +114,7 @@ describe('Logs de Webhooks', () => {
 
     await h.api.call('create-new-webhook', {
       body: {
-        name: 'Integração',
+        name: 'Integration',
         url: h.sink.url,
         email: 'dev@localhost',
         sendType: 'NON_SEQUENTIALLY',

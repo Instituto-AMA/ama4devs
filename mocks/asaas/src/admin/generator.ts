@@ -44,7 +44,7 @@ export async function generatorStatus(ctx: AppContext): Promise<GeneratorStatus>
       uiUrl,
       reachable: false,
       version: null,
-      error: 'Gerador desligado (GENERATOR_URL vazio) ou não encontrado.',
+      error: 'Generator off (GENERATOR_URL empty) or not found.',
     }
   }
 
@@ -86,7 +86,7 @@ export async function populateThroughGenerator(
   input: PopulateThroughGenerator,
 ): Promise<{ status: number; body: unknown }> {
   const url = ctx.config.generator.url
-  if (!url) throw badRequest('generator_off', 'Gerador desligado ou não encontrado.')
+  if (!url) throw badRequest('generator_off', 'Generator off or not found.')
 
   const [key] = await ctx.db
     .select({ key: apiKeys.key })
@@ -94,7 +94,7 @@ export async function populateThroughGenerator(
     .where(and(eq(apiKeys.accountId, input.accountId), eq(apiKeys.active, true)))
     .orderBy(asc(apiKeys.dateCreated), asc(apiKeys.id))
     .limit(1)
-  if (!key) throw badRequest('account_without_key', 'Conta sem chave de API ativa.')
+  if (!key) throw badRequest('account_without_key', 'Account without an active API key.')
 
   const { accountId: _accountId, ...counts } = input
 

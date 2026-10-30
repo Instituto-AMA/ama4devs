@@ -1,17 +1,18 @@
 /**
- * Endpoints administrativos. NÃO existem na API do Asaas.
+ * Admin endpoints. They do NOT exist in the Asaas API.
  *
- * São a razão de este simulador ser mais útil que o sandbox real: viagem no
- * tempo, reset determinístico, log de entregas de webhook. Ficam fora de /v3 e
- * não pedem `access_token`, para que nenhuma app cliente os alcance por engano.
+ * They are the reason this simulator is more useful than the real sandbox: time
+ * travel, a deterministic reset, a log of webhook deliveries. They live outside
+ * /v3 and do not ask for `access_token`, so no client app reaches them by
+ * mistake.
  *
- * Desligue com ADMIN_ENABLED=false em qualquer ambiente compartilhado.
+ * Turn them off with ADMIN_ENABLED=false in any shared environment.
  */
 import { and, asc, desc, eq, gt, gte, isNull, lt, notExists, or } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
-import { badRequest, notFound } from '../core/errors.ts'
+import { badRequest, notFoundMessage } from '../core/errors.ts'
 import {
   accounts,
   apiKeys,
@@ -80,8 +81,8 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
     if (!(ctx.clock instanceof VirtualClock)) {
       throw badRequest(
         'clock_not_virtual',
-        'O relógio está em modo REAL. Suba com CLOCK_MODE=VIRTUAL_FROZEN ou ' +
-          'VIRTUAL_FLOWING para poder viajar no tempo.',
+        'The clock is in REAL mode. Start with CLOCK_MODE=VIRTUAL_FROZEN or ' +
+          'VIRTUAL_FLOWING to travel through time.',
       )
     }
     return ctx.clock
@@ -91,44 +92,45 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
 
   if (!ctx.config.adminEnabled) {
     return app.all('/*', () => {
-      throw badRequest('admin_disabled', 'Os endpoints administrativos estão desabilitados.')
+      throw badRequest('admin_disabled', 'The admin endpoints are disabled.')
     })
   }
 
   return (
     app
       /**
-       * `driftDays` é o campo que faltava — e a falta dele custou caro.
+       * `driftDays` was the field that was missing — and its absence cost a lot.
        *
-       * O relógio é GLOBAL ao container: um clique em `+32` no painel move o tempo
-       * para TODO MUNDO, inclusive para a aplicação que está integrando do outro
-       * lado. O sintoma não parece um relógio: parece que "o Pix nasce OVERDUE",
-       * porque a cobrança criada com vencimento hoje já venceu faz um mês do ponto
-       * de vista do simulador.
+       * The clock is GLOBAL to the container: one click on `+32` in the panel
+       * moves time for EVERYONE, including the application integrating on the
+       * other side. The symptom does not look like a clock: it looks like "the
+       * Pix is born OVERDUE", because the charge created due today is already a
+       * month overdue from the simulator's point of view.
        *
-       * Sem um número aqui, nem o painel nem ninguém tem como avisar.
+       * Without a number here, neither the panel nor anyone else can warn.
        */
       .get('/clock', () => ({
         mode: ctx.clock.mode,
         now: ctx.clock.timestamp(),
         today: ctx.clock.today(),
         epochMs: ctx.clock.nowMs(),
-        /** Dias à frente do tempo REAL. 0 = o simulador está no presente. */
+        /** Days ahead of REAL time. 0 = the simulator is in the present. */
         driftDays: driftDays(ctx.clock),
       }))
 
       /**
-       * Volta o relógio para o tempo real. A saída da viagem no tempo.
+       * Turns the clock back to real time. The way out of the time travel.
        *
-       * Existe porque `advance` só anda para a frente, e quem avançou 32 dias para
-       * ver um cartão creditar ficava preso lá — com toda cobrança nova nascendo
-       * vencida, sem nada na tela dizendo por quê.
+       * It exists because `advance` only moves forward, and whoever advanced 32
+       * days to watch a card settle was stuck there — with every new charge born
+       * overdue and nothing on the screen saying why.
        *
-       * Voltar o relógio NÃO basta: as entregas de webhook que o backoff reagendou
-       * enquanto estávamos no futuro continuam agendadas lá, inalcançáveis — e em
-       * SEQUENTIALLY (o padrão do Asaas) a primeira delas trava a fila inteira por
-       * trás. Por isso o reset também as puxa de volta. Sem isso, o relógio volta ao
-       * presente e nenhum webhook chega mais, para sempre.
+       * Turning the clock back is NOT enough: the webhook deliveries that the
+       * backoff rescheduled while we were in the future stay scheduled there,
+       * unreachable — and in SEQUENTIALLY (the Asaas default) the first one blocks
+       * the whole queue behind it. That is why the reset pulls them back too.
+       * Without that, the clock returns to the present and no webhook ever
+       * arrives again.
        */
       .post('/clock/reset', async () => {
         virtual()
@@ -142,18 +144,18 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           now: ctx.clock.timestamp(),
           today: ctx.clock.today(),
           driftDays: 0,
-          /** Entregas que estavam presas no futuro e voltaram para a fila. */
+          /** Deliveries that were stuck in the future and came back to the queue. */
           rescheduledDeliveries: rescheduled,
         }
       })
 
       /**
-       * Avança o relógio. UM TICK COMPLETO POR DIA SIMULADO — é o que faz uma
-       * assinatura gerar várias cobranças em vez de uma, e o OVERDUE cair na
-       * data certa.
+       * Advances the clock. ONE FULL TICK PER SIMULATED DAY — that is what makes a
+       * subscription generate several charges instead of one, and what makes the
+       * OVERDUE fall on the right date.
        *
-       * Devolve um TickReport por dia, com as transições que aconteceram. É isso
-       * que faz um teste ler como especificação:
+       * It returns a TickReport per day, with the transitions that happened.
+       * That is what makes a test read like a specification:
        *
        *   const [r] = await advance({ days: 32 })
        *   expect(r.transitions).toContainEqual({ from: 'CONFIRMED', to: 'RECEIVED', … })
@@ -189,12 +191,13 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           const clock = virtual()
           const target = new Date(body.date)
           if (Number.isNaN(target.getTime())) {
-            throw badRequest('invalid_date', `Data inválida: "${body.date}".`)
+            throw badRequest('invalid_date', `Invalid date: "${body.date}".`)
           }
           clock.setTo(target.getTime())
 
-          // `set` também anda PARA TRÁS, e aí cai na mesma armadilha do reset: as
-          // entregas reagendadas no futuro ficam inalcançáveis e travam a fila.
+          // `set` also moves BACKWARD, and then it falls into the same trap as the
+          // reset: the deliveries rescheduled in the future stay unreachable and
+          // block the queue.
           const { pullBackFutureDeliveries } = await import('../webhooks/dispatcher.ts')
           const rescheduled = await pullBackFutureDeliveries(ctx, ctx.clock.nowMs())
 
@@ -204,17 +207,18 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         { body: t.Object({ date: t.String() }) },
       )
 
-      /** Um tick sem mexer no relógio. Útil para drenar a fila de webhooks. */
+      /** A tick that does not move the clock. Useful to drain the webhook queue. */
       .post('/tick', async () => scheduler.tick())
 
       /**
-       * Provoca um chargeback numa cobrança paga. (Track H)
+       * Triggers a chargeback on a paid charge. (Track H)
        *
-       * Fica AQUI, e não em /v3, porque a API do Asaas não tem operação de criar
-       * chargeback — quem abre é a bandeira, não o lojista. Sem esta porta, o
-       * gatilho CHARGEBACK da máquina e as 3 operações da tag "Chargeback"
-       * seriam inalcançáveis, e o dev não teria como testar o fluxo. É controle
-       * do simulador, igual à viagem no tempo.
+       * It lives HERE, and not in /v3, because the Asaas API has no operation to
+       * create a chargeback — the card issuer opens it, not the merchant.
+       * Without this door, the machine's CHARGEBACK trigger and the 3 operations
+       * of the "Chargeback" tag would be unreachable, and the developer would
+       * have no way to test the flow. It is simulator control, like the time
+       * travel.
        */
       .post(
         '/payments/:id/chargeback',
@@ -228,17 +232,17 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       )
 
       /**
-       * "Situação das cobranças" — o agregado da home, por CONTA.
+       * "Situação das cobranças" — the home aggregate, per ACCOUNT.
        *
-       * Recebe o accountId em vez de deduzir da chave porque o painel troca de
-       * conta sem trocar de sessão: é a única tela do mundo que enxerga o master e
-       * as subcontas ao mesmo tempo, e é justamente assim que se vê o dinheiro de
-       * um split andar de uma para a outra.
+       * It takes the accountId instead of deducing it from the key because the
+       * panel switches account without switching session: it is the only screen
+       * that sees the master and the subaccounts at the same time, and that is
+       * exactly how you see the money of a split move from one to the other.
        */
       .get('/summary', async ({ query }) => {
         const { paymentsSummary } = await import('./summary.ts')
         const accountId = String(query.accountId ?? '')
-        if (!accountId) throw badRequest('invalid_accountId', 'Informe accountId.')
+        if (!accountId) throw badRequest('invalid_accountId', 'Provide accountId.')
         return { groups: await paymentsSummary(ctx, accountId) }
       })
 
@@ -250,7 +254,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
        */
       .get('/customers', async ({ query }) => {
         const accountId = String(query.accountId ?? '')
-        if (!accountId) throw badRequest('invalid_accountId', 'Informe accountId.')
+        if (!accountId) throw badRequest('invalid_accountId', 'Provide accountId.')
         const removed = String(query.removed ?? '') === 'true'
         const rows = await ctx.db
           .select()
@@ -261,11 +265,12 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       })
 
       /**
-       * Por que a fila de cada webhook não está andando.
+       * Why each webhook queue is not moving.
        *
-       * No Asaas você olha o painel e vê que travou. Aqui, até agora, você só
-       * descobria lendo a API — e o sintoma na ponta ("o pagamento consta RECEIVED
-       * mas meu pedido não atualizou") não aponta para webhook nenhum.
+       * In Asaas you look at the panel and see that it is stuck. Here, until now,
+       * you only found out by reading the API — and the symptom on the other end
+       * ("the payment shows RECEIVED but my order did not update") points to no
+       * webhook at all.
        */
       .get('/webhooks/queue', async () => {
         const { queueHealth } = await import('../webhooks/dispatcher.ts')
@@ -353,9 +358,9 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       })
 
       /**
-       * Logs de Requisições: the account's calls to the API, newest first, without
-       * their bodies (`/request-logs/:id` has them). `status` narrows to `success`
-       * (2xx) or `error` (the rest).
+       * "Logs de Requisições": the account's calls to the API, newest first,
+       * without their bodies (`/request-logs/:id` has them). `status` narrows to
+       * `success` (2xx) or `error` (the rest).
        */
       .get('/request-logs', async ({ query }) => {
         const accountId = query.accountId ? String(query.accountId) : undefined
@@ -383,7 +388,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         return { data: rows }
       })
 
-      /** One call of the Logs de Requisições, with what went in and what came back. */
+      /** One call of the "Logs de Requisições" list, with what went in and what came back. */
       .get('/request-logs/:id', async ({ params }) => {
         const [row] = await ctx.db
           .select({
@@ -402,14 +407,14 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           .leftJoin(apiKeys, eq(requestLogs.apiKeyId, apiKeys.id))
           .where(eq(requestLogs.id, Number(params.id)))
           .limit(1)
-        if (!row) throw notFound('Log de requisição')
+        if (!row) throw notFoundMessage('Request log not found.')
         return row
       })
 
       /**
-       * Congela o dispatcher. Necessário ao viajar no tempo por outro motivo:
-       * um advance de 40 dias, sem isto, esgotaria as 15 tentativas de backoff de
-       * qualquer entrega pendente e marcaria o webhook como `interrupted`.
+       * Freezes the dispatcher. Needed when traveling through time for another
+       * reason: an advance of 40 days, without this, would exhaust the 15 backoff
+       * attempts of any pending delivery and mark the webhook as `interrupted`.
        */
       .post('/webhooks/pause', () => {
         scheduler.paused = true
@@ -420,14 +425,15 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         return { paused: false }
       })
 
-      /** Cobertura computada do manifesto — nunca mantida à mão. */
+      /** Coverage computed from the manifest — never maintained by hand. */
       .get('/coverage', () => {
         const implemented = ctx.coverage?.implemented ?? []
         const stubbed = ctx.coverage?.stubbed ?? []
         const variants = ctx.coverage?.variants ?? []
 
-        // O denominador são as ROTAS: 5 operações da spec dividem rota com a
-        // canônica (a variante "com cartão"), então não contam à parte.
+        // The denominator is the ROUTES: 5 operations of the spec share a route
+        // with the canonical one (the "with card" variant), so they do not count
+        // on their own.
         const routable = OPERATION_COUNT - variants.length
 
         return {
@@ -447,15 +453,16 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       .get('/jobs', () => ({ order: scheduler.jobNames, paused: scheduler.paused }))
 
       /**
-       * Os cartões de teste e os erros que cada um força.
+       * The test cards and the error each one forces.
        *
-       * A tabela vem do DOMÍNIO, não de uma cópia — é a MESMA constante que o
-       * motor consulta para decidir o desfecho. Se a tela e o servidor pudessem
-       * discordar, a tela mentiria com botão de copiar e tudo.
+       * The table comes from the DOMAIN, not from a copy — it is the SAME
+       * constant the engine consults to decide the outcome. If the screen and
+       * the server could disagree, the screen would lie with a copy button and
+       * everything.
        *
-       * `real: false` marca as extensões nossas: números que o Asaas de verdade
-       * APROVARIA. Sem essa marca, alguém escreve um teste contra um comportamento
-       * que só existe aqui e descobre em produção.
+       * `real: false` marks our extensions: numbers the real Asaas would
+       * APPROVE. Without that mark, someone writes a test against a behavior
+       * that exists only here and finds out in production.
        */
       .get('/test-cards', async () => {
         const [custom, policy] = await Promise.all([customCards(ctx.db), cardPolicy(ctx.db)])
@@ -470,8 +477,8 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           })),
           outcomes: CUSTOM_CARD_OUTCOMES.map((o) => ({ outcome: o, label: OUTCOME_LABEL[o] })),
           brands: Object.keys(GENERATED_BRANDS),
-          // Três dos seis erros do Asaas não se disparam por número — são
-          // propriedades de outros campos. Aqui vai como produzi-los.
+          // Three of the six Asaas errors do not trigger by number — they are
+          // properties of other fields. Here is how to produce them.
           triggers: TRIGGERS.map((t) => ({ ...t, error: CARD_ERRORS[t.outcome] })),
         }
       })
@@ -552,8 +559,8 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           const n = ctx.config.notify
           const on = body.channel === 'EMAIL' ? n.mailpitUrl : body.channel === 'SMS' ? n.smsUrl : n.whatsappUrl
           if (!on) {
-            const name = body.channel === 'EMAIL' ? 'de e-mail' : body.channel === 'SMS' ? 'de SMS' : 'de WhatsApp'
-            throw badRequest('notify_not_configured', `Canal ${name} desligado.`)
+            const name = body.channel === 'EMAIL' ? 'e-mail' : body.channel === 'SMS' ? 'SMS' : 'WhatsApp'
+            throw badRequest('notify_not_configured', `The ${name} channel is off.`)
           }
           try {
             await sendTestNotification(ctx, body.channel, body.to)
@@ -579,7 +586,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             .from(payments)
             .where(eq(payments.id, body.paymentId))
             .limit(1)
-          if (!row) throw notFound('Cobrança')
+          if (!row) throw notFoundMessage('Charge not found.')
           const payment = (await serializePayment(ctx.db, row as PaymentRow)) as unknown as PaymentFacts
           const queued = await enqueuePaymentNotifications(
             ctx.db,
@@ -672,16 +679,16 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       )
 
       /**
-       * Todas as contas do simulador, com SALDO e CHAVE DE API.
+       * All the simulator's accounts, with BALANCE and API KEY.
        *
-       * Deliberadamente NÃO existe na API do Asaas, e não poderia existir: lá, uma
-       * conta não enxerga a chave da outra, e a chave de uma subconta só aparece
-       * uma vez, na criação. Aqui isso é justamente o ponto — é como o painel
-       * mostra o dinheiro andando entre as contas num split, e como você entra
-       * numa subconta sem ter guardado a chave dela.
+       * It deliberately does NOT exist in the Asaas API, and could not: there, an
+       * account does not see the key of another one, and the key of a subaccount
+       * shows up only once, at creation. Here that is exactly the point — it is
+       * how the panel shows the money moving between accounts in a split, and how
+       * you enter a subaccount without having saved its key.
        *
-       * É introspecção de simulador. Vive atrás de `ADMIN_ENABLED`, fora de /v3, e
-       * é a razão de esse flag existir.
+       * It is simulator introspection. It lives behind `ADMIN_ENABLED`, outside
+       * /v3, and it is the reason that flag exists.
        */
       .get('/accounts', async () => {
         const rows = await ctx.db
@@ -714,7 +721,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             walletId: a.walletId,
             parentAccountId: a.parentAccountId,
             status: a.status,
-            // Em reais, como toda fronteira de saída deste projeto.
+            // In reais, like every outbound boundary of this project.
             balance: a.balanceCents / 100,
             apiKey: keyOf.get(a.id) ?? null,
             /** A root account the environment seeds: deleted, it returns on the next boot. */

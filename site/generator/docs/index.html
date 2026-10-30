@@ -8,7 +8,7 @@
   <meta name="keywords" content="generator documentation, brazilian fake data schema, deterministic seed, safe test data, asaas mock seeder, fake data api reference">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/docs/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="ama4devs">
@@ -37,7 +37,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="../../pt-br/generator/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="../../portuguese/generator/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -266,7 +266,7 @@
               <p>The generator finds the Asaas mock by itself when <code>ASAAS_URL</code> is unset: it probes <code>asaas</code>, <code>asaas-mock</code>, <code>localhost</code>, and the Docker host on port 45445, identified by its <code>/health</code> endpoint, on boot and every 10 s. Thus, running both via <code>docker run</code> or within any Docker Compose setup requires no URL environment variables.</p>
 
               <h3>The Panel Integration</h3>
-              <p>While the generator is found, the Asaas panel displays an <strong>Integrações › Gerador</strong> tab showing connection status, an "Abrir o gerador" link, and a "Popular esta conta" button. Clicking it creates customers (people and companies with valid CPF/CNPJ) for the account selected in the topbar, registers charges by Pix, boleto, and card, and marks a configurable share of them as paid. This executes through that account's API key via <code>POST /_admin/generator/populate</code>. When the generator is not found or turned off, the tab does not exist.</p>
+              <p>While the generator is found, the Asaas panel displays an <strong>Integrations › Generator</strong> tab showing connection status, an "Open generator" link, and a "Populate this account" button. Clicking it creates customers (people and companies with valid CPF/CNPJ) for the account selected in the topbar, registers charges by Pix, boleto, and card, and marks a configurable share of them as paid. This executes through that account's API key via <code>POST /_admin/generator/populate</code>. When the generator is not found or turned off, the tab does not exist.</p>
 
               <h3>Request Body</h3>
               <div class="code"><pre><code>{
@@ -346,7 +346,7 @@
               <h2 id="compose-title">Docker Compose</h2>
               <p>In another project's compose, add a <code>generator</code> service next to <code>asaas</code>. Both find each other automatically by service name without requiring any configuration variables:</p>
               <div class="code"><pre><code>  generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.1.0
+    image: ghcr.io/instituto-ama/generator-mock:0.2.0
     ports:
       - '45450:45450'
     depends_on:

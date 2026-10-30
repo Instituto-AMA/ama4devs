@@ -1,14 +1,14 @@
 /**
- * `applyTransition` — o ÚNICO lugar onde o status de uma cobrança muda.
+ * `applyTransition` — the ONLY place where a charge's status changes.
  *
- * Sandbox action, scheduler, captura, receiveInCash, refund: todos passam por
- * aqui. Como o webhook e o lançamento no ledger são EFEITOS da transição (e não
- * algo que cada handler lembra de fazer), é impossível que um caminho esqueça de
- * emitir o PAYMENT_RECEIVED ou de debitar a taxa. Essa classe inteira de bug não
- * existe neste desenho.
+ * Sandbox action, scheduler, capture, receiveInCash, refund: they all go through
+ * here. Since the webhook and the ledger entry are EFFECTS of the transition (and
+ * not something each handler remembers to do), it is impossible for a path to
+ * forget to emit the PAYMENT_RECEIVED or to debit the fee. That whole class of bug
+ * does not exist in this design.
  *
- * Se você está escrevendo `UPDATE payments SET status = …` em outro arquivo,
- * pare: é exatamente o que esta regra existe para prevenir.
+ * If you are writing `UPDATE payments SET status = …` in another file, stop: that
+ * is exactly what this rule exists to prevent.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -26,7 +26,7 @@ import {
 import { cents } from '../../domain/money.ts'
 import { serializePayment, type PaymentRow } from './serializer.ts'
 
-/** Converte a linha do banco no estado que a máquina pura entende. */
+/** Converts the database row into the state the pure machine understands. */
 function toState(
   row: PaymentRow,
   installmentCount: number,
@@ -48,8 +48,8 @@ function toState(
     interest: row.interest,
     installmentCount,
     installmentTotalCents: installmentTotalCents === null ? null : cents(installmentTotalCents),
-    // A coluna guarda TEXT (é o que o Asaas devolve). Aqui vira número: é
-    // multiplicador de dias no D+32×n, e um "2" em string daria concatenação.
+    // The column stores TEXT (that is what Asaas returns). Here it becomes a number: it is
+    // the day multiplier in D+32×n, and a "2" as a string would concatenate.
     installmentNumber: Number(row.installmentNumber ?? 1) || 1,
     deleted: row.deleted,
   }
@@ -63,10 +63,10 @@ export interface TransitionResult {
 }
 
 /**
- * Aplica um gatilho a uma cobrança, numa transação.
+ * Applies a trigger to a charge, in a transaction.
  *
- * `tx` é opcional: quando o chamador já está numa transação (o scheduler, por
- * exemplo), passa a dele; senão abrimos uma.
+ * `tx` is optional: when the caller is already in a transaction (the scheduler,
+ * for instance), it passes its own; otherwise we open one.
  */
 export async function applyTransition(
   ctx: AppContext,
@@ -79,10 +79,10 @@ export async function applyTransition(
     if (!row) throw notFound('Cobrança')
 
     /**
-     * O parcelamento de onde esta cobrança veio. Precisamos de DUAS coisas dele:
-     *   - installmentCount → escolhe a FAIXA percentual da taxa do cartão
-     *   - totalValueCents  → é a BASE da taxa (o Asaas cobra sobre o total e
-     *                        divide entre as parcelas; não sobre a parcela)
+     * The plan this charge came from. We need TWO things from it:
+     *   - installmentCount → chooses the card fee's PERCENTAGE bracket
+     *   - totalValueCents  → is the fee's BASE (Asaas charges over the total and
+     *                        divides it among the installments; not over the installment)
      */
     let installmentCount = 1
     let installmentTotalCents: number | null = null
@@ -114,13 +114,13 @@ export async function applyTransition(
     for (const [k, v] of Object.entries(planned.patch)) patch[k] = v
 
     /**
-     * O comprovante nasce quando o dinheiro entra — o Asaas real devolve uma URL
-     * de comprovante em toda cobrança paga, e `null` enquanto ela está PENDING.
-     * Devolvíamos `null` sempre.
+     * The receipt is born when the money comes in — the real Asaas returns a URL
+     * of a receipt on every paid charge, and `null` while it is PENDING.
+     * We used to always return `null`.
      *
-     * Fica aqui, e não no handler, porque é consequência da TRANSIÇÃO: qualquer
-     * caminho que pague a cobrança (sandbox action, cartão, scheduler, dinheiro)
-     * passa por `applyTransition` — e nenhum precisa lembrar disto.
+     * It stays here, and not in the handler, because it is a consequence of the
+     * TRANSITION: any path that pays the charge (sandbox action, card, scheduler, cash)
+     * goes through `applyTransition` — and none of them needs to remember this.
      */
     const PAGO = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH']
     if (PAGO.includes(planned.to) && !row.transactionReceiptUrl) {
@@ -128,8 +128,8 @@ export async function applyTransition(
     }
 
     /**
-     * COMPARE-AND-SWAP: só atualiza se o status ainda é o que a máquina viu.
-     * Uma execução duplicada de job altera zero linhas e é detectada aqui.
+     * COMPARE-AND-SWAP: it only updates if the status is still what the machine saw.
+     * A duplicated job run alters zero rows and is detected here.
      */
     const updated = await db
       .update(payments)
@@ -171,8 +171,8 @@ export async function applyTransition(
             event: effect.event,
             resourceType: 'payment',
             resourceId: paymentId,
-            // Congelado AGORA: uma retentativa daqui a 3h reenvia este payload,
-            // não o estado futuro do recurso.
+            // Frozen NOW: a retry 3h from now resends this payload,
+            // not the resource's future state.
             resource: await serializePayment(db, after),
           })
           break
@@ -185,13 +185,13 @@ export async function applyTransition(
             .where(eq(paymentSplits.paymentId, paymentId))
 
           /**
-           * Quem se move, e quem NÃO se move:
+           * Who moves, and who does NOT move:
            *
-           * - AWAITING_CREDIT só vem de PENDING. Um split BLOQUEADO por
-           *   divergência de valor NÃO vira crédito só porque a cobrança foi
-           *   paga — ele tem um relógio próprio de 2 dias úteis, e sobrescrevê-lo
-           *   aqui apagaria o bloqueio em silêncio.
-           * - CANCELLED e REFUNDED são terminais: não se cancela duas vezes.
+           * - AWAITING_CREDIT only comes from PENDING. A split BLOCKED by a value
+           *   divergence does NOT become credit just because the charge was
+           *   paid — it has a clock of its own of 2 business days, and overwriting it
+           *   here would erase the block in silence.
+           * - CANCELLED and REFUNDED are terminal: you do not cancel twice.
            */
           const targets = splits.filter((s) =>
             effect.to === 'AWAITING_CREDIT'
@@ -200,7 +200,7 @@ export async function applyTransition(
           )
 
           for (const s of targets) {
-            // CAS, como em todo o resto.
+            // CAS, like everywhere else.
             await db
               .update(paymentSplits)
               .set({
@@ -212,9 +212,10 @@ export async function applyTransition(
           }
 
           /**
-           * ESTORNO: o split que JÁ CREDITOU tem que ser desfeito, senão o
-           * dinheiro fica na conta de destino e a cobrança some — o destinatário
-           * lucraria com o estorno. Reverte nos dois extratos, na mesma transação.
+           * REVERSAL: the split that ALREADY CREDITED has to be undone, otherwise
+           * the money stays in the destination account and the charge disappears —
+           * the recipient would profit from the reversal. It reverts in both
+           * statements, in the same transaction.
            */
           if (effect.to === 'REFUNDED') {
             const reversals = targets.filter(
@@ -245,8 +246,8 @@ export async function applyTransition(
             }
           }
 
-          // O split cancelado é um evento que o integrador precisa ver: alguém
-          // que esperava receber, não vai mais.
+          // The cancelled split is an event the integrator needs to see: someone
+          // who expected to receive will not anymore.
           if (effect.to === 'CANCELLED' && targets.length) {
             events.push('PAYMENT_SPLIT_CANCELLED')
             await ctx.emit(db, {

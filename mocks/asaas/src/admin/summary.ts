@@ -1,14 +1,16 @@
 /**
- * O agregado que a home do painel mostra: "Situação das cobranças".
+ * The aggregate the panel home shows: the charge status card.
  *
- * Os quatro grupos são os do painel do Asaas, não os 15 status da máquina. É uma
- * TRADUÇÃO deliberada: `RECEIVED` e `RECEIVED_IN_CASH` são a mesma notícia para
- * quem olha ("o dinheiro entrou"), e `AWAITING_RISK_ANALYSIS` ainda é "esperando
- * pagamento" para o lojista, por mais que a máquina os distinga.
+ * The four groups are the ones of the Asaas panel, not the 15 statuses of the
+ * machine. It is a deliberate TRANSLATION: `RECEIVED` and `RECEIVED_IN_CASH`
+ * are the same news for whoever looks ("the money came in"), and
+ * `AWAITING_RISK_ANALYSIS` is still "waiting for payment" for the merchant,
+ * however much the machine tells them apart.
  *
- * O mapa vive AQUI, num lugar só. Se cada tela traduzisse status por conta
- * própria, duas telas acabariam discordando sobre o que é uma cobrança "recebida"
- * — e o número que não bate é sempre o que mina a confiança no simulador inteiro.
+ * The map lives HERE, in one place only. If each screen translated statuses on
+ * its own, two screens would end up disagreeing about what a "received" charge
+ * is — and the number that does not match is always what erodes the trust in
+ * the whole simulator.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
@@ -16,7 +18,7 @@ import { payments } from '../db/schema/index.ts'
 
 export type SummaryGroup = 'RECEIVED' | 'CONFIRMED' | 'AWAITING' | 'OVERDUE'
 
-/** Status → grupo. Os que não caem em nenhum (REFUNDED, CHARGEBACK…) ficam fora. */
+/** Status → group. The ones that fit none (REFUNDED, CHARGEBACK…) stay out. */
 const GROUP_OF: Record<string, SummaryGroup> = {
   RECEIVED: 'RECEIVED',
   RECEIVED_IN_CASH: 'RECEIVED',
@@ -35,12 +37,12 @@ const GROUP_OF: Record<string, SummaryGroup> = {
 
 export interface GroupSummary {
   group: SummaryGroup
-  /** Em REAIS — como toda fronteira de saída deste projeto. */
+  /** In REAIS — like every outbound boundary of this project. */
   value: number
   netValue: number
   count: number
   customers: number
-  /** A barra segmentada do card: quanto de cada meio de pagamento. */
+  /** The segmented bar of the card: how much of each payment method. */
   byBillingType: Array<{ billingType: string; value: number; count: number }>
 }
 
@@ -66,7 +68,7 @@ export async function paymentsSummary(
       netValueCents: payments.netValueCents,
     })
     .from(payments)
-    // A deleted charge is gone from the API's list (and from Cobranças): counting
+    // A deleted charge is gone from the API's list (and from "Cobranças"): counting
     // it here made the cards show charges and customers nobody could find.
     .where(and(eq(payments.accountId, accountId), eq(payments.deleted, false)))
 
@@ -79,8 +81,8 @@ export async function paymentsSummary(
     if (!g) continue
 
     const acc = groups.get(g) ?? EMPTY(g)
-    // Somamos em CENTAVOS e dividimos no fim: somar reais acumularia erro de
-    // ponto flutuante, e o total do card deixaria de bater com a lista.
+    // We add in CENTS and divide at the end: adding reais would accumulate
+    // floating point error, and the total of the card would stop matching the list.
     acc.value += r.valueCents
     acc.netValue += r.netValueCents ?? r.valueCents
     acc.count += 1

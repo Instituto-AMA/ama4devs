@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { AbsoluteFill, Audio, Composition, interpolate, Sequence, staticFile, useCurrentFrame } from 'remotion'
-import { Intro, Outro } from './scenes/Cards.tsx'
+import { Closing, Intro } from './scenes/Cards.tsx'
 import { Furniture } from './scenes/Furniture.tsx'
 import { Tour } from './scenes/Tour.tsx'
 import bedData from './bed.json'
-import { beats, INTRO_FRAMES, OUTRO_FRAMES, OUTRO_FROM, TOTAL_FRAMES, voiceCues } from './film.ts'
+import { beats, INTRO_FRAMES, CLOSING_FRAMES, CLOSING_FROM, TOTAL_FRAMES, voiceCues } from './film.ts'
 import { palette } from './theme.ts'
 
 interface MusicBed {
@@ -100,8 +100,8 @@ const AsaasTour = () => (
         <Tour beat={beat} />
       </Sequence>
     ))}
-    <Sequence from={OUTRO_FROM} durationInFrames={OUTRO_FRAMES}>
-      <Outro />
+    <Sequence from={CLOSING_FROM} durationInFrames={CLOSING_FRAMES}>
+      <Closing />
     </Sequence>
     <Furniture />
     <Progress />

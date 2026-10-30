@@ -1,10 +1,11 @@
 /**
- * KYC: criação, aprovação e serialização dos documentos de uma conta.
+ * KYC: creation, approval and serialization of the documents of an account.
  *
- * Fica num serviço, e não só nos handlers, porque quem CRIA os grupos não é uma
- * rota: é o nascimento de uma conta (seed da conta principal e
- * `POST /v3/accounts`). Uma subconta que nascesse sem grupo pendente não teria o
- * que enviar, e o fluxo de KYC do cliente pararia no primeiro passo.
+ * It lives in a service, and not only in the handlers, because what CREATES the
+ * groups is not a route: it is the birth of an account (the seed of the main
+ * account and `POST /v3/accounts`). A subaccount born without a pending group
+ * would have nothing to send, and the KYC flow of the client would stop at the
+ * first step.
  */
 import { and, eq, ne } from 'drizzle-orm'
 import type { Clock } from '../../core/clock.ts'
@@ -25,13 +26,14 @@ export interface DocumentDeps {
 }
 
 /**
- * O grupo com que toda conta nasce. Título e descrição são os que o sandbox real
- * devolve — não são texto inventado.
+ * The group every account is born with. The title and the description are the
+ * ones the real sandbox returns — they are not invented text.
  *
- * TODO(regra): o Asaas real varia os grupos conforme o tipo de pessoa e o tipo de
- * empresa (contrato social para LTDA, certificado do MEI…). Não capturamos uma
- * conta não-aprovada, então modelamos UM grupo, o de identificação, que é o único
- * que existe em toda conta. Criar mais grupos seria inventar.
+ * TODO(rule): the real Asaas varies the groups according to the type of person
+ * and the type of company (articles of incorporation for LTDA, MEI
+ * certificate…). We did not capture a non-approved account, so we model ONE
+ * group, the identification one, which is the only one that exists in every
+ * account. Creating more groups would be inventing.
  */
 const IDENTIFICATION_GROUP = {
   type: 'IDENTIFICATION',
@@ -40,14 +42,16 @@ const IDENTIFICATION_GROUP = {
     'Para enviar esse documento acesse nosso aplicativo ou utilize o link de onboarding.',
 } as const
 
-/** TODO(regra): a doc não diz por quanto tempo o link de onboarding vale. */
+/** TODO(rule): the docs do not say for how long the onboarding link is valid. */
 const ONBOARDING_URL_TTL_DAYS = 30
 
 /**
- * Quem responde pelos documentos, derivado do cadastro da conta.
+ * Who is responsible for the documents, derived from the registration of the
+ * account.
  *
- * TODO(regra): só temos captura de UMA conta (JURIDICA, `INDIVIDUAL_COMPANY`). O
- * resto do mapa é dedução do enum `AccountDocumentResponsibleType` da spec.
+ * TODO(rule): we only have the capture of ONE account (JURIDICA,
+ * `INDIVIDUAL_COMPANY`). The rest of the map is a deduction from the
+ * `AccountDocumentResponsibleType` enum of the spec.
  */
 export function responsibleTypeFor(
   personType: string,
@@ -72,13 +76,13 @@ export interface NewAccountDocuments {
   name: string
   personType: string
   companyType: string | null
-  /** Conta principal (seed) nasce aprovada; subconta nasce com KYC pendente. */
+  /** The primary (seed) account starts approved; a subaccount starts with KYC pending. */
   approved: boolean
 }
 
 /**
- * Cria os grupos/documentos de uma conta recém-criada. Chame DENTRO da transação
- * que cria a conta.
+ * Creates the groups/documents of a newly created account. Call it INSIDE the
+ * transaction that creates the account.
  */
 export async function createAccountDocuments(
   tx: DB,
@@ -98,8 +102,8 @@ export async function createAccountDocuments(
     status: approved ? 'APPROVED' : 'NOT_SENT',
     responsibleName: account.name,
     responsibleType: responsibleTypeFor(account.personType, account.companyType),
-    // O link só existe enquanto há o que enviar — no grupo aprovado o sandbox
-    // real devolve `onboardingUrl: null`.
+    // The link only exists while there is something to send — in the approved
+    // group the real sandbox returns `onboardingUrl: null`.
     onboardingUrl: approved ? null : onboardingUrl(deps),
     onboardingUrlExpirationDate: approved
       ? null
@@ -122,7 +126,7 @@ function onboardingUrl(deps: DocumentDeps): string {
   return `${deps.config.publicBaseUrl}/onboarding/${deps.rng.hex(32)}`
 }
 
-/** Aprova todos os documentos e grupos da conta. Usado pela ação de sandbox. */
+/** Approves all the documents and groups of the account. Used by the sandbox action. */
 export async function approveAccountDocuments(
   tx: DB,
   accountId: string,
@@ -145,8 +149,8 @@ export async function approveAccountDocuments(
 }
 
 /**
- * Aprova o documento e, se ele era o último pendente, o grupo inteiro.
- * Em sandbox qualquer arquivo é aceito — não há análise a esperar.
+ * Approves the document and, if it was the last pending one, the whole group.
+ * In the sandbox any file is accepted — there is no analysis to wait for.
  */
 export async function approveDocument(
   tx: DB,
@@ -175,10 +179,11 @@ export async function approveDocument(
 }
 
 /**
- * O status da documentação da conta, para `GET /v3/myAccount/status`.
+ * The documentation status of the account, for `GET /v3/myAccount/status`.
  *
- * `null` = a conta não tem grupo nenhum (banco criado antes desta tabela); quem
- * chama cai de volta no status da conta em vez de reprovar a conta em silêncio.
+ * `null` = the account has no group at all (a database created before this
+ * table); whoever calls falls back to the status of the account instead of
+ * rejecting the account in silence.
  */
 export async function documentationStatus(
   db: DB,
@@ -196,14 +201,15 @@ export async function documentationStatus(
 }
 
 /**
- * A resposta de `GET /v3/myAccount/documents`, no formato capturado do sandbox.
+ * The answer of `GET /v3/myAccount/documents`, in the format captured from the
+ * sandbox.
  *
- * Duas coisas que o formato real faz e que um serializador ingênuo erraria:
+ * Two things the real format does and a naive serializer would get wrong:
  *
- * 1. o grupo APPROVED NÃO traz o array `documents` nem
- *    `onboardingUrlExpirationDate` — só `onboardingUrl: null`;
- * 2. `responsible.type` é uma STRING, não um array. A spec declara array; a
- *    captura do sandbox desmente. O golden ganha (AGENTS.md).
+ * 1. the APPROVED group does NOT bring the `documents` array nor
+ *    `onboardingUrlExpirationDate` — only `onboardingUrl: null`;
+ * 2. `responsible.type` is a STRING, not an array. The spec declares an array;
+ *    the sandbox capture denies it. The golden wins (AGENTS.md).
  */
 export async function listDocumentGroups(db: DB, accountId: string) {
   const groups = await db
@@ -217,8 +223,8 @@ export async function listDocumentGroups(db: DB, accountId: string) {
     .where(eq(accountDocuments.accountId, accountId))
 
   return {
-    // TODO(regra): nunca reprovamos uma conta em sandbox, então não há motivo de
-    // recusa a informar.
+    // TODO(rule): we never reject an account in the sandbox, so there is no reason
+    // to refuse to report one.
     rejectReasons: null,
     data: groups.map((g) => serializeGroup(g, docs.filter((d) => d.groupId === g.id))),
   }

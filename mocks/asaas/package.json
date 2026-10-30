@@ -1,7 +1,7 @@
 {
   "name": "asaas-mock-server",
   "version": "0.11.0",
-  "description": "Asaas API mock server: a local Asaas sandbox simulator for development and tests (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost). Simulador local do Asaas.",
+  "description": "Asaas API mock server: a local Asaas sandbox simulator for development and tests (Pix, bank slip, credit card, installments, subscriptions, webhooks to localhost).",
   "keywords": [
     "asaas",
     "asaas-api",
@@ -13,7 +13,7 @@
     "payment-gateway",
     "payments",
     "pix",
-    "boleto",
+    "bank-slip",
     "credit-card",
     "installments",
     "subscriptions",
@@ -22,7 +22,7 @@
     "docker",
     "testing",
     "brazil",
-    "simulador"
+    "simulator"
   ],
   "homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/asaas",
   "repository": {

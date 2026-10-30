@@ -1,5 +1,5 @@
 /**
- * Assinatura — o que a criação e o job de geração compartilham. (Track E)
+ * Subscription — what the creation and the generation job share. (Track E)
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -26,9 +26,9 @@ export interface SubscriptionSplitInput {
 }
 
 /**
- * O split da assinatura NÃO tem `totalFixedValue` — não há um "total" a repartir,
- * porque a assinatura não tem fim conhecido. Só `fixedValue` (por cobrança) e
- * `percentualValue`.
+ * The split of the subscription does NOT have `totalFixedValue` — there is no
+ * "total" to share, because the subscription has no known end. Only `fixedValue`
+ * (per charge) and `percentualValue`.
  */
 export function parseSubscriptionSplits(raw: unknown): SubscriptionSplitInput[] {
   if (!Array.isArray(raw)) return []
@@ -43,7 +43,7 @@ export function parseSubscriptionSplits(raw: unknown): SubscriptionSplitInput[] 
         s.fixedValue !== undefined && s.fixedValue !== null
           ? brlToCents(Number(s.fixedValue))
           : null,
-      // 4 casas decimais → escala 1e4. 92.3444% → 923444.
+      // 4 decimal places → 1e4 scale. 92.3444% → 923444.
       percentualValueE4:
         s.percentualValue !== undefined && s.percentualValue !== null
           ? percentE4(Math.round(Number(s.percentualValue) * 10_000))
@@ -55,11 +55,12 @@ export function parseSubscriptionSplits(raw: unknown): SubscriptionSplitInput[] 
 }
 
 /**
- * O TEMPLATE de split da assinatura, lido no formato que `createPayment` espera.
+ * The split TEMPLATE of the subscription, read in the format `createPayment`
+ * expects.
  *
- * É copiado para CADA cobrança gerada. Mexer no template não altera as cobranças
- * já criadas — e é isso que o desenho de "template" quer dizer: a assinatura
- * descreve o futuro, a cobrança congela o passado.
+ * It is copied to EACH generated charge. Changing the template does not change
+ * the charges already created — it is what the "template" design means: the
+ * subscription describes the future, the charge freezes the past.
  */
 export async function splitTemplateOf(db: DB, subscriptionId: string): Promise<SplitSpec[]> {
   const rows = await db
@@ -82,35 +83,35 @@ export async function splitTemplateOf(db: DB, subscriptionId: string): Promise<S
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GERAÇÃO DE COBRANÇA
+// CHARGE GENERATION
 //
-// Mora aqui, e não no job, porque tem DOIS chamadores — e descobrir isso custou
-// caro: nós acreditávamos que o Asaas só gerava a cobrança quando o vencimento
-// entrava na janela de 40 dias. Errado. Provado contra o sandbox real:
+// It lives here, and not in the job, because it has TWO callers — and finding
+// that out cost a lot: we believed Asaas only generated the charge when the due
+// date entered the 40-day window. Wrong. Proven against the real sandbox:
 //
-//   POST /v3/subscriptions com nextDueDate = hoje+60
-//     → devolve nextDueDate = hoje+90  (JÁ AVANÇOU um ciclo)
-//     → e a cobrança de hoje+60 JÁ EXISTE, criada na hora.
+//   POST /v3/subscriptions with nextDueDate = today+60
+//     → returns nextDueDate = today+90  (it ALREADY moved one cycle)
+//     → and the charge of today+60 ALREADY EXISTS, created on the spot.
 //
-// Ou seja: a PRIMEIRA cobrança nasce na criação, sempre, independente de quão
-// distante seja o vencimento. A janela de lookahead governa as SEGUINTES.
+// That is: the FIRST charge is born at the creation, always, no matter how far
+// away the due date is. The lookahead window governs the FOLLOWING ones.
 //
-// Nosso simulador criava ZERO cobranças. Uma assinatura que não cobra nada é
-// uma assinatura quebrada — e o teste que a "provava" só provava a nossa leitura
-// errada da documentação.
+// Our simulator created ZERO charges. A subscription that charges nothing is a
+// broken subscription — and the test that "proved" it only proved our wrong
+// reading of the documentation.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Estourou o teto de cobranças? */
+/** Did it hit the ceiling of charges? */
 function reachedMaxPayments(sub: SubscriptionRow): boolean {
   return sub.maxPayments !== null && sub.paymentsGenerated >= sub.maxPayments
 }
 
-/** O próximo vencimento já passou do fim contratado? */
+/** Has the next due date passed the contracted end? */
 function pastEndDate(sub: SubscriptionRow, dueDate: string): boolean {
   return sub.endDate !== null && dueDate > sub.endDate
 }
 
-/** ACTIVE → EXPIRED, com CAS. Sem cobrança nova. */
+/** ACTIVE → EXPIRED, with CAS. No new charge. */
 async function expire(ctx: AppContext, sub: SubscriptionRow): Promise<void> {
   await ctx.db
     .update(subscriptions)
@@ -119,8 +120,9 @@ async function expire(ctx: AppContext, sub: SubscriptionRow): Promise<void> {
 }
 
 /**
- * Gera UMA cobrança e avança o ciclo. Devolve a assinatura já atualizada, ou
- * `null` quando não há mais nada a fazer (expirou, ou outro tick chegou antes).
+ * Generates ONE charge and moves the cycle forward. It returns the subscription
+ * already updated, or `null` when there is nothing left to do (it expired, or
+ * another tick got there first).
  */
 export async function generateOne(
   ctx: AppContext,
@@ -129,7 +131,7 @@ export async function generateOne(
 ): Promise<SubscriptionRow | null> {
   const dueDate = sub.nextDueDate
 
-  // Teto de cobranças ou fim do contrato: expira ANTES de gerar.
+  // Ceiling of charges or end of the contract: it expires BEFORE generating.
   if (reachedMaxPayments(sub) || pastEndDate(sub, dueDate)) {
     await expire(ctx, sub)
     return null
@@ -139,9 +141,10 @@ export async function generateOne(
   const generated = sub.paymentsGenerated + 1
 
   /**
-   * Esta cobrança é a última? Duas razões possíveis: bateu no `maxPayments`, ou o
-   * PRÓXIMO vencimento cairia depois do `endDate`. Nos dois casos a assinatura
-   * termina em EXPIRED — e o cliente descobre isso na mesma resposta.
+   * Is this charge the last one? Two possible reasons: it hit `maxPayments`, or
+   * the NEXT due date would fall after the `endDate`. In both cases the
+   * subscription ends in EXPIRED — and the client finds that out in the same
+   * answer.
    */
   const willExpire =
     (sub.maxPayments !== null && generated >= sub.maxPayments) ||
@@ -150,7 +153,7 @@ export async function generateOne(
   const walletId = await ownWalletId(ctx, sub.accountId)
 
   return ctx.db.transaction(async (tx) => {
-    // ── COMPARE-AND-SWAP: reclama o vencimento antes de gastar qualquer coisa.
+    // ── COMPARE-AND-SWAP: claims the due date before spending anything.
     const claimed = await tx
       .update(subscriptions)
       .set({
@@ -167,8 +170,8 @@ export async function generateOne(
       )
       .returning()
 
-    // Zero linhas: alguém já gerou a cobrança deste vencimento. Não é erro — é a
-    // proteção funcionando.
+    // Zero rows: someone already generated the charge of this due date. It is
+    // not an error — it is the protection working.
     if (!claimed.length) return null
 
     const payment = await createPayment(ctx, tx as never, sub.accountId, walletId, {
@@ -181,8 +184,8 @@ export async function generateOne(
       discount: sub.discount,
       fine: sub.fine,
       interest: sub.interest,
-      // O template de split é COPIADO para a cobrança. A partir daqui os dois
-      // vivem vidas separadas.
+      // The split template is COPIED into the charge. From here on the two live
+      // separate lives.
       splits: await splitTemplateOf(tx as never, sub.id),
       subscriptionId: sub.id,
       creditCardId: sub.creditCardId,
@@ -199,9 +202,9 @@ export async function generateOne(
 }
 
 /**
- * Remove a assinatura. As cobranças já geradas e ainda ABERTAS vão junto — o
- * Asaas não deixa cobrança órfã de assinatura removida esperando pagamento.
- * As já pagas ficam.
+ * Removes the subscription. The charges already generated and still OPEN go with
+ * it — Asaas does not leave an orphan charge of a removed subscription waiting
+ * for payment. The ones already paid stay.
  *
  * Shared by `DELETE /v3/subscriptions/{id}` and the profile reset, so a reset
  * that cancels first sends the same SUBSCRIPTION_DELETED the API does.
@@ -246,7 +249,7 @@ export async function removeSubscription(ctx: AppContext, sub: SubscriptionRow):
   return open.length
 }
 
-/** A carteira da conta emissora — o split não pode apontar para ela mesma. */
+/** The wallet of the issuing account — the split cannot point to itself. */
 async function ownWalletId(ctx: AppContext, accountId: string): Promise<string> {
   const [row] = await ctx.db
     .select({ walletId: accounts.walletId })

@@ -201,7 +201,7 @@ describe('profile reset', () => {
         await h.api.call('schedule-invoice', {
           body: {
             payment,
-            serviceDescription: 'Consulta',
+            serviceDescription: 'Consultation',
             observations: '',
             value: 50,
             deductions: 0,
@@ -233,7 +233,7 @@ describe('profile reset', () => {
     await h.api.call('schedule-invoice', {
       body: {
         payment: open,
-        serviceDescription: 'Consulta',
+        serviceDescription: 'Consultation',
         observations: '',
         value: 50,
         deductions: 0,

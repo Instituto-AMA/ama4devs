@@ -77,7 +77,7 @@ describe('invoice page', () => {
     expect(res.html).not.toContain('Pagar com cartão')
   })
 
-  it('opens on the selected tab: a boleto charge shows the boleto, not the Pix', async () => {
+  it('opens on the selected tab: a bank slip charge shows the bank slip, not the Pix', async () => {
     h = await createHarness()
     const p = await charge('BOLETO', 1400)
     const { html } = await page(tokenOf(p))
@@ -177,7 +177,7 @@ describe('invoice page', () => {
     }
   })
 
-  it('a card on an installment invoice pays every pending installment, as "parcelado no cartão"', async () => {
+  it('a card on an installment invoice pays every pending installment ("parcelado no cartão")', async () => {
     h = await createHarness()
     const created = await h.api.call('create-installment', {
       body: {

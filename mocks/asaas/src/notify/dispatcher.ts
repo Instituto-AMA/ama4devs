@@ -53,7 +53,7 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
   }
   if (!whatsappUrl) throw new Error(channelOffReason(ctx.config.notify,'WHATSAPP'))
   const template = row.template
-  if (!template) throw new Error('notificação de WhatsApp sem template')
+  if (!template) throw new Error('WhatsApp notification without a template')
   // Positional placeholders ({{1}}, {{2}}…): Meta fills them in order, no name.
   await post(
     `${whatsappUrl}/${GRAPH_VERSION}/${whatsappPhoneNumberId}/messages`,
@@ -72,7 +72,7 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
 }
 
 /**
- * A test straight to the channel, outside any charge (Integrações › "Enviar teste"):
+ * A test straight to the channel, outside any charge (the Integrations > Send test action):
  * the same e-mail and template a new charge produces, with sample data.
  */
 export async function sendTestNotification(

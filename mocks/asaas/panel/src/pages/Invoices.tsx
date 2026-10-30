@@ -1,5 +1,6 @@
 /**
- * Notas fiscais: as NFS-e da conta, do agendamento à autorização da prefeitura.
+ * Fiscal notes: the NFS-e of the account, from the scheduling to the authorization
+ * of the city hall.
  *
  * "Emitir" and "Cancelar" are the Asaas API (`v3`), the same calls the user's code
  * makes. The city hall's answer is the simulator's (`mock`): on the next tick by
@@ -342,7 +343,7 @@ function ScheduleForm(props: { apiKey: string; today: string; onDone: () => void
   )
 }
 
-/** "Informações fiscais" (POST /v3/fiscalInfo): what the city hall needs to authorize a note. */
+/** "Fiscal information" (POST /v3/fiscalInfo): what the city hall needs to authorize a note. */
 function FiscalForm(props: { apiKey: string; current: FiscalInfo | null; onDone: () => void }) {
   const [email, setEmail] = useState(props.current?.email ?? '')
   const [simples, setSimples] = useState(props.current?.simplesNacional ?? true)

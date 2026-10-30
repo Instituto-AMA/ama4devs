@@ -141,7 +141,7 @@ describe('Calls and numbers through the Cloud API', () => {
 			await call(`/${waba}/phone_numbers`, {
 				cc: '55',
 				phone_number: '11977776666',
-				verified_name: 'Clínica Nova',
+				verified_name: 'New Clinic',
 			})
 		)
 		const id = created.id as string

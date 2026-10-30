@@ -165,10 +165,10 @@ narration needs, plus a breath, and two narrations never talk over each other.
 1. **Your own recording (best).** Record the lines — any recorder, any app —
    and export one file per segment as `public/audio/recorded/<id>.m4a`
    (`.mp3`, `.wav` and `.aac` work too). The ids are the ones in
-   `src/voice.json`: `intro`, `cliente`, `fatura`, `pago`, `cartao`,
-   `whatsapp`, `webhook`, `perfis`, `relogio`, `vence`, `vencida`, `overdue`,
-   `saldo`, `received`, `console`, `logs`, `assinatura`, `mes`, `aguardando`,
-   `recusa`, `recusa-detalhe`, `vencida-recusa`, `seis`, `fim`, `outro`. Run
+   `src/voice.json`: `intro`, `customer`, `invoice`, `paid`, `card`,
+   `whatsapp`, `webhook`, `profiles`, `clock`, `due`, `charge_overdue`, `overdue`,
+   `balance`, `received`, `console`, `logs`, `subscription`, `month`, `pending`,
+   `refusal`, `refusal_detail`, `charge_overdue_refusal`, `six`, `end`, `closing`. Run
    `make video-voice` and the timeline follows the length of your file.
    Nothing else changes.
 2. **The generated voice (default).** The engines are tried in this order, and
@@ -211,21 +211,21 @@ cd ama4devs
 set -a; . ./.env.sandbox; set +a
 
 # a line that has to last 4.5 seconds
-node video/scripts/say.mjs --text "A fatura do pagador." --duration 4.5 --id fatura
+node video/scripts/say.mjs --text "A fatura do pagador." --duration 4.5 --id invoice
 
 # a line that starts at the second 118.5 of the film
-node video/scripts/say.mjs --text "E o aviso final." --pace 0.9 --at 118.5 --id recusa
+node video/scripts/say.mjs --text "E o aviso final." --pace 0.9 --at 118.5 --id refusal
 
 # the same, for a machine to read
-node video/scripts/say.mjs --text "E o aviso final." --id recusa --json
+node video/scripts/say.mjs --text "E o aviso final." --id refusal --json
 ```
 
 The JSON answer:
 
 ```json
 {
-  "id": "recusa",
-  "file": "public/audio/voice/recusa.mp3",
+  "id": "refusal",
+  "file": "public/audio/voice/refusal.mp3",
   "engine": "speech",
   "provider": "elevenlabs",
   "model": "eleven_v4",

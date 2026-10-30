@@ -1,5 +1,5 @@
 /**
- * Notas fiscais (NFS-e), end to end through the API, the scheduler and the webhooks.
+ * Fiscal notes (NFS-e), end to end through the API, the scheduler and the webhooks.
  *
  * What this file proves: a note is scheduled for a charge, goes to the city hall
  * (SYNCHRONIZED) when issued or on its date, and comes back AUTHORIZED with a
@@ -46,12 +46,12 @@ async function charge(value = 300, dueDate = '2026-01-20') {
 
 const noteBody = (payment: string, over: Record<string, unknown> = {}) => ({
   payment,
-  serviceDescription: 'Consulta de fisioterapia',
-  observations: 'Sessão de janeiro',
+  serviceDescription: 'Physical therapy consultation',
+  observations: 'January session',
   value: 300,
   deductions: 0,
   effectiveDate: TODAY,
-  municipalServiceName: 'Fisioterapia',
+  municipalServiceName: 'Physiotherapy',
   municipalServiceCode: '4.08',
   taxes: TAXES,
   ...over,
@@ -76,8 +76,8 @@ const invoiceEvents = async () => {
 }
 const fetchPath = async (url: string) => h.app.app.handle(new Request(`http://localhost${new URL(url).pathname}`))
 
-describe('nota fiscal — o ciclo da prefeitura', () => {
-  it('agendada → emitida → autorizada na próxima resposta da prefeitura, com número e documento', async () => {
+describe('fiscal note — the city hall cycle', () => {
+  it('scheduled → issued → authorized on the next response from the city hall, with number and document', async () => {
     await h.subscribeWebhook(EVENTS)
     await fiscalInfo()
     const p = await charge()
@@ -104,7 +104,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
 
     const page = await fetchPath(done.pdfUrl)
     expect(page.status).toBe(200)
-    expect(await page.text()).toContain('Fisioterapia')
+    expect(await page.text()).toContain('Physiotherapy')
     const xml = await fetchPath(done.xmlUrl)
     expect(xml.headers.get('content-type')).toContain('xml')
     expect(await xml.text()).toContain(`<CodigoVerificacao>${done.validationCode}</CodigoVerificacao>`)
@@ -118,7 +118,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     expect((await invoiceEvents()).slice(0, 3)).toEqual(['INVOICE_CREATED', 'INVOICE_SYNCHRONIZED', 'INVOICE_AUTHORIZED'])
   })
 
-  it('sem informações fiscais a prefeitura devolve ERROR; corrigida, a nota sai', async () => {
+  it('without fiscal information the city hall returns ERROR; once fixed, the note goes out', async () => {
     await h.subscribeWebhook(EVENTS)
     const note = await schedule((await charge()).id)
     await h.api.call('issue-an-invoice', { params: { id: note.id } })
@@ -130,7 +130,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     expect(failed.pdfUrl).toBeNull()
 
     expect((await fiscalInfo()).status).toBe(200)
-    const fixed = await h.api.call('update-invoice', { params: { id: note.id }, body: { observations: 'Reenviada' } })
+    const fixed = await h.api.call('update-invoice', { params: { id: note.id }, body: { observations: 'Resent' } })
     expect(fixed.body.status).toBe('SCHEDULED')
     await h.api.call('issue-an-invoice', { params: { id: note.id } })
     await h.tick()
@@ -146,7 +146,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     ])
   })
 
-  it('agendada para depois sai sozinha no dia: SYNCHRONIZED no dia, AUTHORIZED no tick seguinte', async () => {
+  it('scheduled for later goes out by itself on the day: SYNCHRONIZED on the day, AUTHORIZED on the next tick', async () => {
     await fiscalInfo()
     const note = await schedule((await charge()).id, { effectiveDate: '2026-01-10' })
 
@@ -162,7 +162,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     expect((await get(note.id)).status).toBe('AUTHORIZED')
   })
 
-  it('cancelar uma autorizada passa pela prefeitura; uma agendada cancela na hora e libera a cobrança', async () => {
+  it('cancelling an authorized one goes through the city hall; a scheduled one cancels right away and releases the charge', async () => {
     await h.subscribeWebhook(EVENTS)
     await fiscalInfo()
     const p = await charge()
@@ -189,7 +189,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     ])
   })
 
-  it('cancelOnlyOnAsaas cancela uma autorizada sem passar pela prefeitura', async () => {
+  it('cancelOnlyOnAsaas cancels an authorized one without going through the city hall', async () => {
     await fiscalInfo()
     const note = await schedule((await charge()).id)
     await h.api.call('issue-an-invoice', { params: { id: note.id } })
@@ -198,7 +198,7 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
     expect(res.body.status).toBe('CANCELED')
   })
 
-  it('a cobrança removida leva a nota agendada junto', async () => {
+  it('the removed charge takes the scheduled note with it', async () => {
     await h.subscribeWebhook(EVENTS)
     const p = await charge()
     const note = await schedule(p.id, { effectiveDate: '2026-01-15' })
@@ -209,8 +209,8 @@ describe('nota fiscal — o ciclo da prefeitura', () => {
   })
 })
 
-describe('nota fiscal — as regras que recusam', () => {
-  it('responde no formato de erro do Asaas', async () => {
+describe('fiscal note — the rules that refuse', () => {
+  it('answers in the Asaas error format', async () => {
     const p = await charge()
     const err = async (body: Record<string, unknown>) => {
       const res = await h.api.call('schedule-invoice', { body })
@@ -233,7 +233,7 @@ describe('nota fiscal — as regras que recusam', () => {
     expect(await err(noteBody(removed.id))).toBe('invalid_payment')
   })
 
-  it('só altera e emite antes da prefeitura; não cancela enquanto ela processa', async () => {
+  it('only edits and issues before the city hall; it does not cancel while it processes', async () => {
     await fiscalInfo()
     const note = await schedule((await charge()).id)
     await h.api.call('issue-an-invoice', { params: { id: note.id } })
@@ -249,7 +249,7 @@ describe('nota fiscal — as regras que recusam', () => {
     expect(issue.status).toBe(400)
   })
 
-  it('a nota de outra conta não existe (404)', async () => {
+  it('the note of another account does not exist (404)', async () => {
     const note = await schedule((await charge()).id)
     const other = await createSecondAccount(h)
     const res = await h.as(other.apiKey).call('retrieve-a-single-invoice', { params: { id: note.id } })
@@ -257,11 +257,11 @@ describe('nota fiscal — as regras que recusam', () => {
   })
 })
 
-describe('nota fiscal — cobrança, filtros e assinatura', () => {
-  it('updatePayment desconta da cobrança os impostos retidos', async () => {
+describe('fiscal note — charge, filters and subscription', () => {
+  it('updatePayment discounts the retained taxes from the charge', async () => {
     await h.subscribeWebhook(['PAYMENT_UPDATED'])
     const p = await charge(300)
-    // Retained: PIS 0,65 + COFINS 3 + CSLL 1 + IR 1,5 = 6,15% of 300 = 18,45 (ISS not retained).
+    // Retained: PIS 0.65 + COFINS 3 + CSLL 1 + IR 1.5 = 6.15% of 300 = 18.45 (ISS not retained).
     await schedule(p.id, { updatePayment: true })
     const after = (await h.api.call('retrieve-a-single-payment', { params: { id: p.id } })).body
     expect(after.value).toBe(281.55)
@@ -269,10 +269,10 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
     expect(h.sink.eventsOf('PAYMENT_UPDATED')).toHaveLength(1)
   })
 
-  it('lista com filtros de situação, cobrança e data', async () => {
+  it('lists with filters by status, charge and date', async () => {
     const a = await charge()
     const b = await charge()
-    const n1 = await schedule(a.id, { externalReference: 'pedido-1' })
+    const n1 = await schedule(a.id, { externalReference: 'order-1' })
     await schedule(b.id, { effectiveDate: '2026-02-01' })
     await h.api.call('cancel-an-invoice', { params: { id: n1.id }, body: {} })
 
@@ -280,20 +280,20 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
     expect((await list({})).body.totalCount).toBe(2)
     expect((await list({ status: 'CANCELED' })).body.data.map((n: any) => n.id)).toEqual([n1.id])
     expect((await list({ payment: b.id })).body.totalCount).toBe(1)
-    expect((await list({ externalReference: 'pedido-1' })).body.totalCount).toBe(1)
+    expect((await list({ externalReference: 'order-1' })).body.totalCount).toBe(1)
     expect((await list({ 'effectiveDate[Ge]': '2026-01-15' })).body.totalCount).toBe(1)
   })
 
-  it('a assinatura com invoiceSettings ganha a nota de cada cobrança, no vencimento', async () => {
+  it('the subscription with invoiceSettings gets a note for each charge, on the due date', async () => {
     await fiscalInfo()
     const sub = (
       await h.api.call('create-new-subscription', {
-        body: { customer: await customer(), billingType: 'BOLETO', value: 150, nextDueDate: '2026-01-12', cycle: 'MONTHLY', description: 'Plano mensal' },
+        body: { customer: await customer(), billingType: 'BOLETO', value: 150, nextDueDate: '2026-01-12', cycle: 'MONTHLY', description: 'Monthly plan' },
       })
     ).body
     const cfg = await h.api.call('create-configuration-for-issuance-of-invoices', {
       params: { id: sub.id },
-      body: { municipalServiceName: 'Fisioterapia', effectiveDatePeriod: 'ON_PAYMENT_DUE_DATE', observations: 'Mensalidade', taxes: TAXES },
+      body: { municipalServiceName: 'Physiotherapy', effectiveDatePeriod: 'ON_PAYMENT_DUE_DATE', observations: 'Monthly fee', taxes: TAXES },
     })
     expect(cfg.status).toBe(200)
 
@@ -305,7 +305,7 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
     const note = list.body.data.find((n: any) => n.effectiveDate === '2026-01-12')
     expect(note.status).toBe('SCHEDULED')
     expect(note.effectiveDate).toBe('2026-01-12')
-    expect(note.serviceDescription).toBe('Plano mensal')
+    expect(note.serviceDescription).toBe('Monthly plan')
     expect(note.value).toBe(150)
 
     // A second tick does not duplicate them.
@@ -317,7 +317,7 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
     expect((await get(note.id)).status).toBe('AUTHORIZED')
   })
 
-  it('ON_PAYMENT_CONFIRMATION + receivedOnly: a nota só nasce quando o dinheiro entra', async () => {
+  it('ON_PAYMENT_CONFIRMATION + receivedOnly: the note is only born when the money comes in', async () => {
     await fiscalInfo()
     const sub = (
       await h.api.call('create-new-subscription', {
@@ -326,7 +326,7 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
     ).body
     await h.api.call('create-configuration-for-issuance-of-invoices', {
       params: { id: sub.id },
-      body: { municipalServiceName: 'Fisioterapia', effectiveDatePeriod: 'ON_PAYMENT_CONFIRMATION', receivedOnly: true, taxes: TAXES },
+      body: { municipalServiceName: 'Physiotherapy', effectiveDatePeriod: 'ON_PAYMENT_CONFIRMATION', receivedOnly: true, taxes: TAXES },
     })
     await h.tick()
     const count = async () => (await h.api.call('list-invoices-for-subscription-charges', { params: { id: sub.id } })).body.totalCount
@@ -342,7 +342,7 @@ describe('nota fiscal — cobrança, filtros e assinatura', () => {
   })
 })
 
-describe('nota fiscal — controles do simulador (/_mock/invoices)', () => {
+describe('fiscal note — the simulator controls (/_mock/invoices)', () => {
   const mock = async (path: string, body?: unknown) => {
     const res = await h.app.app.handle(
       new Request(`http://localhost/_mock/invoices${path}`, {
@@ -354,7 +354,7 @@ describe('nota fiscal — controles do simulador (/_mock/invoices)', () => {
     return { status: res.status, body: (await res.json()) as any }
   }
 
-  it('autoriza na hora, mesmo sem informações fiscais', async () => {
+  it('authorizes right away, even without fiscal information', async () => {
     const note = await schedule((await charge()).id)
     const r = await mock(`/${note.id}/authorize`)
     expect(r.status).toBe(200)
@@ -362,14 +362,14 @@ describe('nota fiscal — controles do simulador (/_mock/invoices)', () => {
     expect(r.body.invoice.number).toBe('1')
   })
 
-  it('força o erro da prefeitura com o motivo dado', async () => {
+  it('forces the city hall error with the given reason', async () => {
     const note = await schedule((await charge()).id)
-    const r = await mock(`/${note.id}/error`, { description: 'CNAE incompatível com o serviço.' })
+    const r = await mock(`/${note.id}/error`, { description: 'CNAE incompatible with the service.' })
     expect(r.body.to).toBe('ERROR')
-    expect((await get(note.id)).statusDescription).toBe('CNAE incompatível com o serviço.')
+    expect((await get(note.id)).statusDescription).toBe('CNAE incompatible with the service.')
   })
 
-  it('nega ou confirma o cancelamento', async () => {
+  it('denies or confirms the cancellation', async () => {
     await h.subscribeWebhook(EVENTS)
     const note = await schedule((await charge()).id)
     await mock(`/${note.id}/authorize`)
@@ -386,22 +386,22 @@ describe('nota fiscal — controles do simulador (/_mock/invoices)', () => {
     expect(await invoiceEvents()).toContain('INVOICE_CANCELLATION_DENIED')
   })
 
-  it('404 para nota inexistente', async () => {
+  it('404 for a nonexistent note', async () => {
     expect((await mock('/inv_000000000000/authorize')).status).toBe(404)
   })
 })
 
-describe('informações fiscais', () => {
-  it('404 antes de cadastrar; depois devolve o cadastro com os segredos só como "enviado"', async () => {
+describe('fiscal information', () => {
+  it('404 before registering; then it returns the registration with the secrets only as "sent"', async () => {
     expect((await h.api.call('retrieve-tax-information')).status).toBe(404)
 
     const saved = await h.api.call('create-and-update-tax-information', {
-      body: { email: 'nf@clinica.example', simplesNacional: false, cnae: '8650004', password: 'segredo' },
+      body: { email: 'nf@clinica.example', simplesNacional: false, cnae: '8650004', password: 'secret' },
     })
     expect(saved.status).toBe(200)
     const read = (await h.api.call('retrieve-tax-information')).body
     expect(read).toMatchObject({ email: 'nf@clinica.example', simplesNacional: false, cnae: '8650004', passwordSent: true })
-    expect(JSON.stringify(read)).not.toContain('segredo')
+    expect(JSON.stringify(read)).not.toContain('secret')
 
     const missing = await h.api.call('create-and-update-tax-information', { body: { cnae: '1' } })
     expect((await h.api.call('retrieve-tax-information')).body.cnae).toBe('1')

@@ -1,0 +1,27 @@
+{
+	"name": "example_care_video",
+	"language": "pt_BR",
+	"category": "UTILITY",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "VIDEO",
+			"example": { "header_handle": ["/settings/examples/media/care.mp4"] }
+		},
+		{
+			"type": "BODY",
+			"text": "{{1}}, separamos um vídeo curto de como escovar com o aparelho. Qualquer dúvida, é só responder aqui.",
+			"example": { "body_text": [["Mariana"]] }
+		},
+		{
+			"type": "FOOTER",
+			"text": "Ortodontia · Clínica Sorriso"
+		},
+		{
+			"type": "BUTTONS",
+			"buttons": [
+				{ "type": "URL", "text": "Ver o passo a passo", "url": "https://clinica.exemplo/cuidados/aparelho" }
+			]
+		}
+	]
+}

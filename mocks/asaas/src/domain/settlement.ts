@@ -1,16 +1,17 @@
 /**
- * Quando o dinheiro vira saldo. PURO.
+ * When the money becomes balance. PURE.
  *
- * É a divergência mais importante entre meios de pagamento, e ela vive AQUI, num
- * lugar só — para que nenhum handler precise lembrar dela:
+ * It is the most important divergence between payment methods, and it lives HERE,
+ * in a single place — so that no handler has to remember it:
  *
- *   PIX          → RECEIVED na hora. PULA o estado CONFIRMED. Crédito imediato.
- *   BOLETO       → CONFIRMED → RECEIVED no próximo dia útil (D+1 útil).
- *   CREDIT_CARD  → CONFIRMED → RECEIVED em D+32 (dias corridos).
- *   DEBIT_CARD   → CONFIRMED → RECEIVED em D+3.
+ *   PIX          → RECEIVED right away. SKIPS the CONFIRMED state. Immediate credit.
+ *   BOLETO       → CONFIRMED → RECEIVED on the next business day (D+1 business day).
+ *   CREDIT_CARD  → CONFIRMED → RECEIVED at D+32 (calendar days).
+ *   DEBIT_CARD   → CONFIRMED → RECEIVED at D+3.
  *
- * O D+32 do cartão é o número da documentação técnica. O marketing do Asaas diz
- * "30 dias" — a doc técnica diz 32, e é a que vale. Está em config, ajustável.
+ * The card's D+32 is the number from the technical documentation. Asaas's marketing
+ * says "30 days" — the technical doc says 32, and that is the one that counts. It is
+ * in the config, adjustable.
  */
 import { addBusinessDays, addDays, nextBusinessDay, type IsoDate } from './calendar.ts'
 import type { BillingType } from './fees.ts'
@@ -21,45 +22,45 @@ export interface SettlementRules {
 }
 
 /**
- * O Pix não passa por CONFIRMED: vai direto de PENDING/OVERDUE para RECEIVED.
- * Todo o resto passa.
+ * Pix does not go through CONFIRMED: it goes straight from PENDING/OVERDUE to RECEIVED.
+ * Everything else goes through it.
  */
 export function skipsConfirmed(billingType: BillingType): boolean {
   return billingType === 'PIX'
 }
 
 /**
- * A data em que o crédito fica disponível, dado o dia da confirmação.
+ * The date the credit becomes available, given the confirmation day.
  *
- * Para o boleto, "próximo dia útil" — se o pagamento cai numa sexta, credita na
- * segunda. O Asaas não publica o cutoff de horário, então não modelamos um:
- * confirmou hoje, credita no próximo dia útil.
+ * For the bank slip, "next business day" — if the payment lands on a Friday, it
+ * credits on Monday. Asaas does not publish the time cutoff, so we do not model one:
+ * confirmed today, credits on the next business day.
  */
 export function creditDateFor(
   billingType: BillingType,
   confirmedOn: IsoDate,
   rules: SettlementRules,
   /**
-   * O número da parcela (1 = primeira, ou cobrança à vista).
+   * The installment number (1 = first, or a single-payment charge).
    *
-   * PROVADO contra o sandbox real: num parcelamento no cartão, a emissora
-   * autoriza tudo de uma vez (todas as parcelas confirmam no mesmo dia), mas o
-   * dinheiro cai ESCALONADO — a parcela `n` credita em **D+32×n** a partir da
-   * confirmação, rolado para o próximo dia útil.
+   * PROVEN against the real sandbox: in an installment plan on the card, the issuer
+   * authorizes everything at once (all installments confirm on the same day), but the
+   * money lands STAGGERED — installment `n` credits at **D+32×n** from the
+   * confirmation, rolled to the next business day.
    *
-   *   confirmado em 14/07/2026, 6x:
-   *   #1 +32d  = 15/08 (sáb) → 17/08     #4 +128d = 19/11
+   *   confirmed on 14/07/2026, 6x:
+   *   #1 +32d  = 15/08 (Sat) → 17/08     #4 +128d = 19/11
    *   #2 +64d  = 16/09                   #5 +160d = 21/12
-   *   #3 +96d  = 18/10 (dom) → 19/10     #6 +192d = 22/01/2027
+   *   #3 +96d  = 18/10 (Sun) → 19/10     #6 +192d = 22/01/2027
    *
-   * As 6 datas batem na unha. A leitura intuitiva — "D+32 do vencimento de cada
-   * parcela" — está errada e daria números diferentes.
+   * All 6 dates match exactly. The intuitive reading — "D+32 from each installment's
+   * due date" — is wrong and would give different numbers.
    */
   installmentNumber = 1,
 ): IsoDate {
   switch (billingType) {
     case 'PIX':
-      return confirmedOn // imediato
+      return confirmedOn // immediate
 
     case 'BOLETO':
       return addBusinessDays(confirmedOn, 1)
@@ -80,15 +81,15 @@ export function creditDateFor(
 /**
  * `estimatedCreditDate`.
  *
- * PROVADO contra o sandbox real: **é `null` enquanto a cobrança está PENDING.**
- * O Asaas não promete data de crédito para dinheiro que ainda não entrou — ele
- * só preenche este campo quando a cobrança confirma, e aí com o MESMO valor de
- * `creditDate`. Nós preenchíamos na criação (a partir do vencimento), o que
- * inventava uma data que a API real não dá.
+ * PROVEN against the real sandbox: **it is `null` while the charge is PENDING.**
+ * Asaas does not promise a credit date for money that has not come in yet — it
+ * only fills this field when the charge confirms, and then with the SAME value as
+ * `creditDate`. We used to fill it at creation (from the due date), which invented a
+ * date the real API does not give.
  *
- * Fica aqui, devolvendo `null`, em vez de sumir: o campo existe no contrato, e
- * um leitor que procurar "onde calculamos estimatedCreditDate" precisa achar
- * esta explicação, não um silêncio.
+ * It stays here, returning `null`, instead of disappearing: the field exists in the
+ * contract, and a reader looking for "where do we compute estimatedCreditDate"
+ * needs to find this explanation, not a silence.
  */
 export function estimatedCreditDateFor(): null {
   return null

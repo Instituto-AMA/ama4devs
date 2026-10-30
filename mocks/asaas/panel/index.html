@@ -21,9 +21,10 @@
   <body>
     <div id="app"></div>
     <!--
-      Aplica o tema ANTES do primeiro paint. Sem isto, quem escolheu o escuro toma um
-      flash branco em cada reload — o React/Preact só monta depois, e até lá o browser
-      já pintou a página com os tokens claros.
+      Applies the theme BEFORE the first paint. Without this, whoever chose the
+      dark one gets a white flash on every reload — React/Preact only mounts
+      later, and by then the browser already painted the page with the light
+      tokens.
     -->
     <script>
       try {

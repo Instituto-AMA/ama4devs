@@ -5,7 +5,7 @@ import { bool, cents, datetime, epochMs, json } from './_conventions.ts'
 export const webhooks = sqliteTable(
   'webhooks',
   {
-    id: text('id').primaryKey(), // UUID puro
+    id: text('id').primaryKey(), // A plain UUID
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -14,12 +14,12 @@ export const webhooks = sqliteTable(
     url: text('url').notNull(),
     email: text('email').notNull(),
     enabled: bool('enabled').notNull(),
-    /** Vira true após WEBHOOK_MAX_ATTEMPTS falhas seguidas. Congela a fila. */
+    /** It becomes true after WEBHOOK_MAX_ATTEMPTS consecutive failures. It freezes the queue. */
     interrupted: bool('interrupted').notNull(),
-    /** Enviado no header `asaas-access-token`. 32–255 chars. */
+    /** Sent in the `asaas-access-token` header. 32–255 chars. */
     authToken: text('auth_token'),
     apiVersion: cents('api_version').notNull(),
-    /** SEQUENTIALLY faz head-of-line blocking de verdade. */
+    /** SEQUENTIALLY does real head-of-line blocking. */
     sendType: text('send_type', {
       enum: ['SEQUENTIALLY', 'NON_SEQUENTIALLY'],
     }).notNull(),
@@ -31,11 +31,11 @@ export const webhooks = sqliteTable(
 )
 
 /**
- * O evento de domínio. Um por acontecimento, independente de quantos webhooks
- * estejam inscritos.
+ * The domain event. One per occurrence, no matter how many webhooks
+ * are subscribed.
  *
- * `payload` é CONGELADO no momento do emit. Uma retentativa 3 horas depois não
- * pode enviar o estado atual do recurso — o evento descreve um instante.
+ * `payload` is FROZEN at the moment of the emit. A retry 3 hours later does not
+ * send the current state of the resource — the event describes an instant.
  */
 export const webhookEvents = sqliteTable(
   'webhook_events',
@@ -54,7 +54,7 @@ export const webhookEvents = sqliteTable(
   (t) => [index('webhook_events_account_idx').on(t.accountId, t.createdAtMs)],
 )
 
-/** Uma entrega por (evento × webhook inscrito e habilitado). */
+/** One delivery per (event × subscribed and enabled webhook). */
 export const webhookDeliveries = sqliteTable(
   'webhook_deliveries',
   {
@@ -69,7 +69,7 @@ export const webhookDeliveries = sqliteTable(
       .notNull()
       .references(() => accounts.id),
 
-    /** Monotônico por webhook. É o que dá ordem ao modo SEQUENTIALLY. */
+    /** Monotonic per webhook. It is what gives the SEQUENTIALLY mode its order. */
     sequence: epochMs('sequence').notNull(),
 
     /** PENDING | DELIVERED | FAILED | INTERRUPTED | EXPIRED */
@@ -77,17 +77,17 @@ export const webhookDeliveries = sqliteTable(
     attempt: cents('attempt').notNull(),
     nextAttemptAtMs: epochMs('next_attempt_at_ms'),
     lastAttemptAt: datetime('last_attempt_at'),
-    /** Só HTTP 200 conta como sucesso no Asaas. 201 e 204 são falha. */
+    /** Only HTTP 200 counts as a success in Asaas. 201 and 204 are a failure. */
     lastStatusCode: cents('last_status_code'),
     lastError: text('last_error'),
-    /** createdAt + WEBHOOK_RETENTION_DAYS (dias simulados). */
+    /** createdAt + WEBHOOK_RETENTION_DAYS (simulated days). */
     expiresAtMs: epochMs('expires_at_ms').notNull(),
     dateCreated: datetime('date_created').notNull(),
   },
   (t) => [
-    // O dispatcher varre por aqui a cada tick.
+    // The dispatcher scans this index on every tick.
     index('webhook_deliveries_due_idx').on(t.webhookId, t.status, t.nextAttemptAtMs),
-    // Ordem estrita para SEQUENTIALLY.
+    // Strict order for SEQUENTIALLY.
     uniqueIndex('webhook_deliveries_seq_uq').on(t.webhookId, t.sequence),
     index('webhook_deliveries_event_idx').on(t.eventId),
   ],

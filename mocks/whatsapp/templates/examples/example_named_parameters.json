@@ -1,0 +1,28 @@
+{
+	"name": "example_named_parameters",
+	"language": "pt_BR",
+	"category": "UTILITY",
+	"parameter_format": "NAMED",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "Pagamento recebido"
+		},
+		{
+			"type": "BODY",
+			"text": "Obrigado, {{patient_name}}! Recebemos {{amount}} referente à parcela {{installment}} do seu tratamento.",
+			"example": {
+				"body_text_named_params": [
+					{ "param_name": "patient_name", "example": "Mariana" },
+					{ "param_name": "amount", "example": "R$ 215,00" },
+					{ "param_name": "installment", "example": "3 de 10" }
+				]
+			}
+		},
+		{
+			"type": "FOOTER",
+			"text": "O recibo chega por e-mail"
+		}
+	]
+}

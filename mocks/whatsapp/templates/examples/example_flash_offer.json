@@ -1,0 +1,28 @@
+{
+	"name": "example_flash_offer",
+	"language": "pt_BR",
+	"category": "MARKETING",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "IMAGE",
+			"example": { "header_handle": ["/settings/examples/media/whitening.jpg"] }
+		},
+		{
+			"type": "LIMITED_TIME_OFFER",
+			"limited_time_offer": { "text": "Clareamento pela metade", "has_expiration": true }
+		},
+		{
+			"type": "BODY",
+			"text": "{{1}}, só nesta semana: clareamento a laser com 50% de desconto para quem já é paciente.",
+			"example": { "body_text": [["Mariana"]] }
+		},
+		{
+			"type": "BUTTONS",
+			"buttons": [
+				{ "type": "COPY_CODE", "example": "METADE50" },
+				{ "type": "URL", "text": "Garantir a oferta", "url": "https://clinica.exemplo/oferta?c={{1}}", "example": ["https://clinica.exemplo/oferta?c=METADE50"] }
+			]
+		}
+	]
+}

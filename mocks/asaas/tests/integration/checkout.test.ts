@@ -1,8 +1,8 @@
 /**
- * Checkout — sessão de pagamento hospedada.
+ * Checkout — hosted payment session.
  *
- * O ponto que este teste protege: o cancelamento é uma TRANSIÇÃO, e o webhook é
- * efeito dela. Cancelar duas vezes não gera dois CHECKOUT_CANCELED.
+ * The point this test protects: the cancellation is a TRANSITION, and the webhook is
+ * an effect of it. Cancelling twice does not produce two CHECKOUT_CANCELED.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { and, eq } from 'drizzle-orm'
@@ -21,13 +21,13 @@ const BODY = {
   billingTypes: ['PIX'],
   chargeTypes: ['DETACHED'],
   minutesToExpire: 100,
-  externalReference: 'pedido-42',
+  externalReference: 'order-42',
   callback: {
-    successUrl: 'https://exemplo.com/sucesso',
-    cancelUrl: 'https://exemplo.com/cancelado',
+    successUrl: 'https://example.com/success',
+    cancelUrl: 'https://example.com/canceled',
   },
   items: [
-    { name: 'Camiseta', description: 'Preta', imageBase64: 'SU1BR0U=', quantity: 2, value: 100 },
+    { name: 'T-shirt', description: 'Black', imageBase64: 'SU1BR0U=', quantity: 2, value: 100 },
   ],
 }
 
@@ -45,8 +45,8 @@ const eventsOf = (id: string, event: string) =>
     .from(webhookEvents)
     .where(and(eq(webhookEvents.resourceId, id), eq(webhookEvents.event, event)))
 
-describe('criação', () => {
-  it('devolve 200 com link, status ACTIVE e os itens ecoados', async () => {
+describe('creation', () => {
+  it('returns 200 with the link, ACTIVE status and the echoed items', async () => {
     const checkout = await newCheckout()
 
     expect(checkout.status).toBe('ACTIVE')
@@ -54,12 +54,12 @@ describe('criação', () => {
     expect(checkout.billingTypes).toEqual(['PIX'])
     expect(checkout.chargeTypes).toEqual(['DETACHED'])
     expect(checkout.minutesToExpire).toBe(100)
-    expect(checkout.externalReference).toBe('pedido-42')
-    expect(checkout.items[0].name).toBe('Camiseta')
-    expect(checkout.callback.successUrl).toBe('https://exemplo.com/sucesso')
+    expect(checkout.externalReference).toBe('order-42')
+    expect(checkout.items[0].name).toBe('T-shirt')
+    expect(checkout.callback.successUrl).toBe('https://example.com/success')
   })
 
-  it('emite CHECKOUT_CREATED', async () => {
+  it('emits CHECKOUT_CREATED', async () => {
     const checkout = await newCheckout()
     const events = await eventsOf(checkout.id, 'CHECKOUT_CREATED')
 
@@ -67,11 +67,11 @@ describe('criação', () => {
     expect((events[0]!.payload as any).checkout.id).toBe(checkout.id)
   })
 
-  it('o valor é somado em CENTAVOS: 2 × R$ 100,55 = R$ 201,10', async () => {
+  it('the amount is added in CENTS: 2 × R$ 100.55 = R$ 201.10', async () => {
     const checkout = await newCheckout({
       items: [
         {
-          name: 'Camiseta',
+          name: 'T-shirt',
           imageBase64: 'SU1BR0U=',
           quantity: 2,
           value: 100.55,
@@ -79,7 +79,7 @@ describe('criação', () => {
       ],
     })
 
-    // O dinheiro NUNCA é somado em reais: 2 × 100.55 em float daria 201.10000000000002.
+    // The money is NEVER added in reais: 2 × 100.55 as a float would give 201.10000000000002.
     const [row] = await h.app.db
       .select()
       .from(checkouts)
@@ -88,7 +88,7 @@ describe('criação', () => {
     expect(row!.valueCents).toBe(20110)
   })
 
-  it('sem itens → 400 invalid_items', async () => {
+  it('without items → 400 invalid_items', async () => {
     const { status, body } = await h.api.call('create-new-checkout', {
       body: { ...BODY, items: [] },
     })
@@ -97,7 +97,7 @@ describe('criação', () => {
     expect(body.errors[0].code).toBe('invalid_items')
   })
 
-  it('RECURRENT exige os dados da assinatura', async () => {
+  it('RECURRENT requires the subscription data', async () => {
     const { status, body } = await h.api.call('create-new-checkout', {
       body: { ...BODY, chargeTypes: ['RECURRENT'] },
     })
@@ -106,7 +106,7 @@ describe('criação', () => {
     expect(body.errors[0].code).toBe('invalid_subscription')
   })
 
-  it('INSTALLMENT exige os dados do parcelamento', async () => {
+  it('INSTALLMENT requires the installment data', async () => {
     const { status, body } = await h.api.call('create-new-checkout', {
       body: { ...BODY, chargeTypes: ['INSTALLMENT'] },
     })
@@ -115,7 +115,7 @@ describe('criação', () => {
     expect(body.errors[0].code).toBe('invalid_installment')
   })
 
-  it('sem callback → 400 (a spec o declara obrigatório)', async () => {
+  it('without a callback → 400 (the spec declares it mandatory)', async () => {
     const { callback, ...noCallback } = BODY
     void callback
 
@@ -126,8 +126,8 @@ describe('criação', () => {
   })
 })
 
-describe('cancelamento', () => {
-  it('ACTIVE → CANCELED, e emite CHECKOUT_CANCELED uma única vez', async () => {
+describe('cancellation', () => {
+  it('ACTIVE → CANCELED, and it emits CHECKOUT_CANCELED exactly once', async () => {
     const checkout = await newCheckout()
 
     const canceled = await h.api.call('cancel-a-checkout', {
@@ -148,18 +148,18 @@ describe('cancelamento', () => {
     expect(events.length).toBe(1)
   })
 
-  it('checkout inexistente → 404', async () => {
+  it('nonexistent checkout → 404', async () => {
     const { status } = await h.api.call('cancel-a-checkout', {
-      params: { id: 'nao-existe' },
+      params: { id: 'does-not-exist' },
       body: {},
     })
 
     expect(status).toBe(404)
   })
 
-  it('o checkout de outra conta não existe (404)', async () => {
+  it('the checkout of another account does not exist (404)', async () => {
     const checkout = await newCheckout()
-    const other = await createSecondAccount(h, 'Conta Vizinha')
+    const other = await createSecondAccount(h, 'Neighbouring Account')
 
     const { status } = await h.as(other.apiKey).call('cancel-a-checkout', {
       params: { id: checkout.id },

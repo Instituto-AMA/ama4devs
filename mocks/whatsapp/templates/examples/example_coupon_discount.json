@@ -1,0 +1,30 @@
+{
+	"name": "example_coupon_discount",
+	"language": "pt_BR",
+	"category": "MARKETING",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "{{1}} de desconto no clareamento",
+			"example": { "header_text": ["25%"] }
+		},
+		{
+			"type": "BODY",
+			"text": "Oi, {{1}}! Até *{{2}}* o clareamento a laser sai com desconto. Use o cupom abaixo ao agendar.\n\n_Vale para a primeira sessão._",
+			"example": { "body_text": [["Mariana", "30/11"]] }
+		},
+		{
+			"type": "FOOTER",
+			"text": "Não quer mais ofertas? Toque em Parar promoções"
+		},
+		{
+			"type": "BUTTONS",
+			"buttons": [
+				{ "type": "COPY_CODE", "example": "SORRISO25" },
+				{ "type": "URL", "text": "Agendar", "url": "https://clinica.exemplo/agendar?cupom={{1}}", "example": ["https://clinica.exemplo/agendar?cupom=SORRISO25"] },
+				{ "type": "QUICK_REPLY", "text": "Parar promoções" }
+			]
+		}
+	]
+}

@@ -1,5 +1,6 @@
 /**
- * Notas fiscais (tag Invoice) e informações fiscais da conta (tag Fiscal Info).
+ * Fiscal notes (tag Invoice) and fiscal information of the account (tag Fiscal
+ * Info).
  *
  * Scheduling, editing, issuing and cancelling go through service.ts, the same
  * place the scheduler job and the `/_mock/invoices` controls use, so each path
@@ -130,7 +131,7 @@ export const invoiceHandlers: HandlerMap = {
     return serializeInvoice(await cancelInvoice(ctx, inv, onlyOnAsaas))
   },
 
-  // ── Informações fiscais ────────────────────────────────────────────────────
+  // ── Fiscal information ─────────────────────────────────────────────────────
 
   'retrieve-tax-information': async ({ ctx, auth }) => {
     const info = await fiscalInfoOf(ctx.db, auth.accountId)

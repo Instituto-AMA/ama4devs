@@ -1,14 +1,14 @@
 /**
- * Regressão: o merge de config precisa ser PROFUNDO nos objetos aninhados.
+ * Regression: the config merge has to be DEEP on nested objects.
  *
- * Um spread raso já quebrou de verdade aqui. Passar `webhook: { timeoutMs: 500 }`
- * apagava `retentionDays` junto, e o erro não aparecia na config — aparecia três
- * camadas adiante, na hora de inserir uma entrega:
+ * A shallow spread has actually broken things here. Passing `webhook: { timeoutMs: 500 }`
+ * wiped `retentionDays` along with it, and the error did not show up in the config — it showed up three
+ * layers deeper, at the time of inserting a delivery:
  *
  *     NOT NULL constraint failed: webhook_deliveries.expires_at_ms
  *
- * porque `now + undefined * DAY_MS` é NaN. Este teste existe para que ninguém
- * "simplifique" o merge de volta para um spread.
+ * because `now + undefined * DAY_MS` is NaN. This test exists so that nobody
+ * "simplifies" the merge back into a spread.
  */
 import { afterEach, describe, expect, it } from 'bun:test'
 import { bootstrap, type App } from '../../src/bootstrap.ts'
@@ -17,36 +17,36 @@ import { cents } from '../../src/domain/money.ts'
 let app: App | undefined
 afterEach(() => app?.close())
 
-describe('merge de config', () => {
-  it('override parcial de objeto aninhado preserva os irmãos', async () => {
+describe('config merge', () => {
+  it('a partial override of a nested object preserves its siblings', async () => {
     app = await bootstrap({
       config: {
         databasePath: ':memory:',
         logLevel: 'silent',
-        webhook: { timeoutMs: 500 }, // <- só UM campo dos cinco
+        webhook: { timeoutMs: 500 }, // <- only ONE field of the five
       },
     })
 
     expect(app.config.webhook.timeoutMs).toBe(500)
 
-    // Os irmãos sobrevivem — é o ponto inteiro do teste.
+    // The siblings survive — it is the whole point of the test.
     expect(app.config.webhook.retentionDays).toBeGreaterThan(0)
     expect(app.config.webhook.maxAttempts).toBeGreaterThan(0)
     expect(app.config.webhook.maxPerAccount).toBeGreaterThan(0)
   })
 
-  it('override parcial da tabela de taxas preserva as demais taxas', async () => {
+  it('a partial override of the fee table preserves the other fees', async () => {
     app = await bootstrap({
       config: {
         databasePath: ':memory:',
         logLevel: 'silent',
-        fees: { pix: 0 as never }, // simulando uma conta sem taxa de Pix
+        fees: { pix: 0 as never }, // simulating an account without a Pix fee
       },
     })
 
-    // `Cents` é um tipo marcado (branded): comparar com o número cru não compila.
+    // `Cents` is a branded type: comparing it with the raw number does not compile.
     expect(app.config.fees.pix).toBe(cents(0))
-    expect(app.config.fees.boleto).toBe(cents(199)) // intacta
-    expect(app.config.fees.creditCard.fixed).toBe(cents(49)) // o objeto aninhado também
+    expect(app.config.fees.boleto).toBe(cents(199)) // intact
+    expect(app.config.fees.creditCard.fixed).toBe(cents(49)) // the nested object too
   })
 })

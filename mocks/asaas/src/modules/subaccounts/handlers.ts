@@ -1,16 +1,16 @@
 /**
- * Subcontas. (Track F)
+ * Subaccounts. (Track F)
  *
- * POR QUE ISTO IMPORTA MAIS DO QUE PARECE: uma subconta nasce com **API key
- * própria** e **walletId próprio**. É o que torna o split testável de verdade —
- * o dinheiro sai de uma conta, entra na outra, e os DOIS extratos fecham. Sem
- * subconta, o walletId de destino seria uma string sem dono e o split não
- * passaria de uma anotação.
+ * WHY THIS MATTERS MORE THAN IT LOOKS: a subaccount is born with an **API key
+ * of its own** and a **walletId of its own**. It is what makes the split truly
+ * testable — the money leaves one account, enters the other, and BOTH statements
+ * close. Without a subaccount, the destination walletId would be a string with
+ * no owner and the split would not be more than a note.
  *
- * A chave é mostrada UMA ÚNICA VEZ, na resposta da criação (e na criação de uma
- * nova chave). Depois disso ela não volta mais em lugar nenhum — é o que o Asaas
- * faz, e um mock que devolvesse a chave numa listagem ensinaria o integrador a
- * confiar em algo que a API real nunca vai entregar.
+ * The key is shown ONE SINGLE TIME, in the response of the creation (and of the
+ * creation of a new key). After that it never comes back anywhere — it is what
+ * Asaas does, and a mock that returned the key in a listing would teach the
+ * integrator to trust something the real API will never deliver.
  */
 import { and, count, eq } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -30,9 +30,9 @@ type ApiKeyRow = typeof apiKeys.$inferSelect
 const digitsOnly = (v: string): string => v.replace(/\D/g, '')
 
 /**
- * A subconta só existe para quem a criou. Para qualquer outra conta ela é um
- * 404 — não um 403: a API não confirma nem desmente a existência de uma conta
- * alheia.
+ * The subaccount only exists for whoever created it. For any other account it is
+ * a 404 — not a 403: the API neither confirms nor denies the existence of
+ * someone else's account.
  */
 async function findSubaccount(
   ctx: AppContext,
@@ -75,10 +75,10 @@ function serializeAccount(a: AccountRow): Record<string, unknown> {
     personType: a.personType,
     companyType: a.companyType,
     /**
-     * TODO(regra): `city` é o id numérico da cidade no cadastro do Asaas, e não
-     * existe tabela pública desse cadastro. O request de criação nem sequer tem
-     * o campo — devolvemos null em vez de inventar um número que ninguém
-     * conseguiria conferir.
+     * TODO(rule): `city` is the numeric id of the city in the Asaas registry, and
+     * there is no public table of that registry. The creation request does not
+     * even have the field — we return null instead of inventing a number nobody
+     * could check.
      */
     city: null,
     state: a.state,
@@ -92,9 +92,9 @@ function serializeAccount(a: AccountRow): Record<string, unknown> {
 }
 
 /**
- * A chave de API SEM o segredo. É o que sai numa listagem.
- * `projectedExpirationDateByLackOfUse`: TODO(regra) — a doc não define a janela
- * de inatividade que expira uma chave; devolvemos null em vez de chutar.
+ * The API key WITHOUT the secret. It is what comes out of a listing.
+ * `projectedExpirationDateByLackOfUse`: TODO(rule) — the docs do not define the
+ * inactivity window that expires a key; we return null instead of guessing.
  */
 function serializeApiKey(k: ApiKeyRow): Record<string, unknown> {
   return {
@@ -110,12 +110,14 @@ function serializeApiKey(k: ApiKeyRow): Record<string, unknown> {
 
 export const subaccountHandlers: HandlerMap = {
   /**
-   * Cria a subconta COM chave de API própria. É a única vez que a chave aparece.
+   * Creates the subaccount WITH an API key of its own. It is the only time the
+   * key appears.
    *
-   * O cadastro nasce APPROVED (a subconta já transaciona), mas o KYC NÃO: ela
-   * nasce com um grupo de documentos pendente (`GET /v3/myAccount/documents`),
-   * que é o que o cliente precisa ter para exercitar o onboarding. Quem fecha o
-   * ciclo é o upload do arquivo ou `POST /v3/sandbox/myAccount/approve`.
+   * The registration is born APPROVED (the subaccount already transacts), but
+   * the KYC is NOT: it is born with a group of documents pending
+   * (`GET /v3/myAccount/documents`), which is what the client needs to exercise
+   * the onboarding. What closes the cycle is the upload of the file or
+   * `POST /v3/sandbox/myAccount/approve`.
    */
   'create-subaccount': async ({ ctx, auth, body }) => {
     const b = body as Record<string, any>
@@ -125,7 +127,7 @@ export const subaccountHandlers: HandlerMap = {
       throw invalid('cpfCnpj', 'O CPF ou CNPJ informado é inválido.')
     }
 
-    // O Asaas não deixa duas contas com o mesmo documento.
+    // Asaas does not allow two accounts with the same document.
     const [dup] = await ctx.db
       .select({ id: accounts.id })
       .from(accounts)
@@ -176,7 +178,7 @@ export const subaccountHandlers: HandlerMap = {
       country: 'Brasil',
 
       incomeCents: brlToCents(income),
-      status: 'APPROVED', // o cadastro, não o KYC — os documentos nascem pendentes
+      status: 'APPROVED', // the registration, not the KYC — the documents are born pending
       balanceCents: 0,
       accountNumber: `${ctx.rng.digits(6)}-${ctx.rng.digits(1)}`,
       dateCreated: now,
@@ -206,8 +208,9 @@ export const subaccountHandlers: HandlerMap = {
         },
       )
 
-      // O request pode já trazer os webhooks da subconta. Ignorá-los em silêncio
-      // faria o integrador achar que assinou eventos que nunca chegariam.
+      // The request may already carry the webhooks of the subaccount. Ignoring
+      // them in silence would make the integrator believe they subscribed to
+      // events that would never arrive.
       for (const w of (b.webhooks ?? []) as Record<string, any>[]) {
         await tx.insert(webhooks).values({
           id: ids.webhookConfigId(ctx.rng),
@@ -229,10 +232,10 @@ export const subaccountHandlers: HandlerMap = {
     return {
       ...serializeAccount(row),
       /**
-       * `apiKey` no topo E dentro de `accessToken`. A spec só declara o objeto
-       * `accessToken`, mas a doc e os exemplos do Asaas mostram `apiKey` na raiz
-       * — e é ali que todo integrador olha. Devolver os dois não mente sobre
-       * nada e evita que alguém não ache a chave.
+       * `apiKey` at the top AND inside `accessToken`. The spec only declares the
+       * `accessToken` object, but the Asaas docs and examples show `apiKey` at
+       * the root — and that is where every integrator looks. Returning both does
+       * not lie about anything and saves someone from not finding the key.
        */
       apiKey: key,
       accessToken: {
@@ -274,8 +277,8 @@ export const subaccountHandlers: HandlerMap = {
     serializeAccount(await findSubaccount(ctx, auth.accountId, params.id!)),
 
   /**
-   * Encerra a subconta. As chaves dela param de funcionar na hora (401 na próxima
-   * requisição) — é o efeito que importa, e o que um teste consegue observar.
+   * Closes the subaccount. Its keys stop working right away (401 on the next
+   * request) — it is the effect that matters, and the one a test can observe.
    */
   'close-non-baas-subaccount': async ({ ctx, auth, params }) => {
     const sub = await findSubaccount(ctx, auth.accountId, params.id!)
@@ -289,16 +292,16 @@ export const subaccountHandlers: HandlerMap = {
   },
 
   /**
-   * Reenvia o link de ativação. Aqui não há e-mail para enviar — o que existe é
-   * a garantia de que a subconta existe e é sua. 204, sem corpo.
+   * Resends the activation link. There is no e-mail to send here — what exists
+   * is the guarantee that the subaccount exists and is yours. 204, no body.
    */
   'resend-activation-link-for-non-baas-subaccount': async ({ ctx, auth, params }) => {
     const sub = await findSubaccount(ctx, auth.accountId, params.id!)
-    ctx.log('info', `Link de ativação reenviado para a subconta ${sub.id} (${sub.email})`)
+    ctx.log('info', `Activation link resent to the subaccount ${sub.id} (${sub.email})`)
     return new Response(null, { status: 204 })
   },
 
-  // ── Chaves de API da subconta ──────────────────────────────
+  // ── Subaccount API keys ───────────────────────────────────
 
   'create-api-key-for-subaccount': async ({ ctx, auth, params, body }) => {
     const sub = await findSubaccount(ctx, auth.accountId, params.id!)
@@ -320,7 +323,7 @@ export const subaccountHandlers: HandlerMap = {
       expirationDate,
     })
 
-    // A ÚNICA resposta que carrega o segredo. A listagem nunca o devolve.
+    // The ONLY response that carries the secret. The listing never returns it.
     return {
       id,
       name,
@@ -353,7 +356,7 @@ export const subaccountHandlers: HandlerMap = {
 
     const patch: Partial<ApiKeyRow> = {}
     if (b.name !== undefined) patch.name = String(b.name)
-    // Desabilitar a chave a mata na prática: a autenticação só aceita chave ativa.
+    // Disabling the key kills it in practice: the authentication only accepts an active key.
     if (b.enabled !== undefined) patch.active = Boolean(b.enabled)
     if (b.expirationDate !== undefined) patch.expirationDate = b.expirationDate ?? null
 

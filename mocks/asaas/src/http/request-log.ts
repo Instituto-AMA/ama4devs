@@ -1,6 +1,6 @@
 /**
- * "Logs de Requisições": records each call to the API (`/v3`) with what went in
- * and what came back, for the panel (Integrações › Logs de Requisições).
+ * "Request Logs": records each call to the API (`/v3`) with what went in
+ * and what came back, for the panel (Integrations > Request Logs).
  *
  * Two places call it, both before the response leaves: after the handler (a
  * success) and in the error handler (a refusal: 400, 401, 404). An error body is

@@ -34,7 +34,7 @@
   gap: 6px;
   font-family: inherit;
   font-weight: 600;
-  border-radius: var(--radius-pill); /* o botão do Atlas é pílula */
+  border-radius: var(--radius-pill); /* the Atlas button is a pill */
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
@@ -82,8 +82,8 @@
 /* ── Copy ─────────────────────────────────────────────────────────────────── */
 .copy { display: inline-flex; align-items: center; gap: var(--pad-xs); }
 .copy-btn {
-  /* O ícone é um SVG, não um glifo: sem flex ele encosta no texto e o botão fica
-     parecendo um erro de renderização. */
+  /* The icon is an SVG, not a glyph: without flex it touches the text and the button
+     ends up looking like a rendering error. */
   display: inline-flex;
   align-items: center;
   gap: 4px;

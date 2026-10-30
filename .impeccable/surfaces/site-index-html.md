@@ -7,7 +7,7 @@ related_targets: ["site/asaas/index.html","site/whatsapp/index.html"]
 
 ## Scope
 
-The ama4devs Pages site: home, and per mock (WhatsApp, Asaas) Overview with use cases, Quick start, API, Docs; English at the root, pt-BR under /pt-br/. Home and overviews are Persuade; Quick start, API and Docs are Read.
+The ama4devs Pages site: home, and per mock (WhatsApp, Asaas) Overview with use cases, Quick start, API, Docs; English at the root, Portuguese (pt-BR) under /portuguese/. Home and overviews are Persuade; Quick start, API and Docs are Read.
 
 Audience: developers integrating WhatsApp Cloud API or Asaas, mostly Brazilian. Primary action: run both together (git clone + make setup). Proof: replays of real runs of the mocks, screenshots, the parity and contract suites.
 

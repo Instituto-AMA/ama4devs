@@ -1,0 +1,31 @@
+{
+	"name": "example_satisfaction_survey",
+	"language": "pt_BR",
+	"category": "UTILITY",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "Como foi seu atendimento?"
+		},
+		{
+			"type": "BODY",
+			"text": "{{1}}, de 1 a 5, quanto você indicaria a Clínica Sorriso para alguém? Sua resposta vai direto para a coordenação.",
+			"example": { "body_text": [["Mariana"]] }
+		},
+		{
+			"type": "FOOTER",
+			"text": "Leva 5 segundos"
+		},
+		{
+			"type": "BUTTONS",
+			"buttons": [
+				{ "type": "QUICK_REPLY", "text": "5 · Com certeza" },
+				{ "type": "QUICK_REPLY", "text": "4 · Provavelmente" },
+				{ "type": "QUICK_REPLY", "text": "3 · Talvez" },
+				{ "type": "QUICK_REPLY", "text": "2 · Pouco provável" },
+				{ "type": "QUICK_REPLY", "text": "1 · Não indicaria" }
+			]
+		}
+	]
+}

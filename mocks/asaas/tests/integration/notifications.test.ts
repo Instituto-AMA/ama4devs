@@ -1,9 +1,9 @@
 /**
  * Notification — PUT individual e PUT em lote.
  *
- * As notificações nascem com o cliente (track A). Aqui elas são semeadas direto
- * no banco: o que está sob teste é a ATUALIZAÇÃO — e, principalmente, que o id de
- * uma notificação (que é adivinhável) não dá acesso à conta do vizinho.
+ * The notifications are born with the customer (track A). Here they are seeded straight
+ * into the database: what is under test is the UPDATE — and, above all, that the id of
+ * a notification (which is guessable) does not give access to the neighbour's account.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { customers, notifications } from '../../src/db/schema/index.ts'
@@ -20,7 +20,7 @@ afterAll(() => h.close())
 
 const EVENTS = ['PAYMENT_CREATED', 'PAYMENT_OVERDUE', 'PAYMENT_RECEIVED'] as const
 
-/** Semeia um cliente e suas notificações — é o que o track A fará ao criar o cliente. */
+/** Seeds a customer and its notifications — it is what track A does on customer creation. */
 async function seedCustomer(accountId: string): Promise<{ id: string; notifications: string[] }> {
   const rng = h.app.ctx.rng
   const id = customerId(rng)
@@ -28,7 +28,7 @@ async function seedCustomer(accountId: string): Promise<{ id: string; notificati
   await h.app.db.insert(customers).values({
     id,
     accountId,
-    name: 'Cliente',
+    name: 'Customer',
     cpfCnpj: '24971563792',
     personType: 'FISICA',
     notificationDisabled: false,
@@ -60,7 +60,7 @@ async function seedCustomer(accountId: string): Promise<{ id: string; notificati
 }
 
 describe('PUT /v3/notifications/{id}', () => {
-  it('atualiza os canais e o agendamento', async () => {
+  it('updates the channels and the schedule', async () => {
     const customer = await seedCustomer(h.accountId)
 
     const { status, body } = await h.api.call('update-existing-notification', {
@@ -80,12 +80,12 @@ describe('PUT /v3/notifications/{id}', () => {
     expect(body.smsEnabledForCustomer).toBe(false)
     expect(body.whatsappEnabledForCustomer).toBe(true)
     expect(body.scheduleOffset).toBe(10)
-    // O que não veio no body não muda.
+    // What did not come in the body does not change.
     expect(body.emailEnabledForCustomer).toBe(true)
     expect(body.event).toBe('PAYMENT_CREATED')
   })
 
-  it('scheduleOffset fora do conjunto permitido → 400', async () => {
+  it('scheduleOffset outside the allowed set → 400', async () => {
     const customer = await seedCustomer(h.accountId)
 
     const { status, body } = await h.api.call('update-existing-notification', {
@@ -97,18 +97,18 @@ describe('PUT /v3/notifications/{id}', () => {
     expect(body.errors[0].code).toBe('invalid_scheduleOffset')
   })
 
-  it('notificação inexistente → 404', async () => {
+  it('a non-existent notification → 404', async () => {
     const { status } = await h.api.call('update-existing-notification', {
-      params: { id: 'not_naoexiste00' },
+      params: { id: 'not_doesnotexist00' },
       body: { enabled: false },
     })
 
     expect(status).toBe(404)
   })
 
-  it('a notificação de um cliente de OUTRA conta não existe (404)', async () => {
+  it('the notification of a customer from ANOTHER account does not exist (404)', async () => {
     const mine = await seedCustomer(h.accountId)
-    const other = await createSecondAccount(h, 'Conta Vizinha')
+    const other = await createSecondAccount(h, 'Neighbouring Account')
 
     const { status } = await h.as(other.apiKey).call('update-existing-notification', {
       params: { id: mine.notifications[0]! },
@@ -120,7 +120,7 @@ describe('PUT /v3/notifications/{id}', () => {
 })
 
 describe('PUT /v3/notifications/batch', () => {
-  it('atualiza várias e devolve TODAS as notificações do cliente', async () => {
+  it("updates several and returns ALL the customer's notifications", async () => {
     const customer = await seedCustomer(h.accountId)
 
     const { status, body } = await h.api.call('update-existing-notifications-in-batch', {
@@ -142,10 +142,10 @@ describe('PUT /v3/notifications/batch', () => {
     expect(byId.get(customer.notifications[0]!)!.enabled).toBe(false)
     expect(byId.get(customer.notifications[1]!)!.phoneCallEnabledForCustomer).toBe(true)
     expect(byId.get(customer.notifications[1]!)!.scheduleOffset).toBe(5)
-    expect(byId.get(customer.notifications[2]!)!.enabled).toBe(true) // intocada
+    expect(byId.get(customer.notifications[2]!)!.enabled).toBe(true) // untouched
   })
 
-  it('sem customer → 400 invalid_customer', async () => {
+  it('without customer → 400 invalid_customer', async () => {
     const { status, body } = await h.api.call('update-existing-notifications-in-batch', {
       body: { notifications: [] },
     })
@@ -154,7 +154,7 @@ describe('PUT /v3/notifications/batch', () => {
     expect(body.errors.map((e: any) => e.code)).toContain('invalid_customer')
   })
 
-  it('um id de outro cliente no lote recusa o LOTE INTEIRO', async () => {
+  it('an id of another customer in the batch refuses the WHOLE BATCH', async () => {
     const a = await seedCustomer(h.accountId)
     const b = await seedCustomer(h.accountId)
 
@@ -170,7 +170,7 @@ describe('PUT /v3/notifications/batch', () => {
 
     expect(status).toBe(404)
 
-    // Nada foi aplicado: um lote pela metade seria pior que um lote recusado.
+    // Nothing was applied: a half-applied batch would be worse than a refused batch.
     const check = await h.api.call('update-existing-notifications-in-batch', {
       body: { customer: a.id, notifications: [] },
     })
@@ -178,9 +178,9 @@ describe('PUT /v3/notifications/batch', () => {
     expect(first.enabled).toBe(true)
   })
 
-  it('cliente de outra conta → 404', async () => {
+  it('a customer from another account → 404', async () => {
     const mine = await seedCustomer(h.accountId)
-    const other = await createSecondAccount(h, 'Vizinha do Lote')
+    const other = await createSecondAccount(h, 'Neighbouring Batch Account')
 
     const { status } = await h.as(other.apiKey).call('update-existing-notifications-in-batch', {
       body: { customer: mine.id, notifications: [] },

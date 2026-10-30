@@ -1,4 +1,4 @@
-<p align="center"><b>English</b> · <a href="README.pt-BR.md">Português</a> · <a href="https://instituto-ama.github.io/ama4devs/asaas/">Documentation site</a></p>
+<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/asaas/">Documentation site</a></p>
 
 <p align="center"><img src="docs/icon.svg" alt="" width="72"></p>
 
@@ -110,7 +110,7 @@ What Asaas tells the person who pays, delivered for real on your machine:
   notices stay per installment.
 - The [generator mock](../generator/) is found the same way: on boot and every 10 s
   at `generator:45450` (or `generator-mock:45450`), on this machine and on the Docker
-  host; while reachable, the panel's **Integrações › Gerador** tab lets you open it or
+  host; while reachable, the panel's **Integrations › Generator** tab lets you open it or
   populate the selected account with customers, charges, and confirmed payments.
 - Everything comes up configured: on boot and on every tick the sender number
   gets this server's webhook and the payer templates are created in the
@@ -178,7 +178,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 ```yaml
 services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.6.3   # pin a version, or :latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.0   # pin a version, or :latest
     ports:
       - '45445:45445'
     environment:
@@ -221,7 +221,7 @@ variable below pins a place; set empty, it turns that channel off. The SMS mock
 is found the same way (port 8899, the one that answers `GET /health` with
 `service: "sms"`), and the payer SMS goes to it. The
 [generator mock](../generator/)
-is found the same way (port 45450); while reachable, **Integrações › Gerador**
+is found the same way (port 45450); while reachable, **Integrations › Generator**
 lets you open it or populate the selected account.
 
 ## Configuration

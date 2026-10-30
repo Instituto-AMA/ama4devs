@@ -8,7 +8,7 @@
   <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas sandbox localhost, asaas api simulator, pix mock, boleto mock, payment gateway mock, virtual clock, webhook testing, docker, ghcr">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
@@ -74,7 +74,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="pt-br/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="portuguese/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -176,7 +176,7 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
       - asaas-data:/data
 
   whatsapp:
-    image: ghcr.io/instituto-ama/whatsapp-mock:0.4.1
+    image: ghcr.io/instituto-ama/whatsapp-mock:0.5.0
     ports:
       - '3010:3010'
     environment:

@@ -1,5 +1,5 @@
 /**
- * Luhn, bandeira e cartões de teste — puro, table-driven, sem subir nada.
+ * Luhn, brand and test cards — pure, table-driven, without booting anything.
  */
 import { describe, expect, it } from 'bun:test'
 import {
@@ -24,28 +24,28 @@ import { maxInstallmentsForBrand } from '../../src/domain/installments.ts'
 
 describe('Luhn', () => {
   const cases: [string, boolean][] = [
-    ['4111111111111111', true], // Visa clássico
+    ['4111111111111111', true], // the classic Visa
     ['5555555555554444', true], // Mastercard
-    ['378282246310005', true], // Amex (15 dígitos)
-    ['30569309025904', true], // Diners (14 dígitos)
+    ['378282246310005', true], // Amex (15 digits)
+    ['30569309025904', true], // Diners (14 digits)
     ['6011111111111117', true], // Discover
-    ['5184019740373151', true], // o cartão de recusa do sandbox É válido
+    ['5184019740373151', true], // the sandbox's declining card IS valid
     ['4916561358240741', true],
-    ['5184019740373152', false], // um dígito trocado
+    ['5184019740373152', false], // one digit swapped
     ['1234567890123456', false],
-    ['4444444444444444', false], // ← o cartão que APROVA no sandbox falha no Luhn
+    ['4444444444444444', false], // ← the card that APPROVES in the sandbox fails Luhn
     ['', false],
     ['4111-1111-1111-111a', false],
   ]
 
   for (const [number, expected] of cases) {
-    it(`${number || '(vazio)'} → ${expected}`, () => {
+    it(`${number || '(empty)'} → ${expected}`, () => {
       expect(luhn(number)).toBe(expected)
     })
   }
 })
 
-describe('bandeira pelo prefixo', () => {
+describe('brand by the prefix', () => {
   const cases: [string, CardBrand][] = [
     ['4111111111111111', 'VISA'],
     ['4444444444444444', 'VISA'],
@@ -68,37 +68,37 @@ describe('bandeira pelo prefixo', () => {
     })
   }
 
-  it('o prefixo mais longo ganha: 6011 é DISCOVER, não ELO', () => {
+  it('the longest prefix wins: 6011 is DISCOVER, not ELO', () => {
     expect(detectBrand('6011111111111117')).toBe('DISCOVER')
     expect(detectBrand('6362970000457013')).toBe('ELO')
   })
 
-  it('a tabela de prefixos é dado — dá para injetar outra', () => {
+  it('the prefix table is data — you can inject another one', () => {
     const rules = [...BRAND_RULES, { brand: 'CABAL', prefixes: ['9'] } as const]
     expect(detectBrand('9999999999999999', rules)).toBe('CABAL')
   })
 })
 
-describe('cartões de teste do sandbox', () => {
-  it('4444444444444444 aprova', () => {
+describe("the sandbox's test cards", () => {
+  it('4444444444444444 approves', () => {
     expect(outcomeFor('4444444444444444')).toBe('APPROVE')
   })
 
-  it('5184019740373151 e 4916561358240741 recusam', () => {
+  it('5184019740373151 and 4916561358240741 decline', () => {
     expect(outcomeFor('5184019740373151')).toBe('DECLINE')
     expect(outcomeFor('4916561358240741')).toBe('DECLINE')
   })
 
-  it('qualquer outro número não está na tabela', () => {
+  it('any other number is not in the table', () => {
     expect(outcomeFor('4111111111111111')).toBeNull()
   })
 
-  it('espaços e hifens não mudam nada', () => {
+  it('spaces and dashes change nothing', () => {
     expect(normalizeCardNumber('4444 4444-4444 4444')).toBe('4444444444444444')
     expect(outcomeFor('4444 4444 4444 4444')).toBe('APPROVE')
   })
 
-  it('a tabela é injetável', () => {
+  it('the table is injectable', () => {
     const custom = [
       ...TEST_CARDS,
       { number: '4111111111111111', outcome: 'DECLINE' as const, label: 'x', real: false },
@@ -108,13 +108,13 @@ describe('cartões de teste do sandbox', () => {
 })
 
 /**
- * NOW é fixo: "expirado" é a única regra deste arquivo que depende do tempo, e um
- * teste que use o relógio da máquina passa hoje e quebra em 2031.
+ * NOW is fixed: "expired" is the only rule of this file that depends on time, and a
+ * test that used the machine's clock would pass today and break in 2031.
  */
 const NOW = new Date('2026-07-14T12:00:00Z')
 
 describe('inspectCard', () => {
-  it('devolve só os 4 últimos dígitos — nunca o número', () => {
+  it('returns only the last 4 digits — never the number', () => {
     const info = inspectCard(
       {
         number: '4444444444444444',
@@ -127,25 +127,25 @@ describe('inspectCard', () => {
     )
 
     expect(info).toEqual({ last4: '4444', brand: 'VISA', outcome: 'APPROVE' })
-    // O PAN não sobrevive: não existe campo nenhum com 16 dígitos no resultado.
+    // The PAN does not survive: there is no field with 16 digits in the result.
     expect(JSON.stringify(info)).not.toContain('4444444444444444')
   })
 
-  it('um cartão válido qualquer aprova', () => {
+  it('any valid card approves', () => {
     expect(inspectCard({ number: '4111111111111111' }, NOW).outcome).toBe('APPROVE')
   })
 
-  it('o cartão de recusa devolve DECLINE (mas é um cartão bem-formado)', () => {
+  it('the declining card returns DECLINE (but it is a well-formed card)', () => {
     const info = inspectCard({ number: '5184019740373151' }, NOW)
     expect(info).toEqual({ last4: '3151', brand: 'MASTERCARD', outcome: 'DECLINE' })
   })
 
   /**
-   * O Asaas NÃO valida Luhn — capturado do sandbox. Este teste é o que impede
-   * alguém de "consertar" isso de volta: recusar aqui um número que o Asaas
-   * aprova faz um cartão bom quebrar no teste local e passar em produção.
+   * Asaas does NOT validate Luhn — captured from the sandbox. This test is what prevents
+   * someone from "fixing" that back: refusing here a number that Asaas
+   * approves makes a good card break in the local test and pass in production.
    */
-  it('NÃO valida Luhn — o Asaas aprova dígito verificador errado', () => {
+  it('does NOT validate Luhn — Asaas approves a wrong check digit', () => {
     expect(luhn('4111111111111112')).toBe(false)
     expect(inspectCard({ number: '4111111111111112' }, NOW).outcome).toBe('APPROVE')
 
@@ -153,11 +153,11 @@ describe('inspectCard', () => {
     expect(inspectCard({ number: '4444444444444444' }, NOW).outcome).toBe('APPROVE')
   })
 
-  it('CVV de 1 dígito é ACEITO — só o vazio é recusado', () => {
+  it('a 1-digit CVV is ACCEPTED — only the empty one is refused', () => {
     expect(inspectCard({ number: '4111111111111111', ccv: '1' }, NOW).outcome).toBe('APPROVE')
   })
 
-  /** Cada caso: o (code, description) EXATO que o sandbox devolveu. */
+  /** Each case: the EXACT (code, description) that the sandbox returned. */
   const rejects = (
     card: Parameters<typeof inspectCard>[0],
     expected: { code: string; description: string },
@@ -174,33 +174,33 @@ describe('inspectCard', () => {
     })
   }
 
-  rejects({ number: '411111111111' }, CARD_ERRORS.INVALID_NUMBER, 'número curto demais')
-  rejects({ number: '4111a111111111111' }, CARD_ERRORS.INVALID_NUMBER, 'número com letra')
+  rejects({ number: '411111111111' }, CARD_ERRORS.INVALID_NUMBER, 'number too short')
+  rejects({ number: '4111a111111111111' }, CARD_ERRORS.INVALID_NUMBER, 'number with a letter')
   rejects(
     { number: '4111111111111111', expiryMonth: '13' },
     CARD_ERRORS.INVALID_MONTH,
-    'mês fora de 1–12',
+    'month outside 1–12',
   )
   rejects(
     { number: '4111111111111111', expiryMonth: '05', expiryYear: '2020' },
     CARD_ERRORS.EXPIRED,
-    'cartão expirado',
+    'expired card',
   )
-  rejects({ number: '4111111111111111', ccv: '' }, CARD_ERRORS.MISSING_CVV, 'CVV vazio')
+  rejects({ number: '4111111111111111', ccv: '' }, CARD_ERRORS.MISSING_CVV, 'empty CVV')
   rejects(
     { number: '4111111111111111', holderName: '' },
     CARD_ERRORS.MISSING_HOLDER,
-    'titular vazio',
+    'empty holder',
   )
 
-  it('o mês de vencimento é INCLUSIVO — um cartão 07/2026 vale em 14/07/2026', () => {
+  it('the expiry month is INCLUSIVE — a 07/2026 card is valid on 14/07/2026', () => {
     expect(isExpired(7, 2026, NOW)).toBe(false)
     expect(isExpired(6, 2026, NOW)).toBe(true)
   })
 })
 
-describe('cartões de simulação (extensão nossa, não existe no Asaas)', () => {
-  it('cada cartão de simulação força o SEU erro, com a mensagem real do Asaas', () => {
+describe('simulation cards (our extension, they do not exist in Asaas)', () => {
+  it("each simulation card forces ITS error, with Asaas's real message", () => {
     const cases: Array<[string, keyof typeof CARD_ERRORS]> = [
       ['4000000000000069', 'EXPIRED'],
       ['4000000000000101', 'INVALID_NUMBER'],
@@ -209,7 +209,7 @@ describe('cartões de simulação (extensão nossa, não existe no Asaas)', () =
     for (const [number, outcome] of cases) {
       try {
         inspectCard({ number, expiryMonth: '12', expiryYear: '2035', ccv: '123' }, NOW)
-        throw new Error(`${number} deveria ter recusado`)
+        throw new Error(`${number} should have been refused`)
       } catch (err) {
         expect(err).toBeInstanceOf(CreditCardError)
         expect((err as CreditCardError).code).toBe(CARD_ERRORS[outcome].code)
@@ -218,38 +218,38 @@ describe('cartões de simulação (extensão nossa, não existe no Asaas)', () =
     }
   })
 
-  it('4000000000000002 recusa na AUTORIZAÇÃO (vira token, e o token recusa)', () => {
+  it('4000000000000002 declines at the AUTHORIZATION (it becomes a token, and the token declines)', () => {
     expect(inspectCard({ number: '4000000000000002' }, NOW).outcome).toBe('DECLINE')
   })
 
   /**
-   * A tabela do painel É a tabela do motor. Sem isto, a tela pode anunciar um
-   * cartão que o servidor não honra — e a mentira sai bonita, com botão de copiar.
+   * The panel's table IS the engine's table. Without this, the screen could announce a
+   * card the server does not honour — and the lie looks nice, with a copy button.
    */
-  it('todo cartão da tabela faz o que a tabela promete', () => {
+  it('every card in the table does what the table promises', () => {
     for (const c of TEST_CARDS) {
       const isAuthOutcome =
         c.outcome === 'APPROVE' || c.outcome === 'DECLINE' || c.outcome === 'DECLINE_ON_CHARGE'
 
       if (isAuthOutcome) {
-        // Sobrevive à validação e decide na hora de cobrar. O `isAuthOutcome` já
-        // estreitou o valor; o TS não acompanha através da variável.
+        // It survives the validation and decides at charging time. The `isAuthOutcome` already
+        // narrowed the value; TS does not follow it through the variable.
         expect(inspectCard({ number: c.number }, NOW).outcome).toBe(
           c.outcome as AuthorizationOutcome,
         )
       } else {
-        // Recusa a requisição na porta.
+        // It refuses the request at the door.
         expect(() => inspectCard({ number: c.number }, NOW)).toThrow(CreditCardError)
       }
     }
   })
 
   /**
-   * A diferença inteira entre os dois DECLINE: um nunca vira token (é o do Asaas
-   * real), o outro vira e recusa depois (é o nosso, para o cenário que o sandbox
-   * não sabe produzir). O erro entregue ao cliente é o mesmo nos dois.
+   * The whole difference between the two DECLINEs: one never becomes a token (it is Asaas's
+   * real one), the other becomes one and declines later (it is ours, for the scenario the sandbox
+   * cannot produce). The error delivered to the client is the same in both.
    */
-  it('DECLINE recusa ao salvar; DECLINE_ON_CHARGE só ao cobrar', () => {
+  it('DECLINE refuses on save; DECLINE_ON_CHARGE only on charge', () => {
     expect(declinesOnTokenize('DECLINE')).toBe(true)
     expect(declinesOnTokenize('DECLINE_ON_CHARGE')).toBe(false)
 
@@ -261,8 +261,8 @@ describe('cartões de simulação (extensão nossa, não existe no Asaas)', () =
   })
 })
 
-describe('parcelamento por bandeira', () => {
-  it('Visa e Mastercard aceitam 21x; as demais, 12x', () => {
+describe('installments by brand', () => {
+  it('Visa and Mastercard accept 21x; the others, 12x', () => {
     expect(maxInstallmentsForBrand('VISA')).toBe(21)
     expect(maxInstallmentsForBrand('MASTERCARD')).toBe(21)
     expect(maxInstallmentsForBrand('DINERS')).toBe(12)

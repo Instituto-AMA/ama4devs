@@ -1,13 +1,13 @@
 /**
- * Subcontas.
+ * Subaccounts.
  *
- * O que este arquivo prova, e que é o ponto todo: a subconta nasce com **chave
- * de API própria** e **walletId próprio**. A chave FUNCIONA, e a subconta é
- * ISOLADA — não enxerga as cobranças da conta que a criou.
+ * What this file proves, and that is the whole point: the subaccount is born with its **own
+ * API key** and its **own walletId**. The key WORKS, and the subaccount is
+ * ISOLATED — it does not see the charges of the account that created it.
  *
- * É o que separa "split" de "split de verdade": sem duas contas autenticáveis, o
- * walletId de destino seria uma string sem dono e o dinheiro não teria para onde
- * ir.
+ * It is what separates "split" from "a real split": without two authenticable accounts, the
+ * destination walletId would be a string with no owner and the money would have nowhere to
+ * go.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createHarness, type Harness } from '../helpers/harness.ts'
@@ -19,7 +19,7 @@ beforeEach(async () => {
 })
 afterEach(() => h.close())
 
-/** O corpo mínimo que a spec exige. */
+/** The minimum body the spec requires. */
 const body = (over: Record<string, unknown> = {}) => ({
   name: 'Loja do Fulano',
   email: 'loja@localhost',
@@ -33,8 +33,8 @@ const body = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-describe('criação', () => {
-  it('devolve 200 (nunca 201), com apiKey e walletId próprios', async () => {
+describe('creation', () => {
+  it('returns 200 (never 201), with its own apiKey and walletId', async () => {
     const res = await h.api.call('create-subaccount', { body: body() })
 
     expect(res.status).toBe(200)
@@ -43,23 +43,23 @@ describe('criação', () => {
     expect(res.body.walletId).toBeString()
     expect(res.body.walletId).not.toBe(h.walletId)
 
-    // A chave só aparece AQUI. É a única vez.
+    // The key only appears HERE. It is the only time.
     expect(res.body.apiKey).toStartWith('$aact_hmlg_')
     expect(res.body.accessToken.apiKey).toBe(res.body.apiKey)
 
     expect(res.body.personType).toBe('FISICA')
     expect(res.body.cpfCnpj).toBe('12345678909')
-    // Em sandbox a conta já nasce aprovada — não há análise a esperar.
+    // In the sandbox the account is born approved — there is no analysis to wait for.
     expect(res.body.accountNumber.agency).toBe('0001')
   })
 
-  it('a chave da subconta FUNCIONA e a subconta é ISOLADA da conta pai', async () => {
+  it("the subaccount's key WORKS and the subaccount is ISOLATED from the parent account", async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
     const as = h.as(sub.body.apiKey)
 
-    // A conta pai cria uma cobrança.
+    // The parent account creates a charge.
     const cus = await h.api.call('create-new-customer', {
-      body: { name: 'Cliente do Pai', cpfCnpj: '24971563792' },
+      body: { name: "Parent's Customer", cpfCnpj: '24971563792' },
     })
     await h.api.call('create-new-payment', {
       body: { customer: cus.body.id, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -67,13 +67,13 @@ describe('criação', () => {
 
     expect((await h.api.call('list-payments')).body.totalCount).toBe(1)
 
-    // A subconta não enxerga NADA disso. Nem a cobrança, nem o cliente.
+    // The subaccount sees NONE of that. Neither the charge nor the customer.
     expect((await as.call('list-payments')).body.totalCount).toBe(0)
     expect((await as.call('list-customers')).body.totalCount).toBe(0)
 
-    // Mas ela tem vida própria: cria cliente e cobrança dela.
+    // But it has its own life: it creates its own customer and charge.
     const own = await as.call('create-new-customer', {
-      body: { name: 'Cliente da Subconta', cpfCnpj: '98765432100' },
+      body: { name: "Subaccount's Customer", cpfCnpj: '98765432100' },
     })
     expect(own.status).toBe(200)
 
@@ -83,10 +83,10 @@ describe('criação', () => {
     expect(p.status).toBe(200)
 
     expect((await as.call('list-payments')).body.totalCount).toBe(1)
-    expect((await h.api.call('list-payments')).body.totalCount).toBe(1) // o pai continua com a dele
+    expect((await h.api.call('list-payments')).body.totalCount).toBe(1) // the parent keeps its own
   })
 
-  it('CNPJ vira conta JURIDICA', async () => {
+  it('a CNPJ becomes a JURIDICAL account', async () => {
     const res = await h.api.call('create-subaccount', {
       body: body({ cpfCnpj: '11223344000186', companyType: 'LIMITED' }),
     })
@@ -94,7 +94,7 @@ describe('criação', () => {
     expect(res.body.companyType).toBe('LIMITED')
   })
 
-  it('CPF com dígito verificador errado é rejeitado', async () => {
+  it('a CPF with a wrong check digit is rejected', async () => {
     const res = await h.api.call('create-subaccount', {
       body: body({ cpfCnpj: '11111111111' }),
     })
@@ -102,21 +102,21 @@ describe('criação', () => {
     expect(res.body.errors[0].code).toBe('invalid_cpfCnpj')
   })
 
-  it('não existem duas contas com o mesmo documento', async () => {
+  it('there are not two accounts with the same document', async () => {
     await h.api.call('create-subaccount', { body: body() })
     const dup = await h.api.call('create-subaccount', {
-      body: body({ email: 'outra@localhost' }),
+      body: body({ email: 'other@localhost' }),
     })
     expect(dup.status).toBe(400)
     expect(dup.body.errors[0].code).toBe('invalid_cpfCnpj')
   })
 
-  it('os webhooks informados na criação são cadastrados na subconta', async () => {
+  it('the webhooks given at creation are registered in the subaccount', async () => {
     const sub = await h.api.call('create-subaccount', {
       body: body({
         webhooks: [
           {
-            name: 'Meu webhook',
+            name: 'My webhook',
             url: 'http://localhost:9999/hook',
             email: 'dev@localhost',
             sendType: 'SEQUENTIALLY',
@@ -126,8 +126,8 @@ describe('criação', () => {
       }),
     })
 
-    // Ignorá-los em silêncio faria o integrador achar que assinou eventos que
-    // nunca chegariam.
+    // Ignoring them silently would make the integrator think it had subscribed to events that
+    // would never arrive.
     const as = h.as(sub.body.apiKey)
     const list = await as.call('list-webhooks')
     expect(list.body.totalCount).toBe(1)
@@ -135,11 +135,11 @@ describe('criação', () => {
   })
 })
 
-describe('listagem e recuperação', () => {
-  it('lista só as subcontas desta conta, com filtros', async () => {
+describe('listing and retrieval', () => {
+  it("lists only this account's subaccounts, with filters", async () => {
     const a = await h.api.call('create-subaccount', { body: body() })
     await h.api.call('create-subaccount', {
-      body: body({ name: 'Outra Loja', cpfCnpj: '98765432100', email: 'outra@localhost' }),
+      body: body({ name: 'Another Store', cpfCnpj: '98765432100', email: 'other@localhost' }),
     })
 
     const all = await h.api.call('list-subaccounts')
@@ -155,12 +155,12 @@ describe('listagem e recuperação', () => {
     })
     expect(byWallet.body.totalCount).toBe(1)
 
-    // A subconta não é dona de si mesma: ela não lista ninguém.
+    // The subaccount is not its own owner: it lists nobody.
     const as = h.as(a.body.apiKey)
     expect((await as.call('list-subaccounts')).body.totalCount).toBe(0)
   })
 
-  it('recupera pelo id; subconta de outra conta é 404, não 403', async () => {
+  it('retrieves by id; a subaccount from another account is a 404, not a 403', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
 
     const one = await h.api.call('retrieve-a-single-subaccount', {
@@ -177,20 +177,20 @@ describe('listagem e recuperação', () => {
   })
 })
 
-describe('chaves de API da subconta', () => {
-  it('cria uma chave nova, que funciona, e a lista sem NUNCA devolver o segredo', async () => {
+describe("the subaccount's API keys", () => {
+  it('creates a new key, which works, and the listing NEVER returns the secret', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
 
     const created = await h.api.call('create-api-key-for-subaccount', {
       params: { id: sub.body.id },
-      body: { name: 'Chave do CI' },
+      body: { name: 'CI Key' },
     })
 
     expect(created.status).toBe(200)
     expect(created.body.apiKey).toStartWith('$aact_hmlg_')
     expect(created.body.enabled).toBe(true)
 
-    // A chave nova autentica de verdade.
+    // The new key really authenticates.
     const as = h.as(created.body.apiKey)
     expect((await as.call('list-payments')).status).toBe(200)
 
@@ -198,16 +198,16 @@ describe('chaves de API da subconta', () => {
       params: { id: sub.body.id },
     })
     expect(list.body.accessTokens.length).toBe(2) // a principal + a do CI
-    // O segredo não volta numa listagem. Se voltasse, ensinaríamos o integrador
-    // a confiar em algo que a API real nunca entrega.
+    // The secret does not come back in a listing. If it did, we would teach the integrator
+    // to trust in something the real API never delivers.
     expect(list.body.accessTokens.every((k: any) => k.apiKey === undefined)).toBe(true)
   })
 
-  it('desabilitar a chave a mata na prática — a próxima requisição é 401', async () => {
+  it('disabling the key kills it in practice — the next request is a 401', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
     const key = await h.api.call('create-api-key-for-subaccount', {
       params: { id: sub.body.id },
-      body: { name: 'Temporária' },
+      body: { name: 'Temporary' },
     })
 
     const as = h.as(key.body.apiKey)
@@ -224,7 +224,7 @@ describe('chaves de API da subconta', () => {
     expect((await as.call('list-payments')).status).toBe(401)
   })
 
-  it('excluir a chave devolve 204 e a chave para de existir', async () => {
+  it('deleting the key returns 204 and the key stops existing', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
     const key = await h.api.call('create-api-key-for-subaccount', {
       params: { id: sub.body.id },
@@ -245,8 +245,8 @@ describe('chaves de API da subconta', () => {
   })
 })
 
-describe('encerramento e ativação', () => {
-  it('encerrar a subconta invalida as chaves dela', async () => {
+describe('closing and activation', () => {
+  it('closing the subaccount invalidates its keys', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
     const as = h.as(sub.body.apiKey)
     expect((await as.call('list-payments')).status).toBe(200)
@@ -261,7 +261,7 @@ describe('encerramento e ativação', () => {
     expect((await as.call('list-payments')).status).toBe(401)
   })
 
-  it('reenvio do link de ativação devolve 204', async () => {
+  it('resending the activation link returns 204', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
     const res = await h.api.call('resend-activation-link-for-non-baas-subaccount', {
       params: { id: sub.body.id },
@@ -271,8 +271,8 @@ describe('encerramento e ativação', () => {
   })
 })
 
-describe('o fim a que tudo isto serve: o split entre conta e subconta', () => {
-  it('R$ 100 no Pix com 30% para a subconta — e os dois extratos fecham', async () => {
+describe('the point of all this: the split between account and subaccount', () => {
+  it('R$ 100 by Pix with 30% to the subaccount — and both statements balance', async () => {
     const sub = await h.api.call('create-subaccount', { body: body() })
 
     const cus = await h.api.call('create-new-customer', {
@@ -292,12 +292,12 @@ describe('o fim a que tudo isto serve: o split entre conta e subconta', () => {
     await h.api.call('confirm-payment', { params: { id: p.body.id } })
     await h.tick()
 
-    // A subconta vê o split como RECEBIDO, com a chave DELA.
+    // The subaccount sees the split as RECEIVED, with ITS OWN key.
     const as = h.as(sub.body.apiKey)
     const received = await as.call('list-received-splits')
 
     expect(received.body.totalCount).toBe(1)
-    expect(received.body.data[0].totalValue).toBe(29.4) // 30% de 98,01
+    expect(received.body.data[0].totalValue).toBe(29.4) // 30% of 98.01
     expect(received.body.data[0].destinationAccountId).toBe(sub.body.id)
     expect(received.body.data[0].status).toBe('DONE')
 

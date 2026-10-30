@@ -1,12 +1,14 @@
 /**
- * Erros no formato exato do Asaas:
+ * Errors in the exact Asaas format:
  *
  *   { "errors": [ { "code": "invalid_value", "description": "..." } ] }
  *
- * Sempre um ARRAY — mesmo com um erro só. Descrições em pt-BR.
+ * Always an ARRAY — even with a single error. The descriptions of the /v3
+ * surface are in pt-BR, like the real Asaas; the simulator's own endpoints
+ * (/_admin, /_mock) answer in English.
  *
- * Não existe catálogo oficial de códigos. O padrão real é `invalid_<campo>`,
- * em camelCase igual ao nome do campo do request.
+ * There is no official catalog of codes. The real pattern is `invalid_<field>`,
+ * in camelCase, the same as the request field name.
  */
 
 export interface AsaasErrorItem {
@@ -19,7 +21,7 @@ export class AsaasError extends Error {
   readonly errors: AsaasErrorItem[]
 
   constructor(status: number, errors: AsaasErrorItem[]) {
-    super(errors[0]?.description ?? 'Erro')
+    super(errors[0]?.description ?? 'Error')
     this.name = 'AsaasError'
     this.status = status
     this.errors = errors
@@ -30,7 +32,7 @@ export class AsaasError extends Error {
   }
 }
 
-/** 400 — o caso mais comum. `invalid_<campo>`. */
+/** 400 — the most common case. `invalid_<field>`. */
 export function invalid(field: string, description: string): AsaasError {
   return new AsaasError(400, [{ code: `invalid_${field}`, description }])
 }
@@ -57,10 +59,18 @@ export function invalidTokenFormat(): AsaasError {
   ])
 }
 
-export function notFound(what = 'Objeto'): AsaasError {
+export function notFound(what = 'Object'): AsaasError {
   return new AsaasError(404, [
     { code: 'not_found', description: `${what} não encontrado.` },
   ])
+}
+
+/**
+ * 404 for the simulator's own endpoints (/_admin, /_mock): the description is
+ * written by this project and is not part of the Asaas wire contract.
+ */
+export function notFoundMessage(description: string): AsaasError {
+  return new AsaasError(404, [{ code: 'not_found', description }])
 }
 
 export function forbidden(description = 'Requisição não autorizada.'): AsaasError {
@@ -68,25 +78,25 @@ export function forbidden(description = 'Requisição não autorizada.'): AsaasE
 }
 
 /**
- * Rota que existe na spec mas ainda não tem motor de negócio aqui.
+ * A route that exists in the spec but has no business engine here yet.
  *
- * O Asaas real nunca devolve 501 — mas devolver 404 seria mentir (a rota
- * existe) e devolver dado falso seria pior ainda: produziria falsa confiança,
- * que é exatamente o que um mock não pode fazer. O código é auto-explicativo e o
- * `operationId` diz o que falta implementar.
+ * The real Asaas never returns 501 — but returning 404 would be lying (the route
+ * does exist) and returning fake data would be worse: it would produce false
+ * confidence, which is exactly what a mock must not do. The code is
+ * self-explanatory and the `operationId` says what is missing.
  */
 export function notImplemented(operationId: string): AsaasError {
   return new AsaasError(501, [
     {
       code: 'not_implemented',
       description:
-        `A operação "${operationId}" existe na API do Asaas mas ainda não foi ` +
-        `implementada neste simulador. Veja progress.md.`,
+        `The operation "${operationId}" exists in the Asaas API but is not ` +
+        `implemented in this simulator yet. See progress.md.`,
     },
   ])
 }
 
-/** Transição de status não permitida pela máquina de estados. */
+/** Status transition not allowed by the state machine. */
 export function invalidStatusTransition(from: string, action: string): AsaasError {
   return badRequest(
     'invalid_action',

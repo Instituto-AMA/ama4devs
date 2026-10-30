@@ -1,13 +1,13 @@
 /**
- * Split de pagamentos — o dinheiro atravessando a fronteira entre duas contas.
+ * Payment split — the money crossing the border between two accounts.
  *
- * O cenário que dá nome a este arquivo: uma cobrança Pix de R$ 100 com split de
- * 30% credita R$ 29,40 no destino — 30% de R$ 98,01 (o netValue), NÃO R$ 30,00.
- * Quem emite a cobrança paga a taxa; o split reparte o que sobrou. É a regra que
- * todo mundo erra, e é a única que este arquivo existe para provar.
+ * The scenario that gives this file its name: a R$ 100 Pix charge with a split of
+ * 30% credits R$ 29.40 to the destination — 30% of R$ 98.01 (the netValue), NOT R$ 30.00.
+ * Whoever issues the charge pays the fee; the split divides what is left. It is the rule
+ * everyone gets wrong, and it is the only one this file exists to prove.
  *
- * E, em todo cenário, `assertLedgerBalances()`: os DOIS extratos fecham, ou
- * alguém mexeu em saldo sem passar por `postEntries()`.
+ * And, in every scenario, `assertLedgerBalances()`: BOTH statements balance, or
+ * someone touched a balance without going through `postEntries()`.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -47,8 +47,8 @@ const ledgerOf = async (accountId: string) =>
 const splitsOf = async (paymentId: string) =>
   h.app.db.select().from(paymentSplits).where(eq(paymentSplits.paymentId, paymentId))
 
-describe('o split incide sobre o netValue, não sobre o bruto', () => {
-  it('Pix de R$ 100 (taxa R$ 1,99) com split de 30% → o destino recebe R$ 29,40', async () => {
+describe('the split applies to the netValue, not to the gross amount', () => {
+  it('Pix of R$ 100 (R$ 1.99 fee) with a 30% split → the destination receives R$ 29.40', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
@@ -61,17 +61,17 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
       },
     })
 
-    expect(created.body.netValue).toBe(98.01) // 100 − 1,99 de taxa
-    // 30% de 98,01 = 29,403 → 29,40. NÃO 30,00. É a regra inteira.
+    expect(created.body.netValue).toBe(98.01) // 100 − 1.99 of fee
+    // 30% of 98.01 = 29.403 → 29.40. NOT 30.00. It is the whole rule.
     expect(created.body.split[0].totalValue).toBe(29.4)
     expect(created.body.split[0].status).toBe('PENDING')
 
-    // Pagou: o dinheiro entrou na origem, e o split passa a ESPERAR crédito.
+    // It paid: the money came into the origin, and the split now WAITS for the credit.
     const paid = await h.api.call('confirm-payment', { params: { id: created.body.id } })
     expect(paid.body.status).toBe('RECEIVED')
     expect((await splitsOf(created.body.id))[0]!.status).toBe('AWAITING_CREDIT')
 
-    // Ainda não moveu: quem move é o job.
+    // It has not moved yet: the job is what moves it.
     expect(await balanceOf(dest.accountId)).toBe(0)
     expect(await balanceOf(h.accountId)).toBe(9801)
 
@@ -85,7 +85,7 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
       job: 'split-release',
     })
 
-    // 98,01 − 29,40 = 68,61 na origem | 29,40 no destino
+    // 98.01 − 29.40 = 68.61 in the origin | 29.40 in the destination
     expect(await balanceOf(h.accountId)).toBe(6861)
     expect(await balanceOf(dest.accountId)).toBe(2940)
 
@@ -100,7 +100,7 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
     const destination = await ledgerOf(dest.accountId)
     expect(destination.map((l) => l.type)).toEqual(['INTERNAL_TRANSFER_CREDIT'])
     expect(destination[0]!.valueCents).toBe(2940)
-    // O lançamento carrega os dois vínculos — sem isso o extrato não se explica.
+    // The entry carries both links — without them the statement does not explain itself.
     expect(destination[0]!.paymentId).toBe(created.body.id)
     expect(destination[0]!.splitId).toBe((await splitsOf(created.body.id))[0]!.id)
 
@@ -111,7 +111,7 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
     await h.assertLedgerBalances()
   })
 
-  it('fixo + percentual na mesma cobrança: o Asaas simplesmente soma', async () => {
+  it('fixed + percentage in the same charge: Asaas simply adds them up', async () => {
     const other = await createSecondAccount(h, 'Terceira Conta')
     const cus = await customer()
 
@@ -128,7 +128,7 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
       },
     })
 
-    // R$ 10,00 fixo | 25% de 98,01 = 24,5025 → R$ 24,50
+    // R$ 10.00 fixed | 25% of 98.01 = 24.5025 → R$ 24.50
     expect(created.body.split[0].totalValue).toBe(10)
     expect(created.body.split[1].totalValue).toBe(24.5)
 
@@ -143,7 +143,7 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
     await h.assertLedgerBalances()
   })
 
-  it('o job não credita duas vezes — o CAS vê o split já DONE e não faz nada', async () => {
+  it('the job does not credit twice — the CAS sees the split already DONE and does nothing', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -160,15 +160,15 @@ describe('o split incide sobre o netValue, não sobre o bruto', () => {
     await h.tick()
     await h.tick()
 
-    expect(await balanceOf(dest.accountId)).toBe(2940) // uma vez, não três
+    expect(await balanceOf(dest.accountId)).toBe(2940) // once, not three
     expect((await ledgerOf(dest.accountId)).length).toBe(1)
 
     await h.assertLedgerBalances()
   })
 })
 
-describe('cartão de crédito — o split só se move em D+32', () => {
-  it('a cobrança confirma hoje, mas o dinheiro só troca de conta quando credita', async () => {
+describe('credit card — the split only moves at D+32', () => {
+  it('the charge confirms today, but the money only changes accounts when it credits', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
@@ -181,23 +181,23 @@ describe('cartão de crédito — o split só se move em D+32', () => {
       },
     })
 
-    // Taxa do cartão à vista: R$ 0,49 + 2,99% = R$ 3,48 → netValue R$ 96,52
+    // The single-payment card fee: R$ 0.49 + 2.99% = R$ 3.48 → netValue R$ 96.52
     expect(created.body.netValue).toBe(96.52)
     expect(created.body.split[0].totalValue).toBe(48.26) // 50% de 96,52
 
     const confirmed = await h.api.call('confirm-payment', { params: { id: created.body.id } })
     expect(confirmed.body.status).toBe('CONFIRMED')
 
-    // Split aguardando crédito, mas ninguém tem dinheiro ainda: nem a origem.
+    // Split waiting for the credit, but nobody has money yet: not even the origin.
     expect((await splitsOf(created.body.id))[0]!.status).toBe('AWAITING_CREDIT')
     expect(await balanceOf(h.accountId)).toBe(0)
     expect(await balanceOf(dest.accountId)).toBe(0)
 
     await h.advance({ days: 31 })
-    expect(await balanceOf(dest.accountId)).toBe(0) // 31 dias: nada.
+    expect(await balanceOf(dest.accountId)).toBe(0) // 31 days: nothing.
 
-    // O 32º dia. A cobrança credita e o split sai no MESMO tick — a ordem dos
-    // jobs (credit-settlement antes de split-release) é o que garante isso.
+    // The 32nd day. The charge credits and the split goes out in the SAME tick — the order of the
+    // jobs (credit-settlement before split-release) is what guarantees it.
     await h.advance({ days: 1 })
 
     expect(await balanceOf(h.accountId)).toBe(9652 - 4826)
@@ -208,8 +208,8 @@ describe('cartão de crédito — o split só se move em D+32', () => {
   })
 })
 
-describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre', () => {
-  it('splits somando mais que o netValue nascem BLOCKED_BY_VALUE_DIVERGENCE', async () => {
+describe('value divergence — 2 business days to adjust, or the split dies', () => {
+  it('splits adding up to more than the netValue are born BLOCKED_BY_VALUE_DIVERGENCE', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
@@ -218,7 +218,7 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
         billingType: 'PIX',
         value: 100,
         dueDate: '2026-01-10',
-        // 60 + 50 = 110 > 98,01
+        // 60 + 50 = 110 > 98.01
         split: [
           { walletId: dest.walletId, fixedValue: 60 },
           { walletId: (await createSecondAccount(h, 'Quarta')).walletId, fixedValue: 50 },
@@ -228,15 +228,15 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
 
     const splits = await splitsOf(created.body.id)
     expect(splits.every((s) => s.status === 'BLOCKED_BY_VALUE_DIVERGENCE')).toBe(true)
-    // 05/01/2026 é segunda → 2 dias úteis = quarta, 07/01.
+    // 05/01/2026 is a Monday → 2 business days = Wednesday, 07/01.
     expect(splits.every((s) => s.blockedUntil === '2026-01-07')).toBe(true)
 
-    // A cobrança em si NÃO é rejeitada — quem fica bloqueado é o split.
+    // The charge itself is NOT rejected — it is the split that gets blocked.
     expect(created.status).toBe(200)
     expect(created.body.status).toBe('PENDING')
   })
 
-  it('passado o prazo sem ajuste → CANCELLED com VALUE_DIVERGENCE_BLOCK', async () => {
+  it('once the deadline passes without an adjustment → CANCELLED with VALUE_DIVERGENCE_BLOCK', async () => {
     await h.subscribeWebhook([
       'PAYMENT_SPLIT_DIVERGENCE_BLOCK',
       'PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED',
@@ -257,11 +257,11 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
     await h.tick()
     expect(h.sink.eventNames).toContain('PAYMENT_SPLIT_DIVERGENCE_BLOCK')
 
-    // Ainda dentro do prazo (07/01 é o último dia).
+    // Still within the deadline (07/01 is the last day).
     await h.advance({ days: 2 })
     expect((await splitsOf(created.body.id))[0]!.status).toBe('BLOCKED_BY_VALUE_DIVERGENCE')
 
-    // 08/01: o prazo passou.
+    // 08/01: the deadline passed.
     const [report] = await h.advance({ days: 1 })
     const split = (await splitsOf(created.body.id))[0]!
 
@@ -275,16 +275,16 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
       job: 'split-divergence-expiry',
     })
 
-    await h.tick() // drena a fila de webhook
+    await h.tick() // drains the webhook queue
     expect(h.sink.eventNames).toContain('PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED')
     expect(h.sink.eventNames).toContain('PAYMENT_SPLIT_CANCELLED')
 
-    // Ninguém recebeu nada: o dinheiro nunca saiu da origem.
+    // Nobody received anything: the money never left the origin.
     expect(await balanceOf(dest.accountId)).toBe(0)
     await h.assertLedgerBalances()
   })
 
-  it('um split bloqueado NÃO vira crédito só porque a cobrança foi paga', async () => {
+  it('a blocked split does NOT become credit just because the charge was paid', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -299,7 +299,7 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
     await h.api.call('confirm-payment', { params: { id: created.body.id } })
     await h.tick()
 
-    // Continua bloqueado. O dinheiro fica todo na origem.
+    // It stays blocked. The money stays entirely in the origin.
     expect((await splitsOf(created.body.id))[0]!.status).toBe('BLOCKED_BY_VALUE_DIVERGENCE')
     expect(await balanceOf(h.accountId)).toBe(9801)
     expect(await balanceOf(dest.accountId)).toBe(0)
@@ -308,8 +308,8 @@ describe('divergência de valor — 2 dias úteis para ajustar, ou o split morre
   })
 })
 
-describe('validações', () => {
-  it('split para a própria carteira é rejeitado', async () => {
+describe('validations', () => {
+  it('a split to your own wallet is rejected', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment', {
       body: {
@@ -325,7 +325,7 @@ describe('validações', () => {
     expect(res.body.errors[0].code).toBe('invalid_split')
   })
 
-  it('split sem fixedValue nem percentualValue é rejeitado', async () => {
+  it('a split with neither fixedValue nor percentualValue is rejected', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment', {
       body: {
@@ -341,8 +341,8 @@ describe('validações', () => {
   })
 })
 
-describe('carteira externa — não existe conta aqui para creditar', () => {
-  it('o split fica DONE, mas nenhum centavo se move', async () => {
+describe('external wallet — there is no account here to credit', () => {
+  it('the split stays DONE, but not a cent moves', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -350,7 +350,7 @@ describe('carteira externa — não existe conta aqui para creditar', () => {
         billingType: 'PIX',
         value: 100,
         dueDate: '2026-01-10',
-        // Um walletId que não é de nenhuma conta deste servidor.
+        // A walletId that belongs to no account of this server.
         split: [{ walletId: '11111111-2222-3333-4444-555555555555', percentualValue: 30 }],
       },
     })
@@ -362,17 +362,17 @@ describe('carteira externa — não existe conta aqui para creditar', () => {
     expect(split.status).toBe('DONE')
     expect(split.recipientAccountId).toBeNull()
 
-    // DIVERGÊNCIA DELIBERADA com o Asaas real: lá o dinheiro sairia da conta.
-    // Aqui não há destino, e debitar sem contrapartida faria o valor sumir do
-    // extrato sem que ninguém conseguisse conferir para onde foi.
+    // DELIBERATE DIVERGENCE from the real Asaas: there the money would leave the account.
+    // Here there is no destination, and debiting without a counterpart would make the amount vanish from the
+    // statement with nobody able to check where it went.
     expect(await balanceOf(h.accountId)).toBe(9801)
 
     await h.assertLedgerBalances()
   })
 })
 
-describe('estorno — o split que já creditou volta atrás', () => {
-  it('estornar a cobrança devolve o dinheiro do destino para a origem', async () => {
+describe('reversal — the split that already credited goes back', () => {
+  it("reversing the charge returns the destination's money to the origin", async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -393,19 +393,19 @@ describe('estorno — o split que já creditou volta atrás', () => {
       body: { value: 100 },
     })
 
-    // Sem isto, o destinatário LUCRARIA com o estorno: ficaria com os R$ 29,40
-    // de uma cobrança que deixou de existir.
+    // Without this, the recipient would PROFIT from the reversal: they would keep the R$ 29.40
+    // of a charge that no longer exists.
     expect(await balanceOf(dest.accountId)).toBe(0)
     expect((await splitsOf(created.body.id))[0]!.status).toBe('REFUNDED')
 
-    // A origem devolveu os R$ 100 e recuperou os R$ 29,40 do split; a taxa de
-    // R$ 1,99 o Asaas retém.
+    // The origin gave back the R$ 100 and recovered the R$ 29.40 of the split; the fee of
+    // Asaas keeps the R$ 1.99.
     expect(await balanceOf(h.accountId)).toBe(-199)
 
     await h.assertLedgerBalances()
   })
 
-  it('cobrança removida cancela o split e emite PAYMENT_SPLIT_CANCELLED', async () => {
+  it('a removed charge cancels the split and emits PAYMENT_SPLIT_CANCELLED', async () => {
     await h.subscribeWebhook(['PAYMENT_SPLIT_CANCELLED'])
     const cus = await customer()
 
@@ -431,8 +431,8 @@ describe('estorno — o split que já creditou volta atrás', () => {
   })
 })
 
-describe('consulta de splits — a mesma linha, duas visões', () => {
-  it('paid é o que saiu daqui; received é o que entrou lá', async () => {
+describe('split queries — the same row, two views', () => {
+  it('paid is what left here; received is what entered there', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -445,7 +445,7 @@ describe('consulta de splits — a mesma linha, duas visões', () => {
             walletId: dest.walletId,
             percentualValue: 30,
             externalReference: 'parceiro-1',
-            description: 'Comissão',
+            description: 'Commission',
           },
         ],
       },
@@ -453,7 +453,7 @@ describe('consulta de splits — a mesma linha, duas visões', () => {
     await h.api.call('confirm-payment', { params: { id: created.body.id } })
     await h.tick()
 
-    // A conta de origem vê o split como PAGO.
+    // The origin account sees the split as PAID.
     const paid = await h.api.call('list-paid-splits')
     expect(paid.body.totalCount).toBe(1)
     const s = paid.body.data[0]
@@ -467,11 +467,11 @@ describe('consulta de splits — a mesma linha, duas visões', () => {
     expect(s.externalReference).toBe('parceiro-1')
     expect(s.payment.invoiceNumber).toBe(created.body.invoiceNumber)
 
-    // …e não vê nada como RECEBIDO: ela é a origem, não o destino.
+    // …and sees nothing as RECEIVED: it is the origin, not the destination.
     const nothing = await h.api.call('list-received-splits')
     expect(nothing.body.totalCount).toBe(0)
 
-    // A conta de destino vê exatamente o contrário.
+    // The destination account sees exactly the opposite.
     const dst = h.as(dest.apiKey)
     const received = await dst.call('list-received-splits')
     expect(received.body.totalCount).toBe(1)
@@ -479,19 +479,19 @@ describe('consulta de splits — a mesma linha, duas visões', () => {
 
     expect((await dst.call('list-paid-splits')).body.totalCount).toBe(0)
 
-    // Recuperação individual, das duas pontas.
+    // Individual retrieval, from both ends.
     const one = await h.api.call('retrieve-a-single-paid-split', { params: { id: s.id } })
     expect(one.body.id).toBe(s.id)
 
     const two = await dst.call('retrieve-a-single-received-split', { params: { id: s.id } })
     expect(two.body.id).toBe(s.id)
 
-    // O split de outra conta não existe para você — 404, não 403.
+    // The other account's split does not exist for you — 404, not 403.
     const nope = await dst.call('retrieve-a-single-paid-split', { params: { id: s.id } })
     expect(nope.status).toBe(404)
   })
 
-  it('filtra por paymentId e por status', async () => {
+  it('filters by paymentId and by status', async () => {
     const cus = await customer()
     const a = await h.api.call('create-new-payment', {
       body: {

@@ -1,16 +1,16 @@
 /**
- * Chargeback — a disputa que o portador do cartão abre no banco emissor.
+ * Chargeback — the dispute the cardholder opens at the issuing bank.
  *
- * ATENÇÃO A UMA COISA QUE A SPEC NÃO RESOLVE: não existe operação para CRIAR um
- * chargeback. Faz sentido no mundo real (quem abre é a bandeira, não o lojista),
- * mas deixa o fluxo inteiro — inclusive `list-chargebacks` e o gatilho
- * CHARGEBACK da máquina de estados — sem nenhuma porta de entrada. Um simulador
- * em que o dev não consegue provocar um chargeback é um simulador que não serve
- * para testar chargeback.
+ * PAY ATTENTION TO ONE THING THE SPEC DOES NOT SETTLE: there is no operation to
+ * CREATE a chargeback. It makes sense in the real world (the issuer opens it,
+ * not the merchant), but it leaves the whole flow — including `list-chargebacks`
+ * and the CHARGEBACK trigger of the state machine — without any entry door. A
+ * simulator in which the developer cannot provoke a chargeback is a simulator
+ * that does not serve to test chargebacks.
  *
- * Por isso a porta é `POST /_admin/payments/{id}/chargeback` — o mesmo lugar de
- * onde se viaja no tempo. É controle do SIMULADOR, não da API do Asaas: fica
- * fora de /v3, exatamente como o relógio.
+ * That is why the door is `POST /_admin/payments/{id}/chargeback` — the same
+ * place where time travel happens. It is control of the SIMULATOR, not of the
+ * Asaas API: it lives outside /v3, exactly like the clock.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -24,20 +24,21 @@ import { applyTransition } from '../payments/apply.ts'
 export type ChargebackRow = typeof chargebacks.$inferSelect
 
 /**
- * TODO(regra): a doc não publica o prazo para enviar os documentos da disputa.
- * 20 dias corridos a partir da abertura é o número que aparece nos exemplos da
- * spec (disputeStartDate 2024-11-10 → deadline 2024-12-10 são 30; o campo é
- * nullable). Deixamos 20 e registramos em progress.md — quando alguém provar o
- * valor real contra o Asaas, muda aqui.
+ * TODO(rule): the docs do not publish the deadline to send the documents of the
+ * dispute. 20 calendar days from the opening is the number that shows up in the
+ * examples of the spec (disputeStartDate 2024-11-10 → deadline 2024-12-10 are
+ * 30; the field is nullable). We leave 20 and record it in progress.md — when
+ * someone proves the real value against Asaas, it changes here.
  */
 const DISPUTE_DEADLINE_DAYS = 20
 
 /**
- * Abre um chargeback numa cobrança PAGA (CONFIRMED ou RECEIVED).
+ * Opens a chargeback on a PAID charge (CONFIRMED or RECEIVED).
  *
- * O status vai a CHARGEBACK_REQUESTED via `applyTransition` — que também emite o
- * PAYMENT_CHARGEBACK_REQUESTED e DEBITA o valor do saldo, se ele já tinha sido
- * creditado. Nada disso é lembrado por este arquivo: são efeitos da transição.
+ * The status goes to CHARGEBACK_REQUESTED through `applyTransition` — which also
+ * emits the PAYMENT_CHARGEBACK_REQUESTED and DEBITS the value from the balance,
+ * if it had already been credited. None of that is remembered by this file:
+ * they are effects of the transition.
  */
 export async function openChargeback(
   ctx: AppContext,
@@ -90,7 +91,7 @@ export async function openChargeback(
   })
 }
 
-/** O chargeback desta cobrança, se houver. Escopo de conta obrigatório. */
+/** The chargeback of this charge, if there is one. Account scope is mandatory. */
 export async function chargebackOfPayment(
   db: DB,
   accountId: string,

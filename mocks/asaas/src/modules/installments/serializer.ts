@@ -1,10 +1,10 @@
 /**
- * Serialização do parcelamento. A fronteira onde centavos viram reais.
+ * Installment plan serialization. The boundary where cents become reais.
  *
- * Cuidado com os três "valores" do parcelamento, que a spec nomeia mal:
- *   value        → o TOTAL do parcelamento (R$ 350,00)
- *   paymentValue → o valor da ÚLTIMA parcela, com a sobra  (R$ 29,24)
- *   netValue     → o total LÍQUIDO, já descontadas as taxas de todas as parcelas
+ * Mind the three "values" of the installment plan, which the spec names badly:
+ *   value        → the TOTAL of the installment plan (R$ 350,00)
+ *   paymentValue → the value of the LAST installment, with the remainder  (R$ 29,24)
+ *   netValue     → the NET total, with the fees of all the installments already deducted
  */
 import { desc, eq, inArray } from 'drizzle-orm'
 import type { DB } from '../../db/client.ts'
@@ -38,7 +38,8 @@ export async function serializeInstallment(
         .orderBy(desc(paymentRefunds.dateCreated))
     : []
 
-  // O cartão é o mesmo para todas as parcelas — basta o da primeira que o tiver.
+  // The card is the same for all the installments — the one of the first that has
+  // it is enough.
   let card = null
   const withCard = rows.find((p) => p.creditCardId)
   if (withCard?.creditCardId) {
@@ -49,7 +50,7 @@ export async function serializeInstallment(
       .limit(1)
     if (c) {
       card = {
-        // Só os 4 ÚLTIMOS dígitos — não uma máscara com asteriscos.
+        // Only the LAST 4 digits — not a mask with asterisks.
         creditCardNumber: c.last4,
         creditCardBrand: c.brand,
         creditCardToken: c.creditCardToken,
@@ -58,14 +59,15 @@ export async function serializeInstallment(
   }
 
   /**
-   * `paymentDate` e `transactionReceiptUrl` do PARCELAMENTO vêm das parcelas: no
-   * cartão, a emissora autoriza tudo de uma vez e o parcelamento inteiro fica
-   * "pago hoje". Devolvíamos `null` nos dois.
+   * The `paymentDate` and `transactionReceiptUrl` of the INSTALLMENT PLAN come
+   * from the installments: on the card, the issuer authorizes everything at once
+   * and the whole plan counts as "paid today". We used to return `null` in both.
    *
-   * Repare que a fonte é o `confirmedDate` da parcela, não o `paymentDate` dela:
-   * uma parcela CONFIRMED tem `paymentDate: null` (o lojista ainda não recebeu),
-   * mas o parcelamento inteiro já conta como pago pelo cliente. As duas coisas
-   * têm o mesmo nome e significados diferentes — é do Asaas, não nosso.
+   * Notice that the source is the `confirmedDate` of the installment, not its
+   * `paymentDate`: a CONFIRMED installment has `paymentDate: null` (the merchant
+   * has not received it yet), but the whole plan already counts as paid by the
+   * customer. The two things have the same name and different meanings — it is
+   * from Asaas, not from us.
    */
   const paid = rows.find((p) => p.confirmedDate)
 
@@ -87,8 +89,9 @@ export async function serializeInstallment(
     transactionReceiptUrl: row.transactionReceiptUrl ?? paid?.transactionReceiptUrl ?? null,
     creditCard: card,
     deleted: row.deleted,
-    // `null` quando não há estorno — não `[]`. O objeto `installment` do Asaas
-    // também NÃO tem a chave `chargeback` (o payment tem; este não).
+    // `null` when there is no refund — not `[]`. The `installment` object of Asaas
+    // also does NOT have the `chargeback` key (the payment has it; this one
+    // does not).
     refunds: refunds.length
       ? refunds.map((r) => ({
           dateCreated: r.dateCreated,

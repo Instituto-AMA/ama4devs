@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame } from 'remotion'
-import { filmInfo, OUTRO_FRAMES } from '../film.ts'
+import { filmInfo, CLOSING_FRAMES } from '../film.ts'
 import { fonts, layout, palette } from '../theme.ts'
 
 /**
@@ -148,10 +148,10 @@ export const Intro = () => {
   )
 }
 
-export const Outro = () => {
+export const Closing = () => {
   const frame = useCurrentFrame()
   const inCard = spring({ frame, fps: 30, config: { damping: 200, stiffness: 90, mass: 0.8 } })
-  const out = interpolate(frame, [OUTRO_FRAMES - 16, OUTRO_FRAMES], [0, 1], {
+  const out = interpolate(frame, [CLOSING_FRAMES - 16, CLOSING_FRAMES], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   })

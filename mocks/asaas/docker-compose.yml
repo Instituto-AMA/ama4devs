@@ -1,8 +1,8 @@
 services:
   asaas:
-    # Este compose é o do DESENVOLVIMENTO: como `build` está presente, um
-    # `docker compose up` aqui compila o código local e ignora o registry. O
-    # `image` só dá o nome da tag resultante.
+    # This compose is the DEVELOPMENT one: since `build` is present, a
+    # `docker compose up` here compiles the local code and ignores the registry. The
+    # `image` only names the resulting tag.
     #
     # To CONSUME the simulator in another project, do not copy this file: copy the
     # block of the README's "Use it in another project" section, which has only
@@ -13,10 +13,10 @@ services:
     ports:
       - '${PORT:-45445}:45445'
     env_file:
-      # Opcional de propósito: `docker compose up` tem que funcionar num clone
-      # limpo, sem nenhum passo prévio. Copie o .env.example se quiser fixar a
-      # chave de API ou mexer nas taxas — senão os defaults valem e a chave é
-      # gerada e IMPRESSA no boot.
+      # Optional on purpose: `docker compose up` has to work on a clean clone,
+      # with no prior step. Copy the .env.example if you want to pin the
+      # API key or change the fees — otherwise the defaults apply and the key is
+      # generated and PRINTED on boot.
       - path: .env
         required: false
     environment:
@@ -25,33 +25,33 @@ services:
       DATABASE_PATH: /data/asaas.db
 
       # ─────────────────────────────────────────────────────────────────
-      # A LINHA QUE FAZ O PROJETO TER SENTIDO.
+      # THE LINE THAT MAKES THE PROJECT MAKE SENSE.
       #
-      # Dentro do container, "localhost" é o PRÓPRIO container. Um webhook
-      # apontado para http://localhost:3000 bateria nele mesmo e nunca chegaria
-      # na sua aplicação. Aqui reescrevemos o host para que o evento saia do
-      # container e chegue na sua máquina.
+      # Inside the container, "localhost" is the container ITSELF. A webhook
+      # pointed at http://localhost:3000 would hit it and never reach
+      # your application. Here we rewrite the host so that the event leaves the
+      # container and reaches your machine.
       #
-      # Deixe vazio para desligar (rodando fora do Docker).
+      # Leave it empty to turn it off (running outside Docker).
       # ─────────────────────────────────────────────────────────────────
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
 
       # ─────────────────────────────────────────────────────────────────
-      # O relógio COMEÇA no tempo real e ANDA normalmente — mas você pode
-      # pular. É o que faz `+32 dias` no painel funcionar (e o webhook de
-      # PAYMENT_RECEIVED chegar em milissegundos em vez de num mês).
+      # The clock STARTS at the real time and TICKS normally — but you can
+      # skip ahead. It is what makes `+32 days` in the panel work (and the
+      # PAYMENT_RECEIVED webhook arrive in milliseconds instead of in a month).
       #
-      # Em REAL (o default do código) a viagem no tempo é recusada, e os
-      # botões do painel nascem desabilitados — o que esvazia o motivo de
-      # o painel existir. Por isso o compose escolhe VIRTUAL_FLOWING.
+      # In REAL (the code's default) time travel is refused, and the
+      # panel's buttons are born disabled — which empties the reason the
+      # panel exists. That is why the compose picks VIRTUAL_FLOWING.
       #
-      # Use VIRTUAL_FROZEN se quiser tempo 100% determinístico (CI).
+      # Use VIRTUAL_FROZEN if you want 100% deterministic time (CI).
       # ─────────────────────────────────────────────────────────────────
       CLOCK_MODE: ${CLOCK_MODE:-VIRTUAL_FLOWING}
 
     extra_hosts:
-      # No Docker Desktop (macOS/Windows) host.docker.internal já existe.
-      # No Linux, não — esta linha é o que faz funcionar lá também.
+      # On Docker Desktop (macOS/Windows) host.docker.internal already exists.
+      # On Linux it does not — this line is what makes it work there too.
       - 'host.docker.internal:host-gateway'
 
     volumes:

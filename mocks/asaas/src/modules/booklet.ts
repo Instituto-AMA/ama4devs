@@ -1,20 +1,21 @@
 /**
- * O carnê (`paymentBook`). (Track E)
+ * The booklet (`paymentBook`). (Track E)
  *
- * `GET /v3/installments/{id}/paymentBook` e `GET /v3/subscriptions/{id}/paymentBook`
- * NÃO devolvem JSON: devolvem **um PDF** (`application/pdf`), e é por isso que a
- * spec declara a resposta 200 sem schema. Um cliente que espera bytes de PDF e
- * recebe `{"url": "..."}` quebra — então geramos um PDF de verdade, mínimo mas
- * válido: cabeçalho, xref com offsets corretos e trailer.
+ * `GET /v3/installments/{id}/paymentBook` and `GET /v3/subscriptions/{id}/paymentBook`
+ * do NOT return JSON: they return **a PDF** (`application/pdf`), and that is why
+ * the spec declares the 200 response without a schema. A client that expects PDF
+ * bytes and receives `{"url": "..."}` breaks — so we generate a real PDF, minimal
+ * but valid: header, xref with correct offsets and trailer.
  *
- * O conteúdo é fictício (não há banco emissor aqui), mas o TIPO da resposta é o
- * real. É a diferença entre um simulador e um mock de resposta estática.
+ * The content is fictional (there is no issuing bank here), but the TYPE of the
+ * answer is the real one. It is the difference between a simulator and a mock
+ * with a static answer.
  */
 
 /**
- * PDF só com ASCII: os offsets do xref são contados em BYTES, e um acento
- * (2 bytes em UTF-8) desalinharia a tabela em silêncio — o arquivo abriria em
- * alguns leitores e não em outros. Dobramos para ASCII antes de escrever.
+ * PDF in ASCII only: the offsets of the xref are counted in BYTES, and an accent
+ * (2 bytes in UTF-8) would misalign the table in silence — the file would open
+ * in some readers and not in others. We fold it to ASCII before writing.
  */
 function toAscii(s: string): string {
   return s
@@ -23,7 +24,7 @@ function toAscii(s: string): string {
     .replace(/[^\x20-\x7e]/g, '?')
 }
 
-/** Escapa os caracteres que têm significado dentro de uma string literal do PDF. */
+/** Escapes the characters that have meaning inside a PDF string literal. */
 function escapePdf(s: string): string {
   return toAscii(s)
     .replace(/\\/g, '\\\\')
@@ -65,11 +66,11 @@ export function buildPaymentBookPdf(title: string, lines: readonly string[]): st
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`
   pdf += `startxref\n${xrefStart}\n%%EOF\n`
 
-  // ASCII puro por construção: 1 caractere = 1 byte, e os offsets do xref fecham.
+  // Pure ASCII by construction: 1 character = 1 byte, and the xref offsets close.
   return pdf
 }
 
-/** A resposta HTTP do carnê. Content-Type real: o cliente recebe um PDF. */
+/** The HTTP answer of the booklet. Real Content-Type: the client receives a PDF. */
 export function paymentBookResponse(title: string, lines: readonly string[]): Response {
   return new Response(buildPaymentBookPdf(title, lines), {
     status: 200,
@@ -81,10 +82,11 @@ export function paymentBookResponse(title: string, lines: readonly string[]): Re
 }
 
 /**
- * A ordenação do carnê. `sort`/`order` existem na spec das duas operações; a doc
- * não diz quais campos são aceitos, então suportamos os que fazem sentido num
- * carnê (vencimento e valor) e caímos em `dueDate` para qualquer outro.
- * TODO(regra): confirmar o conjunto de campos aceitos pelo Asaas real.
+ * The ordering of the booklet. `sort`/`order` exist in the spec of the two
+ * operations; the docs do not say which fields are accepted, so we support the
+ * ones that make sense in a booklet (due date and value) and fall back to
+ * `dueDate` for anything else.
+ * TODO(rule): confirm the set of fields accepted by the real Asaas.
  */
 export function bookletOrder(query: Record<string, unknown>): {
   field: 'dueDate' | 'value'

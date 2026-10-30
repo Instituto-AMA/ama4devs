@@ -11,7 +11,7 @@ ARG REVISION=unknown
 # `source` links the GHCR package to this repository.
 # No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
 LABEL org.opencontainers.image.title="SMS Mock - SMS gateway simulator for tests" \
-      org.opencontainers.image.description="SMS gateway simulator for local development and tests - native and Twilio-compatible send APIs - message lifecycle with status and inbound webhooks - magic numbers for failures - OTP code extraction - live phone-inbox panel. Simulador local de SMS." \
+      org.opencontainers.image.description="SMS gateway simulator for local development and tests - native and Twilio-compatible send APIs - message lifecycle with status and inbound webhooks - magic numbers for failures - OTP code extraction - live phone-inbox panel." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
       org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="MIT" \

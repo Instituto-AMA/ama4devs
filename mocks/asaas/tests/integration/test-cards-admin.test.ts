@@ -114,7 +114,7 @@ describe('test cards admin', () => {
 
   it('the invoice page offers the added cards', async () => {
     h = await createHarness()
-    await admin('/test-cards', 'POST', { number: UNLISTED, outcome: 'DECLINE', label: 'Sem limite' })
+    await admin('/test-cards', 'POST', { number: UNLISTED, outcome: 'DECLINE', label: 'No limit' })
     const cus = await h.api.call('create-new-customer', { body: { name: 'Fulano', cpfCnpj: '24971563792' } })
     const p = await h.api.call('create-new-payment', {
       body: { customer: cus.body.id, billingType: 'CREDIT_CARD', value: 50, dueDate: '2026-01-20' },
@@ -122,6 +122,6 @@ describe('test cards admin', () => {
     const res = await h.app.app.handle(
       new Request(`http://localhost/i/${p.body.id.replace('pay_', '')}`, { headers: { host: 'localhost:45445' } }),
     )
-    expect(await res.text()).toContain('Sem limite')
+    expect(await res.text()).toContain('No limit')
   })
 })

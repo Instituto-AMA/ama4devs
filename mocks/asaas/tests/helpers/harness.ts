@@ -1,19 +1,19 @@
 /**
- * O harness de teste. É o arquivo que decide se este projeto é testável.
+ * The test harness. It is the file that decides whether this project is testable.
  *
- * Três coisas que ele faz e que são o ponto:
+ * Three things it does, and they are the point:
  *
- * 1. Sobe o SERVIDOR DE VERDADE (via bootstrap), não uma montagem paralela que
- *    diverge com o tempo. SQLite em memória, relógio congelado, RNG semeado.
+ * 1. It boots the REAL SERVER (through the bootstrap), not a parallel assembly that
+ *    diverges over time. In-memory SQLite, frozen clock, seeded RNG.
  *
- * 2. Valida o CONTRATO em toda resposta que a suíte inteira produzir, contra o
- *    schema TypeBox gerado da spec do Asaas. Cobertura de contrato vira
- *    subproduto de escrever teste de feature — ninguém precisa lembrar de fazer.
+ * 2. It validates the CONTRACT on every response the whole suite produces, against the
+ *    TypeBox schema generated from Asaas's spec. Contract coverage becomes a
+ *    by-product of writing a feature test — nobody has to remember to do it.
  *
- * 3. `advance()` DRENA A FILA DE WEBHOOKS antes de cada passo de dia. Sem isso,
- *    avançar 40 dias para testar uma assinatura esgotaria, de brinde, as 15
- *    tentativas de backoff de qualquer entrega pendente e marcaria o webhook como
- *    `interrupted` — e os testes seguintes veriam zero webhooks, sem explicação.
+ * 3. `advance()` DRAINS THE WEBHOOK QUEUE before each day step. Without this,
+ *    advancing 40 days to test a subscription would exhaust, as a bonus, the 15
+ *    backoff attempts of any pending delivery and would mark the webhook as
+ *    `interrupted` — and the following tests would see zero webhooks, with no explanation.
  */
 import { Value } from '@sinclair/typebox/value'
 import { eq, sql } from 'drizzle-orm'
@@ -29,14 +29,14 @@ import type { Job, TickReport } from '../../src/scheduler/scheduler.ts'
 import { WebhookSink } from './webhook-sink.ts'
 
 export const TEST_API_KEY = '$aact_hmlg_test0000000000000000000000000'
-/** Segunda-feira, para que "dia útil" não vire uma variável escondida. */
+/** Monday, so that "business day" does not become a hidden variable. */
 export const TEST_CLOCK_START = '2026-01-05T09:00:00-03:00'
 
 export class ContractViolation extends Error {
   constructor(operationId: string, status: number, errors: string[], body: unknown) {
     super(
-      `A resposta de "${operationId}" (HTTP ${status}) não bate com o schema da ` +
-        `spec do Asaas:\n  ${errors.join('\n  ')}\n\nCorpo recebido:\n` +
+      `The response of "${operationId}" (HTTP ${status}) does not match the schema of the ` +
+        `spec of Asaas:\n  ${errors.join('\n  ')}\n\nBody received:\n` +
         JSON.stringify(body, null, 2),
     )
     this.name = 'ContractViolation'
@@ -63,7 +63,7 @@ export class ApiClient {
     } = {},
   ): Promise<ApiResponse<T>> {
     const op = getOperation(operationId)
-    if (!op) throw new Error(`operationId desconhecido: ${operationId}`)
+    if (!op) throw new Error(`unknown operationId: ${operationId}`)
 
     let path: string = op.specPath
     for (const [k, v] of Object.entries(opts.params ?? {})) {
@@ -71,7 +71,7 @@ export class ApiClient {
     }
     const remaining = path.match(/\{([^}]+)\}/)
     if (remaining) {
-      throw new Error(`Parâmetro "${remaining[1]}" não informado para ${operationId}`)
+      throw new Error(`Parameter "${remaining[1]}" not given for ${operationId}`)
     }
 
     const url = new URL(`http://localhost${path}`)
@@ -98,18 +98,18 @@ export class ApiClient {
   }
 
   /**
-   * Valida a resposta contra o schema gerado da spec. Roda em TODA chamada da
-   * suíte, de graça.
+   * Validates the response against the schema generated from the spec. Runs on EVERY
+   * call of the suite, for free.
    */
   #assertContract(operationId: OperationId, status: number, body: unknown): void {
-    // Erros (4xx/5xx) não têm schema de sucesso; conferimos só o envelope.
+    // Errors (4xx/5xx) have no success schema; we only check the envelope.
     if (status >= 400) {
       const errs = (body as any)?.errors
       if (!Array.isArray(errs) || !errs.every((e) => e?.code && e?.description)) {
         throw new ContractViolation(
           operationId,
           status,
-          ['erro fora do formato { errors: [{ code, description }] }'],
+          ['error outside the { errors: [{ code, description }] } format'],
           body,
         )
       }
@@ -131,7 +131,7 @@ export class ApiClient {
 export interface Harness {
   app: App
   api: ApiClient
-  /** Cliente de outra conta — para testar split entre contas. */
+  /** Client of another account — to test the split between accounts. */
   as(apiKey: string): ApiClient
   sink: WebhookSink
   clock: VirtualClock
@@ -145,24 +145,24 @@ export interface Harness {
     minutes?: number
   }): Promise<TickReport[]>
 
-  /** balanceCents === SUM(ledger). Chame no fim de todo cenário financeiro. */
+  /** balanceCents === SUM(ledger). Call it at the end of every financial scenario. */
   assertLedgerBalances(): Promise<void>
 
-  /** Cadastra um webhook apontando para o sink. Devolve o id. */
+  /** Registers a webhook pointing at the sink. Returns the id. */
   subscribeWebhook(events: string[]): Promise<string>
 
   close(): void
 }
 
 /**
- * Sobe o servidor de verdade. Sem injeção de handlers nem de jobs: o teste
- * exercita o `HANDLERS` e o `JOBS` que o `bun start` usa.
+ * Boots the real server. Without injecting handlers or jobs: the test
+ * exercises the `HANDLERS` and the `JOBS` that `bun start` uses.
  *
- * (Houve um parâmetro `extraHandlers`/`extraJobs` enquanto os tracks rodavam em
- * paralelo, para que cada agente testasse o seu antes da costura. Foi removido de
- * propósito: um teste que registra os próprios handlers passa mesmo que a costura
- * nunca tenha acontecido — ele se auto-serve, e a suíte deixa de provar que o
- * servidor real responde aquela rota.)
+ * (There was an `extraHandlers`/`extraJobs` parameter while the tracks were running in
+ * parallel, so that each agent could test its own before the stitching. It was removed
+ * from parallel: a test that registers its own handlers passes even if the stitching
+ * never happened — it serves itself, and the suite stops proving that the
+ * real server answers that route.)
  */
 export async function createHarness(overrides: ConfigOverrides = {}): Promise<Harness> {
   const sink = await WebhookSink.start()
@@ -170,13 +170,13 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
   const app = await bootstrap({
     config: {
       databasePath: ':memory:',
-      seed: 1, // RNG semeado → IDs determinísticos
+      seed: 1, // seeded RNG → deterministic ids
       logLevel: 'silent',
       adminEnabled: true,
       clock: {
         mode: 'VIRTUAL_FROZEN',
         start: TEST_CLOCK_START,
-        tickIntervalMs: 0, // sem timer: o teste controla o tempo
+        tickIntervalMs: 0, // no timer: the test controls time
       },
       seedAccount: {
         apiKey: TEST_API_KEY,
@@ -186,8 +186,8 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
         balanceCents: 0 as never,
       },
       webhook: {
-        localhostRewrite: undefined, // fora do Docker: não reescreve
-        timeoutMs: 1000, // 10s deixaria o teste de timeout lento demais
+        localhostRewrite: undefined, // outside Docker: it does not rewrite
+        timeoutMs: 1000, // 10s would make the timeout test too slow
         maxAttempts: 15,
         retentionDays: 14,
         maxPerAccount: 10,
@@ -212,7 +212,7 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
     async advance({ days = 0, hours = 0, minutes = 0 }) {
       const reports: TickReport[] = []
       for (let i = 0; i < days; i++) {
-        // Drena a fila ANTES de avançar: ver o comentário no topo do arquivo.
+        // Drains the queue BEFORE advancing: see the comment at the top of the file.
         await app.scheduler.tick()
         clock.advance(86_400_000)
         reports.push(await app.scheduler.tick())
@@ -226,9 +226,9 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
     },
 
     async assertLedgerBalances() {
-      // Agrupado em JS de propósito: um subquery correlacionado aqui é fácil de
-      // escrever errado e passar a devolver 0 em silêncio — o que faria a
-      // asserção sempre passar, que é o pior defeito possível num invariante.
+      // Grouped in JS on purpose: a correlated subquery here is easy to
+      // write wrong and start returning 0 in silence — which would make the
+      // assertion always pass, the worst possible defect in an invariant.
       const accountRows = await app.db
         .select({ id: accounts.id, balance: accounts.balanceCents })
         .from(accounts)
@@ -249,17 +249,17 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
         const ledger = sums.get(row.id) ?? 0
         if (row.balance !== ledger) {
           throw new Error(
-            `Saldo da conta ${row.id} não bate com o extrato: ` +
+            `The balance of account ${row.id} does not match the statement: ` +
               `accounts.balance_cents=${row.balance}, SUM(ledger)=${ledger}. ` +
-              `Alguém mexeu em saldo sem passar por postEntries().`,
+              `Someone touched a balance without going through postEntries().`,
           )
         }
       }
     },
 
     /**
-     * Cadastra um webhook apontando para o sink. Sem isto, nenhum evento é
-     * entregue — o fan-out só cria entregas para webhooks inscritos.
+     * Registers a webhook pointing at the sink. Without this, no event is
+     * delivered — the fan-out only creates deliveries for subscribed webhooks.
      */
     async subscribeWebhook(events: string[]) {
       const { webhooks } = await import('../../src/db/schema/index.ts')
@@ -292,10 +292,10 @@ export async function createHarness(overrides: ConfigOverrides = {}): Promise<Ha
   return harness
 }
 
-/** Cria uma segunda conta (com API key própria) para os testes de split. */
+/** Creates a second account (with its own API key) for the split tests. */
 export async function createSecondAccount(
   h: Harness,
-  name = 'Conta Secundária',
+  name = 'Secondary Account',
 ): Promise<{ accountId: string; walletId: string; apiKey: string }> {
   const { accounts: accountsTable, apiKeys } = await import('../../src/db/schema/index.ts')
   const ids = await import('../../src/domain/ids.ts')
@@ -323,11 +323,11 @@ export async function createSecondAccount(
     id: ids.genericId(rng),
     accountId,
     key: apiKey,
-    name: 'Chave',
+    name: 'Key',
     active: true,
     dateCreated: h.app.ctx.clock.timestamp(),
   })
 
-  void eq // mantém o import usado pela tipagem do drizzle
+  void eq // keeps the import used by drizzle's typing
   return { accountId, walletId, apiKey }
 }

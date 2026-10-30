@@ -20,7 +20,7 @@
  */
 import { and, asc, eq } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
-import { invalid, notFound } from '../core/errors.ts'
+import { invalid, notFoundMessage } from '../core/errors.ts'
 import { accounts, apiKeys } from '../db/schema/index.ts'
 import * as ids from '../domain/ids.ts'
 
@@ -41,7 +41,7 @@ function expirationOf(raw: string | null | undefined): string | null {
   if (raw === undefined || raw === null || raw === '') return null
   if (DATE.test(raw)) return `${raw} 23:59:59`
   if (TIMESTAMP.test(raw)) return raw
-  throw invalid('expirationDate', `Data de expiração inválida: "${raw}".`)
+  throw invalid('expirationDate', `Invalid expiration date: "${raw}".`)
 }
 
 function serialize(row: ApiKeyRow, now: string) {
@@ -65,7 +65,7 @@ async function assertAccount(ctx: AppContext, accountId: string): Promise<void> 
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1)
-  if (!row) throw notFound('Conta')
+  if (!row) throw notFoundMessage('Account not found.')
 }
 
 async function findKey(ctx: AppContext, accountId: string, keyId: string): Promise<ApiKeyRow> {
@@ -74,7 +74,7 @@ async function findKey(ctx: AppContext, accountId: string, keyId: string): Promi
     .from(apiKeys)
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.accountId, accountId)))
     .limit(1)
-  if (!row) throw notFound('Chave de API')
+  if (!row) throw notFoundMessage('API key not found.')
   return row
 }
 
@@ -145,7 +145,7 @@ export async function updateKey(
   const patch: Partial<ApiKeyRow> = {}
   if (input.name !== undefined) {
     const name = input.name.trim()
-    if (name === '') throw invalid('name', 'Informe o nome da chave.')
+    if (name === '') throw invalid('name', 'Provide the key name.')
     patch.name = name
   }
   if (input.enabled !== undefined) patch.active = Boolean(input.enabled)

@@ -1,5 +1,5 @@
 /**
- * Serialização da assinatura. A fronteira onde centavos viram reais.
+ * Subscription serialization. The boundary where cents become reais.
  */
 import { eq } from 'drizzle-orm'
 import type { DB } from '../../db/client.ts'
@@ -21,7 +21,7 @@ function serializeSplit(s: SubscriptionSplitRow) {
   return {
     walletId: s.walletId,
     fixedValue: money(s.fixedValueCents),
-    // Percentual guardado na escala 1e4 (4 casas). 923444 → 92.3444
+    // Percentage stored in the 1e4 scale (4 places). 923444 → 92.3444
     percentualValue: s.percentualValueE4 === null ? null : s.percentualValueE4 / 10_000,
     externalReference: s.externalReference,
     description: s.description,
@@ -56,15 +56,16 @@ export async function serializeSubscription(
   }
 
   /**
-   * O objeto `subscription` do Asaas tem 18 chaves, e a escolha delas é
-   * inconsistente de um jeito que só a captura revela:
+   * The `subscription` object of Asaas has 18 keys, and the choice of them is
+   * inconsistent in a way that only the capture reveals:
    *
-   *   - `fine` e `interest` vêm ZERADOS quando não configurados (`{value:0,…}`)
-   *   - `discount`, no mesmo caso, simplesmente NÃO APARECE
-   *   - `endDate`, `maxPayments` e `creditCard` também somem quando nulos
-   *   - mas `split` e `paymentLink` vêm como `null` explícito
+   *   - `fine` and `interest` come ZEROED when they are not configured
+   *     (`{value:0,…}`)
+   *   - `discount`, in the same case, simply DOES NOT APPEAR
+   *   - `endDate`, `maxPayments` and `creditCard` also disappear when null
+   *   - but `split` and `paymentLink` come as an explicit `null`
    *
-   * Não há lógica: é o serializador deles. Reproduzimos como está.
+   * There is no logic: it is their serializer. We reproduce it as it is.
    */
   const out: Record<string, unknown> = {
     object: 'subscription',
@@ -84,8 +85,8 @@ export async function serializeSubscription(
     sendPaymentByPostalService: false,
 
     fine: row.fine ? { value: row.fine.value, type: row.fine.type } : { value: 0, type: 'FIXED' },
-    // `interest` não tem `type` no request; a resposta do Asaas devolve
-    // PERCENTAGE — é sempre percentual AO MÊS.
+    // `interest` has no `type` in the request; the Asaas answer returns
+    // PERCENTAGE — it is always a percentage PER MONTH.
     interest: row.interest
       ? { value: row.interest.value, type: 'PERCENTAGE' }
       : { value: 0, type: 'PERCENTAGE' },
@@ -108,10 +109,11 @@ export async function serializeSubscription(
 }
 
 /**
- * A configuração de emissão de NF.
+ * The configuration of the fiscal note issuing.
  *
- * Repare na troca de nome: no REQUEST o campo é `effectiveDatePeriod`; na
- * RESPOSTA, `invoiceCreationPeriod`. É a spec do Asaas, não um erro nosso.
+ * Notice the renaming: in the REQUEST the field is `effectiveDatePeriod`; in
+ * the ANSWER, `invoiceCreationPeriod`. It is the Asaas spec, not a mistake of
+ * ours.
  */
 export function serializeInvoiceConfig(row: InvoiceConfigRow): Record<string, unknown> {
   return {

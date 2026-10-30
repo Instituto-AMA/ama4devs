@@ -1,16 +1,17 @@
 /**
- * Track G1 — Credit Bureau Report (3 operações).
+ * Track G1 — Credit Bureau Report (3 operations).
  *
- * Consulta ao Serasa. Duas assimetrias da API do Asaas que reproduzimos:
+ * The query to Serasa. Two asymmetries of the Asaas API that we reproduce:
  *
- * 1. `reportFile` (o PDF em base64) só vem na resposta da CRIAÇÃO. Na leitura e
- *    na listagem ele é null — quem quiser o arquivo depois usa o `downloadUrl`.
- * 2. `dateCreated` aqui é DATA (YYYY-MM-DD), não timestamp.
+ * 1. `reportFile` (the PDF in base64) only comes in the answer of the CREATION.
+ *    On the read and in the listing it is null — whoever wants the file later
+ *    uses the `downloadUrl`.
+ * 2. `dateCreated` here is a DATE (YYYY-MM-DD), not a timestamp.
  *
- * A taxa da consulta é gravada em `feeCents` a partir de `config.fees`, mas NÃO é
- * debitada do saldo: não existe um tipo de lançamento do Asaas para ela que a
- * gente conheça, e inventar um tipo no extrato seria pior que não lançar. Está
- * anotado em progress.md — é o track D que fecha isso.
+ * The fee of the query is recorded in `feeCents` from `config.fees`, but it is
+ * NOT debited from the balance: there is no Asaas entry type for it that we
+ * know of, and inventing a type in the statement would be worse than not
+ * posting it. It is noted in progress.md — it is track D that closes this.
  */
 import { and, count, desc, eq, gte, lte } from 'drizzle-orm'
 import { invalid, notFound } from '../../core/errors.ts'
@@ -32,7 +33,7 @@ function serialize(
 ) {
   return {
     id: row.id,
-    // A spec devolve só a data — o timestamp fica no banco.
+    // The spec returns only the date — the timestamp stays in the database.
     dateCreated: row.dateCreated.slice(0, 10),
     cpfCnpj: row.cpfCnpj ?? null,
     customer: row.customerId ?? null,
@@ -64,8 +65,8 @@ export const creditBureauHandlers: HandlerMap = {
 
       if (!customer) throw notFound('Cliente')
       customerId = customer.id
-      // O documento consultado é o do cliente — o que estiver no body é ignorado,
-      // como no Asaas.
+      // The document queried is the one of the customer — whatever is in the body
+      // is ignored, as in Asaas.
       cpfCnpj = customer.cpfCnpj
     } else {
       cpfCnpj = String(b.cpfCnpj)
@@ -96,7 +97,7 @@ export const creditBureauHandlers: HandlerMap = {
 
     await ctx.db.insert(creditBureauReports).values(row)
 
-    // reportFile só existe AQUI, na criação.
+    // reportFile only exists HERE, at the creation.
     return serialize(row as ReportRow, ctx.config.publicBaseUrl, { withFile: true })
   },
 
@@ -121,8 +122,8 @@ export const creditBureauHandlers: HandlerMap = {
 
     const filters = [eq(creditBureauReports.accountId, auth.accountId)]
 
-    // dateCreated é 'YYYY-MM-DD HH:mm:ss': comparar com 'YYYY-MM-DD' funciona
-    // lexicograficamente para o início e precisa de um sufixo para o fim.
+    // dateCreated is 'YYYY-MM-DD HH:mm:ss': comparing it with 'YYYY-MM-DD' works
+    // lexicographically at the start and needs a suffix at the end.
     if (typeof query.startDate === 'string' && query.startDate !== '') {
       if (!DATE.test(query.startDate)) {
         throw invalid('startDate', 'A data inicial deve estar no formato YYYY-MM-DD.')

@@ -1,14 +1,14 @@
 /**
- * Os fluxos que o cliente real do simulador (PartiuRole) exercita.
+ * The flows that the real client of the simulator (PartiuRole) exercises.
  *
- * Cada teste aqui nasceu de uma chamada que o cliente FAZ e que o simulador
- * respondia errado. Os formatos foram capturados do sandbox real do Asaas em
- * 2026-07-14 — não são deduzidos da documentação.
+ * Every test here was born from a call the client MAKES and that the simulator
+ * answered wrong. The formats were captured from the real Asaas sandbox on
+ * 2026-07-14 — they are not deduced from the documentation.
  *
- * A lição que este arquivo registra: as duas falhas abaixo passavam pela
- * validação de contrato sem um arranhão. A spec do Asaas não descreve nem o
- * parcelamento por POST /v3/payments, nem que `creditCard` é dispensável quando
- * há token. Contrato verde não é o mesmo que API certa.
+ * The lesson this file records: the two failures below went through the
+ * contract validation without a scratch. Asaas's spec describes neither the
+ * installment plan through POST /v3/payments, nor that `creditCard` is dispensable when
+ * there is a token. A green contract is not the same as the right API.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { isValidBrCode } from '../../src/domain/pix-brcode.ts'
@@ -53,13 +53,13 @@ async function token(cus: string): Promise<string> {
   return res.body.creditCardToken
 }
 
-describe('parcelamento por POST /v3/payments', () => {
+describe('installment plan through POST /v3/payments', () => {
   /**
-   * A porta que o cliente típico usa: `installmentCount` numa cobrança comum,
-   * sem nunca ter ouvido falar de /v3/installments. O simulador RECUSAVA, com
-   * um 400 "não implementado" — o fluxo de compra parcelada não existia.
+   * The door the typical client uses: `installmentCount` in a regular charge,
+   * without ever having heard of /v3/installments. The simulator REFUSED, with
+   * a 400 "not implemented" — the installment purchase flow did not exist.
    */
-  it('devolve a PRIMEIRA PARCELA, não o objeto do parcelamento', async () => {
+  it('returns the FIRST INSTALLMENT, not the plan object', async () => {
     const cus = await customer()
 
     const res = await h.api.call('create-new-payment', {
@@ -76,27 +76,27 @@ describe('parcelamento por POST /v3/payments', () => {
 
     expect(res.status).toBe(200)
 
-    // É um `payment`, e traz o vínculo com o parcelamento. Devolver o objeto do
-    // parcelamento aqui (como faz POST /v3/installments) quebraria o cliente.
+    // It is a `payment`, and it brings the link to the plan. Returning the plan's
+    // installment plan here (as POST /v3/installments does) would break the client.
     expect(res.body.object).toBe('payment')
     expect(res.body.installment).toBeString()
     expect(res.body.installmentNumber).toBe(1)
     expect(res.body.description).toBe('Parcela 1 de 3.')
 
-    // R$ 300 em 3x → parcela de R$ 100, taxa de R$ 3,65 → líquido R$ 96,35.
+    // R$ 300 in 3x → an installment of R$ 100, a fee of R$ 3.65 → net R$ 96.35.
     // (sandbox real: value 100.00, netValue 96.35)
     expect(res.body.value).toBe(100)
     expect(res.body.netValue).toBe(96.35)
 
-    // Com cartão, a parcela já nasce CONFIRMED — a emissora autoriza o total de
-    // uma vez. Deixá-la PENDING seria uma falha silenciosa: a cobrança nunca
-    // aconteceria e ninguém veria erro nenhum.
+    // With a card, the installment is already born CONFIRMED — the issuer authorizes the total at
+    // once. Leaving it PENDING would be a silent failure: the charge would never
+    // happen and nobody would see any error.
     expect(res.body.status).toBe('CONFIRMED')
 
     await h.assertLedgerBalances()
   })
 
-  it('as 3 parcelas existem de verdade, e somam o total', async () => {
+  it('the 3 installments really exist, and add up to the total', async () => {
     const cus = await customer()
 
     const first = await h.api.call('create-new-payment', {
@@ -116,16 +116,16 @@ describe('parcelamento por POST /v3/payments', () => {
     })
     expect(parts.body.data.length).toBe(3)
 
-    // A sobra do arredondamento vai na ÚLTIMA: 33,33 + 33,33 + 33,34 = 100,00.
+    // The rounding remainder goes on the LAST one: 33.33 + 33.33 + 33.34 = 100.00.
     const values = parts.body.data.map((p: any) => p.value)
     expect(values).toEqual([33.33, 33.33, 33.34])
   })
 
-  it('`installmentValue` é o valor DA PARCELA — não o total', async () => {
+  it('`installmentValue` is the INSTALLMENT amount — not the total', async () => {
     const cus = await customer()
 
-    // Em POST /v3/payments quem carrega o valor da parcela é `installmentValue`.
-    // (Em POST /v3/installments é `value`. Os nomes divergem entre as duas portas.)
+    // In POST /v3/payments the one that carries the installment amount is `installmentValue`.
+    // (In POST /v3/installments it is `value`. The names differ between the two doors.)
     const res = await h.api.call('create-new-payment', {
       body: {
         customer: cus,
@@ -137,16 +137,16 @@ describe('parcelamento por POST /v3/payments', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(res.body.value).toBe(25) // 4 × 25 = 100 de total
+    expect(res.body.value).toBe(25) // 4 × 25 = 100 in total
   })
 })
 
-describe('QR Code do Pix', () => {
+describe('Pix QR Code', () => {
   /**
-   * Sem isto, uma compra por Pix não tem como ser paga: o QR e o "copia e cola"
-   * são a única coisa que o comprador de fato usa. Respondia 501.
+   * Without this, a Pix purchase has no way to be paid: the QR and the "copy and paste"
+   * are the only things the buyer actually uses. It answered 501.
    */
-  it('devolve um BR Code EMV válido e a imagem do QR', async () => {
+  it('returns a valid EMV BR Code and the QR image', async () => {
     const cus = await customer()
 
     const pay = await h.api.call('create-new-payment', {
@@ -160,28 +160,28 @@ describe('QR Code do Pix', () => {
     expect(res.status).toBe(200)
     expect(res.body.success).toBe(true)
 
-    // O payload é um BR Code de verdade: TLV do Pix + CRC16 correto no fim.
-    // Se o CRC estiver errado, o app do banco recusa — e é o tipo de coisa que
-    // só se descobre com o celular na mão. Aqui se descobre no CI.
+    // The payload is a real BR Code: Pix TLV + the correct CRC16 at the end.
+    // If the CRC is wrong, the bank's app refuses — and it is the kind of thing that
+    // is only discovered with the phone in hand. Here it is discovered in CI.
     expect(res.body.payload).toStartWith('000201')
     expect(res.body.payload).toContain('br.gov.bcb.pix')
     expect(isValidBrCode(res.body.payload)).toBe(true)
 
-    // A imagem é um PNG de verdade (assinatura \x89PNG\r\n\x1a\n). Que o QR
-    // dentro dele de fato CODIFICA este payload — isto é, que ele escaneia — é
-    // provado em tests/unit/qrcode.test.ts, que decodifica a imagem de volta.
+    // The image is a real PNG (signature \x89PNG\r\n\x1a\n). That the QR
+    // inside it really ENCODES this payload — that is, that it scans — is
+    // proven in tests/unit/qrcode.test.ts, which decodes the image back.
     const png = Buffer.from(res.body.encodedImage, 'base64')
     expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
 
-    // Expira um ANO depois do vencimento — não NO vencimento. Provado em dois
-    // pontos contra o sandbox real, e é contraintuitivo o bastante para travar.
+    // It expires a YEAR after the due date — not ON the due date. Proven at two
+    // points against the real sandbox, and it is counterintuitive enough to lock down.
     expect(res.body.expirationDate).toBe('2027-12-31 23:59:59')
 
-    // Sem descrição na cobrança, o Asaas devolve este texto. Sem acento.
+    // Without a description on the charge, Asaas returns this text. Without an accent.
     expect(res.body.description).toBe('Descricao nao informada')
   })
 
-  it('BOLETO também tem QR — o Asaas emite boleto híbrido', async () => {
+  it('BOLETO also has a QR — Asaas issues a hybrid bank slip', async () => {
     const cus = await customer()
 
     const pay = await h.api.call('create-new-payment', {
@@ -205,15 +205,15 @@ describe('QR Code do Pix', () => {
   })
 })
 
-describe('pagar cobrança com cartão JÁ TOKENIZADO', () => {
+describe('paying a charge with an ALREADY TOKENIZED card', () => {
   /**
-   * O ponto inteiro da tokenização é o PAN não voltar a trafegar. A spec do Asaas
-   * marca `creditCard` e `creditCardHolderInfo` como obrigatórios; o Asaas real
-   * não os exige. Enquanto o `required` estava no schema, o Elysia recusava o body
-   * ANTES do handler — com erros do TypeBox em inglês, que nenhum cliente do Asaas
-   * jamais veria. Ver spec/overlays/005.
+   * The whole point of tokenization is the PAN not travelling again. Asaas's spec
+   * marks `creditCard` and `creditCardHolderInfo` as mandatory; the real Asaas
+   * does not require them. While the `required` was in the schema, Elysia refused the body
+   * BEFORE the handler — with TypeBox errors in English, that no Asaas client
+   * would ever see. See spec/overlays/005.
    */
-  it('aceita só o creditCardToken, e confirma', async () => {
+  it('accepts only the creditCardToken, and confirms', async () => {
     const cus = await customer()
     const tok = await token(cus)
 
@@ -230,14 +230,14 @@ describe('pagar cobrança com cartão JÁ TOKENIZADO', () => {
     expect(paid.status).toBe(200)
     expect(paid.body.status).toBe('CONFIRMED')
 
-    // O cartão volta na resposta — mascarado, e com o mesmo token.
+    // The card comes back in the response — masked, and with the same token.
     expect(paid.body.creditCard.creditCardToken).toBe(tok)
     expect(paid.body.creditCard.creditCardNumber).toBe('4444')
 
-    // Confirmado hoje, mas o dinheiro só cai em D+32 — `creditDate` aponta para
-    // o futuro e `paymentDate` continua NULA. É a assimetria que o Asaas tem e
-    // que quase toda integração erra: `paymentDate` só é preenchida quando o
-    // dinheiro de fato cai, não quando a compra é aprovada.
+    // Confirmed today, but the money only lands at D+32 — `creditDate` points to the
+    // the future and `paymentDate` stays NULL. It is the asymmetry that Asaas has and
+    // that almost every integration gets wrong: `paymentDate` is only filled when the
+    // money actually lands, not when the purchase is approved.
     expect(paid.body.confirmedDate).toBeString()
     expect(paid.body.creditDate > paid.body.confirmedDate).toBe(true)
     expect(paid.body.paymentDate).toBeNull()

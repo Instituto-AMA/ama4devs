@@ -53,7 +53,7 @@ describe('profiles', () => {
   it('a created profile is a root account whose key works at once', async () => {
     h = await createHarness()
 
-    const res = await admin('/accounts', 'POST', { name: 'Clínica Nova' })
+    const res = await admin('/accounts', 'POST', { name: 'New Clinic' })
     expect(res.status).toBe(200)
     expect(res.body.apiKey).toStartWith('$aact_hmlg_')
     expect(await authenticates(res.body.apiKey)).toBe(true)
@@ -61,7 +61,7 @@ describe('profiles', () => {
     const list = (await admin('/accounts')).body.accounts
     const created = list.find((a: any) => a.id === res.body.accountId)
     expect(created.parentAccountId).toBeNull()
-    expect(created.email).toBe('clinica-nova@localhost')
+    expect(created.email).toBe('new-clinic@localhost')
     expect(created.seeded).toBe(false)
     expect(created.cpfCnpj).toHaveLength(14) // a generated CNPJ
 

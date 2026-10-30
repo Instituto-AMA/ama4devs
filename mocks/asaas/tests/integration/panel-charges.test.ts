@@ -26,7 +26,7 @@ async function customer(): Promise<string> {
       addressNumber: '10',
       province: 'Centro',
       externalReference: 'patient-1',
-      observations: 'criado pelo painel',
+      observations: 'created by the panel',
     },
   })
   expect(res.status).toBe(200)
@@ -39,7 +39,7 @@ describe('panel charge requests', () => {
     const cus = await customer()
     for (const billingType of ['UNDEFINED', 'PIX', 'BOLETO', 'CREDIT_CARD']) {
       const res = await h.api.call('create-new-payment', {
-        body: { customer: cus, billingType, value: 120.5, dueDate: '2026-01-20', description: 'Consulta' },
+        body: { customer: cus, billingType, value: 120.5, dueDate: '2026-01-20', description: 'Consultation' },
       })
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('PENDING')
@@ -109,7 +109,7 @@ describe('panel charge requests', () => {
     h = await createHarness()
     const sub = await h.api.call('create-subaccount', {
       body: {
-        name: 'Subconta Split',
+        name: 'Split Subaccount',
         email: 'split@localhost',
         cpfCnpj: '11222333000181',
         birthDate: '1990-01-01',

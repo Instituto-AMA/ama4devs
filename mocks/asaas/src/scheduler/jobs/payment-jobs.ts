@@ -1,9 +1,10 @@
 /**
- * Os jobs que movem as cobranças no tempo. (Track A)
+ * The jobs that move the charges through time. (Track A)
  *
- * Ambos passam por `applyTransition` — nunca fazem UPDATE direto. É o que
- * garante que uma cobrança que vence pelo scheduler emita o mesmo webhook e o
- * mesmo lançamento que uma que vence por uma sandbox action.
+ * Both go through `applyTransition` — they never do a direct UPDATE. That is
+ * what guarantees that a charge that falls due through the scheduler emits the
+ * same webhook and the same ledger entry as one that falls due through a
+ * sandbox action.
  */
 import { and, eq, isNull, lt, lte, ne, or } from 'drizzle-orm'
 import { payments } from '../../db/schema/index.ts'
@@ -24,11 +25,11 @@ export const cardCapture: Job = {
 }
 
 /**
- * PENDING com dueDate < hoje → OVERDUE.
+ * PENDING with dueDate < today → OVERDUE.
  *
- * A partir daqui, juros e multa começam a correr — mas o valor da cobrança só é
- * recalculado no momento do pagamento (é o que o Asaas faz: o `value` no banco
- * continua o original até alguém pagar).
+ * From here on, interest and fine start to run — but the value of the charge is
+ * only recalculated at the moment of payment (it is what Asaas does: the `value`
+ * in the database stays the original until someone pays).
  */
 export const overdue: Job = {
   name: 'overdue',
@@ -63,22 +64,22 @@ export const overdue: Job = {
           job: 'overdue',
         })
       } catch (err) {
-        // O CAS falha se algo mudou o status no meio — não é erro, é a proteção
-        // funcionando. Só registramos.
-        ctx.log('debug', `overdue: ${id} não transicionou`, { error: String(err) })
+        // The CAS fails if something changed the status in the middle — it is not
+        // an error, it is the protection working. We only log it.
+        ctx.log('debug', `overdue: ${id} did not transition`, { error: String(err) })
       }
     }
   },
 }
 
 /**
- * CONFIRMED cuja creditDate chegou → RECEIVED.
+ * CONFIRMED whose creditDate arrived → RECEIVED.
  *
- * É AQUI que o dinheiro vira saldo: a transição lança PAYMENT_RECEIVED (+bruto)
- * e PAYMENT_FEE (−taxa) no ledger, e emite o webhook.
+ * It is HERE that the money becomes balance: the transition posts PAYMENT_RECEIVED
+ * (+gross) and PAYMENT_FEE (−fee) in the ledger, and emits the webhook.
  *
- * O Pix nunca passa por aqui — ele credita na hora do pagamento. Quem chega
- * aqui é o boleto (D+1 útil) e o cartão (D+32).
+ * The Pix never goes through here — it settles at the moment of payment. What
+ * arrives here is the bank slip (D+1 business day) and the card (D+32).
  */
 export const creditSettlement: Job = {
   name: 'credit-settlement',
@@ -108,7 +109,7 @@ export const creditSettlement: Job = {
         })
         report.ledgerEntries += 2 // PAYMENT_RECEIVED + PAYMENT_FEE
       } catch (err) {
-        ctx.log('debug', `credit-settlement: ${id} não transicionou`, { error: String(err) })
+        ctx.log('debug', `credit-settlement: ${id} did not transition`, { error: String(err) })
       }
     }
   },

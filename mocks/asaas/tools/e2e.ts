@@ -1,16 +1,16 @@
 /**
- * A PROVA DE PONTA A PONTA — o critério de aceite deste projeto inteiro.
+ * THE END-TO-END PROOF — the acceptance criterion of this whole project.
  *
- *   bun run e2e                      # sobe o servidor sozinho, prova, derruba
- *   bun run e2e -- http://localhost:8080 '$aact_hmlg_…'   # contra um já rodando
+ *   bun run e2e                      # boots the server by itself, proves, tears it down
+ *   bun run e2e -- http://localhost:8080 '$aact_hmlg_…'   # against an already running one
  *
- * O projeto existe por UMA razão: o sandbox do Asaas não entrega webhook em
- * localhost. Toda a suíte de testes roda com o app em memória — o que prova a
- * lógica, mas não prova a promessa. Este script prova a promessa: fala HTTP de
- * verdade com o servidor, sobe um listener num socket de verdade, e espera o
- * `PAYMENT_RECEIVED` chegar nele.
+ * The project exists for ONE reason: Asaas's sandbox does not deliver webhooks to
+ * localhost. The whole test suite runs with the app in memory — which proves the
+ * logic, but not the promise. This script proves the promise: it speaks real HTTP
+ * with the server, spins up a listener on a real socket, and waits for the
+ * `PAYMENT_RECEIVED` to arrive there.
  *
- * Se este script passar contra `docker compose up`, o produto funciona.
+ * If this script passes against `docker compose up`, the product works.
  */
 import { bootstrap } from '../src/bootstrap.ts'
 
@@ -23,9 +23,9 @@ let stop = () => {}
 if (argUrl && argKey) {
   api = argUrl.replace(/\/$/, '')
   key = argKey
-  console.log(`Falando com um servidor já em pé: ${api}\n`)
+  console.log(`Talking to an already running server: ${api}\n`)
 } else {
-  // Porta 0 = o SO escolhe uma livre. Nada de conflito com o dev server.
+  // Port 0 = the OS picks a free one. No conflict with the dev server.
   const app = await bootstrap({
     config: {
       databasePath: ':memory:',
@@ -43,10 +43,10 @@ if (argUrl && argKey) {
     server.stop()
     app.close()
   }
-  console.log(`Servidor efêmero em ${api}\n`)
+  console.log(`Ephemeral server at ${api}\n`)
 }
 
-// ── o listener: é ELE que precisa receber o evento ───────────────────────────
+// ── the listener: it is IT that has to receive the event ──────────────────────
 const received: any[] = []
 const listener = Bun.serve({
   port: 0,
@@ -54,7 +54,7 @@ const listener = Bun.serve({
     const body = (await req.json()) as any
     received.push({ ...body, _authToken: req.headers.get('asaas-access-token') })
     console.log(`   📬 ${body.event}`)
-    // Só HTTP 200 conta como sucesso para o Asaas. 201 e 204 são FALHA.
+    // Only HTTP 200 counts as a success for Asaas. 201 and 204 are a FAILURE.
     return new Response('ok', { status: 200 })
   },
 })
@@ -89,14 +89,14 @@ await call('POST', '/v3/webhooks', {
   authToken: AUTH_TOKEN,
   events: ['PAYMENT_CREATED', 'PAYMENT_RECEIVED'],
 })
-console.log('1. webhook inscrito apontando para localhost')
+console.log('1. webhook subscribed pointing to localhost')
 
 const customer = await call('POST', '/v3/customers', {
   name: 'Cliente E2E',
   cpfCnpj: '24971563792',
-  email: 'cliente@localhost',
+  email: 'customer@localhost',
 })
-console.log(`2. cliente ${customer.id}`)
+console.log(`2. customer ${customer.id}`)
 
 const dueDate = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10)
 const payment = await call('POST', '/v3/payments', {
@@ -106,9 +106,9 @@ const payment = await call('POST', '/v3/payments', {
   dueDate,
   description: 'Prova de ponta a ponta',
 })
-console.log(`3. cobrança Pix ${payment.id} — status=${payment.status}`)
+console.log(`3. Pix charge ${payment.id} — status=${payment.status}`)
 
-// A ação de sandbox: é o que o Asaas real dispara quando o cliente paga.
+// The sandbox action: it is what the real Asaas triggers when the customer pays.
 const confirmed = await call('POST', `/v3/sandbox/payment/${payment.id}/confirm`)
 console.log(`4. confirmada → status=${confirmed.status}`)
 
@@ -131,17 +131,17 @@ const fail = (msg: string): never => {
 const evt = received.find((e) => e.event === 'PAYMENT_RECEIVED')
 if (!evt) {
   fail(
-    `PAYMENT_RECEIVED não chegou em ${listenerUrl}.\n` +
-      `  Recebidos: ${received.map((e) => e.event).join(', ') || '(nada)'}\n` +
-      `  Se estiver em Docker: WEBHOOK_LOCALHOST_REWRITE=host.docker.internal`,
+    `PAYMENT_RECEIVED did not arrive at ${listenerUrl}.\n` +
+      `  Received: ${received.map((e) => e.event).join(', ') || '(nothing)'}\n` +
+      `  If you are in Docker: WEBHOOK_LOCALHOST_REWRITE=host.docker.internal`,
   )
 }
 
 const checks: [string, unknown, unknown][] = [
   ['status', evt.payment.status, 'RECEIVED'],
   ['value', evt.payment.value, 100],
-  ['netValue (100 − 1,99 de taxa fixa do Pix)', evt.payment.netValue, 98.01],
-  ['authToken no header asaas-access-token', evt._authToken, AUTH_TOKEN],
+  ['netValue (100 − 1.99 of the Pix fixed fee)', evt.payment.netValue, 98.01],
+  ['authToken in the asaas-access-token header', evt._authToken, AUTH_TOKEN],
 ]
 
 console.log('')
@@ -149,10 +149,10 @@ let ok = true
 for (const [label, actual, expected] of checks) {
   const good = actual === expected
   ok &&= good
-  console.log(`   ${good ? '✓' : '✗'} ${label}: ${actual}${good ? '' : `  (esperado: ${expected})`}`)
+  console.log(`   ${good ? '✓' : '✗'} ${label}: ${actual}${good ? '' : `  (expected: ${expected})`}`)
 }
-// O Pix credita na hora — não é uma promessa de crédito futuro.
-console.log(`   ✓ creditDate: ${evt.payment.creditDate}  (Pix credita no ato)`)
+// Pix credits right away — it is not a promise of a future credit.
+console.log(`   ✓ creditDate: ${evt.payment.creditDate}  (Pix credits on the spot)`)
 
 listener.stop()
 stop()
@@ -161,9 +161,9 @@ if (!ok) process.exit(1)
 
 console.log(`
 ─────────────────────────────────────────────────────────────
-✓ O webhook do Asaas chegou em localhost.
+✓ Asaas's webhook arrived at localhost.
 
-  É exatamente isto que o sandbox do Asaas não faz — e o motivo
-  de este projeto existir.
+  This is exactly what Asaas's sandbox does not do — and the reason
+  this project exists.
 ─────────────────────────────────────────────────────────────
 `)

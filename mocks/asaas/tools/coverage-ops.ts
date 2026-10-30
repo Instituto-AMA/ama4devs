@@ -1,9 +1,9 @@
 /**
- * Cobertura de operações — COMPUTADA do manifesto ∩ handler map.
+ * The operations coverage — COMPUTED from the manifest ∩ handler map.
  *
  *   bun run coverage:ops
  *
- * Nunca mantenha esse número à mão no progress.md. Um agente sabe computá-lo.
+ * Never keep that number by hand in progress.md. An agent knows how to compute it.
  */
 import { getOperation, OPERATION_COUNT, OPERATION_IDS } from '../src/generated/operations.ts'
 import { HANDLERS } from '../src/modules/index.ts'
@@ -24,7 +24,7 @@ const pct = routable === 0 ? 0 : Math.round((implemented.length / routable) * 10
 
 console.log(`implemented: ${implemented.length}/${routable} (${pct}%)`)
 console.log(`stubbed:     ${stubbed.length}  (respondem 501)`)
-console.log(`variants:    ${variants.length}  (dividem rota com a operação canônica)`)
+console.log(`variants:    ${variants.length}  (share a route with the canonical operation)`)
 console.log(`total spec:  ${OPERATION_COUNT}`)
 
 if (process.argv.includes('--by-tag')) {
@@ -45,6 +45,6 @@ if (process.argv.includes('--by-tag')) {
 }
 
 if (process.argv.includes('--list-missing')) {
-  console.log('\nnão implementadas:')
+  console.log('\nnot implemented:')
   for (const id of stubbed) console.log(`  ${id}`)
 }

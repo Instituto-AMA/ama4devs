@@ -1,9 +1,9 @@
 /**
- * Credit Bureau Report — consulta ao Serasa.
+ * Credit Bureau Report — a query to Serasa.
  *
- * A assimetria que quebra integração e que está coberta aqui: `reportFile` (o PDF
- * em base64) SÓ vem na resposta da criação. Quem recuperar o relatório depois
- * recebe null e precisa usar o `downloadUrl`.
+ * The asymmetry that breaks integrations and that is covered here: `reportFile` (the PDF
+ * in base64) ONLY comes in the creation's response. Whoever retrieves the report afterwards
+ * gets null and has to use the `downloadUrl`.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { customers } from '../../src/db/schema/index.ts'
@@ -23,7 +23,7 @@ async function seedCustomer(accountId: string, cpfCnpj = '24971563792'): Promise
   await h.app.db.insert(customers).values({
     id,
     accountId,
-    name: 'Cliente Consultado',
+    name: 'Queried Customer',
     cpfCnpj,
     personType: cpfCnpj.length === 14 ? 'JURIDICA' : 'FISICA',
     notificationDisabled: false,
@@ -33,8 +33,8 @@ async function seedCustomer(accountId: string, cpfCnpj = '24971563792'): Promise
   return id
 }
 
-describe('consulta', () => {
-  it('por CPF/CNPJ avulso: 200, reportFile em base64, dateCreated só a data', async () => {
+describe('query', () => {
+  it('by a standalone CPF/CNPJ: 200, reportFile in base64, dateCreated with the date only', async () => {
     const { status, body } = await h.api.call('make-consultation', {
       body: { cpfCnpj: '24971563792' },
     })
@@ -42,12 +42,12 @@ describe('consulta', () => {
     expect(status).toBe(200)
     expect(body.cpfCnpj).toBe('24971563792')
     expect(body.customer).toBeNull()
-    expect(body.dateCreated).toBe('2026-01-05') // relógio virtual, não o de verdade
+    expect(body.dateCreated).toBe('2026-01-05') // the virtual clock, not the real one
     expect(body.downloadUrl).toContain(`/creditBureauReport/download/${body.id}`)
     expect(typeof body.reportFile).toBe('string')
   })
 
-  it('por cliente: o documento consultado é o do cliente', async () => {
+  it("by a customer: the queried document is the customer's", async () => {
     const customer = await seedCustomer(h.accountId, '47960950000121')
 
     const { status, body } = await h.api.call('make-consultation', {
@@ -59,7 +59,7 @@ describe('consulta', () => {
     expect(body.cpfCnpj).toBe('47960950000121')
   })
 
-  it('a taxa cobrada sai de config.fees e depende do tipo de pessoa', async () => {
+  it('the charged fee comes from config.fees and depends on the person type', async () => {
     const { creditBureauReports } = await import('../../src/db/schema/index.ts')
     const { eq } = await import('drizzle-orm')
 
@@ -79,14 +79,14 @@ describe('consulta', () => {
     expect(rowPj!.feeCents).toBe(h.app.config.fees.creditBureauReport.legalPerson)
   })
 
-  it('sem cliente e sem CPF/CNPJ → 400', async () => {
+  it('without a customer and without CPF/CNPJ → 400', async () => {
     const { status, body } = await h.api.call('make-consultation', { body: {} })
 
     expect(status).toBe(400)
     expect(body.errors[0].code).toBe('invalid_cpfCnpj')
   })
 
-  it('CPF/CNPJ inválido → 400 (o dígito verificador é conferido de verdade)', async () => {
+  it('an invalid CPF/CNPJ → 400 (the check digit is really checked)', async () => {
     const { status, body } = await h.api.call('make-consultation', {
       body: { cpfCnpj: '11111111111' },
     })
@@ -95,8 +95,8 @@ describe('consulta', () => {
     expect(body.errors[0].code).toBe('invalid_cpfCnpj')
   })
 
-  it('cliente de outra conta → 404', async () => {
-    const other = await createSecondAccount(h, 'Conta Vizinha')
+  it('a customer from another account → 404', async () => {
+    const other = await createSecondAccount(h, 'Neighbouring Account')
     const alien = await seedCustomer(other.accountId)
 
     const { status } = await h.api.call('make-consultation', { body: { customer: alien } })
@@ -104,8 +104,8 @@ describe('consulta', () => {
   })
 })
 
-describe('recuperação e listagem', () => {
-  it('recuperar não devolve o reportFile — só o downloadUrl', async () => {
+describe('retrieval and listing', () => {
+  it('retrieving does not return the reportFile — only the downloadUrl', async () => {
     const created = await h.api.call('make-consultation', {
       body: { cpfCnpj: '24971563792' },
     })
@@ -120,7 +120,7 @@ describe('recuperação e listagem', () => {
     expect(body.downloadUrl).toBe(created.body.downloadUrl)
   })
 
-  it('listagem no envelope do Asaas, com filtro de período', async () => {
+  it("listing in Asaas's envelope, with a period filter", async () => {
     await h.api.call('make-consultation', { body: { cpfCnpj: '24971563792' } })
 
     const all = await h.api.call('list-credit-bureau-reports')
@@ -129,10 +129,10 @@ describe('recuperação e listagem', () => {
     expect(all.body.totalCount).toBeGreaterThan(0)
     expect(all.body.data[0].reportFile).toBeNull()
 
-    const hoje = await h.api.call('list-credit-bureau-reports', {
+    const today = await h.api.call('list-credit-bureau-reports', {
       query: { startDate: '2026-01-05', endDate: '2026-01-05' },
     })
-    expect(hoje.body.totalCount).toBe(all.body.totalCount)
+    expect(today.body.totalCount).toBe(all.body.totalCount)
 
     const outroDia = await h.api.call('list-credit-bureau-reports', {
       query: { startDate: '2026-02-01', endDate: '2026-02-28' },
@@ -140,7 +140,7 @@ describe('recuperação e listagem', () => {
     expect(outroDia.body.totalCount).toBe(0)
   })
 
-  it('relatório de outra conta → 404, e a listagem dela não vê o nosso', async () => {
+  it('a report from another account → 404, and its listing does not see ours', async () => {
     const created = await h.api.call('make-consultation', {
       body: { cpfCnpj: '24971563792' },
     })

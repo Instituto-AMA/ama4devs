@@ -139,7 +139,7 @@ FROM debian:bookworm-slim AS final
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="WhatsApp Mock Server - WhatsApp Cloud API simulator" \
-      org.opencontainers.image.description="WhatsApp Cloud API mock server (Meta Graph API v23.0 / WhatsApp Business API) for local development and tests: messages and templates and media - voice calls with WebRTC - phone numbers - webhooks - a WhatsApp Web like panel. Simulador local do WhatsApp." \
+      org.opencontainers.image.description="WhatsApp Cloud API mock server (Meta Graph API v23.0 / WhatsApp Business API) for local development and tests: messages and templates and media - voice calls with WebRTC - phone numbers - webhooks - a WhatsApp Web like panel." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
       org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="Apache-2.0" \

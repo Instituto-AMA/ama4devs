@@ -1,17 +1,17 @@
 /**
- * Um teste que só verifica "gerou algum PNG" não prova nada — o QR precisa
- * ESCANEAR. Então este arquivo escreve um **decodificador** e faz o caminho de
- * volta inteiro:
+ * A test that only checks "it generated some PNG" proves nothing — the QR has to
+ * SCAN. So this file writes a **decoder** and goes through the path of
+ * all the way round:
  *
- *   string → qrPng → base64 → bytes PNG → inflate → pixels → matriz de módulos
- *          → format info (BCH) → desmascara → zigue-zague → codewords
- *          → de-interleave → Reed-Solomon (síndromes) → bits → string
+ *   string → qrPng → base64 → PNG bytes → inflate → pixels → module matrix
+ *          → format info (BCH) → unmask → zigzag → codewords
+ *          → de-interleave → Reed-Solomon (syndromes) → bits → string
  *
- * O decodificador é escrito do lado da LEITURA, a partir da ISO/IEC 18004 — ele não
- * chama as funções privadas do encoder. Onde encoder e decoder poderiam
- * compartilhar uma mesma constante errada (as tabelas de EC, os centros de
- * alignment, o BCH do format info), o teste confere contra os valores PUBLICADOS
- * da norma e contra a geometria da própria matriz.
+ * The decoder is written on the READING side, from ISO/IEC 18004 — it does not
+ * call the encoder's private functions. Where the encoder and the decoder could
+ * share the same wrong constant (the EC tables, the alignment centers, the
+ * format info BCH), the test checks against the PUBLISHED values of the
+ * standard and against the geometry of the matrix itself.
  */
 import { describe, expect, it } from 'bun:test'
 import {
@@ -27,12 +27,12 @@ import {
   versionBits,
 } from '../../src/domain/qrcode.ts'
 
-/** O BR Code real do sandbox — o payload que este QR existe para carregar. */
+/** The real BR Code from the sandbox — the payload this QR exists to carry. */
 const PIX_PAYLOAD =
   '00020101021226820014br.gov.bcb.pix2560pix-h.asaas.com/qr/cobv/618c88aa-7beb-4abf-ad17-4213dc8fa3805204000053039865802BR5919Pr Solucoes Sandbox6007Itajuba61083750228062070503***6304C50D'
 
 // ---------------------------------------------------------------------------
-// PNG → pixels (o teste re-implementa a leitura: CRC32, inflate stored, Adler-32)
+// PNG → pixels (the test re-implements the reading: CRC32, inflate stored, Adler-32)
 // ---------------------------------------------------------------------------
 
 function crc32(bytes: Uint8Array): number {
@@ -57,7 +57,7 @@ function adler32(bytes: Uint8Array): number {
 interface Png {
   width: number
   height: number
-  /** Um byte por pixel (grayscale), já sem os bytes de filtro. */
+  /** One byte per pixel (grayscale), already without the filter bytes. */
   pixels: Uint8Array
 }
 
@@ -89,8 +89,8 @@ function readPng(base64: string): Png {
       expect(data[8]).toBe(8) // bit depth 8
       expect(data[9]).toBe(0) // grayscale
       expect(data[10]).toBe(0) // deflate
-      expect(data[11]).toBe(0) // filtro adaptativo
-      expect(data[12]).toBe(0) // sem interlace
+      expect(data[11]).toBe(0) // adaptive filter
+      expect(data[12]).toBe(0) // no interlace
     } else if (type === 'IDAT') {
       idat.push(...data)
     }
@@ -102,7 +102,7 @@ function readPng(base64: string): Png {
 
   const raw = inflateIdat(new Uint8Array(idat))
 
-  // Desfaz o filtro (só usamos o filtro 0 = None) e joga fora o byte de filtro.
+  // Undoes the filter (we only use filter 0 = None) and drops the filter byte.
   expect(raw.length).toBe(height * (width + 1))
   const pixels = new Uint8Array(width * height)
   for (let y = 0; y < height; y++) {
@@ -114,18 +114,18 @@ function readPng(base64: string): Png {
 }
 
 /**
- * Desempacota o IDAT. Usa o inflate do runtime, de propósito: ele é escrito por
- * outra gente, então não tem como errar junto com o nosso deflate. E ainda cobra
- * o Adler-32, que um zlib inválido não passaria.
+ * Unpacks the IDAT. It uses the runtime's inflate, on purpose: it is written by
+ * someone else, so it cannot be wrong together with our deflate. And it also checks
+ * the Adler-32, which an invalid zlib would not pass.
  */
 function inflateIdat(stream: Uint8Array): Uint8Array {
   const cmf = stream[0]!
   const flg = stream[1]!
-  expect(cmf & 0x0f).toBe(8) // método = deflate
+  expect(cmf & 0x0f).toBe(8) // method = deflate
   expect(((cmf << 8) | flg) % 31).toBe(0) // checksum do header zlib
 
-  // Descasca o envelope zlib: 2 bytes de header, 4 de Adler-32 no fim. O miolo é
-  // deflate cru, que é o que Bun.inflateSync consome.
+  // Unwraps the zlib envelope: 2 header bytes, 4 of Adler-32 at the end. The filling is
+  // raw deflate, which is what Bun.inflateSync consumes.
   const raw = Bun.inflateSync(new Uint8Array(stream.subarray(2, stream.length - 4)))
 
   const declared =
@@ -140,7 +140,7 @@ function inflateIdat(stream: Uint8Array): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// pixels → matriz de módulos
+// pixels → module matrix
 // ---------------------------------------------------------------------------
 
 function matrixFromPng(png: Png, scale: number, quiet: number): boolean[][] {
@@ -148,7 +148,7 @@ function matrixFromPng(png: Png, scale: number, quiet: number): boolean[][] {
   expect(Number.isInteger(size)).toBe(true)
   expect(png.width).toBe(png.height)
 
-  // A quiet zone tem que estar toda clara, senão o scanner não acha o símbolo.
+  // The quiet zone has to be all light, otherwise the scanner does not find the symbol.
   for (let y = 0; y < quiet * scale; y++) {
     for (let x = 0; x < png.width; x++) expect(png.pixels[y * png.width + x]).toBe(0xff)
   }
@@ -157,7 +157,7 @@ function matrixFromPng(png: Png, scale: number, quiet: number): boolean[][] {
   for (let r = 0; r < size; r++) {
     const row: boolean[] = []
     for (let c = 0; c < size; c++) {
-      // Amostra o centro do módulo, como um leitor faria.
+      // Samples the module's center, the way a reader would.
       const y = (quiet + r) * scale + Math.floor(scale / 2)
       const x = (quiet + c) * scale + Math.floor(scale / 2)
       row.push(png.pixels[y * png.width + x] === 0x00)
@@ -168,10 +168,10 @@ function matrixFromPng(png: Png, scale: number, quiet: number): boolean[][] {
 }
 
 // ---------------------------------------------------------------------------
-// Decodificador de QR (lado da leitura)
+// QR decoder (the reading side)
 // ---------------------------------------------------------------------------
 
-/** Tabela de centros de alignment publicada na ISO/IEC 18004 (anexo E). */
+/** The alignment centers table published in ISO/IEC 18004 (annex E). */
 const PUBLISHED_ALIGNMENT: Record<number, number[]> = {
   1: [],
   2: [6, 18],
@@ -185,7 +185,7 @@ const PUBLISHED_ALIGNMENT: Record<number, number[]> = {
   10: [6, 28, 50],
 }
 
-/** Onde ficam as function patterns — é o que um leitor precisa saber para pular. */
+/** Where the function patterns are — it is what a reader needs to know to skip them. */
 function functionMap(version: number): boolean[][] {
   const size = moduleCount(version)
   const fn: boolean[][] = Array.from({ length: size }, () => new Array<boolean>(size).fill(false))
@@ -242,7 +242,7 @@ const MASK_FNS: ((r: number, c: number) => boolean)[] = [
   (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
 ]
 
-/** Lê o format info da 1ª cópia, confere o BCH e devolve nível de EC + máscara. */
+/** Reads the format info of the 1st copy, checks the BCH and returns the EC level + mask. */
 function readFormat(modules: boolean[][]): { ecLevel: number; mask: number } {
   const bit = (r: number, c: number): number => (modules[r]![c]! ? 1 : 0)
 
@@ -256,7 +256,7 @@ function readFormat(modules: boolean[][]): { ecLevel: number; mask: number } {
   const unmasked = raw ^ 0x5412
   const data = unmasked >>> 10
 
-  // Confere o BCH(15,5): o resto tem que bater com os 10 bits baixos.
+  // Checks the BCH(15,5): the rest has to match the 10 low bits.
   let rem = data
   for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537)
   expect(rem & 0x3ff).toBe(unmasked & 0x3ff)
@@ -264,7 +264,7 @@ function readFormat(modules: boolean[][]): { ecLevel: number; mask: number } {
   return { ecLevel: data >>> 3, mask: data & 0b111 }
 }
 
-// GF(256) — só para checar as síndromes do Reed-Solomon.
+// GF(256) — only to check the Reed-Solomon syndromes.
 const EXP = new Uint8Array(512)
 const LOG = new Uint8Array(256)
 {
@@ -279,7 +279,7 @@ const LOG = new Uint8Array(256)
 }
 const mul = (a: number, b: number): number => (a === 0 || b === 0 ? 0 : EXP[LOG[a]! + LOG[b]!]!)
 
-/** Um bloco RS é válido quando todas as síndromes são zero. */
+/** An RS block is valid when all the syndromes are zero. */
 function syndromesAreZero(block: number[], ecCount: number): boolean {
   for (let j = 0; j < ecCount; j++) {
     let value = 0
@@ -305,7 +305,7 @@ function decode(modules: boolean[][]): Decoded {
   const fn = functionMap(version)
   const unmask = MASK_FNS[mask]!
 
-  // Zigue-zague de baixo-direita para cima, pulando a coluna 6.
+  // Zigzag from bottom-right to top, skipping column 6.
   const bits: number[] = []
   let upward = true
   for (let right = size - 1; right >= 1; right -= 2) {
@@ -329,7 +329,7 @@ function decode(modules: boolean[][]): Decoded {
   }
   expect(stream.length).toBe(totalCodewords(version))
 
-  // De-interleave: reconstrói os blocos e confere o RS de cada um.
+  // De-interleave: rebuilds the blocks and checks the RS of each one.
   const [ecPerBlock, g1, d1, g2, d2] = EC_BLOCKS_M[version]!
   const sizes = [...Array<number>(g1).fill(d1), ...Array<number>(g2).fill(d2)]
   const dataBlocks: number[][] = sizes.map(() => [])
@@ -351,7 +351,7 @@ function decode(modules: boolean[][]): Decoded {
     expect(syndromesAreZero(full, ecPerBlock)).toBe(true)
   }
 
-  // Bits de dados → modo, contador, bytes.
+  // Data bits → mode, counter, bytes.
   const dataBits: number[] = []
   for (const block of dataBlocks) {
     for (const byte of block) for (let b = 7; b >= 0; b--) dataBits.push((byte >>> b) & 1)
@@ -372,21 +372,21 @@ function decode(modules: boolean[][]): Decoded {
 
 // ---------------------------------------------------------------------------
 
-describe('qrcode: tabelas conferidas contra a norma (encoder e decoder poderiam errar juntos)', () => {
-  it('bate com os totais de codewords publicados', () => {
-    // ISO/IEC 18004, tabela 1 — codewords totais por versão.
+describe('qrcode: tables checked against the standard (the encoder and the decoder could be wrong together)', () => {
+  it('matches the published codeword totals', () => {
+    // ISO/IEC 18004, table 1 — total codewords per version.
     const PUBLISHED = [26, 44, 70, 100, 134, 172, 196, 242, 292, 346]
     for (let v = 1; v <= 10; v++) expect(totalCodewords(v)).toBe(PUBLISHED[v - 1]!)
   })
 
-  it('bate com a capacidade publicada de byte mode no nível M', () => {
+  it('matches the published byte mode capacity at level M', () => {
     const PUBLISHED = [14, 26, 42, 62, 84, 106, 122, 152, 180, 213]
     for (let v = 1; v <= 10; v++) expect(capacityBytes(v)).toBe(PUBLISHED[v - 1]!)
   })
 
-  it('os codewords totais batem com a GEOMETRIA da matriz', () => {
-    // Prova independente da tabela: conta os módulos que sobram depois das
-    // function patterns. Devem ser 8·codewords + os remainder bits da versão.
+  it('the total codewords match the matrix GEOMETRY', () => {
+    // Proof independent of the table: it counts the modules left after the
+    // function patterns. They must be 8·codewords + the version's remainder bits.
     const REMAINDER = [0, 7, 7, 7, 7, 7, 0, 0, 0, 0]
     for (let v = 1; v <= 10; v++) {
       const fn = functionMap(v)
@@ -396,19 +396,19 @@ describe('qrcode: tabelas conferidas contra a norma (encoder e decoder poderiam 
     }
   })
 
-  it('a tabela de EC é internamente consistente', () => {
+  it('the EC table is internally consistent', () => {
     for (let v = 1; v <= 10; v++) {
       const [ec, g1, d1, g2, d2] = EC_BLOCKS_M[v]!
-      if (g2 > 0) expect(d2).toBe(d1 + 1) // o grupo 2 tem exatamente 1 dado a mais
+      if (g2 > 0) expect(d2).toBe(d1 + 1) // group 2 has exactly 1 more data codeword
       expect(g1 * d1 + g2 * d2 + (g1 + g2) * ec).toBe(totalCodewords(v))
     }
   })
 
-  it('os centros de alignment batem com a tabela publicada', () => {
+  it('the alignment centers match the published table', () => {
     for (let v = 1; v <= 10; v++) expect(alignmentCenters(v)).toEqual(PUBLISHED_ALIGNMENT[v]!)
   })
 
-  it('o format info bate com a tabela C.1 da norma (nível M, máscaras 0..7)', () => {
+  it("the format info matches the standard's table C.1 (level M, masks 0..7)", () => {
     const PUBLISHED = [
       '101010000010010',
       '101000100100101',
@@ -424,7 +424,7 @@ describe('qrcode: tabelas conferidas contra a norma (encoder e decoder poderiam 
     }
   })
 
-  it('o version info bate com a tabela D.1 da norma (v7..v10)', () => {
+  it('the version info matches the standard’s table D.1 (v7..v10)', () => {
     const PUBLISHED: Record<number, string> = {
       7: '000111110010010100',
       8: '001000010110111100',
@@ -437,18 +437,18 @@ describe('qrcode: tabelas conferidas contra a norma (encoder e decoder poderiam 
   })
 })
 
-describe('qrMatrix: estrutura', () => {
+describe('qrMatrix: structure', () => {
   const modules = qrMatrix(PIX_PAYLOAD)
   const size = modules.length
   const version = (size - 17) / 4
 
-  it('escolhe a menor versão que cabe', () => {
+  it('picks the smallest version that fits', () => {
     expect(chooseVersion(PIX_PAYLOAD.length)).toBe(version)
     expect(capacityBytes(version)).toBeGreaterThanOrEqual(PIX_PAYLOAD.length)
     if (version > 1) expect(capacityBytes(version - 1)).toBeLessThan(PIX_PAYLOAD.length)
   })
 
-  it('tem finder pattern nas 3 quinas (e nenhum na 4ª)', () => {
+  it('has the finder pattern at the 3 corners (and none at the 4th)', () => {
     const isFinder = (r0: number, c0: number): boolean => {
       for (let dr = 0; dr < 7; dr++) {
         for (let dc = 0; dc < 7; dc++) {
@@ -465,7 +465,7 @@ describe('qrMatrix: estrutura', () => {
     expect(isFinder(size - 7, size - 7)).toBe(false)
   })
 
-  it('tem separadores claros ao redor dos finders', () => {
+  it('has clear separators around the finders', () => {
     for (let i = 0; i < 8; i++) {
       expect(modules[7]![i]).toBe(false)
       expect(modules[i]![7]).toBe(false)
@@ -474,25 +474,25 @@ describe('qrMatrix: estrutura', () => {
     }
   })
 
-  it('tem timing pattern alternado nas linha/coluna 6', () => {
+  it('has the alternating timing pattern on row/column 6', () => {
     for (let i = 8; i < size - 8; i++) {
       expect(modules[6]![i]).toBe(i % 2 === 0)
       expect(modules[i]![6]).toBe(i % 2 === 0)
     }
   })
 
-  it('tem o dark module em (4v+9, 8)', () => {
+  it('has the dark module at (4v+9, 8)', () => {
     expect(modules[4 * version + 9]![8]).toBe(true)
   })
 
-  it('declara nível de correção M no format info', () => {
+  it('declares error correction level M in the format info', () => {
     const { ecLevel, mask } = readFormat(modules)
     expect(ecLevel).toBe(0b00) // M
     expect(mask).toBeGreaterThanOrEqual(0)
     expect(mask).toBeLessThan(8)
   })
 
-  it('escreve as DUAS cópias do format info com os mesmos bits', () => {
+  it('writes BOTH copies of the format info with the same bits', () => {
     const bit = (r: number, c: number): number => (modules[r]![c]! ? 1 : 0)
     const first: number[] = []
     for (let i = 0; i <= 5; i++) first.push(bit(i, 8))
@@ -507,15 +507,15 @@ describe('qrMatrix: estrutura', () => {
   })
 })
 
-describe('qrMatrix: decodifica de volta (é isto que prova que escaneia)', () => {
-  it('devolve exatamente o payload Pix real', () => {
+describe('qrMatrix: it decodes back (that is what proves it scans)', () => {
+  it('returns exactly the real Pix payload', () => {
     const decoded = decode(qrMatrix(PIX_PAYLOAD))
     expect(decoded.text).toBe(PIX_PAYLOAD)
     expect(decoded.ecLevel).toBe(0b00) // M
   })
 
-  it('faz o round-trip em todas as faixas de versão (v1..v10)', () => {
-    // Um payload por versão: o tamanho exato da capacidade daquela versão.
+  it('does the round-trip in every version range (v1..v10)', () => {
+    // One payload per version: the exact size of that version's capacity.
     for (let v = 1; v <= 10; v++) {
       const payload = 'A'.repeat(capacityBytes(v))
       const decoded = decode(qrMatrix(payload))
@@ -524,13 +524,13 @@ describe('qrMatrix: decodifica de volta (é isto que prova que escaneia)', () =>
     }
   })
 
-  it('faz o round-trip de payloads variados', () => {
+  it('round-trips varied payloads', () => {
     const cases = [
       'x',
       'https://pix.asaas.com/qr/cobv/618c88aa-7beb-4abf-ad17-4213dc8fa380',
       '0'.repeat(100),
-      'pay_1234567890 R$ 1,99',
-      // 213 bytes = o teto absoluto do nosso suporte (v10, nível M).
+      'pay_1234567890 R$ 1.99',
+      // 213 bytes = the absolute ceiling of our support (v10, level M).
       'Z'.repeat(213),
     ]
     for (const payload of cases) {
@@ -538,61 +538,61 @@ describe('qrMatrix: decodifica de volta (é isto que prova que escaneia)', () =>
     }
   })
 
-  it('lança quando o payload passa do teto de 213 bytes', () => {
+  it('throws when the payload goes over the 213-byte ceiling', () => {
     expect(() => qrMatrix('Z'.repeat(214))).toThrow(/213/)
   })
 })
 
-describe('qrcode: a fronteira de capacidade, em bytes de Pix de verdade', () => {
-  // O teto (213 bytes, v10/M) não é abstrato: um BR Code o alcança. Estes números
-  // são o orçamento real — se um deles estourar, o handler de Pix vira um 500.
-  it('cobre o BR Code real do sandbox com folga', () => {
+describe('qrcode: the capacity boundary, in real Pix bytes', () => {
+  // The ceiling (213 bytes, v10/M) is not abstract: a BR Code reaches it. These numbers
+  // are the real budget — if one of them overflows, the Pix handler becomes a 500.
+  it('covers the real sandbox BR Code with room to spare', () => {
     expect(PIX_PAYLOAD.length).toBe(184)
     expect(chooseVersion(PIX_PAYLOAD.length)).toBe(10)
     expect(capacityBytes(10) - PIX_PAYLOAD.length).toBeGreaterThanOrEqual(29)
   })
 
-  it('cobre o pior caso com URL do Asaas + nome/cidade no máximo (198 bytes)', () => {
+  it('covers the worst case with the Asaas URL + a maxed-out name/city (198 bytes)', () => {
     expect(() => qrMatrix('x'.repeat(198))).not.toThrow()
   })
 
-  it('NÃO cobre URL do Asaas + txid longo (220 bytes) — o limite conhecido', () => {
-    // Um txid de 25 chars junto de uma URL de 60 estoura a v10. O handler hoje usa
-    // txid `***` e URL curta (172 bytes no pior caso), então não chega perto — mas
-    // se alguém passar um txid real, é aqui que quebra, e é preciso suportar v11+.
-    expect(() => qrMatrix('x'.repeat(220))).toThrow(/não cabem/)
+  it('does NOT cover the Asaas URL + a long txid (220 bytes) — the known limit', () => {
+    // A 25-char txid together with a 60-char URL overflows v10. The handler today uses
+    // the `***` txid and a short URL (172 bytes in the worst case), so it does not get close — but
+    // if someone passes a real txid, this is where it breaks, and v11+ has to be supported.
+    expect(() => qrMatrix('x'.repeat(220))).toThrow(/do not fit/)
   })
 })
 
 describe('qrPng', () => {
-  it('devolve base64 cujo prefixo é a assinatura PNG', () => {
+  it('returns base64 whose prefix is the PNG signature', () => {
     const b64 = qrPng(PIX_PAYLOAD)
     const bytes = Buffer.from(b64, 'base64')
     expect(bytes.subarray(0, 8)).toEqual(Buffer.from('\x89PNG\r\n\x1a\n', 'binary'))
-    // Sem o prefixo `data:` — o campo `encodedImage` do Asaas é base64 puro.
+    // Without the `data:` prefix — Asaas's `encodedImage` field is plain base64.
     expect(b64.startsWith('data:')).toBe(false)
     expect(b64).toMatch(/^[A-Za-z0-9+/]+=*$/)
   })
 
-  it('o PNG, lido de volta, dá a MESMA matriz que qrMatrix', () => {
+  it('the PNG, read back, gives the SAME matrix as qrMatrix', () => {
     const png = readPng(qrPng(PIX_PAYLOAD, { scale: 6, quietZone: 4 }))
     expect(matrixFromPng(png, 6, 4)).toEqual(qrMatrix(PIX_PAYLOAD))
   })
 
-  it('o PNG do payload Pix real decodifica de volta para o payload', () => {
+  it('the PNG of the real Pix payload decodes back to the payload', () => {
     const png = readPng(qrPng(PIX_PAYLOAD, { scale: 8, quietZone: 4 }))
     const decoded = decode(matrixFromPng(png, 8, 4))
     expect(decoded.text).toBe(PIX_PAYLOAD)
   })
 
-  it('tem quiet zone de 4 módulos e escala configurável', () => {
+  it('has a 4-module quiet zone and a configurable scale', () => {
     const png = readPng(qrPng(PIX_PAYLOAD, { scale: 4, quietZone: 4 }))
     const size = qrMatrix(PIX_PAYLOAD).length
     expect(png.width).toBe((size + 8) * 4)
     expect(png.height).toBe(png.width)
   })
 
-  it('é determinístico', () => {
+  it('is deterministic', () => {
     expect(qrPng(PIX_PAYLOAD)).toBe(qrPng(PIX_PAYLOAD))
   })
 })

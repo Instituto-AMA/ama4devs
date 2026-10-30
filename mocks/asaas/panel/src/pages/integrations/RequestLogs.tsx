@@ -1,10 +1,11 @@
 /**
- * "Logs de Requisições" da conta selecionada: cada chamada que a sua aplicação fez
- * à API (`/v3`), com o que foi enviado e o que voltou — o sucesso e a recusa (400,
- * 401 de uma chave desativada, 404 de um endpoint que não existe).
+ * "Logs de Requisições" of the selected account: every call your application
+ * made to the API (`/v3`), with what was sent and what came back — the success
+ * and the refusal (400, 401 of a deactivated key, 404 of an endpoint that does
+ * not exist).
  *
- * A lista vem sem os corpos; o detalhe busca a chamada aberta. Ficam as últimas
- * 1000 chamadas da conta.
+ * The list comes without the bodies; the detail fetches the opened call. The
+ * last 1000 calls of the account are kept.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type RequestLog } from '../../api.ts'

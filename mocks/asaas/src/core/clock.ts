@@ -1,19 +1,19 @@
 /**
- * O relógio. É a fronteira de disciplina do projeto inteiro.
+ * The clock. It is the discipline boundary of the whole project.
  *
- * `Date.now()`, `new Date()` (sem argumento) e `Date` implícito são PROIBIDOS em
- * todo o resto do código. Um único vazamento e a viagem no tempo passa a gravar
- * a data real: o determinismo morre em silêncio e o bug reaparece como um teste
- * intermitente três meses depois. Há um teste (tests/unit/no-ambient-time) que
- * faz grep no fonte para garantir isso.
+ * `Date.now()`, `new Date()` (without an argument) and an implicit `Date` are
+ * FORBIDDEN everywhere else in the code. A single leak and the time travel starts
+ * recording the real date: determinism dies in silence and the bug comes back as
+ * a flaky test three months later. There is a test (tests/unit/no-ambient-time)
+ * that greps the sources to guarantee this.
  *
- * Modos:
- *   REAL             segue o relógio do sistema. Default; paridade com dev.
- *   VIRTUAL_FLOWING  offset do relógio real — o tempo anda, mas você pode pular.
- *   VIRTUAL_FROZEN   só anda quando você manda. É o modo dos testes e do CI.
+ * Modes:
+ *   REAL             follows the system clock. Default; parity with development.
+ *   VIRTUAL_FLOWING  offset of the real clock — time flows, but you can skip ahead.
+ *   VIRTUAL_FROZEN   only moves when you tell it to. It is the mode of the tests and of CI.
  */
 
-/** Fuso de negócio do Asaas. Todo o cálculo de data acontece nele. */
+/** Asaas's business timezone. Every date calculation happens in it. */
 export const BUSINESS_TZ = 'America/Sao_Paulo'
 
 export type ClockMode = 'REAL' | 'VIRTUAL_FLOWING' | 'VIRTUAL_FROZEN'
@@ -21,9 +21,9 @@ export type ClockMode = 'REAL' | 'VIRTUAL_FLOWING' | 'VIRTUAL_FROZEN'
 export interface Clock {
   nowMs(): number
   now(): Date
-  /** 'YYYY-MM-DD' no fuso de negócio. */
+  /** 'YYYY-MM-DD' in the business timezone. */
   today(): string
-  /** 'YYYY-MM-DD HH:mm:ss' no fuso de negócio. */
+  /** 'YYYY-MM-DD HH:mm:ss' in the business timezone. */
   timestamp(): string
   readonly mode: ClockMode
 }
@@ -43,14 +43,14 @@ const TIME_FMT = new Intl.DateTimeFormat('en-GB', {
   hour12: false,
 })
 
-/** Date → 'YYYY-MM-DD' no fuso de negócio. */
+/** Date → 'YYYY-MM-DD' in the business timezone. */
 export function toBusinessDate(d: Date): string {
   return DATE_FMT.format(d)
 }
 
-/** Date → 'YYYY-MM-DD HH:mm:ss' no fuso de negócio. */
+/** Date → 'YYYY-MM-DD HH:mm:ss' in the business timezone. */
 export function toBusinessTimestamp(d: Date): string {
-  // en-GB dá '24:00:00' à meia-noite em vez de '00:00:00'.
+  // en-GB gives '24:00:00' at midnight instead of '00:00:00'.
   const time = TIME_FMT.format(d).replace(/^24:/, '00:')
   return `${DATE_FMT.format(d)} ${time}`
 }
@@ -73,9 +73,9 @@ export class RealClock implements Clock {
 
 export class VirtualClock implements Clock {
   #mode: Exclude<ClockMode, 'REAL'>
-  /** VIRTUAL_FROZEN: o instante. VIRTUAL_FLOWING: a base do offset. */
+  /** VIRTUAL_FROZEN: the instant. VIRTUAL_FLOWING: the base of the offset. */
   #epochMs: number
-  /** VIRTUAL_FLOWING: o instante real correspondente a #epochMs. */
+  /** VIRTUAL_FLOWING: the real instant that corresponds to #epochMs. */
   #anchorRealMs: number
 
   constructor(startMs: number, mode: Exclude<ClockMode, 'REAL'> = 'VIRTUAL_FROZEN') {
@@ -125,7 +125,7 @@ export class VirtualClock implements Clock {
     this.#mode = 'VIRTUAL_FLOWING'
   }
 
-  /** Para persistir em clock_state e sobreviver ao restart do container. */
+  /** To persist in clock_state and survive the container restart. */
   snapshot() {
     return {
       mode: this.#mode,
@@ -140,29 +140,30 @@ export const HOUR_MS = 3_600_000
 export const DAY_MS = 86_400_000
 
 /**
- * O tempo REAL da máquina. O único `Date.now()` sancionado fora do relógio.
+ * The REAL time of the machine. The only sanctioned `Date.now()` outside the clock.
  *
- * Serve para responder "quanto o simulador está adiantado em relação ao mundo?" —
- * a pergunta que o painel precisa fazer para avisar que uma cobrança nova vai
- * nascer OVERDUE. Não use isto para NADA que entre no domínio: ali só entra
- * `clock.now()`, e o teste de determinismo derruba quem tentar.
+ * It serves to answer "how far ahead of the world is the simulator?" — the
+ * question the panel needs to ask to warn that a new charge will be born OVERDUE.
+ * Do not use it for ANYTHING that enters the domain: there only `clock.now()`
+ * goes, and the determinism test brings down whoever tries.
  */
 export function realNowMs(): number {
   return Date.now()
 }
 
-/** Dias que o relógio do simulador está à frente do tempo real. Negativo = passado. */
+/** Days the simulator's clock is ahead of real time. Negative = the past. */
 export function driftDays(clock: Clock): number {
   return Math.round((clock.nowMs() - realNowMs()) / DAY_MS)
 }
 
 /**
- * Constrói o relógio. Mora aqui, e não no bootstrap, porque semear um relógio
- * virtual exige ler o relógio REAL — e este é o único módulo autorizado a isso.
+ * Builds the clock. It lives here, and not in the bootstrap, because seeding a
+ * virtual clock requires reading the REAL clock — and this is the only module
+ * allowed to do that.
  *
- * `savedEpochMs` vem de `clock_state`: o relógio virtual é persistido, senão um
- * restart do container voltaria o relógio ao presente enquanto o banco
- * continuaria "no futuro".
+ * `savedEpochMs` comes from `clock_state`: the virtual clock is persisted, or a
+ * container restart would take the clock back to the present while the database
+ * kept being "in the future".
  */
 export function createClock(opts: {
   mode: ClockMode
@@ -178,7 +179,7 @@ export function createClock(opts: {
       : Date.now())
 
   if (Number.isNaN(startMs)) {
-    throw new Error(`CLOCK_START inválido: "${opts.start}"`)
+    throw new Error(`Invalid CLOCK_START: "${opts.start}"`)
   }
 
   return new VirtualClock(startMs, opts.mode)

@@ -41,7 +41,7 @@ const COMPOSER_MAX_HEIGHT = 160
  */
 function byId(id) {
   const element = document.getElementById(id)
-  if (!element) throw new Error(`elemento ausente: #${id}`)
+  if (!element) throw new Error(`missing element: #${id}`)
   return element
 }
 
@@ -615,7 +615,7 @@ function otpChip(code) {
 function copyCode(code) {
   try {
     const clipboard = navigator.clipboard
-    if (!clipboard) throw new Error('no clipboard in the browser')
+    if (!clipboard) throw new Error('clipboard is unavailable')
     void clipboard.writeText(code).then(
       () => toast(t('toast.copied')),
       () => toast(t('toast.copyFailed'), true),

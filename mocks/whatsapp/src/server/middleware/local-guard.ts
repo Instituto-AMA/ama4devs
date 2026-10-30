@@ -45,7 +45,7 @@ export function localGuard(hosts: string[]): MiddlewareHandler {
 		if (!hostname || !hosts.includes(hostname)) {
 			return forbidden(
 				c,
-				'Host não permitido para rotas locais.',
+				'Host not allowed for local routes.',
 				'forbidden_host'
 			)
 		}
@@ -55,7 +55,7 @@ export function localGuard(hosts: string[]): MiddlewareHandler {
 			if (origin !== undefined && !isAllowedOrigin(origin, hosts)) {
 				return forbidden(
 					c,
-					'Origin não permitida para rotas locais.',
+					'Origin not allowed for local routes.',
 					'forbidden_origin'
 				)
 			}

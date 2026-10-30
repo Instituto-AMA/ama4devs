@@ -1,13 +1,15 @@
 /**
- * Um dos quatro cards de "Situação das cobranças".
+ * One of the four cards of "Situação das cobranças".
  *
- * A barra segmentada mostra a composição por MEIO DE PAGAMENTO, e não é enfeite:
- * é o que responde "por que meu saldo não subiu?" sem abrir a lista. Cartão credita
- * em D+32, boleto em D+1 útil, Pix na hora — um card "Confirmadas" que é 90% cartão
- * conta uma história bem diferente de um que é 90% Pix.
+ * The segmented bar shows the composition by PAYMENT METHOD, and it is not
+ * decoration: it is what answers "why did my balance not go up?" without
+ * opening the list. The card credits in D+32, the bank slip in 1 business day,
+ * Pix on the spot — a "Confirmed" card that is 90% card tells a very different
+ * story from one that is 90% Pix.
  *
- * Os segmentos somam EXATAMENTE o total: o último absorve o resto da divisão, senão
- * uma sobra de 0,3% deixaria uma fresta na barra que ninguém consegue explicar.
+ * The segments add up EXACTLY to the total: the last one absorbs the remainder
+ * of the division, otherwise a leftover of 0,3% would leave a gap in the bar
+ * that nobody can explain.
  */
 import type { GroupSummary, SummaryGroup } from '../api.ts'
 import * as I from '../icons.ts'

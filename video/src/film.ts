@@ -53,7 +53,7 @@ interface Film {
   tagline: string
   chapters: string[]
   intro: { voice: string | null }
-  outro: { voice: string | null; chips: string[]; line: string }
+  closing: { voice: string | null; chips: string[]; line: string }
   beats: BeatEntry[]
 }
 
@@ -150,7 +150,7 @@ export const beats: Beat[] = film.beats.map((entry, index) => {
 /** The opening card, before the first screen: as long as its narration. */
 export const INTRO_FRAMES = voiceFrames(film.intro.voice) + 24
 /** The closing card, after the last screen: as long as its narration. */
-export const OUTRO_FRAMES = voiceFrames(film.outro.voice) + 44
+export const CLOSING_FRAMES = voiceFrames(film.closing.voice) + 44
 
 /** Every narration of the film, placed on the timeline. */
 export const voiceCues: VoiceCue[] = []
@@ -193,8 +193,8 @@ for (const beat of beats) {
 }
 
 /** The frame the last screen gives way to the closing card. */
-export const OUTRO_FROM = cursor + DISSOLVE
-export const TOTAL_FRAMES = OUTRO_FROM + OUTRO_FRAMES
+export const CLOSING_FROM = cursor + DISSOLVE
+export const TOTAL_FRAMES = CLOSING_FROM + CLOSING_FRAMES
 
 /**
  * The shot on the screen at a given frame. During a dissolve the shot that
@@ -210,12 +210,12 @@ export const beatAt = (frame: number): Beat | null => {
   return current
 }
 
-place(film.outro.voice, OUTRO_FROM + 18)
+place(film.closing.voice, CLOSING_FROM + 18)
 
 export const filmInfo = {
   title: film.title,
   kicker: film.kicker,
   tagline: film.tagline,
-  chips: film.outro.chips,
-  line: film.outro.line,
+  chips: film.closing.chips,
+  line: film.closing.line,
 }

@@ -1,17 +1,20 @@
 /**
- * Os webhooks DA CONTA SELECIONADA: cadastrar, editar (URL, token, tipo de envio, fila
- * e QUAIS EVENTOS chegam), excluir — e por que a fila de cada um não está andando.
+ * The webhooks OF THE SELECTED ACCOUNT: register, edit (URL, token, send type,
+ * queue and WHICH EVENTS arrive), delete — and why the queue of each one is not
+ * moving.
  *
- * Webhook é configuração da conta, não do simulador. Um evento da conta X só é
- * entregue aos webhooks de X, e a chave de X é a única que os enxerga (a de outra conta
- * devolve 404). Por isso toda AÇÃO aqui vai pela API v3 REAL, com a chave da conta:
- * o formulário monta o mesmo `POST`/`PUT /v3/webhooks` que a sua aplicação montaria, e
- * nada te ensina um truque que não existe no Asaas.
+ * A webhook is configuration of the account, not of the simulator. An event of
+ * account X is only delivered to the webhooks of X, and the key of X is the only
+ * one that sees them (the one of another account answers 404). That is why
+ * every ACTION here goes through the REAL v3 API, with the key of the account:
+ * the form builds the same `POST`/`PUT /v3/webhooks` your application would
+ * build, and nothing teaches you a trick that does not exist in Asaas.
  *
- * O DIAGNÓSTICO da fila é introspecção nossa; o Asaas não te dá isso. Existe porque o
- * motor é fiel demais para ser opaco: em `SEQUENTIALLY` (o padrão do Asaas), UMA entrega
- * que falha trava TODAS as seguintes — head-of-line blocking de verdade. O sintoma na
- * ponta é "o Asaas diz RECEIVED, mas meu pedido continua pendente".
+ * The DIAGNOSIS of the queue is our introspection; Asaas does not give you
+ * that. It exists because the engine is too faithful to be opaque: in
+ * `SEQUENTIALLY` (the Asaas default), ONE failed delivery freezes ALL the
+ * following ones — real head-of-line blocking. The symptom on the other end is
+ * "Asaas says RECEIVED, but my order is still pending".
  */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { admin, v3, type QueueHealth, type Webhook } from '../../api.ts'
@@ -310,11 +313,11 @@ function generateToken(): string {
 }
 
 /**
- * "Adicionar Webhook" / editar — os campos do formulário do Asaas, um a um.
+ * "Adicionar Webhook" / edit — the fields of the Asaas form, one by one.
  *
- * Na edição, e-mail e versão da API ficam travados: o `PUT /v3/webhooks/{id}` do Asaas
- * não os aceita. Um campo editável aqui que a API ignora seria exatamente a mentira
- * útil que este painel não pode contar.
+ * On the edit, e-mail and API version are locked: the Asaas
+ * `PUT /v3/webhooks/{id}` does not accept them. A field editable here that the
+ * API ignores would be exactly the useful lie this panel cannot tell.
  */
 function WebhookForm(props: {
   apiKey: string

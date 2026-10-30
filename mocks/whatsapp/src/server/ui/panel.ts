@@ -1448,6 +1448,9 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     'Para onde vão os eventos': 'Where the events go',
     'O mock chama este endereço com cada mensagem do usuário e cada mudança de status, no formato da Cloud API. Endereços em localhost chegam à sua máquina mesmo com o mock em container.': 'The mock calls this address with every user message and every status change, in the Cloud API format. Addresses on localhost reach your machine even with the mock in a container.',
     'Configurar o destino': 'Set the destination',
+    'Igual à Meta: cada número aponta para o próprio endereço, e o mock chama o endereço com um desafio antes de aceitar.': 'Like Meta: each number points to its own address, and the mock calls the address with a challenge before accepting it.',
+    'Token de verificação (opcional)': 'Verification token (optional)',
+    'Pular a verificação': 'Skip verification',
     'Cada número da clínica pode apontar para um endereço diferente. Salvar grava o destino só para aquele número.': 'Every clinic number can point to a different address. Saving records the destination for that number only.',
     'Endereço do webhook': 'Webhook address',
     'Salvar webhook': 'Save webhook',
@@ -1466,6 +1469,8 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
     'Idioma': 'Language',
     'Tipo': 'Type',
     'Revisão': 'Review',
+    'Simulação da revisão': 'Review simulation',
+    'Em análise por': 'In review for',
     'Motivo': 'Reason',
     'Corpo': 'Body',
     'Variáveis do corpo': 'Body variables',
@@ -4227,7 +4232,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
       if (open < 0) break;
       var close = text.indexOf('}}', open + 2);
       if (close < 0) break;
-      /* Positional ({{1}}) or named ({{nome_paciente}}), as Meta takes them. */
+      /* Positional ({{1}}) or named ({{patient_name}}), as Meta takes them. */
       var number = text.slice(open + 2, close).trim();
       if (/^([0-9]+|[a-z_][a-z0-9_]*)$/.test(number) && found.indexOf(number) < 0) found.push(number);
       at = close + 2;

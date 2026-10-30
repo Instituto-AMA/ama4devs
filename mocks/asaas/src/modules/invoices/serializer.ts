@@ -1,5 +1,5 @@
 /**
- * A nota fiscal no formato de resposta da API (InvoiceGetResponseDTO). The
+ * The fiscal note in the API answer format (InvoiceGetResponseDTO). The
  * same shape answers `/v3/invoices`, `/v3/subscriptions/{id}/invoices` and the
  * `invoice` key of the INVOICE_* webhooks.
  */

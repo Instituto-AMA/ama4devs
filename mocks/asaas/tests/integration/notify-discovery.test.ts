@@ -134,13 +134,13 @@ describe('the channels are found where they answer', () => {
     expect(looked.callback).toBe(false)
   })
 
-  it('an off channel says in Integrações where it was looked for', async () => {
+  it('an off channel says in the Integrations panel where it was looked for', async () => {
     await boot({ mailpit: [dead], whatsapp: [dead], generator: [], callback: true })
     await lookForChannels(h.app.ctx)
     const status = await h.app.app.handle(new Request('http://localhost/_admin/notify/status'))
     const body = (await status.json()) as any
     expect(body.email).toMatchObject({ on: false, reachable: false })
-    expect(body.email.error).toContain('nenhum Mailpit respondendo')
+    expect(body.email.error).toContain('no Mailpit answering')
   })
 })
 

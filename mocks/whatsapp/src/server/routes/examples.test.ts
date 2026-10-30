@@ -53,7 +53,7 @@ describe('The example templates (templates/examples)', () => {
 
 		expect(data).toHaveLength(files.length)
 		expect(data).toContainEqual({
-			name: 'exemplo_vitrine_tratamentos',
+			name: 'example_treatments_showcase',
 			language: 'pt_BR',
 		})
 		// The application's own seeds are not examples.
@@ -64,20 +64,20 @@ describe('The example templates (templates/examples)', () => {
 	})
 
 	test('the sample media of a header is served, and only from the media folder', async () => {
-		const image = await call('/settings/examples/media/consulta.jpg')
+		const image = await call('/settings/examples/media/appointment.jpg')
 		expect(image.status).toBe(200)
 		expect(image.headers.get('content-type')).toBe('image/jpeg')
 
-		const video = await call('/settings/examples/media/cuidados.mp4')
+		const video = await call('/settings/examples/media/care.mp4')
 		expect(video.headers.get('content-type')).toBe('video/mp4')
 
 		expect((await call('/settings/examples/media/nada.jpg')).status).toBe(404)
 		expect(
-			(await call('/settings/examples/media/..%2Fexemplo_como_chegar.json'))
+			(await call('/settings/examples/media/..%2Fexample_directions.json'))
 				.status
 		).toBe(404)
 		expect(
-			(await call('/settings/examples/media/exemplo_como_chegar.json')).status
+			(await call('/settings/examples/media/example_directions.json')).status
 		).toBe(404)
 	})
 
@@ -88,7 +88,7 @@ describe('The example templates (templates/examples)', () => {
 			to: user,
 			type: 'template',
 			template: {
-				name: 'exemplo_oferta_relampago',
+				name: 'example_flash_offer',
 				language: { code: 'pt_BR' },
 				components: [
 					{
@@ -97,7 +97,7 @@ describe('The example templates (templates/examples)', () => {
 							{
 								type: 'image',
 								image: {
-									link: 'http://localhost:3010/settings/examples/media/clareamento.jpg',
+									link: 'http://localhost:3010/settings/examples/media/whitening.jpg',
 								},
 							},
 						],
@@ -139,7 +139,7 @@ describe('The example templates (templates/examples)', () => {
 			text: 'Clareamento pela metade',
 			expiresAt: ends,
 		})
-		expect(view.header.media.src).toContain('/clareamento.jpg')
+		expect(view.header.media.src).toContain('/whitening.jpg')
 		expect(view.body).toContain('Mariana, só nesta semana')
 		expect(view.buttons).toEqual([
 			{ type: 'COPY_CODE', text: 'Copiar código', detail: 'METADE50' },

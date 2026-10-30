@@ -29,7 +29,7 @@ async function findOwned(
   return row as AnticipationRow
 }
 
-/** Quanto desta conta já está antecipado e ainda não liquidou. */
+/** How much of this account is already anticipated and has not settled yet. */
 async function usedLimitCents(
   ctx: AppContext,
   accountId: string,
@@ -51,11 +51,11 @@ async function usedLimitCents(
 
 export const anticipationHandlers: HandlerMap = {
   /**
-   * POST /v3/anticipations — antecipar.
+   * POST /v3/anticipations — anticipate.
    *
-   * O dinheiro entra AGORA se a cobrança já está confirmada. Se ainda está
-   * pendente (o pagador não pagou), a antecipação nasce SCHEDULED e o
-   * `anticipation-settlement` a credita quando o pagamento for confirmado.
+   * The money comes in NOW if the charge is already confirmed. If it is still
+   * pending (the payer did not pay), the anticipation is born SCHEDULED and
+   * `anticipation-settlement` credits it when the payment is confirmed.
    */
   'request-anticipation': async ({ ctx, auth, body }) => {
     const target = await resolveTarget(ctx, auth, body, { simulate: false })
@@ -63,11 +63,12 @@ export const anticipationHandlers: HandlerMap = {
   },
 
   /**
-   * POST /v3/anticipations/simulate — a mesma conta, sem gravar nada.
+   * POST /v3/anticipations/simulate — the same account, without writing anything.
    *
-   * É o endpoint que o integrador chama para mostrar a taxa na tela antes de o
-   * lojista decidir. Se ele divergir do POST real, a integração mente para o
-   * usuário — por isso os dois passam pela MESMA função de cotação.
+   * It is the endpoint the integrator calls to show the fee on the screen before
+   * the merchant decides. If it diverged from the real POST, the integration
+   * would lie to the user — that is why both go through the SAME quoting
+   * function.
    */
   'simulate-anticipation': async ({ ctx, auth, body }) => {
     const { payment, quote } = await resolveTarget(ctx, auth, body, { simulate: true })
@@ -82,10 +83,10 @@ export const anticipationHandlers: HandlerMap = {
       netValue: centsToBrl(quote.netValueCents),
       totalValue: centsToBrl(quote.totalValueCents),
       value: centsToBrl(quote.valueCents),
-      // TODO(regra): a doc não define quando o documento é exigido. Cartão de
-      // crédito confirmado é dinheiro certo (a operadora já autorizou); boleto
-      // ainda pendente depende de o pagador pagar, e é aí que o Asaas pede nota
-      // fiscal ou contrato.
+      // TODO(rule): the docs do not define when the document is required. A
+      // confirmed credit card is certain money (the issuer already authorized
+      // it); a pending bank slip depends on the payer paying, and that is where
+      // Asaas asks for a fiscal note or a contract.
       isDocumentationRequired: payment.billingType !== 'CREDIT_CARD',
     }
   },
@@ -122,16 +123,16 @@ export const anticipationHandlers: HandlerMap = {
     serializeAnticipation(await findOwned(ctx, auth, params.id!)),
 
   'cancel-anticipation': async ({ ctx, auth, params }) => {
-    await findOwned(ctx, auth, params.id!) // 404 antes de 400
+    await findOwned(ctx, auth, params.id!) // 404 before 400
     return cancelAnticipation(ctx, auth, params.id!)
   },
 
   /**
-   * GET /v3/anticipations/limits — quanto ainda dá para antecipar.
+   * GET /v3/anticipations/limits — how much can still be anticipated.
    *
-   * TODO(regra): o limite real é uma análise de crédito do Asaas, sem fórmula
-   * pública. Usamos um teto fixo por tipo de recebível e descontamos o que já
-   * está antecipado e ainda não liquidou. Veja progress.md.
+   * TODO(rule): the real limit is a credit analysis of Asaas, with no public
+   * formula. We use a fixed ceiling per type of receivable and subtract what is
+   * already anticipated and has not settled yet. See progress.md.
    */
   'retrieve-anticipation-limits': async ({ ctx, auth }) => {
     const total = centsToBrl(ANTICIPATION_LIMIT_CENTS)
@@ -157,10 +158,10 @@ export const anticipationHandlers: HandlerMap = {
     getAutoConfig(ctx.db, auth.accountId),
 
   /**
-   * PUT /v3/anticipations/configurations — liga/desliga a antecipação
-   * automática de cartão. O flag NÃO é decorativo: com ele ligado, o
-   * `anticipation-settlement` antecipa sozinho toda cobrança de cartão que for
-   * confirmada. Um booleano que não faz nada seria falsa confiança.
+   * PUT /v3/anticipations/configurations — turns the automatic credit card
+   * anticipation on and off. The flag is NOT decorative: with it on,
+   * `anticipation-settlement` anticipates on its own every card charge that
+   * gets confirmed. A boolean that does nothing would be false confidence.
    */
   'update-status-of-automatic-anticipation': async ({ ctx, auth, body }) => {
     const b = (body ?? {}) as Record<string, any>

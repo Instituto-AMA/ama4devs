@@ -8,7 +8,7 @@
   <meta name="keywords" content="generator quick start, brazilian fake data api, cpf generator api, asaas populate, seed fixtures, deterministic generator">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/quick-start/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/quick-start/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/quick-start/">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="ama4devs">
@@ -38,7 +38,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="../../pt-br/generator/quick-start/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="../../portuguese/generator/quick-start/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -213,7 +213,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
 
               <li id="asaas">
                 <h3>Populate Asaas</h3>
-                <p>When running alongside the Asaas mock (such as with <code>make up</code>), the integration is zero-config: the Asaas mock discovers the generator by itself on boot and every 10 s. The Asaas panel (<a href="http://localhost:45445">http://localhost:45445</a>) displays an <strong>Integrações › Gerador</strong> tab with status, a link to open the generator, and a <strong>Popular esta conta</strong> button to seed the account selected in the topbar with customers and charges.</p>
+                <p>When running alongside the Asaas mock (such as with <code>make up</code>), the integration is zero-config: the Asaas mock discovers the generator by itself on boot and every 10 s. The Asaas panel (<a href="http://localhost:45445">http://localhost:45445</a>) displays an <strong>Integrations › Generator</strong> tab with status, a link to open the generator, and a <strong>Populate this account</strong> button to seed the account selected in the topbar with customers and charges.</p>
                 <p>You can also populate the mock in one HTTP call. The generator creates customers, generates charges with varied billing types (Pix, boleto, credit card), and automatically confirms payments for a configurable percentage:</p>
                 <div class="code" data-local-only="only on your container"><pre><code>curl -X POST http://localhost:45450/_mock/asaas/populate \
   -H 'Content-Type: application/json' \
@@ -271,7 +271,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
 
               <li id="off">
                 <h3>Turn it off</h3>
-                <p>The generator is enabled by default. In Docker Compose, set <code>GENERATOR_ENABLED=0</code> in <code>.env</code> to keep the service down (via <code>deploy.replicas</code>). On the Asaas mock side, setting <code>GENERATOR_URL=</code> (empty) disables generator discovery. When turned off or unreachable, the <strong>Integrações › Gerador</strong> tab does not exist in the Asaas panel.</p>
+                <p>The generator is enabled by default. In Docker Compose, set <code>GENERATOR_ENABLED=0</code> in <code>.env</code> to keep the service down (via <code>deploy.replicas</code>). On the Asaas mock side, setting <code>GENERATOR_URL=</code> (empty) disables generator discovery. When turned off or unreachable, the <strong>Integrations › Generator</strong> tab does not exist in the Asaas panel.</p>
               </li>
             </ol>
           </div>

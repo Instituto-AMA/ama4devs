@@ -248,7 +248,7 @@ describe('populate', () => {
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]!.step).toBe('asaas')
     expect(result.errors[0]!.status).toBe(0)
-    expect(result.errors[0]!.message).toContain('Asaas não encontrado')
+    expect(result.errors[0]!.message).toContain('Asaas not found')
     expect(result.customers).toHaveLength(0)
     expect(result.payments).toHaveLength(0)
     expect(asaas.calls).toHaveLength(0)

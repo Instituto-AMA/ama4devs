@@ -30,7 +30,7 @@ export const notificationDeliveries = sqliteTable(
     html: text('html'),
     /** The WhatsApp template and its positional parameters ({{1}}, {{2}}…). */
     template: json<{ name: string; language: string; params: string[] }>('template'),
-    /** Sent from the panel's "Enviar agora", whatever the customer's settings. */
+    /** Sent from the panel's Send now action, whatever the customer's settings. */
     forced: bool('forced').notNull(),
     status: text('status', { enum: ['PENDING', 'SENT', 'FAILED'] }).notNull(),
     attempt: integer('attempt').notNull(),

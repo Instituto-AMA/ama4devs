@@ -1,0 +1,56 @@
+{
+	"name": "example_treatments_showcase",
+	"language": "pt_BR",
+	"category": "MARKETING",
+	"components": [
+		{
+			"type": "BODY",
+			"text": "{{1}}, conheça os tratamentos mais procurados deste mês. Arraste para o lado 👉",
+			"example": { "body_text": [["Mariana"]] }
+		},
+		{
+			"type": "CAROUSEL",
+			"cards": [
+				{
+					"components": [
+						{ "type": "HEADER", "format": "IMAGE", "example": { "header_handle": ["/settings/examples/media/whitening.jpg"] } },
+						{ "type": "BODY", "text": "Clareamento a laser em 2 sessões, com avaliação inclusa." },
+						{
+							"type": "BUTTONS",
+							"buttons": [
+								{ "type": "QUICK_REPLY", "text": "Quero este" },
+								{ "type": "URL", "text": "Ver preços", "url": "https://clinica.exemplo/clareamento" }
+							]
+						}
+					]
+				},
+				{
+					"components": [
+						{ "type": "HEADER", "format": "IMAGE", "example": { "header_handle": ["/settings/examples/media/lenses.jpg"] } },
+						{ "type": "BODY", "text": "Lentes de contato em porcelana, planejadas no computador." },
+						{
+							"type": "BUTTONS",
+							"buttons": [
+								{ "type": "QUICK_REPLY", "text": "Quero este" },
+								{ "type": "URL", "text": "Ver preços", "url": "https://clinica.exemplo/lentes" }
+							]
+						}
+					]
+				},
+				{
+					"components": [
+						{ "type": "HEADER", "format": "IMAGE", "example": { "header_handle": ["/settings/examples/media/aligners.jpg"] } },
+						{ "type": "BODY", "text": "Alinhadores transparentes, com consultas a cada 6 semanas." },
+						{
+							"type": "BUTTONS",
+							"buttons": [
+								{ "type": "QUICK_REPLY", "text": "Quero este" },
+								{ "type": "URL", "text": "Ver preços", "url": "https://clinica.exemplo/alinhadores" }
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -6,8 +6,8 @@
  * the pace and the seconds the audio has to last, and the script returns the
  * file, the measured length and the pace that was used.
  *
- *   node scripts/say.mjs --text "Um mock local da API do ásas." --duration 4.5
- *   node scripts/say.mjs --text "..." --pace 0.9 --at 12.4 --id fatura --json
+ *   node scripts/say.mjs --text "A local Asaas API mock." --duration 4.5
+ *   node scripts/say.mjs --text "..." --pace 0.9 --at 12.4 --id invoice --json
  *
  * The options:
  *

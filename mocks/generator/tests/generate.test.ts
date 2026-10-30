@@ -21,15 +21,15 @@ describe('KINDS', () => {
     expect(KINDS.map((kind) => kind.id)).toEqual(KIND_IDS)
   })
 
-  test('every kind carries the pt-BR name the UI shows', () => {
+  test('every kind carries its English API label', () => {
     const label = (id: string): string | undefined => KINDS.find((kind) => kind.id === id)?.label
-    expect(label('person')).toBe('Pessoa')
-    expect(label('company')).toBe('Empresa')
-    expect(label('address')).toBe('Endereço')
-    expect(label('credit-card')).toBe('Cartão de crédito')
-    expect(label('bank-account')).toBe('Conta bancária')
-    expect(label('pix-key')).toBe('Chave Pix')
-    expect(label('charge')).toBe('Cobrança')
+    expect(label('person')).toBe('Person')
+    expect(label('company')).toBe('Company')
+    expect(label('address')).toBe('Address')
+    expect(label('credit-card')).toBe('Credit card')
+    expect(label('bank-account')).toBe('Bank account')
+    expect(label('pix-key')).toBe('Pix key')
+    expect(label('charge')).toBe('Charge')
   })
 })
 

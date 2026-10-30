@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentação do mock do SMS: APIs, ciclo de vida, webhooks e configuração | ama4devs</title>
+  <meta name="description" content="Referência técnica do mock de SMS: três APIs de envio, ciclo de vida das mensagens, números mágicos, webhooks de status e de resposta, contagem de segmentos, extração de OTP e cada configuração.">
+  <meta name="keywords" content="documentação mock sms, api sms, gateway sms simulado, números mágicos sms, webhooks sms, otp sms, segmentos gsm-7 ucs-2, variáveis ambiente sms">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/sms/docs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/sms/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/docs/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Documentação técnica do mock do SMS">
+  <meta property="og:description" content="As três APIs de envio, o ciclo de vida das mensagens, os webhooks, os números mágicos e cada configuração.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/sms/docs/">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="theme-color" content="#312e81">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../../whatsapp/">Mock do WhatsApp</a>
+        <a href="../../asaas/">Mock do Asaas</a>
+        <a href="../../generator/">Gerador</a>
+        <a href="../" aria-current="page">Mock do SMS</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../sms/docs/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock do SMS">
+    <a href="../">Visão geral</a>
+    <a href="../quick-start/">Início rápido</a>
+    <a href="../api/">API</a>
+    <a href="./" aria-current="page">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#api">APIs de envio</a></li>
+            <li><a href="#lifecycle">Ciclo de vida</a></li>
+            <li><a href="#magic-numbers">Números mágicos</a></li>
+            <li><a href="#webhooks">Webhooks</a></li>
+            <li><a href="#inbound">Respostas recebidas</a></li>
+            <li><a href="#testing">Testes</a></li>
+            <li><a href="#segments-otp">Segmentos e OTP</a></li>
+            <li><a href="#panel">O painel</a></li>
+            <li><a href="#control">Rotas de controle</a></li>
+            <li><a href="#config">Variáveis de ambiente</a></li>
+            <li><a href="#guard">Proteção local</a></li>
+            <li><a href="#limits">Limites</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Docs</h1>
+          <p class="lead">As três APIs de envio, o ciclo de vida de cada mensagem, os números mágicos que provocam falhas, os webhooks de status e de resposta, a contagem de segmentos e cada configuração.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <article class="sheet">
+            <section id="api" aria-labelledby="api-title">
+              <h2 id="api-title">APIs de envio</h2>
+              <p>O mock expõe três formas de enviar uma mensagem. Todas compartilham o mesmo armazenamento, o mesmo ciclo de vida e as mesmas regras de validação: mudar de API muda o formato da requisição e da resposta, nunca o comportamento da mensagem.</p>
+              <p>A imagem é <code>ghcr.io/instituto-ama/sms-mock</code> e a porta do container é a <code>8899</code> (<code>SMS_PORT</code> no host):</p>
+              <div class="code"><pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+              <p>No repositório, <code>make up MOCKS=sms</code> sobe o mesmo serviço pelo Compose, e o <code>make up</code> da raiz o traz junto com o mock do Asaas. O painel fica em <code>http://localhost:8899</code>.</p>
+
+              <h3>API nativa</h3>
+              <p><code>POST /v1/messages</code> recebe JSON e devolve a mensagem criada com <strong>201</strong>:</p>
+              <div class="code"><pre><code>POST /v1/messages
+Content-Type: application/json
+
+{
+  "to": "+5511912345678",
+  "body": "Seu codigo de verificacao e 482913.",
+  "from": "AMA4DEVS"
+}</code></pre></div>
+              <p>A resposta é a mensagem inteira, com o estado <code>queued</code> (o ciclo de vida ainda vai caminhar):</p>
+              <div class="code"><pre><code>201 Created
+Content-Type: application/json
+
+{
+  "id": "SM0123456789abcdef0123456789abcdef",
+  "direction": "outbound",
+  "from": "AMA4DEVS",
+  "to": "+5511912345678",
+  "body": "Seu codigo de verificacao e 482913.",
+  "status": "queued",
+  "api": "native",
+  "encoding": "GSM-7",
+  "segments": 1,
+  "codes": ["482913"],
+  "errorCode": null,
+  "errorMessage": null,
+  "callbackUrl": null,
+  "createdAt": "2026-05-04T12:00:00.000Z",
+  "updatedAt": "2026-05-04T12:00:00.000Z",
+  "sentAt": null,
+  "deliveredAt": null,
+  "history": [
+    { "status": "queued", "at": "2026-05-04T12:00:00.000Z" }
+  ]
+}</code></pre></div>
+              <ul>
+                <li><code>to</code>: obrigatório, vira E.164 (<code>+5511912345678</code>). Sem código do país, um número de 10 ou 11 dígitos recebe o código padrão (55).</li>
+                <li><code>body</code>: obrigatório, até 1600 caracteres.</li>
+                <li><code>from</code>: opcional. Um número é normalizado; um identificador alfanumérico (<code>AMA4DEVS</code>) é guardado como está. Sem ele, vale <code>AMA4DEVS</code>.</li>
+                <li><code>callbackUrl</code>: opcional, o endereço que recebe os eventos de status desta mensagem.</li>
+              </ul>
+
+              <h4>Consultar e apagar</h4>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Método</th><th>Rota</th><th>Resposta</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/v1/messages</code></td>
+                      <td><code>{"messages": [...], "count": 3}</code> — a lista vem da mais antiga para a mais nova</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/v1/messages/{id}</code></td>
+                      <td>A mensagem, ou <code>404</code> com <code>not_found</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE</code></td>
+                      <td><code>/v1/messages/{id}</code></td>
+                      <td><code>204</code>, ou <code>404</code> com <code>not_found</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Os filtros da consulta (<code>GET /v1/messages</code>) combinam entre si:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Filtro</th><th>Valores</th><th>Descrição</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>to</code></td>
+                      <td>E.164 exato</td>
+                      <td>Só as mensagens enviadas para este número</td>
+                    </tr>
+                    <tr>
+                      <td><code>from</code></td>
+                      <td>E.164 ou identificador alfanumérico</td>
+                      <td>Só as mensagens enviadas por este remetente</td>
+                    </tr>
+                    <tr>
+                      <td><code>number</code></td>
+                      <td>E.164 exato</td>
+                      <td>Só as mensagens em que o número aparece de qualquer um dos dois lados</td>
+                    </tr>
+                    <tr>
+                      <td><code>status</code></td>
+                      <td><code>queued</code>, <code>sent</code>, <code>delivered</code>, <code>undelivered</code>, <code>failed</code>, <code>received</code></td>
+                      <td>Só as mensagens naquele estado</td>
+                    </tr>
+                    <tr>
+                      <td><code>direction</code></td>
+                      <td><code>outbound</code>, <code>inbound</code></td>
+                      <td>Só as enviadas pelo aplicativo ou só as respondidas pelo aparelho</td>
+                    </tr>
+                    <tr>
+                      <td><code>q</code></td>
+                      <td>Texto</td>
+                      <td>Procura no corpo, nos dois números e nos códigos, sem diferenciar maiúsculas</td>
+                    </tr>
+                    <tr>
+                      <td><code>limit</code></td>
+                      <td>Inteiro positivo</td>
+                      <td>Mantém as mensagens mais recentes (a ordem da mais antiga para a mais nova continua)</td>
+                    </tr>
+                    <tr>
+                      <td><code>after</code></td>
+                      <td>Id de uma mensagem</td>
+                      <td>Só as mensagens criadas depois daquela</td>
+                    </tr>
+                    <tr>
+                      <td><code>wait</code></td>
+                      <td>Milissegundos (até 30000)</td>
+                      <td>Espera por uma mensagem que combine com os filtros antes de responder</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Os filtros de número comparam o valor exato guardado, por isso o <code>+</code> do E.164 precisa ser codificado na consulta: <code>?to=%2B5511912345678</code>.</p>
+
+              <h3>API compatível com Twilio</h3>
+              <p><code>POST /2010-04-01/Accounts/{AccountSid}/Messages.json</code> recebe o formulário que o SDK da Twilio envia e devolve <strong>201</strong> no formato da Twilio. A autorização é ignorada: qualquer <code>Basic</code> serve, e nenhuma também.</p>
+              <div class="code"><pre><code>POST /2010-04-01/Accounts/AC00000000000000000000000000000000/Messages.json
+Content-Type: application/x-www-form-urlencoded
+
+To=%2B5511912345678&amp;From=AMA4DEVS&amp;Body=Seu+codigo+e+482913.&amp;StatusCallback=http%3A%2F%2Flocalhost%3A4545%2Fsms%2Fstatus</code></pre></div>
+              <p>Os campos do formulário são <code>To</code>, <code>From</code>, <code>Body</code> e <code>StatusCallback</code>; <code>MessagingServiceSid</code> no lugar de <code>From</code> usa o remetente padrão. A resposta:</p>
+              <div class="code"><pre><code>201 Created
+
+{
+  "sid": "SM0123456789abcdef0123456789abcdef",
+  "account_sid": "AC00000000000000000000000000000000",
+  "api_version": "2010-04-01",
+  "body": "Seu codigo e 482913.",
+  "date_created": "Mon, 04 May 2026 12:00:00 +0000",
+  "date_updated": "Mon, 04 May 2026 12:00:00 +0000",
+  "date_sent": null,
+  "direction": "outbound-api",
+  "error_code": null,
+  "error_message": null,
+  "from": "AMA4DEVS",
+  "to": "+5511912345678",
+  "num_segments": "1",
+  "num_media": "0",
+  "price": null,
+  "price_unit": "USD",
+  "status": "queued",
+  "messaging_service_sid": null,
+  "uri": "/2010-04-01/Accounts/AC00000000000000000000000000000000/Messages/SM0123456789abcdef0123456789abcdef.json",
+  "subresource_uris": {
+    "media": "/2010-04-01/Accounts/AC00000000000000000000000000000000/Messages/SM0123456789abcdef0123456789abcdef/Media.json"
+  }
+}</code></pre></div>
+              <p>As datas usam o formato RFC 2822, como na Twilio. A leitura e a exclusão também existem:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Método</th><th>Rota</th><th>Resposta</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/2010-04-01/Accounts/{sid}/Messages.json?To=&amp;From=&amp;PageSize=</code></td>
+                      <td><code>{"messages": [...], "page": 0, "page_size": 50, ...}</code> — da mais nova para a mais antiga, <code>PageSize</code> de 50 por padrão e no máximo 1000</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/2010-04-01/Accounts/{sid}/Messages/{messageSid}.json</code></td>
+                      <td>A mensagem, ou <code>404</code> com o código <code>20404</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE</code></td>
+                      <td><code>/2010-04-01/Accounts/{sid}/Messages/{messageSid}.json</code></td>
+                      <td><code>204</code>, ou <code>404</code> com o código <code>20404</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3>API simples</h3>
+              <p><code>GET|POST /sms/send</code> é o caminho mais curto para mandar uma mensagem. Os parâmetros chegam na consulta (no <code>GET</code>) ou no corpo (no <code>POST</code>, em formulário ou JSON):</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Parâmetro</th><th>Apelidos</th><th>Descrição</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>to</code></td>
+                      <td>—</td>
+                      <td>O destinatário, normalizado para E.164</td>
+                    </tr>
+                    <tr>
+                      <td><code>message</code></td>
+                      <td><code>text</code>, <code>body</code></td>
+                      <td>O texto da mensagem</td>
+                    </tr>
+                    <tr>
+                      <td><code>sender</code></td>
+                      <td><code>from</code></td>
+                      <td>O remetente; sem ele, vale <code>AMA4DEVS</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>callbackUrl</code></td>
+                      <td>—</td>
+                      <td>O endereço que recebe os eventos de status desta mensagem</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>A resposta é <strong>200</strong>, curta e sem o corpo da mensagem:</p>
+              <div class="code"><pre><code>GET /sms/send?to=%2B5511912345678&amp;message=Seu+codigo+e+482913.
+
+200 OK
+
+{
+  "status": "ok",
+  "id": "SM0123456789abcdef0123456789abcdef",
+  "to": "+5511912345678",
+  "segments": 1
+}</code></pre></div>
+
+              <h3>Erros</h3>
+              <p>A API nativa e a simples respondem com o mesmo formato de erro (<code>400</code>):</p>
+              <div class="code"><pre><code>{
+  "error": {
+    "code": "invalid_to",
+    "message": "Invalid 'To' phone number: use E.164, e.g. +5511912345678.",
+    "field": "to"
+  }
+}</code></pre></div>
+              <p>A API simples troca o invólucro por <code>{"status":"error","code":"...","message":"..."}</code> e mantém o mesmo código de erro. A compatível com Twilio usa o formato dela: <code>{"code": 21211, "message": "...", "more_info": "...", "status": 400}</code>.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Código</th><th>HTTP</th><th>Onde</th><th>Significado</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>invalid_to</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, simples</td>
+                      <td>O número não virou E.164</td>
+                    </tr>
+                    <tr>
+                      <td><code>rejected_number</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, simples</td>
+                      <td>O número é o mágico <code>0003</code>, que a API recusa</td>
+                    </tr>
+                    <tr>
+                      <td><code>empty_body</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, simples</td>
+                      <td>O corpo veio vazio</td>
+                    </tr>
+                    <tr>
+                      <td><code>body_too_long</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, simples</td>
+                      <td>O corpo passa de 1600 caracteres</td>
+                    </tr>
+                    <tr>
+                      <td><code>invalid_from</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, simples</td>
+                      <td>O remetente não é E.164 nem identificador alfanumérico</td>
+                    </tr>
+                    <tr>
+                      <td><code>invalid_json</code></td>
+                      <td><code>400</code></td>
+                      <td>nativa, controle</td>
+                      <td>O corpo não é JSON válido</td>
+                    </tr>
+                    <tr>
+                      <td><code>not_found</code></td>
+                      <td><code>404</code></td>
+                      <td>nativa, controle</td>
+                      <td>O id não existe no armazenamento</td>
+                    </tr>
+                    <tr>
+                      <td><code>method_not_allowed</code></td>
+                      <td><code>405</code></td>
+                      <td>todas</td>
+                      <td>Aquele método não responde naquela rota</td>
+                    </tr>
+                    <tr>
+                      <td><code>21211</code></td>
+                      <td><code>400</code></td>
+                      <td>Twilio</td>
+                      <td><code>To</code> inválido (inclui o número mágico <code>0003</code>)</td>
+                    </tr>
+                    <tr>
+                      <td><code>21212</code></td>
+                      <td><code>400</code></td>
+                      <td>Twilio</td>
+                      <td><code>From</code> inválido</td>
+                    </tr>
+                    <tr>
+                      <td><code>21602</code></td>
+                      <td><code>400</code></td>
+                      <td>Twilio</td>
+                      <td>O corpo é obrigatório</td>
+                    </tr>
+                    <tr>
+                      <td><code>21617</code></td>
+                      <td><code>400</code></td>
+                      <td>Twilio</td>
+                      <td>O corpo passa de 1600 caracteres</td>
+                    </tr>
+                    <tr>
+                      <td><code>20404</code></td>
+                      <td><code>404</code></td>
+                      <td>Twilio</td>
+                      <td>A mensagem não existe</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="lifecycle" aria-labelledby="lifecycle-title">
+              <h2 id="lifecycle-title">Ciclo de vida</h2>
+              <p>Toda mensagem enviada começa em <code>queued</code> e caminha sozinha. Com o atraso padrão (<code>SMS_DELIVERY_DELAY_MS</code>, 1500 ms), a vida de uma mensagem normal é:</p>
+              <div class="code"><pre><code>queued  ──(atraso / 3)──▶  sent  ──(resto do atraso)──▶  delivered</code></pre></div>
+              <p>Cada mudança de estado vira uma entrada no histórico e dispara um webhook de status:</p>
+              <div class="code"><pre><code>"history": [
+  { "status": "queued", "at": "2026-05-04T12:00:00.000Z" },
+  { "status": "sent", "at": "2026-05-04T12:00:00.500Z" },
+  { "status": "delivered", "at": "2026-05-04T12:00:01.500Z" }
+],
+"sentAt": "2026-05-04T12:00:00.500Z",
+"deliveredAt": "2026-05-04T12:00:01.500Z"</code></pre></div>
+              <ul>
+                <li><strong>deliveryDelayMs</strong>: o tempo total da vida. Com <code>0</code>, os passos acontecem na hora, de uma vez.</li>
+                <li><strong>autoDeliver</strong>: com <code>false</code> (ou <code>SMS_AUTO_DELIVER=0</code>), a mensagem espera em <code>queued</code> até alguém mudar o status na mão — é assim que se testa a espera do usuário.</li>
+                <li><strong>Estados finais</strong>: <code>delivered</code>, <code>failed</code> e <code>undelivered</code>. Uma vez alcançado, o temporizador não muda mais a mensagem; um status manual ou uma exclusão vence o relógio.</li>
+                <li><strong>Falhas</strong>: <code>failed</code> carrega <code>30003</code> (<em>Unreachable destination handset</em>) e <code>undelivered</code> carrega <code>30005</code> (<em>Unknown destination handset</em>), salvo se o código vier na mão.</li>
+              </ul>
+
+              <h3>Mudar o status na mão</h3>
+              <p><code>POST /_mock/sms/messages/{id}/status</code> move uma mensagem enviada pelo aplicativo para <code>sent</code>, <code>delivered</code>, <code>undelivered</code> ou <code>failed</code>:</p>
+              <div class="code"><pre><code>POST /_mock/sms/messages/SM0123456789abcdef0123456789abcdef/status
+Content-Type: application/json
+
+{
+  "status": "failed",
+  "errorCode": 30003
+}</code></pre></div>
+              <p>A resposta é a mensagem atualizada. Uma resposta recebida pelo aparelho não tem status a mudar: o mock devolve <code>409</code> com <code>not_outbound</code>.</p>
+            </section>
+
+            <section id="magic-numbers" aria-labelledby="magic-numbers-title">
+              <h2 id="magic-numbers-title">Números mágicos</h2>
+              <p>Cinco finais de número provocam um desfecho predetermined, para o teste não depender de sorte. O desfecho vem dos <strong>quatro últimos dígitos</strong> do número já normalizado:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Final</th><th>Comportamento</th><th>Estado final</th><th>Código</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>0001</code></td>
+                      <td>A entrega falha: o aparelho está fora de alcance</td>
+                      <td><code>failed</code></td>
+                      <td><code>30003</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>0002</code></td>
+                      <td>O destino é desconhecido</td>
+                      <td><code>undelivered</code></td>
+                      <td><code>30005</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>0003</code></td>
+                      <td>A API recusa o envio: nenhuma mensagem é criada e a resposta é <code>400</code></td>
+                      <td>—</td>
+                      <td><code>21211</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>0004</code></td>
+                      <td>A mensagem fica parada em <code>sent</code>, como se a operadora nunca confirmasse</td>
+                      <td><code>sent</code></td>
+                      <td>—</td>
+                    </tr>
+                    <tr>
+                      <td><code>0005</code></td>
+                      <td>A operadora filtra a mensagem</td>
+                      <td><code>failed</code></td>
+                      <td><code>30007</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Qualquer outro número entrega normalmente. Exemplo: <code>+5511912340001</code> falha na entrega, <code>+5511912340003</code> nem chega a ser criada.</p>
+            </section>
+
+            <section id="webhooks" aria-labelledby="webhooks-title">
+              <h2 id="webhooks-title">Webhooks</h2>
+              <p>O mock avisa a sua aplicação sobre cada mudança de estado e sobre cada resposta recebida. O endereço sai de duas fontes:</p>
+              <ul>
+                <li><strong>Eventos de status</strong>: o <code>callbackUrl</code> da própria mensagem quando ela tem um; senão, o <code>webhookUrl</code> das configurações.</li>
+                <li><strong>Eventos de resposta</strong>: sempre o <code>webhookUrl</code> das configurações.</li>
+              </ul>
+              <p>O corpo depende da API por onde a mensagem entrou. Nas APIs nativa, simples e de controle, é JSON:</p>
+              <div class="code"><pre><code>{
+  "event": "message.status",
+  "message": {
+    "id": "SM0123456789abcdef0123456789abcdef",
+    "direction": "outbound",
+    "from": "AMA4DEVS",
+    "to": "+5511912345678",
+    "body": "Seu codigo de verificacao e 482913.",
+    "status": "delivered",
+    "api": "native",
+    "encoding": "GSM-7",
+    "segments": 1,
+    "codes": ["482913"],
+    "errorCode": null,
+    "errorMessage": null,
+    "callbackUrl": null,
+    "createdAt": "2026-05-04T12:00:00.000Z",
+    "updatedAt": "2026-05-04T12:00:01.500Z",
+    "sentAt": "2026-05-04T12:00:00.500Z",
+    "deliveredAt": "2026-05-04T12:00:01.500Z",
+    "history": [
+      { "status": "queued", "at": "2026-05-04T12:00:00.000Z" },
+      { "status": "sent", "at": "2026-05-04T12:00:00.500Z" },
+      { "status": "delivered", "at": "2026-05-04T12:00:01.500Z" }
+    ]
+  }
+}</code></pre></div>
+              <p>O evento é <code>message.status</code> para as mudanças de estado e <code>message.inbound</code> para as respostas. Nas mensagens que entraram pela API compatível com Twilio, o corpo é o formulário que a Twilio manda:</p>
+              <div class="code"><pre><code>MessageSid=SM0123456789abcdef0123456789abcdef&amp;SmsSid=SM0123456789abcdef0123456789abcdef&amp;AccountSid=ACmock00000000000000000000000000&amp;MessageStatus=delivered&amp;SmsStatus=delivered&amp;From=AMA4DEVS&amp;To=%2B5511912345678&amp;NumSegments=1</code></pre></div>
+              <p>No formulário, <code>Body</code> só aparece no evento de resposta, e <code>ErrorCode</code> e <code>ErrorMessage</code> só aparecem quando há erro.</p>
+
+              <h3>Cabeçalhos e assinatura</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Cabeçalho</th><th>Valor</th><th>Descrição</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>content-type</code></td>
+                      <td><code>application/json</code> ou <code>application/x-www-form-urlencoded</code></td>
+                      <td>Depende da API da mensagem</td>
+                    </tr>
+                    <tr>
+                      <td><code>user-agent</code></td>
+                      <td><code>sms-mock</code></td>
+                      <td>Identifica o mock</td>
+                    </tr>
+                    <tr>
+                      <td><code>x-sms-event</code></td>
+                      <td><code>status</code> ou <code>inbound</code></td>
+                      <td>O tipo do evento</td>
+                    </tr>
+                    <tr>
+                      <td><code>x-sms-signature</code></td>
+                      <td><code>sha256=&lt;hexadecimal&gt;</code></td>
+                      <td>HMAC-SHA256 do corpo exato, quando há <code>SMS_WEBHOOK_SECRET</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>A assinatura é o HMAC-SHA256 do corpo, em hexadecimal, calculado com o segredo configurado. Para conferir, o segredo e o corpo precisam ser exatamente os mesmos que saíram.</p>
+
+              <h3>Loopback dentro do container</h3>
+              <p>Quando o mock roda em um container, <code>localhost</code> é o próprio container. Com <code>WEBHOOK_LOCALHOST_REWRITE</code> definido, um endereço de loopback (<code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>) é reescrito para esse host antes da requisição — por exemplo, <code>host.docker.internal</code>.</p>
+
+              <h3>Falhas e log</h3>
+              <p>Um erro de rede ou uma resposta fora da faixa 2xx nunca derruba o mock: a tentativa fica registrada com <code>ok: false</code> e o erro ao lado. O log guarda as 200 últimas tentativas e cada uma tem o corpo enviado, o tipo de conteúdo, o código de resposta e se foi assinada:</p>
+              <div class="code"><pre><code>GET /_mock/sms/webhooks/deliveries
+
+{
+  "deliveries": [
+    {
+      "id": "SM0123456789abcdef0123456789abcdef",
+      "messageId": "SM0123456789abcdef0123456789abcdef",
+      "event": "status",
+      "url": "http://localhost:4545/sms/status",
+      "ok": true,
+      "statusCode": 200,
+      "error": null,
+      "requestBody": "{\"event\":\"message.status\",...}",
+      "contentType": "application/json",
+      "signed": true,
+      "at": "2026-05-04T12:00:01.600Z"
+    }
+  ]
+}</code></pre></div>
+              <p><code>DELETE /_mock/sms/webhooks/deliveries</code> limpa o log.</p>
+            </section>
+
+            <section id="inbound" aria-labelledby="inbound-title">
+              <h2 id="inbound-title">Respostas recebidas</h2>
+              <p>No mock, o aparelho é o painel: os SMS que o aplicativo envia aparecem na conversa à esquerda, com o remetente, o chip do código de OTP para copiar, o selo de segmentos e o status (na fila, enviada, entregue, não entregue, falhou). A gaveta de detalhes — o ícone de informação ou um clique na mensagem — mostra os campos, o JSON e o histórico de status; o que se escreve no rodapé sai como resposta do aparelho. Pela perspectiva da API, isso são duas direções:</p>
+              <ul>
+                <li><strong>outbound</strong>: o aplicativo manda, o aparelho recebe. É o que as APIs de envio criam.</li>
+                <li><strong>inbound</strong>: o aparelho responde, o aplicativo recebe. O estado é <code>received</code> e a API de origem é <code>mock</code>.</li>
+              </ul>
+              <p>Além do painel, a resposta pode vir pela rota de controle:</p>
+              <div class="code"><pre><code>POST /_mock/sms/inbound
+Content-Type: application/json
+
+{
+  "from": "+5511912345678",
+  "to": "AMA4DEVS",
+  "body": "Recebi, obrigado!"
+}</code></pre></div>
+              <p>A resposta é <strong>201</strong> com a mensagem criada. Sem <code>to</code>, o destino é o remetente padrão das configurações. Cada resposta dispara o webhook <code>message.inbound</code>.</p>
+            </section>
+
+            <section id="testing" aria-labelledby="testing-title">
+              <h2 id="testing-title">Testes</h2>
+              <p>O armazenamento é em memória, então cada teste começa limpo de dois jeitos: reiniciando o container (some tudo) ou chamando a rota de reset (some as mensagens e as entregas de webhook, sem derrubar o serviço).</p>
+              <div class="code"><pre><code>POST /_mock/sms/reset
+
+204 No Content</code></pre></div>
+
+              <h3>Long poll</h3>
+              <p>Em vez de ficar consultando, a consulta espera. Com <code>wait</code>, a resposta só volta quando uma mensagem que combine com os filtros aparece (ou quando o tempo acaba, com a lista vazia):</p>
+              <div class="code"><pre><code>GET /v1/messages?to=%2B5511912345678&amp;wait=5000</code></pre></div>
+              <p>A espera é de no máximo 30000 ms. Se já existe uma mensagem que combina com o filtro, a resposta é imediata. Para esperar apenas o que vier depois de um ponto conhecido, use <code>after</code> com o id da última mensagem vista.</p>
+
+              <h3>Receita de CI</h3>
+              <p>Um teste de ponta a ponta, com o mock rodando em <code>http://localhost:8899</code>:</p>
+              <div class="code"><pre><code># 1. limpa o estado entre os testes
+curl -s -X POST http://localhost:8899/_mock/sms/reset
+
+# 2. envia a mensagem
+curl -s -X POST http://localhost:8899/v1/messages \
+  -H 'content-type: application/json' \
+  -d '{"to":"+5511912345678","body":"Seu codigo e 482913."}'
+
+# 3. espera a mensagem chegar (long poll de 5 s)
+curl -s 'http://localhost:8899/v1/messages?to=%2B5511912345678&amp;wait=5000'</code></pre></div>
+              <p>Para conferir o resultado, o campo <code>codes</code> da mensagem traz o código extraído do texto (<code>["482913"]</code>), e o filtro <code>q</code> encontra a mensagem pelo código, pelo corpo ou pelo número.</p>
+              <p>Para começar com conteúdo na tela, <code>POST /_mock/sms/demo</code> semeia uma caixa de entrada de exemplo: um OTP, um aviso de entrega, uma promoção longa em UCS-2, uma mensagem para o número que sempre falha e uma resposta do aparelho.</p>
+            </section>
+
+            <section id="segments-otp" aria-labelledby="segments-otp-title">
+              <h2 id="segments-otp-title">Segmentos e OTP</h2>
+              <p>Toda mensagem é cobrada por segmento, e o mock calcula a conta como a operadora:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Codificação</th><th>1º segmento</th><th>Cada segmento seguinte</th><th>O que conta</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GSM-7</code></td>
+                      <td>160 septetos</td>
+                      <td>153 septetos</td>
+                      <td>Os caracteres da tabela básica; os da extensão (<code>^ { } \ [ ] ~ | €</code>) custam dois septetos cada</td>
+                    </tr>
+                    <tr>
+                      <td><code>UCS-2</code></td>
+                      <td>70 unidades UTF-16</td>
+                      <td>67 unidades UTF-16</td>
+                      <td>Qualquer caractere fora da GSM-7; um emoji conta duas unidades</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>A mensagem traz a conta pronta nos campos <code>encoding</code> e <code>segments</code>. Uma mensagem de 160 caracteres caber em um segmento; a de 161, não cabe e vira dois. Um texto vazio teria zero segmentos, mas o corpo é obrigatório em todas as APIs de envio.</p>
+
+              <h3>Códigos de verificação</h3>
+              <p>O mock lê o corpo e separa os códigos que o usuário vai precisar digitar:</p>
+              <ul>
+                <li>Uma sequência de <strong>4 a 8 dígitos</strong> que não esteja grudada em outros dígitos: <code>482913</code>.</li>
+                <li>Dois grupos de 3 ou 4 dígitos separados por hífen ou espaço, que viram um código só: <code>123-456</code> vira <code>123456</code>.</li>
+              </ul>
+              <p>Os códigos repetidos aparecem uma vez só e na ordem em que o texto traz. Eles ficam no campo <code>codes</code> da mensagem e são encontrados pelo filtro <code>q</code>.</p>
+            </section>
+
+            <section id="panel" aria-labelledby="panel-title">
+              <h2 id="panel-title">O painel</h2>
+              <p>Abra <code>http://localhost:8899</code>: o painel é o celular do teste. Ele abre em português; a chave <strong>PT|EN</strong> no cabeçalho troca o idioma, e os nomes abaixo aparecem nos dois.</p>
+
+              <h3>A caixa de entrada</h3>
+              <ul>
+                <li><strong>O cabeçalho:</strong> a marca do SMS, o estado ao vivo, a chave de idioma, um ícone para uma nova mensagem de teste e um ícone para o painel de controle.</li>
+                <li><strong>A barra lateral:</strong> um seletor de remetente, a busca, os filtros <em>Tudo</em>, <em>Sem resposta</em> e <em>Com falha</em>, e uma conversa por número de telefone.</li>
+                <li><strong>A conversa:</strong> os SMS que a aplicação mandou são as bolhas da esquerda, com o remetente, o chip que copia o código de verificação, o selo de segmentos (<code>1 SMS · UCS-2</code>) e o status (na fila, enviada, entregue, não entregue, falhou). Ao passar o mouse, cada mensagem pode ser entregue (<em>Entregar</em>), falhada (<em>Falhar</em>), marcada como não entregue (<em>Não entregue</em>) ou apagada (<em>Apagar</em>) na mão.</li>
+                <li><strong>O campo de resposta:</strong> o que você digita ali é o que o celular envia: chega como a bolha da direita e dispara o webhook de entrada.</li>
+                <li><strong>A gaveta de detalhes:</strong> o ícone de informação, ou um clique numa bolha, abre os campos da mensagem, o JSON dela e o histórico de status.</li>
+                <li><strong>A tela vazia:</strong> <em>Nova mensagem de teste</em>, <em>Carregar exemplos</em> e <em>Abrir painel de controle</em>.</li>
+              </ul>
+
+              <h3>O painel de controle</h3>
+              <p>O ícone do cabeçalho abre o painel de controle, com uma aba por assunto:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Aba</th>
+                      <th>O que faz</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>Entrega</code></td>
+                      <td>Entrega automática ou manual, o atraso até a entrega em milissegundos e o botão que recomeça do zero.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Webhook</code></td>
+                      <td>A URL para onde os eventos vão, o segredo que os assina, o remetente padrão, o formato dos corpos de status e de entrada, o cabeçalho <code>x-sms-signature</code> e um trecho em Node para conferir a assinatura.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Eventos</code></td>
+                      <td>Cada tentativa de webhook, com o corpo, o código de resposta e a hora.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Números mágicos</code></td>
+                      <td>Os finais que provocam uma falha, com as regras dos segmentos e do OTP.</td>
+                    </tr>
+                    <tr>
+                      <td><code>API</code></td>
+                      <td>O catálogo da <a href="../api/">API</a>: 20 operações, com parâmetros, campos do corpo, um <code>curl</code>, cada resposta documentada e um botão <em>Testar</em> que envia a requisição de verdade e mostra a resposta.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="control" aria-labelledby="control-title">
+              <h2 id="control-title">Rotas de controle</h2>
+              <p>As rotas de controle mudam o mock em tempo de execução. Todas vivem sob <code>/_mock/sms/</code> e passam pela proteção local:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/_mock/sms/settings</code></td>
+                      <td>Lê as configurações em uso</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUT</code></td>
+                      <td><code>/_mock/sms/settings</code></td>
+                      <td>Muda parte das configurações; um valor de tipo errado recusa a mudança com <code>400</code> e <code>invalid_settings</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>POST</code></td>
+                      <td><code>/_mock/sms/inbound</code></td>
+                      <td>Responde como o aparelho; devolve <strong>201</strong> com a mensagem</td>
+                    </tr>
+                    <tr>
+                      <td><code>POST</code></td>
+                      <td><code>/_mock/sms/messages/{id}/status</code></td>
+                      <td>Muda o status de uma mensagem na mão</td>
+                    </tr>
+                    <tr>
+                      <td><code>POST</code></td>
+                      <td><code>/_mock/sms/reset</code></td>
+                      <td>Apaga as mensagens e as entregas; devolve <strong>204</strong></td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/_mock/sms/webhooks/deliveries</code></td>
+                      <td>Lista as tentativas de webhook</td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE</code></td>
+                      <td><code>/_mock/sms/webhooks/deliveries</code></td>
+                      <td>Limpa o log de entregas; devolve <strong>204</strong></td>
+                    </tr>
+                    <tr>
+                      <td><code>POST</code></td>
+                      <td><code>/_mock/sms/demo</code></td>
+                      <td>Semeia uma caixa de entrada de exemplo; devolve <strong>201</strong> com as mensagens</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/health</code></td>
+                      <td>A única rota sem proteção: <code>{"status":"ok","service":"sms","version":"0.2.0"}</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/ws</code></td>
+                      <td>WebSocket do painel ao vivo: o primeiro quadro é o <code>snapshot</code> (mensagens, configurações e entregas) e depois vêm os eventos</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h3>Configurações em tempo de execução</h3>
+              <p><code>GET /_mock/sms/settings</code> devolve exatamente o que o mock está usando:</p>
+              <div class="code"><pre><code>{
+  "deliveryDelayMs": 1500,
+  "autoDeliver": true,
+  "webhookUrl": "",
+  "webhookSecret": "",
+  "defaultFrom": "AMA4DEVS"
+}</code></pre></div>
+              <p>Um <code>PUT</code> parcial muda só o que vem no corpo:</p>
+              <div class="code"><pre><code>PUT /_mock/sms/settings
+Content-Type: application/json
+
+{
+  "deliveryDelayMs": 0,
+  "autoDeliver": false
+}</code></pre></div>
+
+              <h3>O painel de controle</h3>
+              <p>O ícone de ajustes do painel abre o painel de controle, em tela cheia, com as abas na lateral. Cada aba é um grupo das rotas acima, com o formulário em vez do <code>curl</code>:</p>
+              <ul>
+                <li><strong>Entrega</strong>: automática ou manual, o atraso até a entrega em milissegundos e o botão de começar do zero, que apaga todas as conversas e todos os eventos de webhook do mock.</li>
+                <li><strong>Webhook</strong>: o endereço, o segredo e o remetente padrão, com o formato do payload de cada evento e o header <code>x-sms-signature</code>, mais um trecho em Node para conferir a assinatura.</li>
+                <li><strong>Eventos</strong>: cada tentativa de webhook, da mais nova para a mais antiga, com o corpo enviado, o código de resposta e a marca de assinado.</li>
+                <li><strong>Números mágicos</strong>: o desfecho de cada final de número, os limites de segmento no GSM-7 e no UCS-2 e o tamanho do código de OTP.</li>
+                <li><strong>API</strong>: o catálogo inteiro da <a href="../api/">API</a> — 20 operações, com os parâmetros, os campos, um <code>curl</code> e todas as respostas documentadas — e um botão <strong>Testar</strong> que manda a requisição de verdade e mostra a resposta do mock.</li>
+              </ul>
+            </section>
+
+            <section id="config" aria-labelledby="config-title">
+              <h2 id="config-title">Variáveis de ambiente</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Variável</th><th>Padrão</th><th>Significado</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PORT</code></td>
+                      <td><code>8899</code></td>
+                      <td>Porta do servidor HTTP do mock</td>
+                    </tr>
+                    <tr>
+                      <td><code>MOCK_ALLOWED_HOSTS</code></td>
+                      <td><em>(vazio)</em></td>
+                      <td>Hosts extras aceitos pela proteção local, separados por vírgula</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_WEBHOOK_URL</code></td>
+                      <td><em>(vazio)</em></td>
+                      <td>Endereço que recebe os eventos de status e de resposta</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_WEBHOOK_SECRET</code></td>
+                      <td><em>(vazio)</em></td>
+                      <td>Segredo do HMAC-SHA256 da assinatura; vazio significa webhook sem assinatura</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DELIVERY_DELAY_MS</code></td>
+                      <td><code>1500</code></td>
+                      <td>Tempo total do ciclo de vida da mensagem; <code>0</code> faz tudo na hora</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_AUTO_DELIVER</code></td>
+                      <td><code>1</code></td>
+                      <td>Com <code>0</code>, as mensagens ficam em <code>queued</code> esperando um status manual</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DEFAULT_COUNTRY_CODE</code></td>
+                      <td><code>55</code></td>
+                      <td>Código do país usado nos números escritos sem um</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_DEFAULT_FROM</code></td>
+                      <td><code>AMA4DEVS</code></td>
+                      <td>Remetente padrão quando a requisição não informa nenhum</td>
+                    </tr>
+                    <tr>
+                      <td><code>SMS_MAX_MESSAGES</code></td>
+                      <td><code>5000</code></td>
+                      <td>Quantidade de mensagens guardadas em memória; as mais antigas são descartadas</td>
+                    </tr>
+                    <tr>
+                      <td><code>WEBHOOK_LOCALHOST_REWRITE</code></td>
+                      <td><em>(vazio)</em></td>
+                      <td>Host que substitui o loopback nos endereços de webhook (do container para a máquina)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Depois de iniciado, as mesmas configurações podem ser mudadas em tempo de execução por <code>PUT /_mock/sms/settings</code> ou pelo painel de controle, nas abas Entrega e Webhook.</p>
+
+              <h3 id="asaas-integration">Com o mock do Asaas</h3>
+              <p>Neste repositório o mock de SMS sobe junto com o do Asaas: o <code>make up</code> da raiz (o perfil <code>asaas</code> do Compose) traz o mock do Asaas, o gerador, o Mailpit e o mock de SMS, cada um na sua porta. Duas variáveis do <code>.env</code> mudam isso:</p>
+              <ul>
+                <li><code>SMS_ENABLED=0</code>: mantém o mock de SMS desligado. O mock do Asaas então não encontra nenhum e não manda SMS ao pagador.</li>
+                <li><code>SMS_PORT</code>: a porta do host; o contêiner sempre escuta na <code>8899</code>.</li>
+              </ul>
+              <p>Do lado do Asaas, o mock de SMS é encontrado sozinho:</p>
+              <ul>
+                <li><code>SMS_MOCK_URL</code>: o endereço do mock de SMS. Vazio, o SMS do pagador é desligado.</li>
+                <li><code>SMS_UI_URL</code>: o endereço do painel do mock de SMS como o navegador o abre (<code>http://localhost:8899</code> por padrão); o mock do Asaas o informa em <code>GET /_admin/notify/status</code> (<code>sms.uiUrl</code>).</li>
+                <li>Sem <code>SMS_MOCK_URL</code>, o mock do Asaas procura o de SMS onde ele costuma responder: o serviço <code>sms</code> do Compose, o serviço <code>sms-mock</code>, esta máquina e o host do Docker — sempre na porta <code>8899</code>.</li>
+              </ul>
+              <p>Encontrado, ele manda para o mock de SMS os avisos de SMS do pagador (<code>POST /v1/messages</code>, com o remetente <code>ASAAS</code>), nos mesmos eventos de cobrança que avisam o e-mail e o WhatsApp, e só para quem tem celular cadastrado.</p>
+            </section>
+
+            <section id="guard" aria-labelledby="guard-title">
+              <h2 id="guard-title">Proteção local (Local Guard)</h2>
+              <p>Como o mock não exige chave de API, ele se protege pelo endereço de onde a requisição vem, para não ficar exposto na rede da máquina do desenvolvedor:</p>
+              <ul>
+                <li><strong>Host</strong>: todas as rotas, exceto <code>/health</code>, validam o cabeçalho <code>Host</code> contra a lista permitida: <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, <code>host.docker.internal</code>, <code>sms</code>, <code>sms-mock</code> e os hosts extras de <code>MOCK_ALLOWED_HOSTS</code>. Isso bloqueia <em>DNS rebinding</em>, em que uma página resolve um nome para 127.0.0.1 mas continua mandando o nome no cabeçalho.</li>
+                <li><strong>Origem</strong>: as requisições que mudam o estado (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) validam também o cabeçalho <code>Origin</code>, quando ele vem. Uma origem de página externa é recusada; a origem opaca <code>null</code> (um iframe sandbox, uma página <code>file:</code> ou <code>data:</code>) também conta como estrangeira.</li>
+                <li><strong>Feed e envio por GET</strong>: o handshake de <code>/ws</code> e <code>GET /sms/send</code> também recusam uma <code>Origin</code> estrangeira ou uma requisição de navegador entre sites (<code>Sec-Fetch-Site: cross-site</code>); assim, uma página que você visita não lê o feed ao vivo nem dispara um envio.</li>
+                <li><strong>CORS</strong>: quando a origem é permitida, ela é refletida em <code>access-control-allow-origin</code>, com <code>vary: Origin</code>. O <code>OPTIONS</code> de pré-flight responde <strong>204</strong> com <code>access-control-allow-methods: GET,POST,PUT,DELETE,OPTIONS</code> e os cabeçalhos pedidos de volta (ou <code>authorization,content-type</code>, quando o navegador não nomeia nenhum). Uma origem estrangeira no pré-flight leva <strong>403</strong>.</li>
+              </ul>
+              <p>As recusas são <code>403</code> com o código <code>forbidden_host</code> ou <code>forbidden_origin</code>.</p>
+              <p>A API nativa aceita qualquer <code>Bearer</code> e a compatível com Twilio aceita qualquer <code>Basic</code> (ou nenhum): a chave não é conferida, porque o mock existe para ser chamado sem segredo.</p>
+            </section>
+
+            <section id="limits" aria-labelledby="limits-title">
+              <h2 id="limits-title">Limites</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Limite</th><th>Valor</th><th>Observação</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Corpo da mensagem</td>
+                      <td>1600 caracteres</td>
+                      <td>Dez segmentos concatenados; acima disso, <code>body_too_long</code></td>
+                    </tr>
+                    <tr>
+                      <td>Espera da consulta</td>
+                      <td>30000 ms</td>
+                      <td>O <code>wait</code> é limitado a 30 segundos</td>
+                    </tr>
+                    <tr>
+                      <td>Mensagens em memória</td>
+                      <td>5000</td>
+                      <td><code>SMS_MAX_MESSAGES</code>; as mais antigas são descartadas</td>
+                    </tr>
+                    <tr>
+                      <td>Log de webhooks</td>
+                      <td>200 tentativas</td>
+                      <td>As mais antigas são descartadas</td>
+                    </tr>
+                    <tr>
+                      <td>Tempo do webhook</td>
+                      <td>5 s</td>
+                      <td>Acima disso, a requisição é abortada e registrada como falha</td>
+                    </tr>
+                    <tr>
+                      <td><code>PageSize</code> da Twilio</td>
+                      <td>50 por padrão, 1000 no máximo</td>
+                      <td>A lista vem da mensagem mais nova para a mais antiga</td>
+                    </tr>
+                    <tr>
+                      <td>Números em E.164</td>
+                      <td>8 a 15 dígitos</td>
+                      <td>Sem código do país, 10 ou 11 dígitos recebem o código 55</td>
+                    </tr>
+                    <tr>
+                      <td>Remetente alfanumérico</td>
+                      <td>Até 11 caracteres</td>
+                      <td>Letra no começo, depois letras, dígitos ou espaços</td>
+                    </tr>
+                    <tr>
+                      <td>Chave de API</td>
+                      <td>Nenhuma</td>
+                      <td>A API nativa aceita qualquer <code>Bearer</code>; a da Twilio, qualquer <code>Basic</code></td>
+                    </tr>
+                    <tr>
+                      <td>Armazenamento</td>
+                      <td>Em memória</td>
+                      <td>Reiniciar o container apaga as mensagens, as respostas e o log de webhooks</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock do SMS é MIT. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Mensagens simuladas para desenvolvimento local e testes. Nenhum SMS é enviado a aparelhos reais.</p>
+    </div>
+  </footer>
+
+  <script src="../../../assets/site.js" defer></script>
+</body>
+</html>

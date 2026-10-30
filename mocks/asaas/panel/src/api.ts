@@ -1,21 +1,23 @@
 /**
- * As portas do painel — e a distinção entre elas é o ponto do projeto.
+ * The doors of the panel — and the distinction between them is the point of
+ * the project.
  *
- * `v3()` é a API REAL do Asaas, chamada com a chave de uma conta. Todo botão que
- * representa algo que o Asaas de verdade faz passa por aqui: confirmar um
- * pagamento no sandbox, religar um webhook, criar uma subconta. O botão exercita o
- * MESMO caminho que o código do usuário vai exercitar.
+ * `v3()` is the REAL Asaas API, called with the key of an account. Every button
+ * that represents something the real Asaas does goes through here: confirming a
+ * payment in the sandbox, reactivating a webhook, creating a subaccount. The
+ * button exercises the SAME path the user's code will exercise.
  *
- * `admin()` é a introspecção do simulador — viagem no tempo, fila de entregas,
- * chaves de todas as contas. Nada disso existe no Asaas, e por isso mora fora de
- * /v3 e aparece na tela sob a marca "Simulador".
+ * `admin()` is the introspection of the simulator — time travel, the queue of
+ * deliveries, the keys of every account. None of it exists in Asaas, and that is
+ * why it lives outside /v3 and shows up on the screen under the "Simulador"
+ * brand.
  *
  * `mock()` is the simulator's outcome control (/_mock/*), not Asaas, like `admin()`.
  * It triggers payment lifecycle transitions (receive, overdue, refund) directly
  * without account API keys, driving ledger entries and webhooks.
  *
- * Quando as duas se confundem, o painel vira uma mentira útil: você aperta um botão
- * que só existe aqui e sai achando que a sua integração funciona.
+ * When the two get confused, the panel becomes a useful lie: you press a button
+ * that exists only here and walk away thinking your integration works.
  */
 
 export interface AsaasError {
@@ -43,7 +45,7 @@ async function parse(r: Response): Promise<any> {
   return body
 }
 
-/** Introspecção do simulador. Não existe no Asaas. */
+/** Introspection of the simulator. It does not exist in Asaas. */
 export async function admin(path: string, init?: RequestInit): Promise<any> {
   return parse(
     await fetch(`/_admin${path}`, {
@@ -63,7 +65,7 @@ export async function mock(path: string, init?: RequestInit): Promise<any> {
   )
 }
 
-/** A API v3 do Asaas, COMO a conta dona da chave. */
+/** The v3 API of Asaas, AS the owner of the key. */
 export async function v3(path: string, apiKey: string, init?: RequestInit): Promise<any> {
   return parse(
     await fetch(`/v3${path}`, {
@@ -118,7 +120,7 @@ export interface Webhook {
 }
 
 /** One delivery of one event to one webhook (`/_admin/webhooks/deliveries`). */
-/** A request of the Logs de Requisições: the list row; the detail adds the bodies. */
+/** A request of the "Logs de Requisições": the list row; the detail adds the bodies. */
 export interface RequestLog {
   id: number
   method: string

@@ -1,19 +1,19 @@
 /**
- * O scheduler. É onde o tempo de fato acontece.
+ * The scheduler. It is where time actually happens.
  *
- * ORDEM DOS JOBS FAZ PARTE DA SEMÂNTICA — não é incidental. Uma cobrança de
- * assinatura gerada hoje tem que poder vencer hoje; um split só pode ser
- * liberado depois que a cobrança creditou; e o dispatcher de webhook roda por
- * ÚLTIMO, para que os eventos de tudo que aconteceu no tick saiam juntos e na
- * ordem certa.
+ * THE ORDER OF THE JOBS IS PART OF THE SEMANTICS — it is not incidental. A
+ * subscription charge generated today has to be able to fall due today; a split
+ * can only be released after the charge settled; and the webhook dispatcher runs
+ * LAST, so that the events of everything that happened in the tick go out
+ * together and in the right order.
  *
- * IDEMPOTÊNCIA em três camadas, porque o custo é baixo e o estrago é alto:
- *   1. Mutex in-process — um processo Bun + SQLite é serial por construção; tick
- *      do timer e tick do admin nunca se cruzam.
- *   2. `job_runs(jobName, tickKey)` UNIQUE — jobs diários rodam uma vez por dia
- *      SIMULADO, mesmo que você dê tick dez vezes no mesmo dia.
- *   3. Compare-and-swap em toda mutação (UPDATE … WHERE status = <esperado>) —
- *      esta é a que realmente salva: uma execução duplicada altera zero linhas.
+ * IDEMPOTENCY in three layers, because the cost is low and the damage is high:
+ *   1. In-process mutex — one Bun process + SQLite is serial by construction; the
+ *      timer tick and the admin tick never cross.
+ *   2. `job_runs(jobName, tickKey)` UNIQUE — the daily jobs run once per
+ *      SIMULATED day, even if you tick ten times on the same day.
+ *   3. Compare-and-swap on every mutation (UPDATE … WHERE status = <expected>) —
+ *      this is the one that really saves: a duplicated run changes zero rows.
  */
 import { sql } from 'drizzle-orm'
 import { DAY_MS } from '../core/clock.ts'
@@ -22,7 +22,7 @@ import { dispatchNotifications } from '../notify/dispatcher.ts'
 import { dispatchDue } from '../webhooks/dispatcher.ts'
 
 export interface TickReport {
-  /** O dia simulado deste tick: '2026-02-14'. */
+  /** The simulated day of this tick: '2026-02-14'. */
   tickKey: string
   now: string
   transitions: {
@@ -43,12 +43,12 @@ export interface TickReport {
 export interface JobContext {
   ctx: AppContext
   report: TickReport
-  /** Job diário: pule se já rodou neste dia simulado. */
+  /** Daily job: skip it if it already ran on this simulated day. */
   once(jobName: string): Promise<boolean>
   /**
-   * O dispatcher de webhook está congelado (POST /_admin/webhooks/pause).
-   * Sem isto, viajar 40 dias para testar uma assinatura esgotaria, de brinde, as
-   * 15 tentativas de backoff de qualquer entrega pendente.
+   * The webhook dispatcher is frozen (POST /_admin/webhooks/pause). Without
+   * this, traveling 40 days to test a subscription would use up, for free, the
+   * 15 backoff attempts of any pending delivery.
    */
   paused: boolean
 }
@@ -78,7 +78,7 @@ export class Scheduler {
   #queuedDispatch: Promise<void> | null = null
   /** Every dispatch pass not yet finished (running or queued), for `idle()`. */
   #dispatches = new Set<Promise<void>>()
-  /** Congela o dispatcher de webhook — ver POST /_admin/webhooks/pause. */
+  /** Freezes the webhook dispatcher — see POST /_admin/webhooks/pause. */
   paused = false
 
   constructor(ctx: AppContext, jobs: Job[]) {
@@ -90,10 +90,10 @@ export class Scheduler {
     return this.#jobs.map((j) => j.name)
   }
 
-  /** Um tick = um instante simulado. Serializado pelo mutex. */
+  /** A tick = a simulated instant. Serialized by the mutex. */
   async tick(): Promise<TickReport> {
-    // Mutex: se já há um tick rodando, espera. Sem isso, o timer poderia entrar
-    // no meio de um advance() e duplicar transições.
+    // Mutex: if a tick is already running, wait for it. Without this, the timer
+    // could come in the middle of an advance() and duplicate transitions.
     while (this.#running) await this.#running.catch(() => {})
 
     const run = this.#runTick()
@@ -152,8 +152,8 @@ export class Scheduler {
     const tickKey = ctx.clock.today()
     const report = emptyReport(tickKey, ctx.clock.timestamp())
 
-    // INSERT OR IGNORE + RETURNING: se o job já rodou neste dia simulado, o
-    // insert é ignorado, nada volta, e o job se pula sozinho.
+    // INSERT OR IGNORE + RETURNING: if the job already ran on this simulated
+    // day, the insert is ignored, nothing comes back, and the job skips itself.
     const once = async (jobName: string): Promise<boolean> => {
       const rows = await ctx.db.all<{ n: number }>(sql`
         INSERT OR IGNORE INTO job_runs (job_name, tick_key, ran_at)
@@ -175,16 +175,16 @@ export class Scheduler {
   }
 
   /**
-   * Avança o relógio virtual dando UM TICK COMPLETO POR DIA SIMULADO.
+   * Advances the virtual clock giving ONE FULL TICK PER SIMULATED DAY.
    *
-   * Isto é essencial e não é detalhe: um único tick em T+40 geraria UMA cobrança
-   * de assinatura em vez de várias, e carimbaria OVERDUE com a data errada. O
-   * tempo precisa ser percorrido, não pulado.
+   * This is essential and not a detail: a single tick at T+40 would generate ONE
+   * subscription charge instead of several, and would stamp OVERDUE with the
+   * wrong date. The time has to be walked through, not skipped.
    */
   async advanceDays(days: number): Promise<TickReport[]> {
     const clock = this.#ctx.clock
     if (!('advance' in clock)) {
-      throw new Error('advanceDays exige um relógio virtual (CLOCK_MODE=VIRTUAL_*)')
+      throw new Error('advanceDays requires a virtual clock (CLOCK_MODE=VIRTUAL_*)')
     }
     const reports: TickReport[] = []
     for (let i = 0; i < days; i++) {
@@ -197,17 +197,17 @@ export class Scheduler {
   async advanceMs(ms: number): Promise<TickReport> {
     const clock = this.#ctx.clock
     if (!('advance' in clock)) {
-      throw new Error('advanceMs exige um relógio virtual (CLOCK_MODE=VIRTUAL_*)')
+      throw new Error('advanceMs requires a virtual clock (CLOCK_MODE=VIRTUAL_*)')
     }
     ;(clock as { advance(ms: number): void }).advance(ms)
     return this.tick()
   }
 
   start(intervalMs: number): void {
-    if (intervalMs <= 0) return // 0 = desligado (é o modo dos testes)
+    if (intervalMs <= 0) return // 0 = off (it is the mode of the tests)
     this.#timer = setInterval(() => {
       void this.tick().catch((err) =>
-        this.#ctx.log('error', 'Tick do timer falhou', { error: String(err) }),
+        this.#ctx.log('error', 'The timer tick failed', { error: String(err) }),
       )
     }, intervalMs)
   }

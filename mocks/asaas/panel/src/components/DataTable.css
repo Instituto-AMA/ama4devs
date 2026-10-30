@@ -30,7 +30,7 @@
   color: var(--text);
   font: 400 14px var(--font);
 }
-/* O × nativo do type=search é cinza-escuro fixo e some no tema escuro. */
+/* The native × of type=search is fixed dark gray and disappears in the dark theme. */
 .dt-search input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
@@ -47,7 +47,7 @@
   white-space: nowrap;
 }
 
-/* Cabeçalho clicável. É um <button> de verdade — foco por teclado e leitor de tela. */
+/* Clickable header. It is a real <button> — keyboard focus and screen reader. */
 .dt-sort {
   display: inline-flex;
   align-items: center;
@@ -63,7 +63,7 @@
 .dt-sort:hover { color: var(--text); }
 .dt-sort.active { color: var(--primary); }
 
-/* A seta só aparece na coluna ativa (ou no hover, como convite). */
+/* The arrow only shows up on the active column (or on hover, as an invitation). */
 .dt-arrow { opacity: 0; transition: opacity 120ms; }
 .dt-sort:hover .dt-arrow { opacity: .45; }
 .dt-sort.active .dt-arrow { opacity: 1; }
@@ -71,7 +71,7 @@
 th.right, td.right { text-align: right; }
 td.right { font-variant-numeric: tabular-nums; }
 
-/* Sem linhas, a tabela vira um cabeçalho solto: o Empty entra logo abaixo. */
+/* With no rows, the table becomes a loose header: the Empty goes right below it. */
 .dt tbody:empty { display: none; }
 
 /* A row that opens its record. */

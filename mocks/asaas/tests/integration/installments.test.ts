@@ -1,13 +1,13 @@
 /**
- * Parcelamento. (Track E)
+ * Installment plans. (Track E)
  *
- * O cenário nº 1 do projeto inteiro — R$ 350,00 em 12x — está aqui. É uma regra
- * de RESTO EXATO ("a sobra vai na última parcela") e é o teste que prova que o
- * dinheiro é inteiro em centavos: em ponto flutuante, a soma das 12 parcelas não
- * fecha em 350,00.
+ * The project's scenario #1 — R$ 350.00 in 12x — is here. It is an
+ * EXACT REMAINDER rule ("the remainder goes to the last installment") and it is the test that proves that
+ * the money is integer cents: in floating point, the sum of the 12 installments does not
+ * close at 350.00.
  *
- * E o D+32 do cartão, parcela a parcela: é o que o sandbox do Asaas não deixa
- * você testar sem esperar um mês.
+ * And the card's D+32, installment by installment: it is what Asaas's sandbox does not let
+ * you test without waiting a month.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -29,7 +29,7 @@ async function customer(): Promise<string> {
   return res.body.id
 }
 
-const parcels = async (installmentId: string) => {
+const installments = async (installmentId: string) => {
   const res = await h.api.call('list-payments-of-a-installment', {
     params: { id: installmentId },
     query: { limit: 100 },
@@ -44,8 +44,8 @@ const ledgerOf = async (accountId: string) =>
     .from(financialTransactions)
     .where(eq(financialTransactions.accountId, accountId))
 
-describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
-  it('cria as 12 cobranças NA HORA, e a soma fecha exatamente em 350,00', async () => {
+describe('R$ 350.00 in 12x — the remainder goes to the LAST installment', () => {
+  it('creates the 12 charges RIGHT AWAY, and the sum closes at exactly 350.00', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-installment', {
@@ -55,38 +55,38 @@ describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
         installmentCount: 12,
         totalValue: 350,
         dueDate: '2026-02-05',
-        description: 'Pedido 056984',
+        description: 'Order 056984',
       },
     })
 
-    expect(created.status).toBe(200) // 200, nunca 201
+    expect(created.status).toBe(200) // 200, never 201
     expect(created.body.object).toBe('installment')
-    // O id do parcelamento é UUID PURO — sem prefixo. É de propósito.
+    // The plan's id is a PLAIN UUID — no prefix. It is on purpose.
     expect(created.body.id).toMatch(/^[0-9a-f-]{36}$/)
     expect(created.body.installmentCount).toBe(12)
-    expect(created.body.value).toBe(350) // o TOTAL
-    // O Asaas reporta em `paymentValue` o valor da ÚLTIMA parcela — a que leva a
-    // sobra do arredondamento. Contraintuitivo, e provado contra o sandbox real.
+    expect(created.body.value).toBe(350) // the TOTAL
+    // Asaas reports in `paymentValue` the value of the LAST installment — the one that carries the
+    // left over from the rounding. Counterintuitive, and proven against the real sandbox.
     expect(created.body.paymentValue).toBe(29.24)
     expect(created.body.expirationDay).toBe(5)
 
-    // Ao contrário da assinatura, as cobranças existem TODAS desde já.
-    const list = await parcels(created.body.id)
+    // Unlike the subscription, the charges ALL exist from the start.
+    const list = await installments(created.body.id)
     expect(list.length).toBe(12)
 
     const values = list.map((p) => p.value)
     expect(values).toEqual([
       29.16, 29.16, 29.16, 29.16, 29.16, 29.16, 29.16, 29.16, 29.16, 29.16, 29.16,
-      // a sobra do arredondamento vai na ÚLTIMA: 350 − 11 × 29,16 = 29,24
+      // the rounding remainder goes on the LAST one: 350 − 11 × 29.16 = 29.24
       29.24,
     ])
 
-    // A soma tem que ser EXATA. Somamos em centavos — em reais, 11 × 29.16 não
-    // fecha em binário e a asserção passaria a depender de epsilon.
+    // The sum has to be EXACT. We add in cents — in reais, 11 × 29.16 does not
+    // close in binary and the assertion would depend on an epsilon.
     const totalCents = values.reduce((a, v) => a + Math.round(v * 100), 0)
     expect(totalCents).toBe(35_000)
 
-    // Vencimentos mensais a partir do primeiro.
+    // Monthly due dates from the first one.
     expect(list.map((p) => p.dueDate)).toEqual([
       '2026-02-05',
       '2026-03-05',
@@ -102,18 +102,18 @@ describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
       '2027-01-05',
     ])
 
-    // Toda parcela aponta para o parcelamento e sabe o próprio número.
+    // Every installment points to the plan and knows its own number.
     expect(list.map((p) => p.installmentNumber)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ])
     expect(new Set(list.map((p) => p.installment))).toEqual(new Set([created.body.id]))
   })
 
-  it('`value` (valor da parcela) e `totalValue` (total) são caminhos diferentes', async () => {
+  it('`value` (the installment amount) and `totalValue` (the total) are different paths', async () => {
     const cus = await customer()
 
-    // value = valor POR PARCELA → total = 3 × 100 = 300
-    const porParcela = await h.api.call('create-installment', {
+    // value = value PER INSTALLMENT → total = 3 × 100 = 300
+    const perInstallment = await h.api.call('create-installment', {
       body: {
         customer: cus,
         billingType: 'PIX',
@@ -122,10 +122,10 @@ describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
         dueDate: '2026-02-05',
       },
     })
-    expect(porParcela.body.value).toBe(300)
-    expect(porParcela.body.paymentValue).toBe(100)
+    expect(perInstallment.body.value).toBe(300)
+    expect(perInstallment.body.paymentValue).toBe(100)
 
-    // totalValue = total A DIVIDIR → parcela = 100/3 = 33,33 (sobra na última)
+    // totalValue = the total TO DIVIDE → installment = 100/3 = 33.33 (the remainder on the last one)
     const total = await h.api.call('create-installment', {
       body: {
         customer: cus,
@@ -136,10 +136,10 @@ describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
       },
     })
     expect(total.body.value).toBe(100)
-    expect((await parcels(total.body.id)).map((p) => p.value)).toEqual([33.33, 33.33, 33.34])
+    expect((await installments(total.body.id)).map((p) => p.value)).toEqual([33.33, 33.33, 33.34])
   })
 
-  it('sem value nem totalValue, o Asaas recusa', async () => {
+  it('without value nor totalValue, Asaas refuses', async () => {
     const cus = await customer()
     const res = await h.api.call('create-installment', {
       body: {
@@ -154,8 +154,8 @@ describe('R$ 350,00 em 12x — a sobra vai na ÚLTIMA parcela', () => {
   })
 })
 
-describe('Parcelamento no cartão — cada parcela credita em D+32', () => {
-  it('a taxa é a da FAIXA de 12x, e o dinheiro só aparece 32 dias depois', async () => {
+describe('Installment plan on the card — each installment credits at D+32', () => {
+  it('the fee is the one of the 12x BRACKET, and the money only shows up 32 days later', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-installment', {
@@ -168,39 +168,39 @@ describe('Parcelamento no cartão — cada parcela credita em D+32', () => {
       },
     })
 
-    const list = await parcels(created.body.id)
+    const list = await installments(created.body.id)
     const first = list[0]!
 
     /**
-     * A taxa do cartão parcelado NÃO se calcula sobre a parcela — este teste
-     * afirmava que sim (0,49 + 3,99% de cada parcela = R$ 1,65 → líquido 27,51)
-     * e estava errado. A captura contra o sandbox provou o contrário:
+     * The installment card fee is NOT computed over the installment — this test
+     * asserted that it was (0.49 + 3.99% of each installment = R$ 1.65 → net 27.51)
+     * and it was wrong. The capture against the sandbox proved the opposite:
      *
-     *   o Asaas cobra `0,49 + pct% × TOTAL` UMA vez e divide entre as parcelas.
-     *   12x de R$ 350: 0,49 + 3,99% × 350 = R$ 14,455 → 1446 centavos.
+     *   Asaas charges `0.49 + pct% × TOTAL` ONCE and divides it among the installments.
+     *   12x of R$ 350: 0.49 + 3.99% × 350 = R$ 14.455 → 1446 cents.
      *
-     * E a divisão TRUNCA: 1446/12 = 120,5. Arredondando dá 121 (líquido 27,95);
-     * truncando dá 120 (líquido 27,96). Este teste afirmava 27,95 — e ERRAVA UM
-     * CENTAVO POR PARCELA. O sandbox real devolve netValue 27,96 sobre uma
-     * parcela de 29,16. Nenhum outro caso da suíte separava as duas regras, e é
-     * por isso que o erro sobreviveu: em 300/3x e 600/6x, round e trunc coincidem.
+     * And the division TRUNCATES: 1446/12 = 120.5. Rounding gives 121 (net 27.95);
+     * truncating gives 120 (net 27.96). This test asserted 27.95 — and it was off by ONE
+     * CENT PER INSTALLMENT. The real sandbox returns netValue 27.96 for an
+     * INSTALLMENT of 29.16. No other case of the suite separated the two rules, and that is
+     * why the error survived: in 300/3x and 600/6x, round and trunc coincide.
      */
     expect(first.value).toBe(29.16)
     expect(first.netValue).toBe(27.96)
 
     const confirmed = await h.api.call('confirm-payment', { params: { id: first.id } })
     expect(confirmed.body.status).toBe('CONFIRMED')
-    // Parcela #1 → D+32×1 da confirmação (05/01), rolado para dia útil.
+    // Installment #1 → D+32×1 from the confirmation (05/01), rolled to a business day.
     expect(confirmed.body.estimatedCreditDate).toBe('2026-02-06')
 
-    // Confirmada, mas o dinheiro NÃO está na conta.
+    // Confirmed, but the money is NOT in the account.
     expect((await ledgerOf(h.accountId)).length).toBe(0)
 
     await h.advance({ days: 31 })
     let p = await h.api.call('retrieve-a-single-payment', { params: { id: first.id } })
     expect(p.body.status).toBe('CONFIRMED')
 
-    // O 32º dia.
+    // The 32nd day.
     const [report] = await h.advance({ days: 1 })
     expect(report!.transitions).toContainEqual({
       resource: 'payment',
@@ -216,23 +216,23 @@ describe('Parcelamento no cartão — cada parcela credita em D+32', () => {
 
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual(['PAYMENT_RECEIVED', 'PAYMENT_FEE'])
-    expect(ledger[0]!.valueCents).toBe(2916) // bruto da parcela
-    // A taxa sai do TOTAL (0,49 + 3,99% × 350 = 1446 centavos) dividida por 12,
-    // TRUNCANDO → R$ 1,20 por parcela. Não 0,49 + 3,99% DA PARCELA (R$ 1,65), e
-    // não R$ 1,21 (que é 1446/12 arredondado). Os dois erros já moraram aqui.
+    expect(ledger[0]!.valueCents).toBe(2916) // the gross of the installment
+    // The fee comes out of the TOTAL (0.49 + 3.99% × 350 = 1446 cents) divided by 12,
+    // TRUNCATING → R$ 1.20 per installment. Not 0.49 + 3.99% OF THE INSTALLMENT (R$ 1.65), and
+    // not R$ 1.21 (which is 1446/12 rounded). Both mistakes lived here once.
     expect(ledger[1]!.valueCents).toBe(-120)
     expect(ledger[1]!.balanceCents).toBe(2796)
 
-    // As outras 11 continuam esperando — cada uma creditará no seu D+32.
-    const rest = (await parcels(created.body.id)).filter((x) => x.id !== first.id)
+    // The other 11 keep waiting — each one will credit at its own D+32.
+    const rest = (await installments(created.body.id)).filter((x) => x.id !== first.id)
     expect(rest.every((x) => x.status === 'PENDING')).toBe(true)
 
     await h.assertLedgerBalances()
   })
 })
 
-describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
-  it('`fixedValue` é aplicado EM CADA parcela', async () => {
+describe('Split on an installment plan — fixedValue vs totalFixedValue', () => {
+  it('`fixedValue` is applied to EACH installment', async () => {
     const other = await createSecondAccount(h)
     const cus = await customer()
 
@@ -247,8 +247,8 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
       },
     })
 
-    const list = await parcels(created.body.id)
-    // R$ 10 em CADA uma das 3 parcelas — R$ 30 no total, não R$ 10.
+    const list = await installments(created.body.id)
+    // R$ 10 in EACH of the 3 installments — R$ 30 in total, not R$ 10.
     for (const p of list) {
       expect(p.split.length).toBe(1)
       expect(p.split[0].fixedValue).toBe(10)
@@ -256,7 +256,7 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
     }
   })
 
-  it('`totalFixedValue` é DIVIDIDO entre as parcelas, com a sobra na última', async () => {
+  it('`totalFixedValue` is DIVIDED among the installments, with the remainder on the last one', async () => {
     const other = await createSecondAccount(h)
     const cus = await customer()
 
@@ -271,16 +271,16 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
       },
     })
 
-    // R$ 100 divididos em 3 → 33,33 | 33,33 | 33,34. A MESMA regra do valor das
-    // parcelas. `fixedValue` seria R$ 100 em cada uma — R$ 300 no total.
-    const list = await parcels(created.body.id)
+    // R$ 100 divided into 3 → 33.33 | 33.33 | 33.34. The SAME rule as the value of the
+    // installments. `fixedValue` would be R$ 100 on each one — R$ 300 in total.
+    const list = await installments(created.body.id)
     expect(list.map((p) => p.split[0].totalValue)).toEqual([33.33, 33.33, 33.34])
 
-    const soma = list.reduce((a, p) => a + Math.round(p.split[0].totalValue * 100), 0)
-    expect(soma).toBe(10_000)
+    const sum = list.reduce((a, p) => a + Math.round(p.split[0].totalValue * 100), 0)
+    expect(sum).toBe(10_000)
   })
 
-  it('totalFixedValue junto com installmentNumber é recusado', async () => {
+  it('totalFixedValue together with installmentNumber is refused', async () => {
     const other = await createSecondAccount(h)
     const cus = await customer()
 
@@ -300,7 +300,7 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
     expect(res.body.errors[0].code).toBe('invalid_split')
   })
 
-  it('update-installment-splits reescreve o split das parcelas em aberto', async () => {
+  it('update-installment-splits rewrites the split of the open installments', async () => {
     const other = await createSecondAccount(h)
     const cus = await customer()
 
@@ -321,12 +321,12 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(res.body.splits.length).toBe(3) // uma entrada por parcela em aberto
+    expect(res.body.splits.length).toBe(3) // one entry per open installment
 
-    // 20% do NETVALUE (R$ 100 − R$ 1,99 do Pix = R$ 98,01) → R$ 19,60.
-    // Sobre o bruto daria R$ 20,00. O split incide sobre o líquido, e é o erro
-    // que todo mundo comete.
-    const list = await parcels(created.body.id)
+    // 20% of the NETVALUE (R$ 100 − R$ 1.99 of Pix = R$ 98.01) → R$ 19.60.
+    // Over the gross it would give R$ 20.00. The split applies to the net, and that is the mistake
+    // everybody makes.
+    const list = await installments(created.body.id)
     for (const p of list) {
       expect(p.split.length).toBe(1)
       expect(p.split[0].percentualValue).toBe(20)
@@ -335,8 +335,8 @@ describe('Split no parcelamento — fixedValue vs totalFixedValue', () => {
   })
 })
 
-describe('Remover, cancelar e estornar', () => {
-  it('remover o parcelamento remove as parcelas em aberto', async () => {
+describe('Remove, cancel and refund', () => {
+  it('removing the installment plan removes the open installments', async () => {
     const cus = await customer()
     const created = await h.api.call('create-installment', {
       body: {
@@ -348,8 +348,8 @@ describe('Remover, cancelar e estornar', () => {
       },
     })
 
-    const list = await parcels(created.body.id)
-    // A 1ª é paga — dinheiro que entrou não se apaga.
+    const list = await installments(created.body.id)
+    // The 1st is paid — money that came in is not erased.
     await h.api.call('confirm-payment', { params: { id: list[0]!.id } })
 
     const removed = await h.api.call('remove-installment', {
@@ -362,17 +362,17 @@ describe('Remover, cancelar e estornar', () => {
     expect(p2.body.deleted).toBe(true)
 
     const p1 = await h.api.call('retrieve-a-single-payment', { params: { id: list[0]!.id } })
-    expect(p1.body.deleted).toBe(false) // a paga continua
+    expect(p1.body.deleted).toBe(false) // the paid one remains
     expect(p1.body.status).toBe('RECEIVED')
 
-    // Removido, some da listagem.
+    // Once removed, it disappears from the listing.
     const all = await h.api.call('list-installments', {})
     expect(all.body.data.map((i: any) => i.id)).not.toContain(created.body.id)
 
     await h.assertLedgerBalances()
   })
 
-  it('cancelar as cobranças mantém o parcelamento e devolve as removidas', async () => {
+  it('cancelling the charges keeps the plan and returns the removed ones', async () => {
     const cus = await customer()
     const created = await h.api.call('create-installment', {
       body: {
@@ -392,7 +392,7 @@ describe('Remover, cancelar e estornar', () => {
     expect(res.body.deletedPayments.length).toBe(3)
     expect(res.body.deletedPayments.every((p: any) => p.deleted)).toBe(true)
 
-    // O PARCELAMENTO continua — é a diferença para o remove.
+    // The PLAN continues — it is the difference against the remove.
     const still = await h.api.call('retrieve-a-single-installment', {
       params: { id: created.body.id },
     })
@@ -400,7 +400,7 @@ describe('Remover, cancelar e estornar', () => {
     expect(still.body.deleted).toBe(false)
   })
 
-  it('estornar devolve o dinheiro de todas as parcelas pagas — e retém as taxas', async () => {
+  it('a reversal returns the money of every paid installment — and keeps the fees', async () => {
     const cus = await customer()
     const created = await h.api.call('create-installment', {
       body: {
@@ -412,7 +412,7 @@ describe('Remover, cancelar e estornar', () => {
       },
     })
 
-    const list = await parcels(created.body.id)
+    const list = await installments(created.body.id)
     for (const p of list) {
       await h.api.call('confirm-payment', { params: { id: p.id } })
     }
@@ -424,12 +424,12 @@ describe('Remover, cancelar e estornar', () => {
     expect(refunded.status).toBe(200)
     expect(refunded.body.refunds.length).toBe(2)
 
-    const after = await parcels(created.body.id)
+    const after = await installments(created.body.id)
     expect(after.every((p) => p.status === 'REFUNDED')).toBe(true)
 
     /**
-     * AS TAXAS NÃO SÃO DEVOLVIDAS. Entraram R$ 200, saíram R$ 3,98 de taxa, e o
-     * estorno devolveu os R$ 200 — a conta fica devendo as taxas.
+     * THE FEES ARE NOT REFUNDED. R$ 200 came in, R$ 3.98 of fee went out, and the
+     * refund gave back the R$ 200 — the account still owes the fees.
      */
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.at(-1)!.balanceCents).toBe(-398)
@@ -437,7 +437,7 @@ describe('Remover, cancelar e estornar', () => {
     await h.assertLedgerBalances()
   })
 
-  it('estorno parcial de parcelamento é recusado explicitamente (TODO(regra))', async () => {
+  it('a partial reversal of an installment plan is explicitly refused (TODO(rule))', async () => {
     const cus = await customer()
     const created = await h.api.call('create-installment', {
       body: {
@@ -449,11 +449,11 @@ describe('Remover, cancelar e estornar', () => {
       },
     })
 
-    const list = await parcels(created.body.id)
+    const list = await installments(created.body.id)
     await h.api.call('confirm-payment', { params: { id: list[0]!.id } })
 
-    // Recusar é melhor que inventar uma regra de rateio e produzir valores
-    // errados com cara de certos.
+    // Refusing is better than inventing an allocation rule and producing values
+    // that look right but are wrong.
     const res = await h.api.call('refund-installment', {
       params: { id: created.body.id },
       body: { value: 50 },
@@ -463,8 +463,8 @@ describe('Remover, cancelar e estornar', () => {
   })
 })
 
-describe('Carnê e isolamento por conta', () => {
-  it('o carnê é um PDF de verdade, não um JSON com uma URL', async () => {
+describe('Payment booklet (paymentBook) and per-account isolation', () => {
+  it('the payment booklet is a real PDF, not a JSON with a URL', async () => {
     const cus = await customer()
     const created = await h.api.call('create-installment', {
       body: {
@@ -476,8 +476,8 @@ describe('Carnê e isolamento por conta', () => {
       },
     })
 
-    // Direto no servidor: o ApiClient do harness faz JSON.parse, e um PDF não é
-    // JSON. É justamente o ponto — a resposta 200 desta operação não tem schema.
+    // Straight to the server: the harness's ApiClient does JSON.parse, and a PDF is not
+    // JSON. That is exactly the point — the 200 response of this operation has no schema.
     const res = await h.app.app.handle(
       new Request(`http://localhost/v3/installments/${created.body.id}/paymentBook`, {
         headers: { access_token: '$aact_hmlg_test0000000000000000000000000' },
@@ -493,7 +493,7 @@ describe('Carnê e isolamento por conta', () => {
     expect(body).toContain('%%EOF')
   })
 
-  it('parcelamento de outra conta não existe (404, não 403)', async () => {
+  it('a plan from another account does not exist (404, not 403)', async () => {
     const other = await createSecondAccount(h)
     const cus = await customer()
 
@@ -514,8 +514,8 @@ describe('Carnê e isolamento por conta', () => {
   })
 })
 
-describe('a parcela é uma cobrança como qualquer outra', () => {
-  it('nasce de createPayment: mesmo formato, mesmos webhooks, mesmo split', async () => {
+describe('the installment is a charge like any other', () => {
+  it('is born from createPayment: same format, same webhooks, same split', async () => {
     await h.subscribeWebhook(['PAYMENT_CREATED'])
     const cus = await customer()
 
@@ -529,22 +529,22 @@ describe('a parcela é uma cobrança como qualquer outra', () => {
       },
     })
 
-    await h.tick() // o dispatcher roda no tick
+    await h.tick() // the dispatcher runs on the tick
 
-    // Uma cobrança criada = um PAYMENT_CREATED. Três parcelas, três eventos.
+    // One charge created = one PAYMENT_CREATED. Three installments, three events.
     expect(h.sink.eventNames.filter((e) => e === 'PAYMENT_CREATED').length).toBe(3)
 
     const splits = await h.app.db.select().from(paymentSplits)
-    expect(splits.length).toBe(0) // sem split configurado, nenhuma linha
+    expect(splits.length).toBe(0) // without a split configured, no row
     void created
   })
 })
 
-describe('Parcelamento no cartão', () => {
+describe('Installment plan on the card', () => {
   const CARD = {
     creditCard: {
       holderName: 'Fulano de Tal',
-      number: '4444444444444444', // cartão de teste que APROVA
+      number: '4444444444444444', // the test card that APPROVES
       expiryMonth: '12',
       expiryYear: '2030',
       ccv: '123',
@@ -561,14 +561,14 @@ describe('Parcelamento no cartão', () => {
   }
 
   /**
-   * Regressão de uma falha silenciosa: `POST /v3/installments` divide rota com a
-   * variante "com cartão", e o handler ignorava o cartão. As 12 parcelas nasciam
-   * PENDING — o cartão nunca era cobrado, e ninguém via erro nenhum.
+   * Regression of a silent failure: `POST /v3/installments` shares the route with the
+   * "with card" variant, and the handler ignored the card. The 12 installments were born
+   * PENDING — the card was never charged, and nobody saw any error.
    *
-   * No cartão, a emissora autoriza o total de uma vez: as N parcelas já nascem
-   * CONFIRMED, e é o cliente que paga em N vezes.
+   * On the card, the issuer authorizes the total at once: the N installments are already born
+   * CONFIRMED, and it is the customer who pays in N installments.
    */
-  it('cobra o cartão e as 12 parcelas nascem CONFIRMED', async () => {
+  it('charges the card and the 12 installments are born CONFIRMED', async () => {
     const res = await h.api.call('create-installment', {
       body: {
         customer: await customer(),
@@ -589,13 +589,13 @@ describe('Parcelamento no cartão', () => {
     expect(list.body.data).toHaveLength(12)
     for (const p of list.body.data) expect(p.status).toBe('CONFIRMED')
 
-    // A regra do resto continua valendo — o cartão não a altera.
+    // The remainder rule still holds — the card does not change it.
     const values = list.body.data.map((p: any) => p.value)
     expect(values.slice(0, 11)).toEqual(Array(11).fill(29.16))
     expect(values[11]).toBe(29.24)
   })
 
-  it('cartão recusado → 400, e NENHUM parcelamento fica para trás', async () => {
+  it('a declined card → 400, and NO plan is left behind', async () => {
     const before = await h.api.call('list-installments', {})
 
     const res = await h.api.call('create-installment', {
@@ -606,13 +606,13 @@ describe('Parcelamento no cartão', () => {
         totalValue: 300,
         dueDate: '2026-02-05',
         ...CARD,
-        creditCard: { ...CARD.creditCard, number: '5184019740373151' }, // recusa
+        creditCard: { ...CARD.creditCard, number: '5184019740373151' }, // declines
       },
     })
 
     expect(res.status).toBe(400)
 
-    // O ponto: a validação acontece ANTES de qualquer escrita.
+    // The point: the validation happens BEFORE any write.
     const after = await h.api.call('list-installments', {})
     expect(after.body.totalCount).toBe(before.body.totalCount)
   })

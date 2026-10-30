@@ -1,7 +1,7 @@
 {
   "name": "sms-mock",
   "version": "0.2.0",
-  "description": "SMS gateway simulator for development and tests: native, Twilio-compatible and simple send APIs, message lifecycle, status and inbound webhooks, magic numbers for failures, segment counting, OTP code extraction and a live phone-inbox panel. Simulador local de SMS.",
+  "description": "SMS gateway simulator for development and tests: native, Twilio-compatible and simple send APIs, message lifecycle, status and inbound webhooks, magic numbers for failures, segment counting, OTP code extraction and a live phone-inbox panel.",
   "keywords": [
     "sms",
     "sms-mock",
@@ -12,8 +12,7 @@
     "webhooks",
     "mock-server",
     "testing",
-    "docker",
-    "simulador"
+    "docker"
   ],
   "homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms",
   "repository": {

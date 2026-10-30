@@ -1,12 +1,14 @@
 /**
- * O tema. Claro por padrão — é o do Asaas, e é a aparência que esta tela existe para ter.
+ * The theme. Light by default — it is the one of Asaas, and it is the look this
+ * screen exists to have.
  *
- * NÃO seguimos `prefers-color-scheme`: numa máquina configurada no escuro (a maioria das
- * de dev), o painel nunca apareceria como foi desenhado. O escuro fica atrás de uma
- * escolha explícita, guardada no localStorage.
+ * We do NOT follow `prefers-color-scheme`: on a machine configured in dark mode
+ * (most of the developers'), the panel would never show up as it was designed.
+ * The dark one stays behind an explicit choice, kept in the localStorage.
  *
- * O `data-theme` é aplicado no <html> ANTES do primeiro paint (ver o script inline no
- * index.html), senão quem escolheu escuro vê um flash branco a cada reload.
+ * The `data-theme` is applied to the <html> BEFORE the first paint (see the
+ * inline script in index.html), otherwise whoever chose dark sees a white
+ * flash on every reload.
  */
 import { useEffect, useState } from 'preact/hooks'
 

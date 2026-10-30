@@ -1,4 +1,4 @@
-/* "Accept any card" on the left, "Novo cartão" on the right. */
+/* "Accept any card" on the left, "New card" on the right. */
 .test-card-controls {
   display: flex;
   align-items: flex-start;
@@ -51,7 +51,7 @@
 }
 .test-card-err code { color: var(--danger-strong); }
 
-/* Aviso de que o número é extensão nossa: o Asaas real APROVARIA. */
+/* Warning that the number is our extension: the real Asaas would APPROVE it. */
 .test-card-warn {
   align-self: flex-start;
   padding: 3px 9px;

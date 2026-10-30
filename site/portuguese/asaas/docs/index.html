@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentação do mock do Asaas: regras, painel, notificações, configuração | ama4devs</title>
+  <meta name="description" content="Como o mock da API v3 do Asaas se comporta: máquina de estados por forma de pagamento, taxas, juros, split, webhooks, tokenização de cartão, recorrência, Pix BR Code, notificações ao pagador, o painel e cada variável de configuração.">
+  <meta name="keywords" content="documentação mock asaas, regras sandbox asaas, retentativa webhook asaas, taxas asaas, juros e multa asaas, split asaas, qr code pix asaas, configuração mock asaas">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/asaas/docs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/asaas/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/docs/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Documentação do mock do Asaas">
+  <meta property="og:description" content="As regras que o mock do Asaas segue, o painel e a configuração.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/asaas/docs/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/asaas/dashboard.jpg">
+  <meta name="theme-color" content="#0f2160">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-tool="asaas">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../../whatsapp/">Mock do WhatsApp</a>
+        <a href="../" aria-current="page">Mock do Asaas</a>
+        <a href="../../generator/">Gerador</a>
+        <a href="../../sms/">Mock de SMS</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../asaas/docs/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock do Asaas">
+    <a href="../">Visão geral</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="../api/">API</a>
+    <a href="./" aria-current="page">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#why">Por que não o sandbox</a></li>
+            <li><a href="#rules">As regras que segue</a></li>
+            <li><a href="#notifications">Notificações ao pagador</a></li>
+            <li><a href="#panel">O painel</a></li>
+            <li><a href="#config">Configuração</a></li>
+            <li><a href="#fidelity">Fidelidade</a></li>
+            <li><a href="#development">Desenvolvimento</a></li>
+            <li><a href="#license">Licença</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Docs</h1>
+          <p class="lead">O que o simulador faz por trás de cada chamada, o painel que mostra isso, e cada configuração.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <article class="sheet">
+            <section id="why" aria-labelledby="why-title">
+              <h2 id="why-title">Por que não só o sandbox</h2>
+              <p>O sandbox do Asaas não entrega webhook no <code>localhost</code>. Isso obriga a um túnel, um deploy de homologação ou payloads forjados na mão, e nenhum deles testa o que importa: o prazo de crédito, os juros de atraso, o split, a retentativa do webhook. E no sandbox, um pagamento no cartão cai em 32 dias reais.</p>
+              <p>Este simulador entrega webhooks na sua máquina e deixa você mover o tempo. Diferente de um mock de respostas fixas, ele guarda estado: saldos, extratos, filas e agendamentos.</p>
+            </section>
+
+            <section id="rules" aria-labelledby="rules-title">
+              <h2 id="rules-title">As regras que segue</h2>
+              <ul>
+                <li><strong>Uma máquina de estados por forma de pagamento.</strong> Pix vai direto a <code>RECEIVED</code>; boleto cai em D+1 útil; cartão de crédito em D+32; débito em D+3. Uma cobrança não paga passa antes por <code>OVERDUE</code>.</li>
+                <li><strong>Dinheiro de verdade.</strong> <code>netValue = value − taxa</code>, a taxa é debitada no razão, e o extrato fecha com o saldo (um invariante testado).</li>
+                <li><strong>Juros e multa.</strong> A multa uma vez, no primeiro dia de atraso; os juros pro rata die sobre o mês comercial de 30 dias.</li>
+                <li><strong>Split entre contas.</strong> Cada chave de API é uma conta, com <code>walletId</code> e saldo próprios. Um split move dinheiro e lança nos dois extratos.</li>
+                <li><strong>Webhooks como o Asaas manda.</strong> O header <code>asaas-access-token</code>; só HTTP 200 conta; 15 tentativas na tabela do Asaas; <code>SEQUENTIALLY</code> com bloqueio real da fila; <code>interrupted</code> no fim.</li>
+                <li><strong>Cartão.</strong> Tokenização (o número do cartão nunca é guardado), cartões de teste, pré-autorização e captura, chargeback. O parcelamento no cartão cobra o cartão.</li>
+                <li><strong>Cobrança recorrente no cartão.</strong> No vencimento o cartão salvo da assinatura é tentado às 8h, 14h e 20h, e mais três vezes no dia seguinte (o relato do próprio Asaas sobre o cronograma, blog.asaas.com, 2024). Cada recusa é um <code>PAYMENT_CREDIT_CARD_CAPTURE_REFUSED</code> com a cobrança ainda <code>PENDING</code>; depois <code>OVERDUE</code>, sem novas tentativas. Um cartão novo na assinatura vale para as cobranças pendentes. Um cartão salvo pode aprovar mais N cobranças e depois recusar.</li>
+                <li><strong>Recorrência.</strong> A assinatura cria a primeira cobrança na criação; as seguintes nascem 40 dias antes do vencimento. No parcelamento, a sobra do arredondamento vai para a última parcela, e no cartão a parcela <code>n</code> cai em D+32×n.</li>
+                <li><strong>Pix que paga.</strong> <code>GET /v3/payments/{id}/pixQrCode</code> devolve um BR Code EMV de verdade, com CRC16 e a imagem do QR: a câmera do celular lê.</li>
+                <li><strong>Onboarding de subconta.</strong> Criar a subconta, listar os documentos pendentes, enviar um arquivo, aprovar.</li>
+              </ul>
+            </section>
+
+            <section id="notifications" aria-labelledby="notifications-title">
+              <h2 id="notifications-title">Notificações ao pagador</h2>
+              <p>O que o Asaas avisa a quem paga, entregue de verdade na sua máquina.</p>
+              <ul>
+                <li>Todo evento de cobrança (criada, alterada, vencendo, vencida, recebida) manda ao pagador um <strong>e-mail no Mailpit</strong>, um <strong>template de WhatsApp</strong> pela Cloud API do <a href="../../whatsapp/">mock do WhatsApp</a> e um <strong>SMS</strong> no <a href="../../sms/">mock de SMS</a>, com o remetente <code>ASAAS</code>.</li>
+                <li>O SMS segue o interruptor <code>smsEnabledForCustomer</code> da notificação e só sai para quem tem celular cadastrado.</li>
+                <li>Um parcelamento é avisado uma vez: a criação da primeira parcela conta o plano inteiro (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); lembretes e avisos de pagamento seguem por parcela.</li>
+                <li>Nada para ligar, do jeito que você rodar (bun, <code>docker run</code>, o seu compose, <code>make setup</code>): o Mailpit, o mock do WhatsApp e o mock de SMS são achados sozinhos, pelo nome do serviço no compose, nesta máquina ou no host do Docker, na subida e a cada 10 s, o mais próximo primeiro. O mock de SMS é procurado na porta <code>8899</code>, pelo serviço <code>sms</code> ou <code>sms-mock</code> do compose, e só é aceito quando responde <code>service: "sms"</code> no <code>GET /health</code>. O endereço em que o mock do WhatsApp responde de volta é achado do mesmo jeito: fica o primeiro que ele verifica.</li>
+                <li>O <a href="../../generator/">gerador</a> também é achado sozinho na porta <code>45450</code> (no boot e a cada 10 s, no serviço <code>generator</code> ou <code>generator-mock</code> do compose, nesta máquina ou no host do Docker): aceita quem responder <code>service: "generator"</code> no <code>GET /health</code>, liberando a aba <strong>Integrações › Gerador</strong> no painel para popular a conta selecionada com clientes reais e cobranças.</li>
+                <li>Tudo sobe configurado: no boot e a cada tick, o número remetente recebe o webhook deste servidor e os templates do pagador são criados no mock do WhatsApp, pelas chamadas da própria Meta.</li>
+                <li>Todo cliente nasce com as oito notificações padrão do Asaas (<code>GET /v3/customers/{id}/notifications</code>, alteradas com <code>PUT /v3/notifications/batch</code>), aqui com e-mail, SMS e WhatsApp ligados (o Asaas começa com o WhatsApp desligado). O aviso de vencimento sai N dias antes (10 por padrão) e no dia do vencimento; a cobrança vencida é avisada de novo a cada N dias (7 por padrão) enquanto não é paga; a cobrança de assinatura não é avisada na criação.</li>
+                <li>O <code>notificationDisabled</code> do cliente e cada configuração são respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia quando você pede.</li>
+              </ul>
+            </section>
+
+            <section id="panel" aria-labelledby="panel-title">
+              <h2 id="panel-title">O painel</h2>
+              <p>Abra <a href="http://localhost:45445">http://localhost:45445</a>. Não é o painel do Asaas: é o do simulador, e mostra o que o Asaas não deixa ver.</p>
+              <div class="carousel-section" data-carousel>
+                <div class="carousel-header-bar">
+                  <div class="carousel-counter">
+                    <span class="curr" data-carousel-current>01</span>
+                    <span class="sep">/</span>
+                    <span class="tot" data-carousel-total>15</span>
+                  </div>
+                  <div class="carousel-nav">
+                    <button type="button" class="carousel-arrow" data-carousel-prev aria-label="Slide anterior">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="carousel-arrow" data-carousel-next aria-label="Próximo slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="carousel-track" data-carousel-track>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/dashboard.jpg" width="1502" height="714" alt="O painel do simulador: cobranças recebidas, confirmadas, pendentes e vencidas com os totais, os cartões de teste e a carteira e a chave da conta." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Dashboard</span>
+                      <h3 class="card-title">Início</h3>
+                      <p class="card-desc">Cobranças por status com os totais, os cartões de teste e a carteira e a chave da conta.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/customers.jpg" width="1502" height="714" alt="Lista de clientes no painel." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Clientes</span>
+                      <h3 class="card-title">Clientes</h3>
+                      <p class="card-desc">Gestão de pagadores, CPF/CNPJ, contatos e histórico de cobranças.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/customer-create.jpg" width="1502" height="714" alt="Modal de criação de cliente." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Cadastro</span>
+                      <h3 class="card-title">Criar Cliente</h3>
+                      <p class="card-desc">Cadastro rápido de clientes com validação de campos em tempo real.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/charges.jpg" width="1502" height="771" alt="A lista de cobranças com cobranças avulsas e parcelas, status, cliente, forma de pagamento, valor e vencimento." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Cobranças</span>
+                      <h3 class="card-title">Cobranças</h3>
+                      <p class="card-desc">Avulsas, parceladas e assinaturas; acompanhamento de status em tempo real.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/charge-create.jpg" width="1502" height="714" alt="Modal de criação de cobrança." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Emissão</span>
+                      <h3 class="card-title">Criar Cobrança</h3>
+                      <p class="card-desc">Configuração de cliente, valor, vencimento e forma de pagamento.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/invoice-view.jpg" width="1502" height="714" alt="Tela pública da fatura do pagador." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Pagador</span>
+                      <h3 class="card-title">Link da Fatura</h3>
+                      <p class="card-desc">Tela em <code>invoiceUrl</code> com opções de simulação de pagamento.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/invoice-pix.jpg" width="1502" height="714" alt="A página da fatura que o pagador abre: valor, vencimento, descrição e o QR code Pix com copia e cola." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Pix</span>
+                      <h3 class="card-title">Fatura com Pix</h3>
+                      <p class="card-desc">QR Code dinâmico EMV e copia-e-cola com confirmação instantânea.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/invoice-bank-slip.jpg" width="1502" height="714" alt="Boleto bancário com linha digitável." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Boleto</span>
+                      <h3 class="card-title">Boleto Bancário</h3>
+                      <p class="card-desc">Layout com linha digitável de 47 dígitos e código de barras.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/webhooks.jpg" width="1502" height="714" alt="Configurações de webhooks." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Webhooks</span>
+                      <h3 class="card-title">Webhooks</h3>
+                      <p class="card-desc">Endpoints, token de autenticação e controle de fila de eventos.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/webhook-create.jpg" width="1502" height="714" alt="Modal de criação de webhook." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Assinaturas</span>
+                      <h3 class="card-title">Criar Webhook</h3>
+                      <p class="card-desc">Inscrição em grupos de eventos de cobrança, transferência e clientes.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/webhook-logs.jpg" width="1502" height="714" alt="Logs de webhooks." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Entregas</span>
+                      <h3 class="card-title">Logs de Webhooks</h3>
+                      <p class="card-desc">Histórico de entregas, payloads e respostas do seu endpoint.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/request-logs.jpg" width="1502" height="714" alt="Logs de requisições." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Auditoria</span>
+                      <h3 class="card-title">Logs de Requisições</h3>
+                      <p class="card-desc">Chamadas à <code>/v3</code> com parâmetros enviados e status de resposta.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/clock.jpg" width="1502" height="714" alt="Relógio virtual." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Simulação</span>
+                      <h3 class="card-title">Relógio Virtual</h3>
+                      <p class="card-desc">Avance dias ou meses para observar a máquina de estados agir.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/test-cards.jpg" width="1502" height="714" alt="Cartões de teste." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Cartões</span>
+                      <h3 class="card-title">Cartões de Teste</h3>
+                      <p class="card-desc">Números específicos para forçar aprovação, recusa ou saldo insuficiente.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/asaas/statement.jpg" width="1502" height="714" alt="Extrato financeiro." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Financeiro</span>
+                      <h3 class="card-title">Extrato Financeiro</h3>
+                      <p class="card-desc">Lançamentos de crédito, débito de taxas e saldo conciliado.</p>
+                    </div>
+                  </article>
+                </div>
+              </div>
+              <ul>
+                <li><strong>Clientes</strong>: criar, editar, remover e restaurar; abrir um para ver tudo o que foi cobrado dele.</li>
+                <li><strong>Uma cobrança</strong>: o link da fatura, simular o pagamento, confirmar recebimento em dinheiro, receber, vencer, estornar, apagar, restaurar, e as notificações dela.</li>
+                <li><strong>Integrações</strong>, por conta: chaves de API, webhooks com a lista de eventos, o log de requisições (cada chamada à <code>/v3</code> com o que foi enviado e o que voltou, erros incluídos), o log de webhooks com a resposta do seu endpoint e os eventos que nenhum webhook levou, os canais de e-mail e WhatsApp, e o gerador (Gerador).</li>
+                <li><strong>Cartões de teste</strong>: aceitar qualquer cartão bem formado ou só os da lista; adicionar um cartão com o desfecho que ele força.</li>
+                <li><strong>Notas fiscais</strong> (NFS-e): agendar a nota de uma cobrança, emitir, cancelar e cadastrar as informações fiscais da conta. A prefeitura responde no próximo tick (<code>SYNCHRONIZED</code> → <code>AUTHORIZED</code>, ou <code>ERROR</code> sem informações fiscais), ou na hora com os botões do simulador; o <code>pdfUrl</code> e o <code>xmlUrl</code> de uma nota autorizada abrem o documento. Uma assinatura com <code>invoiceSettings</code> ganha a nota de cada cobrança.</li>
+                <li><strong>Perfis</strong>: uma conta raiz por tenant da sua aplicação, criada e apagada sem reiniciar. <em>Zerar</em> esvazia um perfil e mantém o id e as chaves: tudo, ou só as cobranças, as notas e os logs, mantendo clientes e subcontas; cancelar antes envia <code>PAYMENT_DELETED</code>, <code>SUBSCRIPTION_DELETED</code> e <code>INVOICE_CANCELED</code> aos seus webhooks antes da limpeza.</li>
+              </ul>
+            </section>
+
+            <section id="config" aria-labelledby="config-title">
+              <h2 id="config-title">Configuração</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Variável</th><th>Padrão</th><th>Significado</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>PORT</code></td><td><code>45445</code></td><td>Porta HTTP</td></tr>
+                    <tr><td><code>ASAAS_API_KEY</code></td><td><em>gerada, impressa no boot</em></td><td>A chave da conta principal</td></tr>
+                    <tr><td><code>WEBHOOK_LOCALHOST_REWRITE</code></td><td><em>(vazio)</em></td><td>Host que substitui <code>localhost</code> nas URLs de webhook; use <code>host.docker.internal</code></td></tr>
+                    <tr><td><code>CLOCK_MODE</code></td><td><code>REAL</code></td><td><code>REAL</code> (segue a máquina; o relógio não deixa pular), <code>VIRTUAL_FLOWING</code> ou <code>VIRTUAL_FROZEN</code></td></tr>
+                    <tr><td><code>ADMIN_ENABLED</code></td><td><code>true</code></td><td>As rotas <code>/_admin/*</code> e o painel</td></tr>
+                    <tr><td><code>INVOICE_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Para onde apontam <code>invoiceUrl</code> e <code>bankSlipUrl</code>, como o navegador alcança este servidor</td></tr>
+                    <tr><td><code>MAILPIT_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O Mailpit dos e-mails ao pagador; vazio, desativa o e-mail</td></tr>
+                    <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O mock do WhatsApp dos templates ao pagador; vazio, desativa o WhatsApp</td></tr>
+                    <tr><td><code>SMS_MOCK_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O mock de SMS das mensagens ao pagador; vazio, desativa o SMS</td></tr>
+                    <tr><td><code>GENERATOR_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O gerador para popular o mock; vazio, desativa o gerador</td></tr>
+                    <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td><code>5511400000000</code></td><td>O número remetente no mock do WhatsApp</td></tr>
+                    <tr><td><code>WHATSAPP_WABA_ID</code></td><td><code>100000000000001</code></td><td>A WABA cuja biblioteca guarda os templates do pagador</td></tr>
+                    <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>Este servidor como o mock do WhatsApp o alcança</td></tr>
+                    <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>As duas telas, como o navegador as abre a partir de Integrações</td></tr>
+                    <tr><td><code>SMS_UI_URL</code></td><td><code>http://localhost:8899</code></td><td>A tela do mock de SMS, onde as mensagens ao pagador são lidas. O painel do Asaas não tem aba de SMS</td></tr>
+                    <tr><td><code>GENERATOR_UI_URL</code></td><td><code>http://localhost:45450</code></td><td>A tela do gerador, como o navegador a abre a partir de Integrações</td></tr>
+                    <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Remetente dos e-mails</td></tr>
+                    <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O painel troca em tempo de execução</td></tr>
+                    <tr><td><code>DATABASE_PATH</code></td><td><code>/data/asaas.db</code></td><td>Monte um volume em <code>/data</code> para persistir</td></tr>
+                    <tr><td><code>TZ</code></td><td><code>America/Sao_Paulo</code></td><td>Fuso horário</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="fidelity" aria-labelledby="fidelity-title">
+              <h2 id="fidelity-title">Fidelidade: provada, não prometida</h2>
+              <p>As regras de negócio foram capturadas do sandbox real do Asaas e são conferidas campo a campo por uma suíte de paridade. <code>tools/capture.ts</code> roda os cenários contra o Asaas e grava as respostas em <code>tests/golden/</code>; a suíte as reproduz contra o simulador e compara tudo o que não é legitimamente volátil, até o conjunto exato de chaves de cada objeto.</p>
+              <p>A captura derrubou 20 regras deduzidas da documentação, entre elas: a assinatura cria a primeira cobrança na hora; a taxa do parcelamento no cartão sai do total e a divisão trunca; a parcela <code>n</code> cai em D+32×n; o campo do desconto é <code>limitDate</code>, que a especificação não declara.</p>
+              <div class="code"><pre><code>bun run test:parity
+ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun run capture   <span class="c"># capture de novo com a sua chave do sandbox</span></code></pre></div>
+              <p>O script recusa qualquer chave que não comece com <code>$aact_hmlg_</code>. Detalhes em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/progress.md"><code>progress.md</code></a>.</p>
+            </section>
+
+            <section id="development" aria-labelledby="development-title">
+              <h2 id="development-title">Desenvolvimento</h2>
+              <div class="code"><pre><code>bun install
+bun run codegen        <span class="c"># spec OpenAPI → TypeBox e o manifesto de operações</span>
+bun run db:generate    <span class="c"># migrations a partir do schema Drizzle</span>
+bun run dev
+bun test
+bun run e2e            <span class="c"># sobe o servidor, paga um Pix, espera o PAYMENT_RECEIVED</span>
+bun run spec:diff      <span class="c"># o Asaas mudou a API?</span></code></pre></div>
+              <p>Leia o <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/AGENTS.md"><code>AGENTS.md</code></a> antes de contribuir: domínio puro, nada de <code>Date.now()</code>, dinheiro em centavos inteiros.</p>
+            </section>
+
+            <section id="license" aria-labelledby="license-title">
+              <h2 id="license-title">Licença</h2>
+              <p>MIT, veja a <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/asaas/LICENSE">LICENSE</a>.</p>
+              <p class="note"><strong>Sem vínculo com o Asaas.</strong> Um simulador independente da API pública deles, para desenvolvimento local e testes. "Asaas" é marca de seus donos. Não use para mover dinheiro de verdade: nenhum pagamento aqui é real.</p>
+            </section>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock do Asaas é MIT. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/asaas">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Um simulador independente da API pública do Asaas, sem vínculo com o Asaas. "Asaas" é marca de seus donos. Nenhum pagamento feito aqui é real.</p>
+    </div>
+  </footer>
+  <script src="../../../assets/site.js" defer></script>
+</body>
+</html>

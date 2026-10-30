@@ -3,19 +3,19 @@ import { accounts } from './accounts.ts'
 import { bool, cents, date, datetime, json } from './_conventions.ts'
 
 /**
- * O ledger. Append-only, com saldo corrente materializado.
+ * The ledger. Append-only, with a materialized running balance.
  *
- * `valueCents` é ASSINADO: crédito positivo, débito negativo.
- * `balanceCents` é o saldo DEPOIS deste lançamento.
+ * `valueCents` is SIGNED: credit positive, debit negative.
+ * `balanceCents` is the balance AFTER this entry.
  *
- * Um recebimento de cobrança gera DOIS lançamentos: PAYMENT_RECEIVED (+bruto) e
- * PAYMENT_FEE (−taxa). É assim que o extrato do Asaas mostra.
+ * A charge receipt generates TWO entries: PAYMENT_RECEIVED (+gross) and
+ * PAYMENT_FEE (−fee). That is how Asaas's statement shows it.
  */
 export const financialTransactions = sqliteTable(
   'financial_transactions',
   {
     id: text('id').primaryKey(),
-    /** Ordem de inserção. Torna o extrato estável mesmo dentro do mesmo segundo. */
+    /** Insertion order. It makes the statement stable even within the same second. */
     seq: integer('seq').notNull(),
     accountId: text('account_id')
       .notNull()
@@ -23,7 +23,7 @@ export const financialTransactions = sqliteTable(
 
     type: text('type').notNull(), // PAYMENT_RECEIVED, PAYMENT_FEE, TRANSFER…
     valueCents: cents('value_cents').notNull(), // assinado
-    balanceCents: cents('balance_cents').notNull(), // saldo após
+    balanceCents: cents('balance_cents').notNull(), // balance after
     description: text('description'),
     date: date('date').notNull(),
 
@@ -75,7 +75,7 @@ export const transfers = sqliteTable(
     netValueCents: cents('net_value_cents').notNull(),
     transferFeeCents: cents('transfer_fee_cents').notNull(),
 
-    /** Preenchido em transferência interna entre contas deste servidor. */
+    /** Filled in an internal transfer between accounts of this server. */
     destinationWalletId: text('destination_wallet_id'),
     destinationAccountId: text('destination_account_id'),
 
@@ -114,9 +114,9 @@ export const anticipations = sqliteTable(
     /** PENDING | SCHEDULED | DENIED | CREDITED | DEBITED | CANCELLED | OVERDUE */
     status: text('status').notNull(),
 
-    /** Valor bruto do recebível antecipado. */
+    /** The gross value of the anticipated receivable. */
     totalValueCents: cents('total_value_cents').notNull(),
-    /** Valor base (após taxa da cobrança). */
+    /** The base amount (after the charge's fee). */
     valueCents: cents('value_cents').notNull(),
     feeCents: cents('fee_cents').notNull(),
     netValueCents: cents('net_value_cents').notNull(),

@@ -61,7 +61,7 @@ describe('/_mock/payments/:id', () => {
     await h.assertLedgerBalances()
   })
 
-  it('receive on a boleto goes through CONFIRMED and ends RECEIVED', async () => {
+  it('receive on a bank slip goes through CONFIRMED and ends RECEIVED', async () => {
     const id = await newPayment('BOLETO')
 
     const res = await post(`/payments/${id}/receive`)
@@ -76,7 +76,7 @@ describe('/_mock/payments/:id', () => {
     await h.assertLedgerBalances()
   })
 
-  it('confirm stops a boleto at CONFIRMED', async () => {
+  it('confirm stops a bank slip at CONFIRMED', async () => {
     const id = await newPayment('BOLETO')
     const body: any = await (await post(`/payments/${id}/confirm`)).json()
     expect(body.to).toBe('CONFIRMED')
@@ -125,7 +125,7 @@ describe('/_mock/payments/:id', () => {
   })
 
   it('receive twice answers 400 in the Asaas error format, never a 500', async () => {
-    // Pix: the first receive goes straight to RECEIVED. Boleto: it goes through
+    // Pix: the first receive goes straight to RECEIVED. Bank slip: it goes through
     // CONFIRMED and settles. Both end paid, and paying twice is an error.
     for (const billingType of ['PIX', 'BOLETO'] as const) {
       const id = await newPayment(billingType)

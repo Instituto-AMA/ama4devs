@@ -1,21 +1,21 @@
 /**
- * Job 8 — retenção da fila de webhooks.
+ * Job 8 — the retention of the webhook queue.
  *
- * O Asaas guarda a fila por um tempo finito: o que não foi entregue dentro da
- * janela de retenção (WEBHOOK_RETENTION_DAYS, default 14 DIAS SIMULADOS) não é
- * entregue nunca mais. Sem isto, um `advance({ days: 400 })` acumularia entregas
- * PENDING para sempre e a fila viraria um cemitério que o dispatcher varre a cada
- * tick.
+ * Asaas keeps the queue for a finite time: what was not delivered within the
+ * retention window (WEBHOOK_RETENTION_DAYS, default 14 SIMULATED DAYS) is never
+ * delivered again. Without this, an `advance({ days: 400 })` would pile up
+ * PENDING deliveries forever and the queue would become a graveyard the
+ * dispatcher sweeps on every tick.
  *
- *   PENDING  além da retenção → EXPIRED  (não se entrega passado remoto)
- *   DELIVERED além da retenção → some    (o log de entregas é log, não arquivo)
- *   Logs de Requisições além das últimas REQUEST_LOG_LIMIT da conta → somem
+ *   PENDING  past the retention → EXPIRED  (it is not delivered, no late)
+ *   DELIVERED past the retention → gone    (the delivery log is a log, not an archive)
+ *   Request log entries past the last REQUEST_LOG_LIMIT of the account → gone
  *
- * INTERRUPTED NÃO é purgado: é justamente o estado que o dev precisa ver ao
- * investigar por que a fila travou — e é o que o removeBackoff destrava.
+ * INTERRUPTED is NOT purged: it is exactly the state the developer needs to see
+ * while investigating why the queue froze — and it is what removeBackoff unlocks.
  *
- * Roda DEPOIS do dispatcher: uma entrega que vence e expira no mesmo tick ainda
- * teve sua chance.
+ * It runs AFTER the dispatcher: a delivery that falls due and expires in the
+ * same tick still had its chance.
  */
 import { and, eq, lt, sql } from 'drizzle-orm'
 import { webhookDeliveries } from '../../db/schema/index.ts'
@@ -27,8 +27,8 @@ export const retentionPurge: Job = {
   async run({ ctx }) {
     const now = ctx.clock.nowMs()
 
-    // Compare-and-swap no status: rodar duas vezes no mesmo instante altera zero
-    // linhas na segunda.
+    // Compare-and-swap on the status: running twice at the same instant changes
+    // zero rows the second time.
     await ctx.db
       .update(webhookDeliveries)
       .set({ status: 'EXPIRED', nextAttemptAtMs: null })
@@ -48,7 +48,7 @@ export const retentionPurge: Job = {
         ),
       )
 
-    // Logs de Requisições: the newest REQUEST_LOG_LIMIT calls of each account. A
+    // Request logs: the newest REQUEST_LOG_LIMIT calls of each account. A
     // count, not a window of simulated days: a jump of the clock must not wipe
     // the calls the developer is looking at.
     await ctx.db.run(sql`

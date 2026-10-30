@@ -1,13 +1,14 @@
 /**
- * A marca do SIMULADOR: o triângulo do Asaas + a palavra MOCK.
+ * The brand of the SIMULATOR: the Asaas triangle + the word MOCK.
  *
- * NÃO é o logo do Asaas, e a diferença é o ponto. Quem abre esta tela precisa saber,
- * antes de qualquer outra coisa, que não está no painel do Asaas — está num simulador
- * que roda na máquina dele. Um logo idêntico ao do produto real seria a primeira
- * mentira de uma tela cujo valor inteiro depende de ser honesta sobre o que é.
+ * It is NOT the logo of Asaas, and the difference is the point. Whoever opens
+ * this screen needs to know, before anything else, that they are not in the
+ * Asaas panel — they are in a simulator running on their machine. A logo
+ * identical to the real product would be the first lie of a screen whose entire
+ * value depends on being honest about what it is.
  *
- * `currentColor` no lugar do hex: assim ela acompanha o tema escuro em vez de virar um
- * azul que some no fundo.
+ * `currentColor` instead of the hex: that way it follows the dark theme instead
+ * of becoming a blue that disappears in the background.
  */
 export const MockLogo = () => (
   <svg

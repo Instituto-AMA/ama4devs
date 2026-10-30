@@ -1,11 +1,11 @@
 /**
- * Imagens de um link de pagamento.
+ * The images of a payment link.
  *
- * Tabela própria (e não um JSON dentro de `payment_links`) porque a API do Asaas
- * trata cada imagem como um RECURSO: ela tem id próprio, é recuperável sozinha,
- * removível sozinha, e exatamente uma delas é a principal (`main`). Guardar isso
- * num array JSON transformaria "definir a imagem principal" num read-modify-write
- * do link inteiro — e duas requisições concorrentes perderiam uma das imagens.
+ * A table of its own (and not a JSON inside `payment_links`) because the Asaas API
+ * treats each image as a RESOURCE: it has its own id, is retrievable on its own,
+ * removable on its own, and exactly one of them is the main one (`main`). Storing
+ * that in a JSON array would turn "set the main image" into a read-modify-write of
+ * the whole link — and two concurrent requests would lose one of the images.
  */
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { bool, datetime } from './_conventions.ts'
@@ -18,13 +18,13 @@ export const paymentLinkImages = sqliteTable(
     paymentLinkId: text('payment_link_id')
       .notNull()
       .references(() => paymentLinks.id),
-    /** Exatamente uma imagem por link é a principal. */
+    /** Exactly one image per link is the main one. */
     main: bool('main').notNull(),
     originalName: text('original_name').notNull(),
-    /** Tamanho do arquivo em bytes. NÃO é dinheiro — por isso não tem sufixo Cents. */
+    /** The file size in bytes. It is NOT money — that is why it has no Cents suffix. */
     size: integer('size', { mode: 'number' }).notNull(),
     extension: text('extension').notNull(),
-    /** Token opaco que compõe as URLs de preview/download, como no Asaas. */
+    /** The opaque token that makes up the preview/download URLs, as in Asaas. */
     publicToken: text('public_token').notNull(),
     dateCreated: datetime('date_created').notNull(),
   },

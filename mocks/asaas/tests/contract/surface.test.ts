@@ -1,10 +1,10 @@
 /**
- * Teste de superfície: as 213 operações da spec do Asaas EXISTEM.
+ * Surface test: the 213 operations of Asaas's spec EXIST.
  *
- * É o teste que transforma "cobertura total da API" de promessa em invariante.
- * Se o Asaas publicar uma operação nova, o codegen a traz para o manifesto, ela
- * aparece aqui, e o teste continua passando — respondendo 501 em vez de 404.
- * O que ele proíbe é uma rota da spec sumir do roteamento.
+ * It is the test that turns "full API coverage" from a promise into an invariant.
+ * If Asaas publishes a new operation, the codegen brings it into the manifest, it
+ * shows up here, and the test keeps passing — answering 501 instead of 404.
+ * What it forbids is a spec route disappearing from the routing.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import {
@@ -21,20 +21,20 @@ beforeAll(async () => {
 })
 afterAll(() => h.close())
 
-describe('superfície da API', () => {
-  it('o manifesto tem as 213 operações da spec', () => {
+describe('the API surface', () => {
+  it('the manifest has the 213 operations of the spec', () => {
     expect(OPERATION_IDS.length).toBe(OPERATION_COUNT)
     expect(OPERATION_COUNT).toBe(213)
   })
 
-  it('toda operação resolve para uma rota — nenhuma cai em 404 de roteamento', async () => {
+  it('every operation resolves to a route — none falls into a routing 404', async () => {
     const routingFailures: string[] = []
 
     for (const id of OPERATION_IDS) {
       const op = getOperation(id)
 
-      // Preenche os parâmetros com um valor qualquer: aqui só interessa se a
-      // ROTA existe, não se o recurso existe.
+      // Fills the parameters with any value: here what matters is whether the
+      // ROUTE exists, not whether the resource exists.
       let path: string = op.specPath
       for (const name of op.paramNames ?? []) path = path.replace(`{${name}}`, 'x')
 
@@ -46,8 +46,8 @@ describe('superfície da API', () => {
         }),
       )
 
-      // 404 só é aceitável vindo do handler (recurso inexistente), nunca do
-      // router — que devolve a mensagem de endpoint inexistente.
+      // A 404 is only acceptable coming from the handler (non-existent resource), never from the
+      // router — which returns the non-existent endpoint message.
       if (res.status === 404) {
         const body = (await res.clone().json()) as any
         const desc: string = body?.errors?.[0]?.description ?? ''
@@ -60,10 +60,10 @@ describe('superfície da API', () => {
     expect(routingFailures).toEqual([])
   })
 
-  it('operações sem handler devolvem 501 no formato de erro do Asaas', async () => {
-    // A operação é escolhida DINAMICAMENTE entre as que ainda não têm handler —
-    // senão este teste quebraria a cada track entregue, o que seria um alarme
-    // falso e treinaria todo mundo a ignorá-lo.
+  it("operations without a handler answer 501 in Asaas's error format", async () => {
+    // The operation is chosen DYNAMICALLY among the ones that still have no handler —
+    // otherwise this test would break on every delivered track, which would be a false
+    // alarm and would train everyone to ignore it.
     const stubbed = h.app.coverage.stubbed.find((id) => {
       const op = getOperation(id)
       return op.method === 'get' && !op.paramNames?.length && !op.query
@@ -80,25 +80,25 @@ describe('superfície da API', () => {
     expect(res.status).toBe(501)
     const body = (await res.json()) as any
     expect(body.errors[0].code).toBe('not_implemented')
-    // A mensagem diz QUAL operação falta — é o que torna o 501 acionável.
+    // The message says WHICH operation is missing — it is what makes the 501 actionable.
     expect(body.errors[0].description).toContain(stubbed!)
   })
 
-  it('toda operação do manifesto é registrada, é variante, ou é ambas as contas', () => {
+  it('every operation of the manifest is registered, is a variant, or both', () => {
     const { implemented, stubbed, variants } = h.app.coverage
     expect(implemented.length + stubbed.length + variants.length).toBe(OPERATION_COUNT)
   })
 
-  it('as variantes apontam para uma operação canônica que existe', () => {
-    // Ex.: "criar cobrança com cartão" divide POST /v3/payments com "criar
-    // cobrança" — no Asaas real é o mesmo endpoint, e o body decide.
+  it('the variants point to a canonical operation that exists', () => {
+    // E.g.: "create a charge with a card" shares POST /v3/payments with "create a
+    // charge" — in the real Asaas it is the same endpoint, and the body decides.
     const variants = OPERATION_IDS.map(getOperation).filter((o) => o.variantOf)
     expect(variants.length).toBe(5)
 
     for (const v of variants) {
       const canonical = getOperation(v.variantOf as never)
       expect(canonical).toBeDefined()
-      expect(canonical.variantOf).toBeUndefined() // sem cadeia de variantes
+      expect(canonical.variantOf).toBeUndefined() // no variant chain
       expect(canonical.method).toBe(v.method)
       expect(canonical.path).toBe(v.path)
     }

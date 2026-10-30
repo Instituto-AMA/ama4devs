@@ -1,14 +1,15 @@
 /**
- * "Logs de Webhooks" da conta selecionada: cada entrega de cada evento, com o retorno
- * do seu endpoint e o payload exato que saiu.
+ * "Logs de Webhooks" of the selected account: every delivery of every event,
+ * with the answer of your endpoint and the exact payload that went out.
  *
- * O payload é o CONGELADO no momento do evento — uma retentativa reenvia este, não o
- * estado atual da cobrança. É o que ver aqui responde: "o que a minha aplicação
- * recebeu, e o que ela respondeu".
+ * The payload is the one FROZEN at the moment of the event — a retry resends
+ * this one, not the current state of the charge. It is what seeing it here
+ * answers: "what my application received, and what it answered".
  *
- * Um evento que nenhum webhook levou (nenhum cadastrado, ou nenhum assinou o evento)
- * aparece como "Sem webhook", com o payload que teria saído: dá para depurar antes
- * de cadastrar o webhook, e ver por que nada chegou.
+ * An event that no webhook carried (none registered, or none subscribed to the
+ * event) shows up as "Sem webhook", with the payload that would have gone out:
+ * it lets you debug before registering the webhook, and see why nothing
+ * arrived.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type Delivery } from '../../api.ts'

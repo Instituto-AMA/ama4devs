@@ -1,12 +1,13 @@
 /**
- * Registro de rotas dirigido pelo MANIFESTO.
+ * Route registration driven by the MANIFEST.
  *
- * As 213 operações da spec do Asaas são montadas iterando `OPERATIONS`. Um
- * operationId sem handler ganha automaticamente um `notImplemented`.
+ * The 213 operations of Asaas's spec are built by iterating `OPERATIONS`. An
+ * operationId without a handler automatically gets a `notImplemented`.
  *
- * Consequência que é o ponto todo: "as 213 rotas existem" é INVARIANTE DE BUILD,
- * não um checklist num documento. Não dá para esquecer de registrar uma rota, e
- * a cobertura (`GET /_admin/coverage`) é computada, nunca mantida à mão.
+ * The consequence that is the whole point: "the 213 routes exist" is a BUILD
+ * INVARIANT, not a checklist in a document. It is impossible to forget to register
+ * a route, and the coverage (`GET /_admin/coverage`) is computed, never kept by
+ * hand.
  */
 import { OptionalKind, Type, type TSchema } from '@sinclair/typebox'
 import type { Elysia } from 'elysia'
@@ -36,48 +37,49 @@ export type HandlerMap = Partial<Record<OperationId, OpHandler>>
 export interface RegisterResult {
   implemented: OperationId[]
   stubbed: OperationId[]
-  /** Operações que dividem rota com outra — não registram rota própria. */
+  /** Operations that share a route with another one — they do not register a route of their own. */
   variants: OperationId[]
 }
 
 /**
- * O body de uma operação canônica MAIS o das suas variantes.
+ * The body of a canonical operation PLUS the one of its variants.
  *
- * Isto não é um detalhe: o Elysia REMOVE do body toda propriedade que não está
- * no schema. `POST /v3/payments` é registrado com o schema de
- * `create-new-payment` — que não conhece `creditCard`, `creditCardToken`,
- * `remoteIp` nem `authorizeOnly`. Sem a mesclagem, o handler canônico receberia
- * um body já podado e NUNCA veria o cartão: a variante
- * `create-new-payment-with-credit-card` seria inatingível, em silêncio.
+ * This is not a detail: Elysia REMOVES from the body every property that is not
+ * in the schema. `POST /v3/payments` is registered with the schema of
+ * `create-new-payment` — which does not know `creditCard`, `creditCardToken`,
+ * `remoteIp` or `authorizeOnly`. Without the merge, the canonical handler would
+ * receive an already pruned body and would NEVER see the card: the
+ * `create-new-payment-with-credit-card` variant would be unreachable, silently.
  *
- * No Asaas real é um endpoint só, e o body decide. Aqui o schema é a união dos
- * dois: os campos que só existem na variante entram como OPCIONAIS (senão
- * `remoteIp`, obrigatório na variante do cartão, passaria a ser exigido de uma
- * cobrança de boleto). Quem exige o que é o handler — que é quem sabe se o body
- * é de cartão ou não.
+ * In the real Asaas it is a single endpoint, and the body decides. Here the schema
+ * is the union of the two: the fields that only exist in the variant come in as
+ * OPTIONAL (otherwise `remoteIp`, mandatory in the card variant, would end up
+ * being required for a bank slip charge). Who requires what is the handler — which
+ * is who knows whether the body is a card or not.
  */
 /**
- * Campos cuja OBRIGATORIEDADE INTERNA quem decide é o handler, não o schema.
+ * The fields whose INTERNAL REQUIREDNESS is decided by the handler, not by the
+ * schema.
  *
- * O `creditCard` da spec é um `anyOf` que exige os 5 campos. Um body como
- * `{creditCardToken, creditCard: {ccv}}` não casa com nenhum ramo, e o validador
- * responde **"Expected union value"** — uma string do TypeBox, que o Asaas jamais
- * mandaria. O Asaas responde QUATRO erros, um por campo faltante, com as frases
- * dele.
+ * The spec's `creditCard` is an `anyOf` that requires the 5 fields. A body like
+ * `{creditCardToken, creditCard: {ccv}}` matches no branch, and the validator
+ * answers **"Expected union value"** — a TypeBox string, which Asaas would never
+ * send. Asaas answers FOUR errors, one per missing field, with its own sentences.
  *
- * Um erro que o cliente nunca verá em produção é pior que erro nenhum: ele ensina
- * a tratar uma mensagem que não existe. Então relaxamos o schema aqui e deixamos
- * o handler recusar — ele é quem sabe as frases certas (`assertCompleteCard`).
+ * An error the client will never see in production is worse than no error at all:
+ * it teaches the client to handle a message that does not exist. So we relax the
+ * schema here and let the handler refuse — it is who knows the right sentences
+ * (`assertCompleteCard`).
  *
- * O schema continua PODANDO campos desconhecidos; só deixa de exigir presença.
+ * The schema keeps PRUNING unknown fields; it only stops requiring presence.
  */
 const HANDLER_VALIDATED = new Set(['creditCard'])
 
-/** O mesmo objeto, com todas as propriedades opcionais. Sem `required`. */
+/** The same object, with all the properties optional. No `required`. */
 function relaxObject(schema: TSchema): TSchema {
   const anyOf = (schema as { anyOf?: TSchema[] }).anyOf
-  // A união vem da spec (ex.: "cartão" | "cartão com token"). Ficamos com o ramo
-  // mais completo: é o superconjunto dos campos que o handler sabe ler.
+  // The union comes from the spec (e.g. "card" | "card with token"). We keep the most
+  // complete branch: it is the superset of the fields the handler knows how to read.
   const chosen = anyOf?.length
     ? anyOf.reduce((a, b) =>
         Object.keys((b as { properties?: object }).properties ?? {}).length >
@@ -124,18 +126,18 @@ function mergeVariantBodies(op: OperationMeta, variants: OperationMeta[]): TSche
 }
 
 /**
- * A query string é SEMPRE texto: `?limit=10` chega como `"10"`.
+ * The query string is ALWAYS text: `?limit=10` arrives as `"10"`.
  *
- * A spec declara esses parâmetros como `integer`/`number`/`boolean`, e o TypeBox
- * recusa `"10"` onde espera `10`. Sem isto, `GET /v3/financialTransactions?limit=10`
- * — uma requisição que o Asaas real aceita sem pestanejar — devolveria
- * 400 "Expected integer". É o pior tipo de defeito possível num simulador: ele
- * rejeitando o que a API de verdade aceita.
+ * The spec declares those parameters as `integer`/`number`/`boolean`, and TypeBox
+ * refuses `"10"` where it expects `10`. Without this, `GET /v3/financialTransactions?limit=10`
+ * — a request the real Asaas accepts without flinching — would return
+ * 400 "Expected integer". It is the worst kind of defect possible in a simulator:
+ * it rejecting what the real API accepts.
  *
- * Afrouxamos SÓ o schema de query, aceitando também a forma textual. A conversão
- * e a validação de faixa continuam no handler (`paginationParams`), que é onde o
- * erro sabe virar `invalid_limit` com descrição em pt-BR — em vez do "Expected
- * integer" cru do validador.
+ * We relax ONLY the query schema, also accepting the textual form. The conversion
+ * and the range validation stay in the handler (`paginationParams`), which is where
+ * the error knows how to become `invalid_limit` with a pt-BR description — instead
+ * of the validator's raw "Expected integer".
  */
 function coerceQuerySchema(query: TSchema): TSchema {
   const props = (query as TSchema & { properties?: Record<string, TSchema> }).properties
@@ -171,12 +173,12 @@ export function registerOperations(
   const stubbed: OperationId[] = []
   const variants: OperationId[] = []
 
-  /** canônica → variantes que dividem rota com ela. */
+  /** canonical → the variants that share a route with it. */
   const variantsOf = new Map<string, OperationMeta[]>()
   for (const id of Object.keys(OPERATIONS) as OperationId[]) {
-    // `getOperation` e não `OPERATIONS[id]`: indexar o objeto `as const` devolve
-    // a união dos 213 tipos literais, e os membros sem `variantOf` não têm a
-    // propriedade — o acesso não compila.
+    // `getOperation` and not `OPERATIONS[id]`: indexing the `as const` object returns
+    // the union of the 213 literal types, and the members without `variantOf` do not
+    // have the property — the access does not compile.
     const op = getOperation(id)
     if (!op.variantOf) continue
     const list = variantsOf.get(op.variantOf) ?? []
@@ -187,8 +189,8 @@ export function registerOperations(
   for (const id of Object.keys(OPERATIONS) as OperationId[]) {
     const op: OperationMeta = OPERATIONS[id]
 
-    // Variante de outra operação (mesmo método+rota). Quem atende é a canônica,
-    // que decide pelo body — igual ao Asaas real.
+    // A variant of another operation (same method+route). The one that answers is the
+    // canonical one, which decides by the body — just like the real Asaas.
     if (op.variantOf) {
       variants.push(id)
       continue
@@ -205,21 +207,21 @@ export function registerOperations(
 
     const schema: Record<string, unknown> = {}
     if (op.query) schema.query = coerceQuerySchema(op.query)
-    // multipart não passa por validação de schema: o corpo chega como FormData
-    // com File dentro, e o TypeBox do JSON não descreve isso.
+    // multipart does not go through schema validation: the body arrives as FormData
+    // with a File inside, and the JSON's TypeBox does not describe that.
     if (op.body && op.bodyContentType === 'application/json') {
       schema.body = mergeVariantBodies(op, variantsOf.get(id) ?? [])
     }
 
-    // Deliberadamente NÃO validamos a resposta em produção: um campo a mais na
-    // nossa serialização não deve derrubar a requisição do usuário. A validação
-    // de contrato roda nos testes, onde é para quebrar. (tests/helpers/harness)
+    // We deliberately do NOT validate the response in production: one extra field in
+    // our serialization must not bring down the user's request. The contract
+    // validation runs in the tests, where it is supposed to break. (tests/helpers/harness)
 
     const paramNames = op.paramNames ?? []
 
     const elysiaHandler = (c: any) => {
-      // O router entrega :p0, :p1… (normalizados por posição). Traduzimos de
-      // volta para os nomes da spec, para que o handler veja `params.imageId`.
+      // The router hands over :p0, :p1… (normalized by position). We translate back
+      // to the spec's names, so the handler sees `params.imageId`.
       const params: Record<string, string> = {}
       paramNames.forEach((name, i) => {
         params[name] = c.params?.[`p${i}`]
@@ -236,8 +238,8 @@ export function registerOperations(
       })
     }
 
-    // O tipo de `app[method]` é uma união de sobrecargas por rota; o registro é
-    // dinâmico por natureza. A tipagem forte vive na fronteira do handler.
+    // The type of `app[method]` is a union of overloads per route; the registration is
+    // dynamic by nature. The strong typing lives at the handler's boundary.
     const register = (app as any)[op.method].bind(app)
     register(op.path, elysiaHandler, schema)
   }

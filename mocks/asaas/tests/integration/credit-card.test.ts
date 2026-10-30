@@ -1,16 +1,16 @@
 /**
- * Cartão de crédito — track H.
+ * Credit card — track H.
  *
- * Os três fatos que este arquivo existe para provar, e que o sandbox do Asaas
- * não deixa você testar:
+ * The three facts this file exists to prove, and that Asaas's sandbox
+ * does not let you test:
  *
- *   1. Uma cobrança de cartão nasce CONFIRMED. Não PENDING. A `dueDate` não adia
- *      nada — a captura é no ato da criação.
- *   2. O dinheiro só existe em D+32. Aqui isso leva milissegundos.
- *   3. O cartão de recusa devolve 400 e a cobrança NÃO é criada.
+ *   1. A card charge is born CONFIRMED. Not PENDING. The `dueDate` does not postpone
+ *      anything — the capture happens at creation time.
+ *   2. The money only exists at D+32. Here that takes milliseconds.
+ *   3. The declining card answers 400 and the charge is NOT created.
  *
- * E um invariante de segurança: o PAN completo não fica em lugar nenhum — nem na
- * resposta, nem em NENHUMA tabela do banco.
+ * And a safety invariant: the full PAN stays nowhere — neither in the
+ * response, nor in ANY table of the database.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq, sql } from 'drizzle-orm'
@@ -20,13 +20,13 @@ import { chargebackHandlers } from '../../src/modules/chargebacks/handlers.ts'
 import { creditCardHandlers } from '../../src/modules/credit-cards/handlers.ts'
 import { createHarness, type Harness } from '../helpers/harness.ts'
 
-/** Os cartões de teste do sandbox do Asaas. */
+/** The test cards of Asaas's sandbox. */
 const APPROVES = '4444444444444444'
 const DECLINES = '5184019740373151'
 const DECLINES_TOO = '4916561358240741'
-/** Passa no Luhn, não está na tabela de teste → aprova. */
+/** Passes Luhn, is not in the test table → it approves. */
 const VALID_VISA = '4111111111111111'
-/** Diners válido (14 dígitos): máximo de 12 parcelas. */
+/** A valid Diners (14 digits): maximum of 12 installments. */
 const VALID_DINERS = '30569309025904'
 
 const card = (number: string) => ({
@@ -49,8 +49,8 @@ const holderInfo = {
 let h: Harness
 
 beforeEach(async () => {
-  // O track H ainda não está no HANDLERS global — o harness registra os handlers
-  // do track e exercita o servidor de verdade.
+  // Track H is not in the global HANDLERS yet — the harness registers the handlers
+  // of the track and exercises the real server.
   h = await createHarness()
 })
 afterEach(() => h.close())
@@ -68,7 +68,7 @@ const ledgerOf = async (accountId: string) =>
     .from(financialTransactions)
     .where(eq(financialTransactions.accountId, accountId))
 
-/** Varre TODAS as tabelas do banco atrás do número do cartão. */
+/** Scans ALL the database tables looking for the card number. */
 async function assertPanIsNowhere(pan: string): Promise<void> {
   const tables = (await h.app.db.all(
     sql`SELECT name FROM sqlite_master WHERE type = 'table'`,
@@ -81,8 +81,8 @@ async function assertPanIsNowhere(pan: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────
-describe('Tokenização', () => {
-  it('devolve os 4 ÚLTIMOS dígitos, a bandeira e um token — e o PAN some', async () => {
+describe('Tokenization', () => {
+  it('returns the LAST 4 digits, the brand and a token — and the PAN is gone', async () => {
     const cus = await customer()
 
     const res = await h.api.call('credit-card-tokenization', {
@@ -95,17 +95,17 @@ describe('Tokenização', () => {
     })
 
     expect(res.status).toBe(200)
-    // Os 4 últimos dígitos — não uma máscara com asteriscos, não o número.
+    // The last 4 digits — not a mask with asterisks, not the number.
     expect(res.body.creditCardNumber).toBe('4444')
     expect(res.body.creditCardBrand).toBe('VISA')
     expect(res.body.creditCardToken).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     )
 
-    // Nem na resposta…
+    // Neither in the response…
     expect(JSON.stringify(res.body)).not.toContain(APPROVES)
 
-    // …nem em NENHUMA tabela do banco.
+    // …nor in ANY table of the database.
     await assertPanIsNowhere(APPROVES)
 
     const [row] = await h.app.db.select().from(creditCards)
@@ -115,13 +115,13 @@ describe('Tokenização', () => {
   })
 
   /**
-   * A TOKENIZAÇÃO AUTORIZA — capturado do sandbox (tools/probe-tokenization.ts).
-   * Este teste afirmava o contrário ("a recusa é na hora do uso") e o mock
-   * tokenizava qualquer cartão: o app dizia "cartão salvo!" e só quebrava na
-   * primeira cobrança. É exatamente o bug que uma feature de cartão memorizado
-   * não pode ter.
+   * The TOKENIZATION AUTHORIZES — captured from the sandbox (tools/probe-tokenization.ts).
+   * This test asserted the opposite ("the refusal happens at use time") and the mock
+   * tokenized any card: the app said "card saved!" and only broke on the
+   * first charge. It is exactly the bug a saved-card feature
+   * must not have.
    */
-  it('o cartão de recusa NÃO tokeniza — a autorização acontece ao salvar', async () => {
+  it('the declining card does NOT tokenize — the authorization happens on save', async () => {
     const cus = await customer()
     const res = await h.api.call('credit-card-tokenization', {
       body: {
@@ -134,17 +134,17 @@ describe('Tokenização', () => {
 
     expect(res.status).toBe(400)
     expect(res.body.errors[0]).toEqual(CARD_ERRORS.DECLINE)
-    // E nada ficou no cofre: um cartão que não autoriza não é guardado.
+    // And nothing stayed in the vault: a card that does not authorize is not stored.
     expect(await h.app.db.select().from(creditCards)).toHaveLength(0)
   })
 
   /**
-   * O buraco do sandbox que este mock tapa: no Asaas real um cartão salvo SEMPRE
-   * aprova (o ruim nunca vira token), então não há como testar "o cartão do
-   * cliente falhou na renovação" — que é o cenário que de fato quebra a feature.
-   * `4000000000000341` é nosso, e entrega o erro REAL.
+   * The sandbox hole this mock plugs: in the real Asaas a saved card ALWAYS
+   * approves (the bad one never becomes a token), so there is no way to test "the customer's
+   * card failed on renewal" — which is the scenario that actually breaks the feature.
+   * `4000000000000341` is ours, and it delivers the REAL error.
    */
-  it('4000000000000341 tokeniza, e recusa quando o token é cobrado', async () => {
+  it('4000000000000341 tokenizes, and declines when the token is charged', async () => {
     const cus = await customer()
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
@@ -172,16 +172,16 @@ describe('Tokenização', () => {
   })
 
   /**
-   * O Asaas NÃO valida Luhn — capturado do sandbox (tools/probe-cards.ts). Este
-   * teste afirmava o contrário e o mock recusava: um cartão que passa em produção
-   * quebrava aqui. É a direção perigosa do erro, e por isso vira teste.
+   * Asaas does NOT validate Luhn — captured from the sandbox (tools/probe-cards.ts). This
+   * test asserted the opposite and the mock refused: a card that passes in production
+   * broke here. It is the dangerous direction of the error, and that is why it became a test.
    */
-  it('número que falha no Luhn TOKENIZA — o Asaas aceita dígito verificador errado', async () => {
+  it('a number that fails Luhn TOKENIZES — Asaas accepts a wrong check digit', async () => {
     const cus = await customer()
     const res = await h.api.call('credit-card-tokenization', {
       body: {
         customer: cus,
-        creditCard: card('5184019740373152'), // um dígito trocado
+        creditCard: card('5184019740373152'), // one digit swapped
         creditCardHolderInfo: holderInfo,
         remoteIp: '116.213.42.53',
       },
@@ -191,7 +191,7 @@ describe('Tokenização', () => {
     expect(await h.app.db.select().from(creditCards)).toHaveLength(1)
   })
 
-  it('número curto demais → 400 invalid_creditCard, com a frase do Asaas', async () => {
+  it("a number that is too short → 400 invalid_creditCard, with Asaas's sentence", async () => {
     const cus = await customer()
     const res = await h.api.call('credit-card-tokenization', {
       body: {
@@ -209,8 +209,8 @@ describe('Tokenização', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
-describe('Cobrança com cartão — CONFIRMED na hora', () => {
-  it('4444444444444444 → 200 e status CONFIRMED, não PENDING', async () => {
+describe('Card charge — CONFIRMED right away', () => {
+  it('4444444444444444 → 200 and status CONFIRMED, not PENDING', async () => {
     const cus = await customer()
 
     const res = await h.api.call('create-new-payment-with-credit-card', {
@@ -218,7 +218,7 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
         customer: cus,
         billingType: 'CREDIT_CARD',
         value: 100,
-        // Vencimento no futuro: no cartão isso NÃO adia nada. A captura é agora.
+        // A due date in the future: on a card that postpones NOTHING. The capture is now.
         dueDate: '2026-02-10',
         creditCard: card(APPROVES),
         creditCardHolderInfo: holderInfo,
@@ -226,17 +226,17 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
       },
     })
 
-    expect(res.status).toBe(200) // criação é 200, nunca 201
+    expect(res.status).toBe(200) // creation is 200, never 201
     expect(res.body.status).toBe('CONFIRMED')
 
-    // Taxa do cartão à vista: R$ 0,49 + 2,99% de R$ 100 = R$ 3,48
+    // The single-payment card fee: R$ 0.49 + 2.99% of R$ 100 = R$ 3.48
     expect(res.body.value).toBe(100)
     expect(res.body.netValue).toBe(96.52)
 
-    // A captura é HOJE (05/01), não no vencimento → crédito em 06/02.
-    // O Asaas real INCLUI `confirmedDate` no payload — mas só quando o
-    // billingType é CREDIT_CARD. Num Pix ou boleto a chave nem existe. Este
-    // teste afirmava o contrário; a captura de paridade corrigiu.
+    // The capture is TODAY (05/01), not on the due date → credit on 06/02.
+    // The real Asaas INCLUDES `confirmedDate` in the payload — but only when the
+    // billingType is CREDIT_CARD. On a Pix or bank slip the key does not even exist. This
+    // test asserted the opposite; the parity capture corrected it.
     expect(res.body.confirmedDate).toBe('2026-01-05')
     expect(res.body.estimatedCreditDate).toBe('2026-02-06')
 
@@ -247,12 +247,12 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
     })
     expect(JSON.stringify(res.body)).not.toContain(APPROVES)
 
-    // CONFIRMED não é dinheiro em caixa.
+    // CONFIRMED is not money in the account.
     expect(await ledgerOf(h.accountId)).toHaveLength(0)
     await h.assertLedgerBalances()
   })
 
-  it('o dinheiro só entra em D+32 — com PAYMENT_RECEIVED e PAYMENT_FEE no extrato', async () => {
+  it('the money only arrives at D+32 — with PAYMENT_RECEIVED and PAYMENT_FEE in the statement', async () => {
     const cus = await customer()
     await h.subscribeWebhook(['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'])
 
@@ -293,7 +293,7 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
     await h.assertLedgerBalances()
   })
 
-  it('um cartão válido qualquer (que passa no Luhn) também aprova', async () => {
+  it('any valid card (that passes Luhn) also approves', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -311,7 +311,7 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
     expect(res.body.status).toBe('CONFIRMED')
   })
 
-  it('cobra com um token já existente, sem reenviar o cartão', async () => {
+  it('charges with an already existing token, without resending the card', async () => {
     const cus = await customer()
 
     const tok = await h.api.call('credit-card-tokenization', {
@@ -336,16 +336,16 @@ describe('Cobrança com cartão — CONFIRMED na hora', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('CONFIRMED')
-    // Reaproveita o cartão: não cria uma segunda linha.
+    // Reuses the card: it does not create a second row.
     expect(await h.app.db.select().from(creditCards)).toHaveLength(1)
     expect(res.body.creditCard.creditCardToken).toBe(tok.body.creditCardToken)
   })
 })
 
 // ─────────────────────────────────────────────────────────────
-describe('Recusa — 400 e a cobrança não existe', () => {
+describe('Refusal — 400 and the charge does not exist', () => {
   for (const pan of [DECLINES, DECLINES_TOO]) {
-    it(`${pan} → 400, e nenhuma cobrança é criada`, async () => {
+    it(`${pan} → 400, and no charge is created`, async () => {
       const cus = await customer()
 
       const res = await h.api.call('create-new-payment-with-credit-card', {
@@ -361,18 +361,18 @@ describe('Recusa — 400 e a cobrança não existe', () => {
       })
 
       expect(res.status).toBe(400)
-      // O código é `invalid_action`, NÃO `invalid_creditCard` — capturado do
-      // sandbox. Antes disto o mock devolvia o código errado, e um cliente que
-      // ramifica por `code` se comportava diferente aqui e lá.
+      // The code is `invalid_action`, NOT `invalid_creditCard` — captured from the
+      // sandbox. Before this the mock returned the wrong code, and a client that
+      // branches on `code` behaved differently here and there.
       expect(res.body.errors[0]).toEqual(CARD_ERRORS.DECLINE)
-      // Mensagem GENÉRICA: o Asaas não diz o motivo da recusa, e não há campo de
-      // razão no corpo. Inventar um ensinaria o cliente a tratar ficção.
+      // GENERIC message: Asaas does not say the reason for the refusal, and there is no reason
+      // field in the body. Inventing one would teach the client to handle fiction.
       expect(res.body.errors[0].description).not.toContain('limite')
 
-      // A cobrança NÃO foi criada — não é uma cobrança "recusada".
+      // The charge was NOT created — it is not a "declined" charge.
       const list = await h.api.call('list-payments')
       expect(list.body.totalCount).toBe(0)
-      // E o cartão recusado também não ficou gravado.
+      // And the declined card was not stored either.
       expect(await h.app.db.select().from(creditCards)).toHaveLength(0)
 
       await h.assertLedgerBalances()
@@ -380,18 +380,18 @@ describe('Recusa — 400 e a cobrança não existe', () => {
   }
 
   /**
-   * O cartão de recusa não chega mais a virar token (a tokenização autoriza), então
-   * "recusar por token" é exercitado pelo cartão de simulação `4000000000000341`,
-   * no bloco de Tokenização. Aqui garantimos só que a recusa por token não deixa
-   * cobrança órfã.
+   * The declining card no longer becomes a token (the tokenization authorizes), so
+   * "declining by token" is exercised by the simulation card `4000000000000341`,
+   * in the Tokenization block. Here we only guarantee that a refusal by token does not leave an
+   * orphan charge.
    */
-  it('recusa por token não cria cobrança', async () => {
+  it('a refusal by token does not create a charge', async () => {
     const cus = await customer()
 
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
         customer: cus,
-        creditCard: card('4000000000000341'), // tokeniza, mas recusa ao cobrar
+        creditCard: card('4000000000000341'), // it tokenizes, but it refuses on charge
         creditCardHolderInfo: holderInfo,
         remoteIp: '116.213.42.53',
       },
@@ -415,12 +415,12 @@ describe('Recusa — 400 e a cobrança não existe', () => {
   })
 
   /**
-   * O TOKEN É PRESO AO CLIENTE — capturado. Usar o token do cliente A para cobrar
-   * o B devolve "não encontrado" (o Asaas nem admite que o token existe). O mock
-   * aceitava, e um app que embaralhasse tokens entre clientes só descobriria em
-   * produção.
+   * The TOKEN IS BOUND TO THE CUSTOMER — captured. Using customer A's token to charge
+   * customer B returns "not found" (Asaas does not even admit the token exists). The mock
+   * accepted it, and an app that shuffled tokens between customers would only find out in
+   * production.
    */
-  it('o token do cliente A NÃO cobra o cliente B', async () => {
+  it('customer A\'s token does NOT charge customer B', async () => {
     const cusA = await customer()
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
@@ -434,7 +434,7 @@ describe('Recusa — 400 e a cobrança não existe', () => {
 
     const cusB = (
       await h.api.call('create-new-customer', {
-        body: { name: 'Outro Cliente', cpfCnpj: '24971563792' },
+        body: { name: 'Another Customer', cpfCnpj: '24971563792' },
       })
     ).body.id
 
@@ -455,12 +455,12 @@ describe('Recusa — 400 e a cobrança não existe', () => {
   })
 
   /**
-   * A pegadinha do "revalidar o CVV na recompra": mandar o token JUNTO com um
-   * `creditCard` parcial faz o Asaas exigir o cartão inteiro — e devolver um erro
-   * POR CAMPO. O mock devolvia "Expected union value", um erro interno do
-   * validador vazando para o cliente.
+   * The trap of "revalidating the CVV on a repurchase": sending the token TOGETHER with a
+   * partial `creditCard` makes Asaas require the whole card — and return an error
+   * PER FIELD. The mock used to answer "Expected union value", an internal error of the
+   * validator leaking to the client.
    */
-  it('token + creditCard parcial → um erro por campo faltante', async () => {
+  it('partial token + creditCard → one error per missing field', async () => {
     const cus = await customer()
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
@@ -478,7 +478,7 @@ describe('Recusa — 400 e a cobrança não existe', () => {
         value: 100,
         dueDate: '2026-01-10',
         creditCardToken: tok.body.creditCardToken,
-        creditCard: { ccv: '318' }, // só o CVV
+        creditCard: { ccv: '318' }, // only the CVV
         remoteIp: '116.213.42.53',
       },
     })
@@ -494,8 +494,8 @@ describe('Recusa — 400 e a cobrança não existe', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
-describe('Pré-autorização', () => {
-  it('authorizeOnly → AUTHORIZED sem crédito; captura → CONFIRMED; capturar de novo → 400', async () => {
+describe('Pre-authorization', () => {
+  it('authorizeOnly → AUTHORIZED without credit; capture → CONFIRMED; capturing again → 400', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment-with-credit-card', {
@@ -512,11 +512,11 @@ describe('Pré-autorização', () => {
     })
 
     expect(created.status).toBe(200)
-    // AUTHORIZED não existe em NENHUM enum da spec do Asaas — está no overlay 001.
+    // AUTHORIZED exists in NO enum of Asaas's spec — it is in overlay 001.
     expect(created.body.status).toBe('AUTHORIZED')
     expect(await ledgerOf(h.accountId)).toHaveLength(0)
 
-    // Pré-autorizada não credita nunca — nem depois de 32 dias.
+    // A pre-authorized charge never credits — not even after 32 days.
     await h.advance({ days: 32 })
     const still = await h.api.call('retrieve-a-single-payment', {
       params: { id: created.body.id },
@@ -530,10 +530,10 @@ describe('Pré-autorização', () => {
     })
     expect(captured.status).toBe(200)
     expect(captured.body.status).toBe('CONFIRMED')
-    // Captura em 06/02 → crédito em 10/03 (D+32 da CAPTURA, não da criação).
+    // Capture on 06/02 → credit on 10/03 (D+32 from the CAPTURE, not from the creation).
     expect(captured.body.estimatedCreditDate).toBe('2026-03-10')
 
-    // Capturar de novo: a máquina de estados recusa.
+    // Capturing again: the state machine refuses.
     const again = await h.api.call('capture-payment-with-pre-authorization', {
       params: { id: created.body.id },
       body: {},
@@ -541,7 +541,7 @@ describe('Pré-autorização', () => {
     expect(again.status).toBe(400)
     expect(again.body.errors[0].code).toBe('invalid_action')
 
-    // E o dinheiro entra 32 dias depois da captura.
+    // And the money enters 32 days after the capture.
     await h.advance({ days: 32 })
     const settled = await h.api.call('retrieve-a-single-payment', {
       params: { id: created.body.id },
@@ -553,7 +553,7 @@ describe('Pré-autorização', () => {
     await h.assertLedgerBalances()
   })
 
-  it('a configuração de pré-autorização é lida e gravada', async () => {
+  it('the pre-authorization configuration is read and stored', async () => {
     const before = await h.api.call('retrieve-pre-authorization-configuration')
     expect(before.status).toBe(200)
     expect(before.body.daysToExpire).toBe(5) // default
@@ -575,15 +575,15 @@ describe('Pré-autorização', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
-describe('Pagar uma cobrança que já existe', () => {
-  it('payWithCreditCard: PENDING → CONFIRMED, e a taxa vira a do cartão', async () => {
+describe('Paying a charge that already exists', () => {
+  it('payWithCreditCard: PENDING → CONFIRMED, and the fee becomes the card\'s', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'UNDEFINED', value: 100, dueDate: '2026-01-10' },
     })
     expect(created.body.status).toBe('PENDING')
-    expect(created.body.netValue).toBe(100) // UNDEFINED não tem taxa: ainda não se sabe o meio
+    expect(created.body.netValue).toBe(100) // UNDEFINED has no fee: the method is not known yet
 
     const paid = await h.api.call('pay-a-charge-with-credit-card', {
       params: { id: created.body.id },
@@ -593,7 +593,7 @@ describe('Pagar uma cobrança que já existe', () => {
     expect(paid.status).toBe(200)
     expect(paid.body.status).toBe('CONFIRMED')
     expect(paid.body.billingType).toBe('CREDIT_CARD')
-    // Pagou no cartão → a taxa passa a ser a do cartão.
+    // Paid with a card → the fee becomes the card's.
     expect(paid.body.netValue).toBe(96.52)
     expect(paid.body.creditCard.creditCardNumber).toBe('4444')
 
@@ -605,7 +605,7 @@ describe('Pagar uma cobrança que já existe', () => {
     await h.assertLedgerBalances()
   })
 
-  it('payWithCard (cardType CREDIT) faz o mesmo', async () => {
+  it('payWithCard (cardType CREDIT) does the same', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'CREDIT_CARD', value: 100, dueDate: '2026-01-10' },
@@ -620,7 +620,7 @@ describe('Pagar uma cobrança que já existe', () => {
     expect(paid.body.status).toBe('CONFIRMED')
   })
 
-  it('payWithCreditCard com cartão recusado → 400 e a cobrança segue PENDING', async () => {
+  it('payWithCreditCard with a declined card → 400 and the charge stays PENDING', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'CREDIT_CARD', value: 100, dueDate: '2026-01-10' },
@@ -639,8 +639,8 @@ describe('Pagar uma cobrança que já existe', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
-describe('Validações', () => {
-  it('sem remoteIp → 400 invalid_remoteIp', async () => {
+describe('Validations', () => {
+  it('without remoteIp → 400 invalid_remoteIp', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -657,8 +657,8 @@ describe('Validações', () => {
     expect(res.body.errors[0].code).toBe('invalid_remoteIp')
   })
 
-  /** Ver a explicação no bloco de tokenização: o Asaas não valida Luhn. */
-  it('número que falha no Luhn é COBRADO — o Asaas não valida Luhn', async () => {
+  /** See the explanation in the tokenization block: Asaas does not validate Luhn. */
+  it('a number that fails Luhn is CHARGED — Asaas does not validate Luhn', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -666,7 +666,7 @@ describe('Validações', () => {
         billingType: 'CREDIT_CARD',
         value: 100,
         dueDate: '2026-01-10',
-        creditCard: card('4916561358240742'), // um dígito trocado
+        creditCard: card('4916561358240742'), // one digit swapped
         creditCardHolderInfo: holderInfo,
         remoteIp: '116.213.42.53',
       },
@@ -676,7 +676,7 @@ describe('Validações', () => {
     expect(res.body.status).toBe('CONFIRMED')
   })
 
-  it('cartão EXPIRADO → 400, com a frase do Asaas', async () => {
+  it("an EXPIRED card → 400, with Asaas's sentence", async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -697,10 +697,10 @@ describe('Validações', () => {
   })
 
   /**
-   * O cartão de SIMULAÇÃO: não existe no Asaas (lá ele aprovaria), e existe aqui
-   * para que dê para exercitar o tratamento de erro trocando um número.
+   * The SIMULATION card: it does not exist in Asaas (there it would approve), and it exists here
+   * so that the error handling can be exercised by swapping a number.
    */
-  it('4000000000000069 força "cartão expirado" mesmo com validade no futuro', async () => {
+  it('4000000000000069 forces "expired card" even with a future expiry', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -708,7 +708,7 @@ describe('Validações', () => {
         billingType: 'CREDIT_CARD',
         value: 100,
         dueDate: '2026-01-10',
-        creditCard: card('4000000000000069'), // validade 12/2030, e ainda assim expira
+        creditCard: card('4000000000000069'), // valid until 12/2030, and it still expires
         creditCardHolderInfo: holderInfo,
         remoteIp: '116.213.42.53',
       },
@@ -718,15 +718,15 @@ describe('Validações', () => {
     expect(res.body.errors[0]).toEqual(CARD_ERRORS.EXPIRED)
   })
 
-  it('15x no Diners (máximo 12) → 400 invalid_installmentCount', async () => {
+  it('15x on Diners (maximum 12) → 400 invalid_installmentCount', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
         customer: cus,
         billingType: 'CREDIT_CARD',
-        // `value` é `required` no schema da spec mesmo numa cobrança parcelada
-        // (é o parcelamento que usa totalValue) — sem ele o Elysia rejeita antes
-        // de o handler ver o body.
+        // `value` is `required` in the spec's schema even in an installment charge
+        // (it is the installment plan that uses totalValue) — without it Elysia rejects before
+        // the handler sees the body.
         value: 1500,
         totalValue: 1500,
         installmentCount: 15,
@@ -744,7 +744,7 @@ describe('Validações', () => {
     expect(list.body.totalCount).toBe(0)
   })
 
-  it('token de outra conta não é aceito (isolamento)', async () => {
+  it('a token from another account is not accepted (isolation)', async () => {
     const cus = await customer()
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
@@ -775,15 +775,15 @@ describe('Validações', () => {
     })
 
     expect(res.status).toBe(400)
-    // O código é `invalid_creditCard` e a frase CARREGA o token — capturado.
-    // Antes era `invalid_creditCardToken` com uma frase genérica, ambos inventados.
+    // The code is `invalid_creditCard` and the sentence CARRIES the token — captured.
+    // Before it was `invalid_creditCardToken` with a generic sentence, both invented.
     expect(res.body.errors[0].code).toBe('invalid_creditCard')
     expect(res.body.errors[0].description).toBe(
       `CreditCardToken ${tok.body.creditCardToken} não encontrado.`,
     )
   })
 
-  it('cartão com billingType diferente de CREDIT_CARD → 400', async () => {
+  it('a card with a billingType other than CREDIT_CARD → 400', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -805,8 +805,8 @@ describe('Validações', () => {
 // ─────────────────────────────────────────────────────────────
 describe('Chargeback', () => {
   /**
-   * A API do Asaas não tem operação de ABRIR chargeback (quem abre é a
-   * bandeira). A porta é administrativa — o mesmo lugar de onde se viaja no
+   * Asaas's API has no operation to OPEN a chargeback (the issuer opens it).
+   * The door is administrative — the same place time travel comes from.
    * tempo. Sem ela, nenhum dev conseguiria testar o fluxo.
    */
   const openChargeback = (paymentId: string, reason = 'FRAUD') =>
@@ -818,7 +818,7 @@ describe('Chargeback', () => {
       }),
     )
 
-  /** Uma cobrança de cartão já RECEIVED (D+32 cumprido). */
+  /** A card charge that is already RECEIVED (D+32 fulfilled). */
   async function received(): Promise<string> {
     const cus = await customer()
     const created = await h.api.call('create-new-payment-with-credit-card', {
@@ -836,7 +836,7 @@ describe('Chargeback', () => {
     return created.body.id
   }
 
-  it('debita o valor do saldo e leva a cobrança a CHARGEBACK_REQUESTED', async () => {
+  it('debits the amount from the balance and takes the charge to CHARGEBACK_REQUESTED', async () => {
     const id = await received()
 
     let ledger = await ledgerOf(h.accountId)
@@ -847,22 +847,22 @@ describe('Chargeback', () => {
 
     const p = await h.api.call('retrieve-a-single-payment', { params: { id } })
     expect(p.body.status).toBe('CHARGEBACK_REQUESTED')
-    // O objeto chargeback aparece na cobrança — com os 4 últimos dígitos do cartão.
+    // The chargeback object appears in the charge — with the last 4 digits of the card.
     expect(p.body.chargeback.status).toBe('REQUESTED')
     expect(p.body.chargeback.reason).toBe('FRAUD')
     expect(p.body.chargeback.value).toBe(100)
     expect(p.body.chargeback.creditCard).toEqual({ number: '4444', brand: 'VISA' })
 
-    // O dinheiro VOLTA para o portador: débito do valor BRUTO (a taxa não volta).
+    // The money GOES BACK to the cardholder: a debit of the GROSS amount (the fee does not come back).
     ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual(['PAYMENT_RECEIVED', 'PAYMENT_FEE', 'CHARGEBACK'])
     expect(ledger[2]!.valueCents).toBe(-10_000)
-    expect(ledger[2]!.balanceCents).toBe(-348) // fica NEGATIVO pela taxa retida
+    expect(ledger[2]!.balanceCents).toBe(-348) // it stays NEGATIVE because of the retained fee
 
     await h.assertLedgerBalances()
   })
 
-  it('uma CONFIRMED (que ainda não creditou) não gera lançamento — não há o que debitar', async () => {
+  it('a CONFIRMED one (that has not credited yet) generates no entry — there is nothing to debit', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -885,7 +885,7 @@ describe('Chargeback', () => {
     await h.assertLedgerBalances()
   })
 
-  it('lista, recupera e abre disputa', async () => {
+  it('lists, retrieves and opens a dispute', async () => {
     const id = await received()
     await openChargeback(id, 'COMMERCIAL_DISAGREEMENT')
 
@@ -900,9 +900,9 @@ describe('Chargeback', () => {
     expect(one.body.disputeStartDate).toBe('2026-02-06')
     expect(one.body.deadlineToSendDisputeDocuments).toBe('2026-02-26')
 
-    // A disputa é multipart — o ApiClient só fala JSON, então vai na mão.
+    // The dispute is multipart — the ApiClient only speaks JSON, so it goes by hand.
     const form = new FormData()
-    form.append('files', new File(['comprovante'], 'nota-fiscal.pdf'))
+    form.append('files', new File(['receipt'], 'invoice.pdf'))
 
     const dispute = await h.app.app.handle(
       new Request(`http://localhost/v3/chargebacks/${one.body.id}/dispute`, {
@@ -915,7 +915,7 @@ describe('Chargeback', () => {
     expect(await dispute.json()).toEqual({
       chargebackId: one.body.id,
       status: 'REQUESTED',
-      files: ['nota-fiscal.pdf'],
+      files: ['invoice.pdf'],
     })
 
     const after = await h.api.call('retrieve-a-single-chargeback', { params: { id } })
@@ -925,7 +925,7 @@ describe('Chargeback', () => {
     await h.assertLedgerBalances()
   })
 
-  it('cobrança sem chargeback → 404', async () => {
+  it('a charge without a chargeback → 404', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 10, dueDate: '2026-01-10' },
@@ -937,7 +937,7 @@ describe('Chargeback', () => {
     expect(res.status).toBe(404)
   })
 
-  it('não dá para abrir chargeback numa cobrança que não foi paga', async () => {
+  it('you cannot open a chargeback on a charge that was not paid', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'BOLETO', value: 10, dueDate: '2026-01-10' },

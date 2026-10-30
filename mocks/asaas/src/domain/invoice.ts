@@ -1,6 +1,6 @@
 /**
- * Nota fiscal de serviço (NFS-e): as regras que não dependem de banco nem de
- * relógio. Pure, like the rest of src/domain: every function takes its dates.
+ * Service invoice (NFS-e): the rules that depend on neither the database nor the
+ * clock. Pure, like the rest of src/domain: every function takes its dates.
  *
  * The life of a note, as Asaas reports it through INVOICE_* events:
  *
@@ -65,8 +65,8 @@ const bp = (percent: unknown) => Math.round(Number(percent ?? 0) * 100)
  * The taxes the payer withholds: PIS, COFINS, CSLL, INSS and IR always, ISS
  * only when `retainIss`. It is what `updatePayment` takes off the charge.
  *
- * TODO(rule): researched from the field descriptions ("o valor da cobrança com
- * os impostos da nota já descontados"), not proven against the sandbox.
+ * TODO(rule): researched from the field descriptions ("the charge's value with the
+ * invoice's taxes already discounted"), not proven against the sandbox.
  */
 export function retainedTaxesCents(valueCents: Cents, taxes: InvoiceTaxes): Cents {
   const rate =

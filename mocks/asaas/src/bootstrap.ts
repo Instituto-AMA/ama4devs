@@ -1,10 +1,11 @@
 /**
- * Composição da aplicação. Um lugar só onde as peças impuras se juntam.
+ * The composition of the application. One place where the impure pieces come
+ * together.
  *
- * Tanto o servidor (src/index.ts) quanto o harness de teste
- * (tests/helpers/harness.ts) passam por aqui — é o que garante que o teste
- * exercita o MESMO servidor que roda em produção, e não uma montagem paralela
- * que diverge com o tempo.
+ * Both the server (src/index.ts) and the test harness
+ * (tests/helpers/harness.ts) go through here — it is what guarantees that the
+ * test exercises the SAME server that runs in production, and not a parallel
+ * assembly that drifts over time.
  */
 import { eq } from 'drizzle-orm'
 import type { Elysia } from 'elysia'
@@ -35,9 +36,9 @@ export interface App {
 }
 
 /**
- * Parcial em dois níveis — é exatamente o que `mergeConfig` sabe mesclar.
- * Assim `{ webhook: { timeoutMs: 500 } }` compila e preserva os irmãos, em vez
- * de exigir que quem quer mudar UMA taxa redeclare a tabela inteira.
+ * Partial at two levels — it is exactly what `mergeConfig` knows how to merge.
+ * That way `{ webhook: { timeoutMs: 500 } }` compiles and keeps the siblings,
+ * instead of requiring whoever changes ONE rate to redeclare the whole table.
  */
 export type ConfigOverrides = {
   [K in keyof Config]?: Config[K] extends object
@@ -51,31 +52,32 @@ export interface BootstrapOptions {
   config?: ConfigOverrides
   handlers?: HandlerMap
   /**
-   * Mesma razão do `handlers`: um track que roda em PARALELO injeta os jobs dele
-   * aqui e exercita o scheduler de verdade, antes de `scheduler/jobs/index.ts`
-   * ser costurado. Depois de integrado, o parâmetro vira redundante.
+   * Same reason as the `handlers`: a track that runs in PARALLEL injects its jobs
+   * here and exercises the real scheduler, before `scheduler/jobs/index.ts` is
+   * stitched together. Once it is integrated, the parameter becomes redundant.
    */
   jobs?: Job[]
 }
 
 /**
- * O relógio NÃO é persistido, e isso é uma escolha — não um esquecimento.
+ * The clock is NOT persisted, and that is a choice — not an oversight.
  *
- * A tabela `clock_state` existe e é LIDA aqui, mas nada nunca escreve nela: um
- * comentário nesta função chegou a afirmar que "o relógio sobrevive ao restart",
- * e era falso. A leitura fica porque `CLOCK_START` e um eventual seed passam por
- * ela; a afirmação, não.
+ * The `clock_state` table exists and is READ here, but nothing ever writes to
+ * it: a comment in this function once claimed that "the clock survives the
+ * restart", and it was false. The read stays because `CLOCK_START` and a
+ * possible seed go through it; the claim does not.
  *
- * Por que não persistir: o relógio é GLOBAL ao container e anda para frente com um
- * clique no painel. Persistir transformaria um `+32` distraído num estado
- * permanente — e o sintoma não parece um relógio, parece que "o Pix nasce
- * OVERDUE" na aplicação que está integrando do outro lado. Aconteceu, e levou uma
- * tarde para ser diagnosticado.
+ * Why not persist it: the clock is GLOBAL to the container and moves forward
+ * with one click in the panel. Persisting it would turn a distracted `+32` into
+ * a permanent state — and the symptom does not look like a clock, it looks like
+ * "the Pix is born OVERDUE" in the application integrating on the other side.
+ * It happened, and it took an afternoon to diagnose.
  *
- * Sem persistência, `docker restart` é a saída óbvia; com o botão "Voltar ao
- * presente" no painel (POST /_admin/clock/reset), nem isso é preciso. O preço é
- * que uma cobrança criada "no futuro" sobrevive a um restart que traz o relógio de
- * volta — visível, e muito menos danoso que o contrário.
+ * Without persistence, `docker restart` is the obvious way out; with the "Back
+ * to the present" button in the panel (POST /_admin/clock/reset), even that is
+ * not needed. The price is that a charge created "in the future" survives a
+ * restart that brings the clock back — visible, and far less harmful than the
+ * opposite.
  */
 async function buildClock(db: DB, config: Config): Promise<Clock> {
   const [saved] = await db.select().from(clockState).where(eq(clockState.id, 1)).limit(1)
@@ -88,13 +90,14 @@ async function buildClock(db: DB, config: Config): Promise<Clock> {
 }
 
 /**
- * Mescla os overrides um nível abaixo da raiz.
+ * Merges the overrides one level below the root.
  *
- * Um spread raso aqui é uma armadilha: `{ webhook: { timeoutMs: 500 } }` apagaria
- * `retentionDays` e `maxAttempts` junto, em silêncio. O sintoma não aparece na
- * config — aparece três camadas adiante, como `NOT NULL constraint failed:
- * webhook_deliveries.expires_at_ms`, porque `now + undefined * DAY_MS` é NaN.
- * Aconteceu. Por isso o merge é profundo nos objetos aninhados.
+ * A shallow spread here is a trap: `{ webhook: { timeoutMs: 500 } }` would erase
+ * `retentionDays` and `maxAttempts` along with it, silently. The symptom does
+ * not show up in the config — it shows up three layers deeper, as `NOT NULL
+ * constraint failed: webhook_deliveries.expires_at_ms`, because `now +
+ * undefined * DAY_MS` is NaN. It happened. That is why the merge is deep for
+ * the nested objects.
  */
 function mergeConfig(base: Config, overrides: ConfigOverrides = {}): Config {
   const out = { ...base } as Record<string, unknown>

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Asaas API mock with a virtual clock: a local Asaas sandbox in Docker | ama4devs</title>
   <meta name="description" content="Asaas API v3 mock in Docker with a virtual clock: skip days and watch charges go overdue, cards credit at D+32 and webhooks reach localhost. Pix, boleto, credit card, installments, subscriptions, use cases.">
-  <meta name="keywords" content="asaas mock, asaas sandbox, asaas sandbox localhost, asaas webhook localhost, asaas api simulator, simulador asaas, virtual clock, mock pix, mock boleto, asaas api v3, payment gateway mock, webhook testing, e2e payments, docker, ghcr">
+  <meta name="keywords" content="asaas mock, asaas sandbox, asaas sandbox localhost, asaas webhook localhost, asaas api simulator, asaas simulator, virtual clock, mock pix, mock bank slip, asaas api v3, payment gateway mock, webhook testing, e2e payments, docker, ghcr">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/asaas/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/asaas/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
@@ -34,7 +34,7 @@
     "description": "Local simulator of the Asaas API v3 with a virtual clock: customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks to localhost and payer notifications.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Docker (linux/amd64, linux/arm64)",
-    "softwareVersion": "0.8.0",
+    "softwareVersion": "0.11.0",
     "url": "https://instituto-ama.github.io/ama4devs/asaas/",
     "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock",
     "license": "https://opensource.org/licenses/MIT",
@@ -58,7 +58,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="../pt-br/asaas/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="../portuguese/asaas/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -162,7 +162,7 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
       - asaas-data:/data
 
   whatsapp:
-    image: ghcr.io/instituto-ama/whatsapp-mock:0.4.1
+    image: ghcr.io/instituto-ama/whatsapp-mock:0.5.0
     ports:
       - '3010:3010'
 
@@ -435,12 +435,12 @@ curl localhost:45445/v3/subscriptions/sub_…/payments -H 'access_token: $aact_h
                 </article>
                 <article class="carousel-card">
                   <div class="card-media">
-                    <img src="../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Bank slip / Boleto with digitable line." loading="lazy">
+                    <img src="../img/asaas/invoice-bank-slip.jpg" width="1502" height="714" alt="Bank slip / Boleto with digitable line." loading="lazy">
                     <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
                   </div>
                   <div class="card-body">
                     <span class="card-tag">Boleto</span>
-                    <h3 class="card-title">Boleto Bancário</h3>
+                    <h3 class="card-title">Bank Boleto</h3>
                     <p class="card-desc">Bank slip with valid digitable line and printable barcode view.</p>
                   </div>
                 </article>

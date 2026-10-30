@@ -1,14 +1,14 @@
 /**
  * Track G1 — Account info.
  *
- * Nove operações sobre a conta autenticada. Nenhuma delas recebe um id: o
- * recurso é SEMPRE `auth.accountId`. É o módulo onde o isolamento por conta é
- * estrutural, e não uma cláusula WHERE que alguém pode esquecer.
+ * Nine operations over the authenticated account. None of them takes an id: the
+ * resource is ALWAYS `auth.accountId`. It is the module where the isolation per
+ * account is structural, and not a WHERE clause someone can forget.
  *
- * A tabela de taxas (GET /v3/myAccount/fees) é derivada de `config.fees` — a
- * MESMA fonte que o motor usa para debitar a taxa quando a cobrança é paga. Se
- * fosse um JSON à parte, a resposta poderia mentir sobre o que o mock cobra, e um
- * mock sutilmente errado é pior que nenhum mock.
+ * The fee table (GET /v3/myAccount/fees) is derived from `config.fees` — the
+ * SAME source the engine uses to debit the fee when the charge is paid. If it
+ * were a separate JSON, the answer could lie about what the mock charges, and a
+ * subtly wrong mock is worse than no mock.
  */
 import { eq } from 'drizzle-orm'
 import type { Config } from '../../core/config.ts'
@@ -24,7 +24,7 @@ import { documentationStatus } from '../account-documents/service.ts'
 
 type AccountRow = typeof accounts.$inferSelect
 
-/** Só a conta autenticada. Um 404 aqui significaria banco corrompido. */
+/** Only the authenticated account. A 404 here would mean a corrupted database. */
 async function loadAccount(db: DB, accountId: string): Promise<AccountRow> {
   const [row] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1)
   if (!row) throw notFound('Conta')
@@ -49,9 +49,9 @@ function serializeCommercialInfo(a: AccountRow) {
     addressNumber: a.addressNumber ?? null,
     complement: a.complement ?? null,
     province: a.province ?? null,
-    // A spec devolve um objeto `city` completo (IBGE, distrito…), mas o request de
-    // atualização NÃO tem campo de cidade: no Asaas ela é derivada do CEP. Sem uma
-    // base de CEPs, devolver um objeto inventado seria falsa confiança.
+    // The spec returns a complete `city` object (IBGE, district…), but the update
+    // request has NO city field: in Asaas it is derived from the ZIP code. With no
+    // ZIP code base, returning an invented object would be false confidence.
     city: a.city === null ? null : { object: 'city', name: a.city, state: a.state ?? null },
     denialReason: null,
     tradingName: a.tradingName ?? null,
@@ -62,11 +62,11 @@ function serializeCommercialInfo(a: AccountRow) {
 }
 
 /**
- * A tabela de taxas, derivada de `config.fees`.
+ * The fee table, derived from `config.fees`.
  *
- * O que é `null` aqui é o que este simulador NÃO cobra (taxa promocional, taxa
- * percentual de Pix). Devolver um número inventado faria o cliente conciliar
- * contra uma taxa que o motor nunca aplica.
+ * What is `null` here is what this simulator does NOT charge (promotional fee,
+ * percentage Pix fee). Returning an invented number would make the client
+ * reconcile against a fee the engine never applies.
  */
 function serializeFees(config: Config) {
   const f = config.fees
@@ -97,7 +97,7 @@ function serializeFees(config: Config) {
         daysToReceive: config.rules.debitCardSettlementDays,
       },
       pix: {
-        // O motor cobra uma taxa FIXA por Pix recebido, não percentual.
+        // The engine charges a FIXED fee per Pix received, not a percentage one.
         fixedFeeValue: centsToBrl(f.pix),
         fixedFeeValueWithDiscount: null,
         percentageFee: null,
@@ -155,7 +155,7 @@ const DEFAULT_CHECKOUT_CONFIG = {
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
-/** multipart manda tudo como string: `enabled=false` chega como "false". */
+/** multipart sends everything as a string: `enabled=false` arrives as "false". */
 function asBoolean(v: unknown, fallback: boolean): boolean {
   if (v === undefined || v === null || v === '') return fallback
   if (typeof v === 'boolean') return v
@@ -190,8 +190,8 @@ export const accountInfoHandlers: HandlerMap = {
         throw invalid('cpfCnpj', 'O CPF/CNPJ informado é inválido.')
       }
       patch.cpfCnpj = cpfCnpj
-      // O Asaas DERIVA o personType do tamanho do documento — o campo do request
-      // é ignorado se contradiz o CPF/CNPJ.
+      // Asaas DERIVES the personType from the size of the document — the field of
+      // the request is ignored if it contradicts the CPF/CNPJ.
       patch.personType = personTypeOf(cpfCnpj)
     }
 
@@ -232,8 +232,9 @@ export const accountInfoHandlers: HandlerMap = {
   'retrieve-asaas-account-number': async ({ ctx, auth }) => {
     const account = await loadAccount(ctx.db, auth.accountId)
 
-    // O número da conta é atribuído no primeiro acesso e nunca muda. Gerar a cada
-    // request faria o cliente ver um número diferente por chamada.
+    // The account number is assigned on the first access and never changes.
+    // Generating it on every request would make the client see a different
+    // number per call.
     let stored = account.accountNumber
     if (!stored) {
       stored = `${ctx.rng.digits(6)}-${ctx.rng.digits(1)}`
@@ -252,13 +253,15 @@ export const accountInfoHandlers: HandlerMap = {
     const status = account.status
 
     /**
-     * `documentation` sai dos GRUPOS DE DOCUMENTO, não do status do cadastro — é
-     * o que faz o KYC ser observável: uma subconta recém-criada transaciona
-     * (cadastro APPROVED) mas ainda deve documento, e é isso que o cliente checa
-     * antes de mandar o usuário para o onboarding. Volta a APPROVED quando os
-     * documentos são enviados ou quando `POST /v3/sandbox/myAccount/approve` roda.
+     * `documentation` comes from the DOCUMENT GROUPS, not from the status of the
+     * registration — it is what makes the KYC observable: a newly created
+     * subaccount transacts (registration APPROVED) but still owes documents, and
+     * that is what the client checks before sending the user to the onboarding.
+     * It goes back to APPROVED when the documents are sent or when
+     * `POST /v3/sandbox/myAccount/approve` runs.
      *
-     * `null` = conta sem grupos (banco anterior à tabela): segue o cadastro.
+     * `null` = account without groups (from before the table existed): it follows
+     * the registration.
      */
     const documentation = (await documentationStatus(ctx.db, auth.accountId)) ?? status
     const general = status === 'APPROVED' && documentation === 'APPROVED' ? 'APPROVED' : 'PENDING'
@@ -275,8 +278,8 @@ export const accountInfoHandlers: HandlerMap = {
   'retrieve-walletid': async ({ ctx, auth, query }) => {
     void ctx
     void query
-    // A conta tem exatamente uma wallet. O envelope é de lista mesmo assim — é o
-    // que a spec declara, e um cliente que itera `data` continua funcionando.
+    // The account has exactly one wallet. The envelope is a list anyway — it is
+    // what the spec declares, and a client that iterates `data` keeps working.
     const data = [{ object: 'wallet', id: auth.walletId }]
     return listEnvelope(data, data.length, 10, 0)
   },
@@ -303,8 +306,8 @@ export const accountInfoHandlers: HandlerMap = {
   },
 
   'save-payment-checkout-personalization': async ({ ctx, auth, body }) => {
-    // multipart/form-data não passa pela validação de schema (o TypeBox do JSON
-    // não descreve um File), então os obrigatórios são conferidos aqui.
+    // multipart/form-data does not go through the schema validation (the JSON
+    // TypeBox does not describe a File), so the required fields are checked here.
     const b = (body ?? {}) as Record<string, unknown>
 
     const logoBackgroundColor = requiredColor(b, 'logoBackgroundColor')
@@ -331,7 +334,7 @@ export const accountInfoHandlers: HandlerMap = {
       fontColor,
       enabled,
       logoUrl,
-      // Sandbox aprova sozinho — é o que o exemplo da spec mostra.
+      // The sandbox approves by itself — it is what the example of the spec shows.
       status: 'APPROVED',
       observations: 'Aprovado automaticamente pelo sistema.',
       updatedAt: ctx.clock.timestamp(),
@@ -361,8 +364,9 @@ export const accountInfoHandlers: HandlerMap = {
   'Delete-white-label-subaccount': async ({ ctx, auth, query }) => {
     const account = await loadAccount(ctx.db, auth.accountId)
 
-    // O endpoint é "Delete White Label subaccount": a conta raiz não se
-    // autodestrói. Sem isso, um teste distraído apagaria a conta principal.
+    // The endpoint is "Delete White Label subaccount": the root account does not
+    // destroy itself. Without this, a distracted test would delete the main
+    // account.
     if (!account.parentAccountId) {
       throw invalid(
         'account',

@@ -67,7 +67,7 @@ describe('The renderer of the templates', () => {
 		const result = renderTemplate(
 			storeWith(
 				templateWith({
-					review: { event: 'REJECTED', reason: 'A categoria não corresponde' },
+					review: { event: 'REJECTED', reason: 'The category does not match' },
 				})
 			),
 			'boas_vindas',
@@ -79,7 +79,7 @@ describe('The renderer of the templates', () => {
 		if (result.ok) return
 		expect(result.error.details).toBe('TEMPLATE_NOT_APPROVED')
 		expect(result.error.message).toContain('not approved')
-		expect(result.error.message).toContain('A categoria não corresponde')
+		expect(result.error.message).toContain('The category does not match')
 		expect(result.error.data.review).toBe('REJECTED')
 	})
 

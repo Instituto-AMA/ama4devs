@@ -62,7 +62,7 @@ real API; no account, no credential, no bill.
 
 ## Language
 
-English is the default at the site root; Portuguese (pt-BR) lives under `/pt-br/`, one
+English is the default at the site root; Portuguese (pt-BR) lives under `/portuguese/`, one
 click away, with the same content. Both languages are kept in step.
 
 ## Constraints

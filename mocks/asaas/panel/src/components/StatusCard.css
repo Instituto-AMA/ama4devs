@@ -11,9 +11,10 @@
 }
 
 /**
- * Cada card carrega o seu tom nestas duas variáveis, e o resto da folha só as
- * consome. É o que permite trocar a cor de "Vencidas" num lugar só, sem caçar
- * `.stat.danger .stat-value` espalhado por seis seletores.
+ * Each card carries its own tone in these two variables, and the rest of the
+ * sheet only consumes them. It is what allows changing the color of "Vencidas"
+ * in one place, without hunting `.stat.danger .stat-value` spread across six
+ * selectors.
  */
 .stat.success { --t: var(--success); --t-strong: var(--success-strong); --t-soft: var(--green-200); }
 .stat.primary { --t: var(--primary); --t-strong: var(--primary-strong); --t-soft: var(--blue-100); }
@@ -42,7 +43,7 @@
   background: var(--t-soft);
 }
 .seg { height: 100%; }
-/* Quatro tons do mesmo matiz: mais escuro = maior fatia (a lista vem ordenada). */
+/* Four shades of the same hue: darker = bigger slice (the list comes sorted). */
 .seg.shade-0 { background: var(--t); }
 .seg.shade-1 { background: color-mix(in srgb, var(--t) 72%, var(--surface)); }
 .seg.shade-2 { background: color-mix(in srgb, var(--t) 48%, var(--surface)); }

@@ -1,18 +1,18 @@
 /**
- * Aritmética de datas no formato de fio do Asaas ('YYYY-MM-DD').
+ * Date arithmetic in Asaas's wire format ('YYYY-MM-DD').
  *
- * PURO: nenhuma função aqui lê o relógio. Quem precisa de "hoje" recebe como
- * argumento. Trabalhamos com a string diretamente em vez de `Date` porque o
- * `Date` do JS carrega fuso e hora, e a data de vencimento de um boleto não tem
- * nem uma coisa nem outra — misturar os dois é a origem clássica do bug de "a
- * cobrança venceu um dia antes para quem está em UTC-3".
+ * PURE: no function here reads the clock. Whoever needs "today" receives it as
+ * an argument. We work with the string directly instead of `Date` because JS's
+ * `Date` carries timezone and time, and the due date of a bank slip has neither —
+ * mixing the two is the classic source of the "the charge expired a day early for
+ * someone in UTC-3" bug.
  */
 
 export type IsoDate = string // 'YYYY-MM-DD'
 
 const DAY_MS = 86_400_000
 
-/** 'YYYY-MM-DD' → epoch ms em UTC (meio-dia, para blindar contra DST). */
+/** 'YYYY-MM-DD' → epoch ms in UTC (noon, to guard against DST). */
 function toUtc(date: IsoDate): number {
   const [y, m, d] = date.split('-').map(Number)
   return Date.UTC(y!, m! - 1, d!, 12, 0, 0)
@@ -36,21 +36,23 @@ export function addDays(date: IsoDate, days: number): IsoDate {
   return fromUtc(toUtc(date) + days * DAY_MS)
 }
 
-/** Diferença em dias inteiros: daysBetween('2026-01-10', '2026-01-01') === 9 */
+/** Difference in whole days: daysBetween('2026-01-10', '2026-01-01') === 9 */
 export function daysBetween(later: IsoDate, earlier: IsoDate): number {
   return Math.round((toUtc(later) - toUtc(earlier)) / DAY_MS)
 }
 
-export const isBefore = (a: IsoDate, b: IsoDate): boolean => a < b // lexicográfico = cronológico
+export const isBefore = (a: IsoDate, b: IsoDate): boolean => a < b // lexicographic = chronological
 export const isAfter = (a: IsoDate, b: IsoDate): boolean => a > b
 export const minDate = (a: IsoDate, b: IsoDate): IsoDate => (a <= b ? a : b)
 
 /**
- * Soma meses preservando o dia. Quando o dia não existe no mês destino, cai para
- * o ÚLTIMO dia do mês: 31/jan + 1 mês = 28/fev (não 03/mar).
+ * Adds months preserving the day. When the day does not exist in the target
+ * month, it falls back to the LAST day of the month: 31/Jan + 1 month = 28/Feb
+ * (not 03/Mar).
  *
- * É o comportamento que uma assinatura mensal precisa ter — senão a cobrança de
- * quem assinou dia 31 escorrega pelo calendário e acaba caindo em março.
+ * It is the behaviour a monthly subscription needs — otherwise the charge of
+ * someone who subscribed on the 31st slides through the calendar and ends up in
+ * March.
  */
 export function addMonths(date: IsoDate, months: number): IsoDate {
   const [y, m, d] = date.split('-').map(Number)
@@ -62,33 +64,33 @@ export function addMonths(date: IsoDate, months: number): IsoDate {
   return fromUtc(target.getTime())
 }
 
-/** 0 = domingo … 6 = sábado */
+/** 0 = Sunday … 6 = Saturday */
 export function weekday(date: IsoDate): number {
   return new Date(toUtc(date)).getUTCDay()
 }
 
-// ── Dias úteis ───────────────────────────────────────────────
+// ── Business days ────────────────────────────────────────────
 
 /**
- * Feriados nacionais fixos. Os móveis (Carnaval, Sexta-Feira Santa, Corpus
- * Christi) dependem da Páscoa — calculados abaixo.
+ * The fixed national holidays. The movable ones (Carnival, Good Friday, Corpus
+ * Christi) depend on Easter — computed below.
  *
- * Feriados municipais e estaduais NÃO entram: o Asaas não publica quais
- * considera, e chutar produziria uma data de crédito errada com cara de certa.
+ * Municipal and state holidays do NOT go in: Asaas does not publish which ones it
+ * considers, and guessing would produce a wrong credit date that looks right.
  */
 const FIXED_HOLIDAYS = new Set([
-  '01-01', // Confraternização Universal
+  '01-01', // Universal Confraternization
   '04-21', // Tiradentes
-  '05-01', // Dia do Trabalho
-  '09-07', // Independência
-  '10-12', // Nossa Senhora Aparecida
-  '11-02', // Finados
-  '11-15', // Proclamação da República
-  '11-20', // Consciência Negra (nacional desde 2024)
-  '12-25', // Natal
+  '05-01', // Labour Day
+  '09-07', // Independence Day
+  '10-12', // Our Lady of Aparecida
+  '11-02', // All Souls' Day
+  '11-15', // Proclamation of the Republic
+  '11-20', // Black Awareness Day (national since 2024)
+  '12-25', // Christmas
 ])
 
-/** Domingo de Páscoa pelo algoritmo de Meeus/Jones/Butcher. */
+/** Easter Sunday by the Meeus/Jones/Butcher algorithm. */
 function easterSunday(year: number): IsoDate {
   const a = year % 19
   const b = Math.floor(year / 100)
@@ -115,9 +117,9 @@ function movableHolidays(year: number): Set<IsoDate> {
 
   const easter = easterSunday(year)
   const set = new Set<IsoDate>([
-    addDays(easter, -48), // Carnaval (segunda)
-    addDays(easter, -47), // Carnaval (terça)
-    addDays(easter, -2), // Sexta-Feira Santa
+    addDays(easter, -48), // Carnival (Monday)
+    addDays(easter, -47), // Carnival (Tuesday)
+    addDays(easter, -2), // Good Friday
     addDays(easter, 60), // Corpus Christi
   ])
   movableCache.set(year, set)
@@ -135,14 +137,14 @@ export function isBusinessDay(date: IsoDate): boolean {
   return !isHoliday(date)
 }
 
-/** Se já for dia útil, devolve a própria data. */
+/** If it is already a business day, returns the date itself. */
 export function nextBusinessDay(date: IsoDate): IsoDate {
   let d = date
   while (!isBusinessDay(d)) d = addDays(d, 1)
   return d
 }
 
-/** Avança N dias ÚTEIS. `addBusinessDays(d, 1)` é sempre o próximo dia útil depois de d. */
+/** Advances N BUSINESS days. `addBusinessDays(d, 1)` is always the next business day after d. */
 export function addBusinessDays(date: IsoDate, days: number): IsoDate {
   let d = date
   let remaining = days
@@ -153,7 +155,7 @@ export function addBusinessDays(date: IsoDate, days: number): IsoDate {
   return d
 }
 
-// ── Ciclos de assinatura ─────────────────────────────────────
+// ── Subscription cycles ──────────────────────────────────────
 
 export type Cycle =
   | 'WEEKLY'
@@ -164,7 +166,7 @@ export type Cycle =
   | 'SEMIANNUALLY'
   | 'YEARLY'
 
-/** A próxima data de vencimento de uma assinatura, dado o ciclo. */
+/** The next due date of a subscription, given the cycle. */
 export function advanceCycle(date: IsoDate, cycle: Cycle): IsoDate {
   switch (cycle) {
     case 'WEEKLY':

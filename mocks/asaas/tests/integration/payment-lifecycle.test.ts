@@ -1,9 +1,9 @@
 /**
- * O ciclo de vida da cobrança. É o critério de aceite do projeto.
+ * The charge's lifecycle. It is the project's acceptance criterion.
  *
- * Cada cenário aqui é uma coisa que o sandbox do Asaas NÃO permite testar:
- * esperar D+32 para o cartão creditar, ver o juro crescer um dia por vez, ou
- * conferir que o extrato fecha com o saldo.
+ * Every scenario here is something Asaas's sandbox does NOT let you test:
+ * waiting D+32 for the card to credit, watching the interest grow one day at a time, or
+ * checking that the statement closes with the balance.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -17,12 +17,12 @@ beforeEach(async () => {
 })
 afterEach(() => h.close())
 
-/** Cria um cliente e devolve o id. */
+/** Creates a customer and returns the id. */
 async function customer(): Promise<string> {
   const res = await h.api.call('create-new-customer', {
     body: { name: 'Fulano de Tal', cpfCnpj: '24971563792' },
   })
-  expect(res.status).toBe(200) // 200, nunca 201
+  expect(res.status).toBe(200) // 200, never 201
   return res.body.id
 }
 
@@ -32,8 +32,8 @@ const ledgerOf = async (accountId: string) =>
     .from(financialTransactions)
     .where(eq(financialTransactions.accountId, accountId))
 
-describe('Pix — credita na hora e pula CONFIRMED', () => {
-  it('PENDING → RECEIVED direto, com taxa fixa de R$ 1,99 no extrato', async () => {
+describe('Pix — credits right away and skips CONFIRMED', () => {
+  it('PENDING → RECEIVED directly, with the fixed R$ 1.99 fee on the statement', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
@@ -41,44 +41,44 @@ describe('Pix — credita na hora e pula CONFIRMED', () => {
     })
 
     expect(created.body.status).toBe('PENDING')
-    // netValue = 100 − 1,99. A taxa do Pix é FIXA, não percentual.
+    // netValue = 100 − 1.99. The Pix fee is FIXED, not a percentage.
     expect(created.body.value).toBe(100)
     expect(created.body.netValue).toBe(98.01)
 
-    // Pix PENDENTE não tem a chave `confirmedDate` — ela não vem nula, ela não
-    // está lá. Capturado.
+    // A PENDING Pix has no `confirmedDate` key — it does not come null, it does not
+    // even exist. Captured.
     expect('confirmedDate' in created.body).toBe(false)
 
     const paid = await h.api.call('confirm-payment', { params: { id: created.body.id } })
 
-    // O Pix NÃO passa por CONFIRMED — vai direto a RECEIVED, com o dinheiro já
-    // disponível. Todo o resto (boleto, cartão) para em CONFIRMED antes.
+    // Pix does NOT go through CONFIRMED — it goes straight to RECEIVED, with the money already
+    // available. Everything else (bank slip, card) stops at CONFIRMED first.
     expect(paid.body.status).toBe('RECEIVED')
     expect(paid.body.creditDate).toBe('2026-01-05')
 
     /**
-     * E DEPOIS DE PAGO a chave aparece. Nós só a emitíamos para cartão, então um
-     * Pix pago devolvia `confirmedDate: undefined` — e o cliente que lê esse campo
-     * para saber quando o pagamento foi reconhecido recebia nada aqui e uma data no
-     * Asaas. Capturado (tools/probe-pix.ts).
+     * And AFTER BEING PAID the key appears. We only emitted it for the card, so a
+     * paid Pix returned `confirmedDate: undefined` — and the client that reads that field
+     * to know when the payment was recognized received nothing here and a date on
+     * Asaas. Captured (tools/probe-pix.ts).
      */
     expect(paid.body.confirmedDate).toBe('2026-01-05')
 
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual(['PAYMENT_RECEIVED', 'PAYMENT_FEE'])
-    expect(ledger[0]!.valueCents).toBe(10_000) // +R$ 100,00 bruto
-    expect(ledger[1]!.valueCents).toBe(-199) // −R$ 1,99 de taxa
-    expect(ledger[1]!.balanceCents).toBe(9801) // saldo final = netValue
+    expect(ledger[0]!.valueCents).toBe(10_000) // +R$ 100.00 gross
+    expect(ledger[1]!.valueCents).toBe(-199) // −R$ 1.99 of fee
+    expect(ledger[1]!.balanceCents).toBe(9801) // final balance = netValue
 
     await h.assertLedgerBalances()
   })
 
   /**
-   * Confirmar duas vezes é o caso REAL: um botão clicado duas vezes, um webhook
-   * duplicado, uma retentativa. O Asaas tem frase própria para isso — devolvíamos a
-   * frase genérica da máquina de estados. Capturado (tools/probe-pix.ts).
+   * Confirming twice is the REAL case: a button clicked twice, a duplicated webhook,
+   * a retry. Asaas has its own sentence for it — we used to return the
+   * generic sentence of the state machine. Captured (tools/probe-pix.ts).
    */
-  it('confirmar uma cobrança JÁ PAGA → "Cobrança já confirmada."', async () => {
+  it('confirming an ALREADY PAID charge → "Cobrança já confirmada."', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -94,7 +94,7 @@ describe('Pix — credita na hora e pula CONFIRMED', () => {
     })
   })
 
-  it('nenhum webhook PAYMENT_CONFIRMED é emitido para Pix', async () => {
+  it('no PAYMENT_CONFIRMED webhook is emitted for Pix', async () => {
     await h.subscribeWebhook(['PAYMENT_CREATED', 'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'])
 
     const cus = await customer()
@@ -102,40 +102,40 @@ describe('Pix — credita na hora e pula CONFIRMED', () => {
       body: { customer: cus, billingType: 'PIX', value: 50, dueDate: '2026-01-10' },
     })
     await h.api.call('confirm-payment', { params: { id: p.body.id } })
-    await h.tick() // o dispatcher roda no tick
+    await h.tick() // the dispatcher runs on the tick
 
     const events = h.sink.eventNames
     expect(events).toContain('PAYMENT_CREATED')
     expect(events).toContain('PAYMENT_RECEIVED')
-    // O Pix pula CONFIRMED — quem assina esse evento nunca o recebe num Pix.
+    // Pix skips CONFIRMED — whoever subscribes to that event never receives it on a Pix.
     expect(events).not.toContain('PAYMENT_CONFIRMED')
   })
 })
 
-describe('Cartão de crédito — CONFIRMED agora, dinheiro em D+32', () => {
-  it('o saldo só aparece 32 dias depois — e a viagem no tempo prova isso', async () => {
+describe('Credit card — CONFIRMED now, the money at D+32', () => {
+  it('the balance only appears 32 days later — and time travel proves it', async () => {
     const cus = await customer()
 
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'CREDIT_CARD', value: 100, dueDate: '2026-01-10' },
     })
 
-    // Taxa do cartão à vista: R$ 0,49 + 2,99% = R$ 3,48 → líquido R$ 96,52
+    // The single-payment card fee: R$ 0.49 + 2.99% = R$ 3.48 → net R$ 96.52
     expect(created.body.netValue).toBe(96.52)
 
     const confirmed = await h.api.call('confirm-payment', { params: { id: created.body.id } })
     expect(confirmed.body.status).toBe('CONFIRMED')
-    expect(confirmed.body.estimatedCreditDate).toBe('2026-02-06') // 05/01 + 32 dias
+    expect(confirmed.body.estimatedCreditDate).toBe('2026-02-06') // 05/01 + 32 days
 
-    // Confirmada, mas o dinheiro NÃO está na conta.
+    // Confirmed, but the money is NOT in the account.
     expect((await ledgerOf(h.accountId)).length).toBe(0)
 
-    // Avança 31 dias: ainda nada.
+    // Advance 31 days: still nothing.
     await h.advance({ days: 31 })
     let p = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
     expect(p.body.status).toBe('CONFIRMED')
 
-    // O 32º dia. É este o teste que o sandbox real não deixa você fazer.
+    // The 32nd day. This is the test the real sandbox does not let you do.
     const [report] = await h.advance({ days: 1 })
 
     expect(report!.transitions).toContainEqual({
@@ -158,14 +158,14 @@ describe('Cartão de crédito — CONFIRMED agora, dinheiro em D+32', () => {
   })
 })
 
-describe('Boleto — vence, acumula juros, e credita em D+1 útil', () => {
-  it('PENDING → OVERDUE quando passa do vencimento', async () => {
+describe('Bank slip — it expires, accrues interest, and credits at D+1 business day', () => {
+  it('PENDING → OVERDUE once the due date passes', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'BOLETO', value: 100, dueDate: '2026-01-06' },
     })
 
-    const reports = await h.advance({ days: 2 }) // hoje vira 07/01
+    const reports = await h.advance({ days: 2 }) // today becomes 07/01
 
     const overdueTick = reports.find((r) =>
       r.transitions.some((t) => t.to === 'OVERDUE' && t.id === created.body.id),
@@ -176,7 +176,7 @@ describe('Boleto — vence, acumula juros, e credita em D+1 útil', () => {
     expect(p.body.status).toBe('OVERDUE')
   })
 
-  it('pago em atraso: valor = original + multa (uma vez) + juros pro-rata', async () => {
+  it('paid late: value = original + fine (once) + pro-rata interest', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: {
@@ -185,21 +185,21 @@ describe('Boleto — vence, acumula juros, e credita em D+1 útil', () => {
         value: 100,
         dueDate: '2026-01-05',
         fine: { value: 2, type: 'PERCENTAGE' }, // 2%
-        interest: { value: 1 }, // 1% ao mês
+        interest: { value: 1 }, // 1% a month
       },
     })
 
-    await h.advance({ days: 10 }) // 15/01 — 10 dias de atraso
+    await h.advance({ days: 10 }) // 15/01 — 10 days of delay
 
     const paid = await h.api.call('confirm-payment', { params: { id: created.body.id } })
 
-    // multa 2% = R$ 2,00 | juros = 100 × 1% / 30 × 10 = R$ 0,33
+    // fine 2% = R$ 2.00 | interest = 100 × 1% / 30 × 10 = R$ 0.33
     expect(paid.body.originalValue).toBe(100)
     expect(paid.body.interestValue).toBe(2.33)
     expect(paid.body.value).toBe(102.33)
-    expect(paid.body.status).toBe('CONFIRMED') // boleto passa por CONFIRMED
+    expect(paid.body.status).toBe('CONFIRMED') // the bank slip goes through CONFIRMED
 
-    // Boleto credita no próximo dia útil. 15/01/2026 é quinta → 16/01, sexta.
+    // The bank slip credits on the next business day. 15/01/2026 is a Thursday → 16/01, Friday.
     expect(paid.body.estimatedCreditDate).toBe('2026-01-16')
 
     await h.advance({ days: 1 })
@@ -209,17 +209,17 @@ describe('Boleto — vence, acumula juros, e credita em D+1 útil', () => {
     expect(settled.body.status).toBe('RECEIVED')
 
     const ledger = await ledgerOf(h.accountId)
-    expect(ledger[0]!.valueCents).toBe(10_233) // creditou o valor COM juros
-    expect(ledger[1]!.valueCents).toBe(-199) // taxa do boleto
+    expect(ledger[0]!.valueCents).toBe(10_233) // it credited the value WITH interest
+    expect(ledger[1]!.valueCents).toBe(-199) // the bank slip fee
 
     await h.assertLedgerBalances()
   })
 })
 
-describe('Recebimento em dinheiro — NÃO gera saldo', () => {
-  it('vai a RECEIVED_IN_CASH sem tocar no extrato', async () => {
-    // É fácil errar isso: o dinheiro entrou no bolso do lojista, FORA da
-    // plataforma. O Asaas não credita nada e não cobra taxa.
+describe('Cash receipt — it does NOT create balance', () => {
+  it('goes to RECEIVED_IN_CASH without touching the statement', async () => {
+    // It is easy to get this wrong: the money went into the merchant's pocket, OUTSIDE the
+    // platform. Asaas credits nothing and charges no fee.
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'BOLETO', value: 100, dueDate: '2026-01-10' },
@@ -231,9 +231,9 @@ describe('Recebimento em dinheiro — NÃO gera saldo', () => {
     })
 
     expect(res.body.status).toBe('RECEIVED_IN_CASH')
-    expect((await ledgerOf(h.accountId)).length).toBe(0) // extrato intocado
+    expect((await ledgerOf(h.accountId)).length).toBe(0) // the statement stays untouched
 
-    // E dá para desfazer.
+    // And it can be undone.
     const undone = await h.api.call('undo-cash-receipt-confirmation', {
       params: { id: created.body.id },
     })
@@ -243,8 +243,8 @@ describe('Recebimento em dinheiro — NÃO gera saldo', () => {
   })
 })
 
-describe('Estorno', () => {
-  it('estorna um Pix recebido e devolve o dinheiro — mas retém a taxa', async () => {
+describe('Refund', () => {
+  it('reverses a received Pix and returns the money — but keeps the fee', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -253,7 +253,7 @@ describe('Estorno', () => {
 
     const refunded = await h.api.call('refund-payment', {
       params: { id: created.body.id },
-      body: { value: 100, description: 'Cliente desistiu' },
+      body: { value: 100, description: 'Customer gave up' },
     })
     expect(refunded.body.status).toBe('REFUNDED')
 
@@ -264,8 +264,8 @@ describe('Estorno', () => {
       'PAYMENT_REVERSAL',
     ])
 
-    // AS TAXAS NÃO SÃO DEVOLVIDAS. Entrou 100, saiu 1,99 de taxa, e o estorno
-    // devolveu os 100 — a conta fica devendo a taxa. É o comportamento real.
+    // THE FEES ARE NOT REFUNDED. 100 came in, 1.99 of fee went out, and the reversal
+    // returned the 100 — the account owes the fee. It is the real behaviour.
     expect(ledger.at(-1)!.balanceCents).toBe(-199)
 
     await h.assertLedgerBalances()
@@ -283,7 +283,7 @@ describe('Estorno', () => {
 
     await h.api.call('refund-payment', {
       params: { id: created.body.id },
-      body: { value: 100, description: 'Plano cancelado' },
+      body: { value: 100, description: 'Cancelled plan' },
     })
 
     const after = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
@@ -291,12 +291,12 @@ describe('Estorno', () => {
     expect(after.body.refunds[0]).toMatchObject({
       status: 'DONE',
       value: 100,
-      description: 'Plano cancelado',
+      description: 'Cancelled plan',
       paymentId: created.body.id,
     })
   })
 
-  it('não é possível estornar cobrança que ninguém pagou', async () => {
+  it('it is not possible to reverse a charge nobody paid', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -311,18 +311,18 @@ describe('Estorno', () => {
   })
 })
 
-describe('validações que o Asaas faz', () => {
-  it('CPF com dígito verificador errado é rejeitado', async () => {
+describe('the validations Asaas does', () => {
+  it('a CPF with a wrong check digit is rejected', async () => {
     const res = await h.api.call('create-new-customer', {
       body: { name: 'Fulano', cpfCnpj: '11111111111' },
     })
     expect(res.status).toBe(400)
-    // `invalid_object`, e não `invalid_cpfCnpj` — parece errado, mas é o que o
-    // sandbox real devolve. Provado pela captura de paridade.
+    // `invalid_object`, and not `invalid_cpfCnpj` — it looks wrong, but it is what the
+    // the real sandbox returns. Proven by the parity capture.
     expect(res.body.errors[0].code).toBe('invalid_object')
   })
 
-  it('cobrança para cliente de outra conta não existe (404, não 403)', async () => {
+  it('a charge for a customer of another account does not exist (404, not 403)', async () => {
     const res = await h.api.call('create-new-payment', {
       body: {
         customer: 'cus_000000000000',
@@ -334,14 +334,14 @@ describe('validações que o Asaas faz', () => {
     expect(res.status).toBe(404)
   })
 
-  it('o cliente de uma cobrança nunca muda — o campo nem existe no update', async () => {
+  it('the customer of a charge never changes — the field does not even exist in the update', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
     })
 
-    // O schema de update da spec não tem `customer`: mandar o campo não é erro,
-    // ele é simplesmente descartado. O que importa é que o cliente não mude.
+    // The spec's update schema has no `customer`: sending the field is not an error,
+    // it is simply discarded. What matters is that the customer did not change.
     const res = await h.api.call('update-existing-payment', {
       params: { id: created.body.id },
       body: {
@@ -353,12 +353,12 @@ describe('validações que o Asaas faz', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(res.body.customer).toBe(cus) // continua o original
-    expect(res.body.value).toBe(50) // mas o valor mudou
-    expect(res.body.netValue).toBe(48.01) // e a taxa foi recalculada
+    expect(res.body.customer).toBe(cus) // it stays the original
+    expect(res.body.value).toBe(50) // but the value changed
+    expect(res.body.netValue).toBe(48.01) // and the fee was recalculated
   })
 
-  it('cobrança paga não pode ser editada', async () => {
+  it('a paid charge cannot be edited', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },

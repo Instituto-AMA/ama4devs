@@ -1,8 +1,9 @@
 /**
- * Track H — chargeback (3 operações da tag "Chargeback").
+ * Track H — chargeback (3 operations of the "Chargeback" tag).
  *
- * A criação não está aqui porque não existe na spec: ver o comentário do topo de
- * `service.ts`. A porta é `POST /_admin/payments/{id}/chargeback`.
+ * The creation is not here because it does not exist in the spec: see the
+ * comment at the top of `service.ts`. The door is
+ * `POST /_admin/payments/{id}/chargeback`.
  */
 import { and, count, eq, gte, lte } from 'drizzle-orm'
 import { badRequest, notFound } from '../../core/errors.ts'
@@ -13,7 +14,7 @@ import { cents, centsToBrl } from '../../domain/money.ts'
 import type { HandlerMap } from '../../http/register.ts'
 import type { ChargebackRow } from './service.ts'
 
-/** O formato exato da resposta do Asaas. Centavos viram reais só aqui. */
+/** The exact format of the Asaas answer. Cents become reais only here. */
 export async function serializeChargeback(
   db: DB,
   row: ChargebackRow,
@@ -32,7 +33,7 @@ export async function serializeChargeback(
       .from(creditCards)
       .where(eq(creditCards.id, payment.creditCardId))
       .limit(1)
-    // Os 4 últimos dígitos. O PAN nunca esteve aqui.
+    // The last 4 digits. The PAN was never here.
     if (c) card = { number: c.last4, brand: c.brand }
   }
 
@@ -83,8 +84,8 @@ export const chargebackHandlers: HandlerMap = {
 
     let data = await Promise.all(rows.map((r) => serializeChargeback(ctx.db, r as ChargebackRow)))
 
-    // A bandeira mora no cartão, não no chargeback — o filtro é aplicado depois
-    // de serializar. TODO(perf): se a base crescer, vira JOIN.
+    // The brand lives in the card, not in the chargeback — the filter is applied
+    // after serializing. TODO(perf): if the base grows, it becomes a JOIN.
     if (query.creditCardBrand) {
       data = data.filter(
         (c) => (c.creditCard as { brand?: string } | null)?.brand === query.creditCardBrand,
@@ -112,11 +113,11 @@ export const chargebackHandlers: HandlerMap = {
   },
 
   /**
-   * `POST /v3/chargebacks/{id}/dispute` — multipart, com os documentos.
+   * `POST /v3/chargebacks/{id}/dispute` — multipart, with the documents.
    *
-   * Os arquivos NÃO são guardados: a spec não devolve conteúdo nem link deles em
-   * lugar nenhum, e persistir binário para nunca mais ler seria só peso. O que
-   * muda de verdade é o status: REQUESTED → IN_DISPUTE.
+   * The files are NOT stored: the spec does not return their content nor a link
+   * anywhere, and persisting binary to never read it again would only be
+   * weight. What really changes is the status: REQUESTED → IN_DISPUTE.
    */
   'create-a-chargeback-dispute': async ({ ctx, auth, params, body }) => {
     const [row] = await ctx.db

@@ -1,10 +1,11 @@
 /**
- * Serialização de transferência. A fronteira onde centavos viram reais.
+ * Transfer serialization. The boundary where cents become reais.
  *
- * PEGADINHA DA SPEC: o campo `type` da RESPOSTA é `PIX | TED | INTERNAL` — é o
- * tipo da OPERAÇÃO, não o do destino. A coluna `transfers.type` guarda
- * `BANK_ACCOUNT | PIX | INTERNAL` (o destino). Serializar a coluna direto
- * devolveria "BANK_ACCOUNT", que não está no enum da spec e quebraria o contrato.
+ * TRAP OF THE SPEC: the `type` field of the ANSWER is `PIX | TED | INTERNAL` — it
+ * is the type of the OPERATION, not of the destination. The `transfers.type`
+ * column holds `BANK_ACCOUNT | PIX | INTERNAL` (the destination). Serializing the
+ * column directly would return "BANK_ACCOUNT", which is not in the enum of the
+ * spec and would break the contract.
  */
 import type { transfers } from '../../db/schema/index.ts'
 import { cents, centsToBrl } from '../../domain/money.ts'
@@ -19,7 +20,7 @@ export function serializeTransfer(t: TransferRow): Record<string, unknown> {
   return {
     object: 'transfer',
     id: t.id,
-    type: t.operationType, // PIX | TED | INTERNAL — veja o comentário do topo
+    type: t.operationType, // PIX | TED | INTERNAL — see the comment at the top
     operationType: t.operationType,
     dateCreated: t.dateCreated,
 
@@ -38,9 +39,9 @@ export function serializeTransfer(t: TransferRow): Record<string, unknown> {
     description: t.description,
     recurring: null,
 
-    // Transferência interna devolve `walletId` + `account`; a externa,
-    // `bankAccount`. Os dois schemas da spec são todo-opcional, então mandar o
-    // campo do outro lado como null é seguro — e é o que o Asaas faz.
+    // An internal transfer returns `walletId` + `account`; the external one,
+    // `bankAccount`. Both schemas of the spec are all-optional, so sending the
+    // field of the other side as null is safe — and it is what Asaas does.
     walletId: internal ? t.destinationWalletId : null,
     bankAccount: internal ? null : serializeBankAccount(t),
   }
@@ -66,8 +67,8 @@ function serializeBankAccount(t: TransferRow): Record<string, unknown> | null {
 }
 
 /**
- * A resposta da transferência interna acrescenta os dados básicos da conta de
- * destino. `name`/`cpfCnpj` vêm da conta resolvida pelo walletId.
+ * The answer of the internal transfer adds the basic data of the destination
+ * account. `name`/`cpfCnpj` come from the account resolved by the walletId.
  */
 export function serializeInternalTransfer(
   t: TransferRow,

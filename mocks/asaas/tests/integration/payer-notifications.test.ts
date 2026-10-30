@@ -49,7 +49,7 @@ async function customer(extra: Record<string, unknown> = {}): Promise<string> {
 
 async function charge(cus: string) {
   const res = await h.api.call('create-new-payment', {
-    body: { customer: cus, billingType: 'PIX', value: 150, dueDate: '2026-01-20', description: 'Consulta' },
+    body: { customer: cus, billingType: 'PIX', value: 150, dueDate: '2026-01-20', description: 'Consultation' },
   })
   expect(res.status).toBe(200)
   return res.body
@@ -82,7 +82,7 @@ describe('payer notifications', () => {
 
     const wa = whatsapp.received.find((r) => r.payload?.template)
     expect(wa?.payload.to).toBe('5547999998888')
-    expect(wa?.payload.template.name).toBe('asaas_cobranca_criada')
+    expect(wa?.payload.template.name).toBe('asaas_charge_created')
     expect(wa?.payload.template.language.code).toBe('pt_BR')
     const params = wa?.payload.template.components[0].parameters.map((x: any) => x.text)
     expect(params).toEqual(['Maria Teste', 'Conta de Teste', 'R$ 150,00', '20/01/2026', p.invoiceUrl])
@@ -140,7 +140,7 @@ describe('payer notifications', () => {
     await h.tick()
 
     expect(mail.received).toHaveLength(0)
-    expect(whatsapp.received[0]?.payload.template.name).toBe('asaas_cobranca_vencida')
+    expect(whatsapp.received[0]?.payload.template.name).toBe('asaas_charge_overdue')
 
     const list = await admin(`/notifications?paymentId=${p.id}`)
     expect(list.body.channels).toEqual({ email: true, whatsapp: true, sms: false })

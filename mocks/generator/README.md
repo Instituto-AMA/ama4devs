@@ -32,7 +32,7 @@ In another project's compose, add a `generator` service next to `asaas`. Both fi
 
 ```yaml
   generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.1.0
+    image: ghcr.io/instituto-ama/generator-mock:0.2.0
     ports:
       - '45450:45450'
     depends_on:
@@ -87,8 +87,8 @@ This ensures predictable, flake-free test fixtures for automated testing suites.
 ## Safe Data Guarantees
 
 All synthetic data generated adheres to safety standards:
-- **Emails:** Constrained to RFC 2606 reserved testing domains (`example.com`, `example.org`, `example.net`).
-- **Websites:** Formatted as `https://www.slug.example.com`.
+- **Email addresses:** Constrained to RFC 2606 reserved testing domains (`example.com`, `example.org`, `example.net`).
+- **Website addresses:** Formatted as `https://www.slug.example.com`.
 - **Phone numbers:** Mobile phones use valid regional DDDs with subscriber digits compliant with telecommunication rules (no repeated digits).
 - **Test Cards:** Default `APPROVE` outcome uses `4444444444444444`; `DECLINE` uses `5184019740373151`.
 
@@ -96,7 +96,7 @@ All synthetic data generated adheres to safety standards:
 
 Populate the Asaas mock in a single HTTP call, or directly from the Asaas panel.
 
-When both services run together, the Asaas mock discovers the generator automatically (probing `generator`, `generator-mock`, `localhost`, and the Docker host on port 45450 every 10 s). While connected, the Asaas panel (<http://localhost:45445>) displays an **Integrações › Gerador** tab showing status, "Abrir o gerador", and a "Popular esta conta" button that seeds the account selected in the topbar via `POST /_admin/generator/populate`. If the generator is unreachable or turned off, the tab does not exist.
+When both services run together, the Asaas mock discovers the generator automatically (probing `generator`, `generator-mock`, `localhost`, and the Docker host on port 45450 every 10 s). While connected, the Asaas panel (<http://localhost:45445>) displays an **Integrations › Generator** tab showing status, an "Open generator" action, and a "Populate this account" button that seeds the account selected in the topbar via `POST /_admin/generator/populate`. If the generator is unreachable or turned off, the tab does not exist.
 
 You can also call the generator endpoint directly:
 

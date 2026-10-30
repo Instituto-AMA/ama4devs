@@ -1,6 +1,7 @@
 /**
- * Seed idempotente: garante que existe uma conta principal com a API key do
- * ambiente. Roda em todo boot; se a conta já existe, não faz nada.
+ * Idempotent seed: makes sure a main account with the environment's API key
+ * exists. It runs on every boot; if the account is already there, it does
+ * nothing.
  */
 import { and, eq, isNull } from 'drizzle-orm'
 import { toBusinessTimestamp } from '../core/clock.ts'
@@ -35,7 +36,7 @@ export interface RootAccountSeed {
   balanceCents: Cents
 }
 
-/** A stable slug from a name: "Clínica A" → "clinica-a". */
+/** A stable slug from a name: "Clinic A" → "clinic-a". */
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -136,8 +137,8 @@ export async function seedMasterAccount(deps: SeedDeps): Promise<SeedResult> {
       .where(and(eq(apiKeys.accountId, account.id), eq(apiKeys.active, true)))
       .limit(1)
 
-    // Banco criado antes da tabela de documentos: sem este backfill, a conta
-    // principal apareceria com o KYC pendente depois de um simples restart.
+    // A database created before the documents table: without this backfill, the main
+    // account would show up with the KYC pending after a simple restart.
     const [group] = await db
       .select({ id: accountDocumentGroups.id })
       .from(accountDocumentGroups)

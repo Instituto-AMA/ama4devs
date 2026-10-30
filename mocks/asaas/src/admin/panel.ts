@@ -1,31 +1,33 @@
 /**
- * O painel: uma página HTML servida na RAIZ do simulador.
+ * The panel: one HTML page served at the ROOT of the simulator.
  *
- * Existe porque o valor deste projeto é ver o dinheiro andar — a cobrança
- * confirmar, o saldo mudar em D+32, o split cair na subconta — e até aqui isso só
- * dava para observar com `curl` e uma boa memória. Abrir `localhost:8080` e ver as
- * contas com saldo, com um botão de "+32 dias", é a diferença entre um simulador
- * que funciona e um que se entende.
+ * It exists because the value of this project is watching the money move — the
+ * charge settling, the balance changing at D+32, the split landing in the
+ * subaccount — and until now that could only be observed with `curl` and a good
+ * memory. Opening `localhost:8080` and seeing the accounts with their balances,
+ * with a "+32 dias" button, is the difference between a simulator that works and
+ * one that makes sense.
  *
- * Escolhas, e por quê:
+ * The choices, and why:
  *
- *   - **HTML único, sem build.** O simulador roda em Docker; uma toolchain de
- *     frontend significaria um segundo estágio de build no Dockerfile para uma tela
- *     de dev. O arquivo é servido como está.
+ *   - **A single HTML file, no build.** The simulator runs in Docker; a frontend
+ *     toolchain would mean a second build stage in the Dockerfile for a dev
+ *     screen. The file is served as it is.
  *
- *   - **Vive atrás de `ADMIN_ENABLED`**, junto com a viagem no tempo. O painel lê
- *     `GET /_admin/accounts`, que devolve as CHAVES DE API de todas as contas — algo
- *     que a API do Asaas jamais faria, e que só é aceitável porque isto é um
- *     simulador de localhost. Com o admin desligado, o painel some junto. É a razão
- *     de o flag existir.
+ *   - **It lives behind `ADMIN_ENABLED`**, together with the time travel. The
+ *     panel reads `GET /_admin/accounts`, which returns the API KEYS of every
+ *     account — something the Asaas API would never do, and only acceptable
+ *     because this is a localhost simulator. With the admin off, the panel goes
+ *     away with it. It is the reason the flag exists.
  */
 import { Elysia } from 'elysia'
 import { join } from 'node:path'
 import type { AppContext } from '../core/context.ts'
 
 /**
- * Lido do disco, não embutido no bundle: assim dá para editar o HTML e recarregar
- * a página sem recompilar nada. O cache evita reler a cada request.
+ * Read from disk, not embedded in the bundle: that way the HTML can be edited and
+ * the page reloaded without recompiling anything. The cache avoids reading it on
+ * every request.
  */
 let cached: string | null = null
 
@@ -37,8 +39,8 @@ async function html(): Promise<string> {
 export function panelRoutes(ctx: AppContext) {
   const app = new Elysia({ name: 'panel' })
 
-  // Sem admin não há painel: ele depende inteiramente de /_admin/accounts e
-  // /_admin/clock. Um painel que carrega e não funciona é pior que nenhum.
+  // Without the admin there is no panel: it depends entirely on /_admin/accounts
+  // and /_admin/clock. A panel that loads and does not work is worse than none.
   if (!ctx.config.adminEnabled) return app
 
   const serve = async () =>

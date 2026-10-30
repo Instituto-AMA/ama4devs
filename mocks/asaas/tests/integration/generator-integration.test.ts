@@ -111,7 +111,7 @@ describe('the status of the generator', () => {
     expect(status.on).toBe(false)
     expect(status.url).toBeNull()
     expect(status.reachable).toBe(false)
-    expect(status.error).toContain('Gerador desligado')
+    expect(status.error).toContain('Generator off')
   })
 
   it('is on the panel route', async () => {
@@ -160,7 +160,7 @@ describe('populating an account through the generator', () => {
     h.app.ctx.config.generator.url = generator.url
 
     await expect(
-      populateThroughGenerator(h.app.ctx, { accountId: 'conta-que-nao-existe' }),
+      populateThroughGenerator(h.app.ctx, { accountId: 'account-that-does-not-exist' }),
     ).rejects.toMatchObject({ errors: [{ code: 'account_without_key' }] })
     expect(generator.received).toHaveLength(0)
   })

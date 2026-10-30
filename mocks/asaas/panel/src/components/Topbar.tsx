@@ -1,11 +1,13 @@
 /**
- * Saldo à esquerda, seletor de conta à direita — o cabeçalho do painel do Asaas.
+ * Balance on the left, account selector on the right — the header of the Asaas
+ * panel.
  *
- * O seletor é a coisa mais útil desta tela e não tem equivalente no Asaas real:
- * lá, entrar numa subconta exige a chave dela, guardada na criação e nunca mais
- * mostrada. Aqui você troca no dropdown e passa a ver o simulador PELOS OLHOS
- * daquela conta — é a única forma de ver, num split, o dinheiro sair de uma e
- * entrar na outra, com os dois extratos fechando.
+ * The selector is the most useful thing of this screen and has no equivalent in
+ * the real Asaas: there, entering a subaccount requires its key, saved at the
+ * creation and never shown again. Here you switch on the dropdown and start
+ * seeing the simulator THROUGH THE EYES of that account — it is the only way to
+ * see, in a split, the money leave one and enter the other, with both
+ * statements closing.
  */
 import { useState } from 'preact/hooks'
 import type { Account } from '../api.ts'

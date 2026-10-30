@@ -1,15 +1,15 @@
 /**
- * Mapa de handlers: operationId → função.
+ * Map of handlers: operationId → function.
  *
- * Todo operationId da spec que NÃO estiver aqui é montado automaticamente como
- * `notImplemented` pelo registro dirigido pelo manifesto. Portanto:
+ * Every operationId of the spec that is NOT here is assembled automatically as
+ * `notImplemented` by the register driven by the manifest. Therefore:
  *
- *   - a rota SEMPRE existe (auth, validação e formato de erro incluídos);
- *   - a cobertura é computada daqui, nunca mantida à mão;
- *   - um track novo se integra adicionando uma linha, sem tocar em roteamento.
+ *   - the route ALWAYS exists (auth, validation and error format included);
+ *   - the coverage is computed from here, never maintained by hand;
+ *   - a new track integrates by adding one line, without touching the routing.
  *
- * Cada track adiciona seu spread abaixo. Como cada um mora na sua própria pasta,
- * dois agentes trabalhando em paralelo não conflitam.
+ * Each track adds its spread below. Since each one lives in its own folder, two
+ * agents working in parallel do not conflict.
  */
 import type { HandlerMap } from '../http/register.ts'
 import { accountDocumentHandlers } from './account-documents/handlers.ts'
@@ -33,7 +33,7 @@ import { transferHandlers } from './transfers/handlers.ts'
 import { webhookHandlers } from './webhooks/handlers.ts'
 
 export const HANDLERS: HandlerMap = {
-  // Track A — customers, payments, máquina de estados, sandbox actions
+  // Track A — customers, payments, state machine, sandbox actions
   ...customerHandlers,
   ...paymentHandlers,
   ...sandboxHandlers,
@@ -41,9 +41,9 @@ export const HANDLERS: HandlerMap = {
   // Track B — webhooks
   ...webhookHandlers,
 
-  // Track G1 — conta, links de pagamento, notificações, checkout, Serasa
+  // Track G1 — account, payment links, notifications, checkout, Serasa
   ...accountInfoHandlers,
-  // KYC/onboarding da conta + a ação de sandbox que a aprova
+  // KYC/onboarding of the account + the sandbox action that approves it
   ...accountDocumentHandlers,
   ...paymentLinkHandlers,
   ...notificationHandlers,
@@ -54,12 +54,12 @@ export const HANDLERS: HandlerMap = {
   ...splitHandlers,
   ...subaccountHandlers,
 
-  // Track D — extrato, saldo, transferências, antecipações
+  // Track D — statement, balance, transfers, anticipations
   ...financeHandlers,
   ...transferHandlers,
   ...anticipationHandlers,
 
-  // Track H — cartão: tokenização, pré-autorização/captura, chargeback
+  // Track H — card: tokenization, pre-authorization/capture, chargeback
   ...creditCardHandlers,
   ...chargebackHandlers,
 
@@ -67,6 +67,6 @@ export const HANDLERS: HandlerMap = {
   ...installmentHandlers,
   ...subscriptionHandlers,
 
-  // Notas fiscais (NFS-e) e informações fiscais
+  // Fiscal notes (NFS-e) and fiscal information
   ...invoiceHandlers,
 }

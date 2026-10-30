@@ -1,10 +1,10 @@
 /**
- * Payment Link — criar, recuperar, listar, atualizar, remover, restaurar, e as
- * imagens da vitrine.
+ * Payment Link — create, retrieve, list, update, remove, restore, and the
+ * showcase images.
  *
- * O caso que quebra integração de verdade e que está coberto aqui: `deleted` é
- * SOFT delete. O link removido some da listagem, continua recuperável por id, e
- * volta com `restore`.
+ * The case that really breaks integrations and that is covered here: `deleted` is a
+ * SOFT delete. The removed link disappears from the listing, stays retrievable by id, and
+ * comes back with `restore`.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { paymentLinkHandlers } from '../../src/modules/payment-links/handlers.ts'
@@ -20,7 +20,7 @@ afterAll(() => h.close())
 const newLink = async (over: Record<string, unknown> = {}) => {
   const { status, body } = await h.api.call('create-a-payments-link', {
     body: {
-      name: 'Venda de livros',
+      name: 'Book sale',
       billingType: 'UNDEFINED',
       chargeType: 'DETACHED',
       value: 50,
@@ -31,8 +31,8 @@ const newLink = async (over: Record<string, unknown> = {}) => {
   return body
 }
 
-/** Imagem em base64 — o mesmo caminho de um upload multipart, sem o multipart. */
-const IMAGE_B64 = Buffer.from('imagem-de-teste').toString('base64')
+/** Image in base64 — the same path as a multipart upload, without the multipart. */
+const IMAGE_B64 = Buffer.from('test-image').toString('base64')
 
 const addImage = async (linkId: string, main = false) => {
   const { status, body } = await h.api.call('add-an-image-to-a-payments-link', {
@@ -43,11 +43,11 @@ const addImage = async (linkId: string, main = false) => {
   return body
 }
 
-describe('ciclo de vida', () => {
-  it('criar devolve 200 (nunca 201) e o link já nasce ativo', async () => {
+describe('life cycle', () => {
+  it('creating returns 200 (never 201) and the link is born active', async () => {
     const link = await newLink({ externalReference: '056984' })
 
-    expect(link.id).toMatch(/^\d{12}$/) // sem prefixo: não é pay_ nem UUID
+    expect(link.id).toMatch(/^\d{12}$/) // no prefix: it is neither pay_ nor a UUID
     expect(link.url).toContain(`/c/${link.id}`)
     expect(link.value).toBe(50)
     expect(link.active).toBe(true)
@@ -58,7 +58,7 @@ describe('ciclo de vida', () => {
     expect(link.externalReference).toBe('056984')
   })
 
-  it('recuperar por id devolve o mesmo objeto', async () => {
+  it('retrieving by id returns the same object', async () => {
     const created = await newLink()
     const { status, body } = await h.api.call('retrieve-a-single-payments-link', {
       params: { id: created.id },
@@ -68,7 +68,7 @@ describe('ciclo de vida', () => {
     expect(body).toEqual(created)
   })
 
-  it('atualizar altera só o que veio', async () => {
+  it('updating changes only what came in', async () => {
     const created = await newLink({ description: 'Qualquer livro' })
 
     const { status, body } = await h.api.call('update-a-payments-link', {
@@ -78,12 +78,12 @@ describe('ciclo de vida', () => {
 
     expect(status).toBe(200)
     expect(body.name).toBe('Venda de e-books')
-    expect(body.value).toBe(39.9) // centavos → reais, sem erro de ponto flutuante
+    expect(body.value).toBe(39.9) // cents → reais, without a floating-point error
     expect(body.description).toBe('Qualquer livro') // intocado
   })
 
-  it('remover é SOFT delete: some da lista, mas continua recuperável e restaurável', async () => {
-    const link = await newLink({ name: 'Efêmero' })
+  it('removing is a SOFT delete: it disappears from the list, but stays retrievable and restorable', async () => {
+    const link = await newLink({ name: 'Ephemeral' })
 
     const removed = await h.api.call('remove-a-payments-link', { params: { id: link.id } })
     expect(removed.status).toBe(200)
@@ -95,11 +95,11 @@ describe('ciclo de vida', () => {
     expect(fetched.body.deleted).toBe(true)
     expect(fetched.body.active).toBe(false)
 
-    const listed = await h.api.call('list-payments-links', { query: { name: 'Efêmero' } })
+    const listed = await h.api.call('list-payments-links', { query: { name: 'Ephemeral' } })
     expect(listed.body.totalCount).toBe(0)
 
     const withDeleted = await h.api.call('list-payments-links', {
-      query: { name: 'Efêmero', includeDeleted: 'true' },
+      query: { name: 'Ephemeral', includeDeleted: 'true' },
     })
     expect(withDeleted.body.totalCount).toBe(1)
 
@@ -113,12 +113,12 @@ describe('ciclo de vida', () => {
   })
 })
 
-describe('listagem', () => {
-  it('envelope do Asaas e filtro por externalReference', async () => {
-    const link = await newLink({ externalReference: 'ref-unica-42' })
+describe('listing', () => {
+  it("Asaas's envelope and a filter by externalReference", async () => {
+    const link = await newLink({ externalReference: 'ref-unique-42' })
 
     const { status, body } = await h.api.call('list-payments-links', {
-      query: { externalReference: 'ref-unica-42' },
+      query: { externalReference: 'ref-unique-42' },
     })
 
     expect(status).toBe(200)
@@ -130,7 +130,7 @@ describe('listagem', () => {
     expect(body.data[0].id).toBe(link.id)
   })
 
-  it('limit acima de 100 → 400 invalid_limit', async () => {
+  it('limit above 100 → 400 invalid_limit', async () => {
     const { status, body } = await h.api.call('list-payments-links', {
       query: { limit: 200 },
     })
@@ -140,8 +140,8 @@ describe('listagem', () => {
   })
 })
 
-describe('validação', () => {
-  it('sem name → 400 invalid_name', async () => {
+describe('validation', () => {
+  it('without name → 400 invalid_name', async () => {
     const { status, body } = await h.api.call('create-a-payments-link', {
       body: { billingType: 'BOLETO', chargeType: 'DETACHED' },
     })
@@ -150,16 +150,16 @@ describe('validação', () => {
     expect(body.errors.map((e: any) => e.code)).toContain('invalid_name')
   })
 
-  it('RECURRENT sem subscriptionCycle → 400', async () => {
+  it('RECURRENT without subscriptionCycle → 400', async () => {
     const { status, body } = await h.api.call('create-a-payments-link', {
-      body: { name: 'Assinatura', billingType: 'BOLETO', chargeType: 'RECURRENT' },
+      body: { name: 'Subscription', billingType: 'BOLETO', chargeType: 'RECURRENT' },
     })
 
     expect(status).toBe(400)
     expect(body.errors[0].code).toBe('invalid_subscriptionCycle')
   })
 
-  it('parcelamento só existe em chargeType INSTALLMENT', async () => {
+  it('an installment plan only exists in chargeType INSTALLMENT', async () => {
     const { status, body } = await h.api.call('create-a-payments-link', {
       body: {
         name: 'Livro',
@@ -174,8 +174,8 @@ describe('validação', () => {
   })
 })
 
-describe('isolamento entre contas', () => {
-  it('o link de outra conta simplesmente não existe (404, nunca 403)', async () => {
+describe('isolation between accounts', () => {
+  it("the other account's link simply does not exist (404, never 403)", async () => {
     const link = await newLink()
     const other = await createSecondAccount(h, 'Conta Vizinha')
     const client = h.as(other.apiKey)
@@ -196,14 +196,14 @@ describe('isolamento entre contas', () => {
     })
     expect(images.status).toBe(404)
 
-    // E a listagem da outra conta não enxerga nada nosso.
+    // And the other account's listing does not see anything of ours.
     const listed = await client.call('list-payments-links')
     expect(listed.body.totalCount).toBe(0)
   })
 })
 
-describe('imagens', () => {
-  it('a primeira imagem é a principal por definição', async () => {
+describe('images', () => {
+  it('the first image is the main one by definition', async () => {
     const link = await newLink({ name: 'Com capa' })
 
     const first = await addImage(link.id)
@@ -216,7 +216,7 @@ describe('imagens', () => {
     expect(second.main).toBe(false)
   })
 
-  it('definir a principal derruba a anterior — nunca há duas', async () => {
+  it('setting the main one knocks down the previous — there are never two', async () => {
     const link = await newLink({ name: 'Duas capas' })
     const first = await addImage(link.id)
     const second = await addImage(link.id)
@@ -242,8 +242,8 @@ describe('imagens', () => {
     expect(old.body.main).toBe(false)
   })
 
-  it('remover a principal promove a mais antiga que sobrou', async () => {
-    const link = await newLink({ name: 'Promoção de capa' })
+  it('removing the main one promotes the oldest that is left', async () => {
+    const link = await newLink({ name: 'Cover promotion' })
     const first = await addImage(link.id)
     const second = await addImage(link.id)
 
@@ -261,7 +261,7 @@ describe('imagens', () => {
     expect(list.body.data[0].main).toBe(true)
   })
 
-  it('sem imagem no corpo → 400 invalid_image', async () => {
+  it('without an image in the body → 400 invalid_image', async () => {
     const link = await newLink()
     const { status, body } = await h.api.call('add-an-image-to-a-payments-link', {
       params: { id: link.id },
@@ -272,7 +272,7 @@ describe('imagens', () => {
     expect(body.errors[0].code).toBe('invalid_image')
   })
 
-  it('upload multipart de verdade preserva nome, extensão e tamanho', async () => {
+  it('a real multipart upload preserves the name, the extension and the size', async () => {
     const link = await newLink({ name: 'Multipart' })
 
     const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7])
@@ -296,10 +296,10 @@ describe('imagens', () => {
     expect(body.image.size).toBe(bytes.byteLength)
   })
 
-  it('imagem inexistente → 404', async () => {
+  it('nonexistent image → 404', async () => {
     const link = await newLink()
     const { status } = await h.api.call('retrieve-a-single-payments-link-image', {
-      params: { paymentLinkId: link.id, imageId: 'nao-existe' },
+      params: { paymentLinkId: link.id, imageId: 'does-not-exist' },
     })
 
     expect(status).toBe(404)

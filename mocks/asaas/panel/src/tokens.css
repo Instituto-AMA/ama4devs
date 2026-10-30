@@ -1,12 +1,12 @@
 /**
- * O design system do Asaas (Atlas), reduzido ao que este painel usa.
+ * The design system of Asaas (Atlas), reduced to what this panel uses.
  *
- * A regra: o resto da folha consome APENAS os nomes semânticos (--primary,
- * --surface, --border…). Nunca uma primitiva (--blue-500). É o que faz o tema
- * escuro ser trinta linhas de override em vez de uma caçada por hex espalhado.
+ * The rule: the rest of the sheet consumes ONLY the semantic names (--primary,
+ * --surface, --border…). Never a primitive (--blue-500). It is what makes the
+ * dark theme thirty lines of override instead of a hunt for scattered hexes.
  */
 :root {
-  /* primitivas — Persian Blue é o azul do Asaas */
+  /* primitives — Persian Blue is the blue of Asaas */
   --blue-50: #d6eaff;  --blue-100: #c7e0ff; --blue-400: #1f61ff;
   --blue-500: #0038e5; --blue-600: #0036b8; --blue-700: #002f8a;
   --blue-900: #1e3a8a;
@@ -26,7 +26,7 @@
   --amber-50: #fff7e6; --amber-200: #fed49a; --amber-400: #fdb246;
   --amber-500: #f59e0b; --amber-600: #b45309; --amber-700: #92400e;
 
-  /* semânticos — é isto que os componentes usam */
+  /* semantic — this is what the components use */
   --page: var(--sky-20);
   --surface: var(--sky-10);
   --surface-soft: var(--sky-50);
@@ -54,15 +54,15 @@
   --warn-strong: var(--amber-700);
   --warn-soft: var(--amber-50);
 
-  /* espaçamento, raio, tipografia */
+  /* spacing, radius, typography */
   --pad-xs: 8px;  --pad-sm: 12px; --pad-md: 16px;
   --pad-lg: 20px; --pad-xl: 24px; --pad-2xl: 32px;
 
-  --radius-card: 24px;   /* container-md — cards e painéis */
-  --radius-inner: 16px;  /* cards dentro de cards          */
+  --radius-card: 24px;   /* container-md — cards and panels */
+  --radius-inner: 16px;  /* cards inside cards          */
   --radius-input: 12px;
   --radius-sm: 8px;
-  --radius-pill: 999px;  /* o botão do Atlas é pílula      */
+  --radius-pill: 999px;  /* the Atlas button is a pill   */
 
   --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -73,13 +73,13 @@
 }
 
 /**
- * O CLARO É O PADRÃO, e não `prefers-color-scheme`.
+ * THE LIGHT ONE IS THE DEFAULT, and not `prefers-color-scheme`.
  *
- * O painel do Asaas é só claro, e esta tela existe para PARECER com ele: seguir o tema
- * do sistema significava que, numa máquina configurada no escuro, ninguém jamais via a
- * aparência que o painel foi feito para ter. O escuro continua disponível — mas por
- * escolha explícita (`data-theme="dark"`, no alternador da topbar), não por acidente
- * da configuração do sistema operacional.
+ * The Asaas panel is light only, and this screen exists to LOOK like it:
+ * following the theme of the system meant that, on a machine configured in dark
+ * mode, nobody would ever see the look the panel was made for. The dark one is
+ * still available — but by explicit choice (`data-theme="dark"`, in the topbar
+ * switch), and not by accident of the operating system configuration.
  */
 :root[data-theme='dark'] {
 
@@ -133,7 +133,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Atlas: títulos em peso 500, nunca bold. */
+/* Atlas: titles at weight 500, never bold. */
 h1, h2, h3 { font-weight: 500; margin: 0; }
 
 a { color: var(--primary); }

@@ -203,21 +203,21 @@ cd ama4devs
 set -a; . ./.env.sandbox; set +a
 
 # a line that has to last 4.5 seconds
-node video/scripts/say.mjs --text "A fatura do pagador." --duration 4.5 --id fatura
+node video/scripts/say.mjs --text "A fatura do pagador." --duration 4.5 --id invoice
 
 # a line that starts at the second 118.5 of the film
-node video/scripts/say.mjs --text "E o aviso final." --pace 0.9 --at 118.5 --id recusa
+node video/scripts/say.mjs --text "E o aviso final." --pace 0.9 --at 118.5 --id refusal
 
 # the same, for a machine to read
-node video/scripts/say.mjs --text "E o aviso final." --id recusa --json
+node video/scripts/say.mjs --text "E o aviso final." --id refusal --json
 ```
 
 The JSON answer:
 
 ```json
 {
-  "id": "recusa",
-  "file": "public/audio/voice/recusa.mp3",
+  "id": "refusal",
+  "file": "public/audio/voice/refusal.mp3",
   "engine": "speech",
   "provider": "elevenlabs",
   "model": "eleven_v4",
@@ -292,13 +292,13 @@ truncated line shows up here instead of in the render.
 
 ```bash
 make video-listen              # every segment
-node video/scripts/listen.mjs --id intro --id fim
+node video/scripts/listen.mjs --id intro --id end
 node video/scripts/listen.mjs --json
 ```
 
 ```
   intro: listening... "um mock local da API do ASAS." -> 100%
-  fim: listening... "De volta ao presente" -> 100%
+  end: listening... "De volta ao presente" -> 100%
 
 25/25 segments heard, 96% on average
 ```

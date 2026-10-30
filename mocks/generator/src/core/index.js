@@ -23,7 +23,7 @@ export * from './finance.js'
 /**
  * @typedef {object} Kind
  * @property {string} id The name the API and the UI ask for.
- * @property {string} label The name a person reads, in pt-BR.
+ * @property {string} label The technical name a person reads in the API.
  * @property {(rng: import('./rng.js').Rng, opts: any) => any} make Builds one item.
  */
 
@@ -93,18 +93,18 @@ function resolveNow(value) {
 
 /** @type {Kind[]} */
 export const KINDS = [
-  { id: 'person', label: 'Pessoa', make: (rng, opts) => person(rng, opts) },
-  { id: 'company', label: 'Empresa', make: (rng, opts) => company(rng, opts) },
-  { id: 'address', label: 'Endereço', make: (rng, opts) => address(rng, opts) },
+  { id: 'person', label: 'Person', make: (rng, opts) => person(rng, opts) },
+  { id: 'company', label: 'Company', make: (rng, opts) => company(rng, opts) },
+  { id: 'address', label: 'Address', make: (rng, opts) => address(rng, opts) },
   { id: 'cpf', label: 'CPF', make: (rng) => documentItem(cpf(rng), formatCpf) },
   { id: 'cnpj', label: 'CNPJ', make: (rng) => documentItem(cnpj(rng), formatCnpj) },
   { id: 'cnh', label: 'CNH', make: (rng) => documentItem(cnh(rng), (value) => value) },
   { id: 'pis', label: 'PIS', make: (rng) => documentItem(pis(rng), formatPisMask) },
   { id: 'rg', label: 'RG', make: (rng) => documentItem(rg(rng), formatRgMask) },
-  { id: 'credit-card', label: 'Cartão de crédito', make: (rng, opts) => creditCard(rng, opts) },
-  { id: 'bank-account', label: 'Conta bancária', make: (rng) => bankAccount(rng) },
-  { id: 'pix-key', label: 'Chave Pix', make: (rng, opts) => pixKey(rng, opts) },
-  { id: 'charge', label: 'Cobrança', make: (rng, opts) => charge(rng, opts) },
+  { id: 'credit-card', label: 'Credit card', make: (rng, opts) => creditCard(rng, opts) },
+  { id: 'bank-account', label: 'Bank account', make: (rng) => bankAccount(rng) },
+  { id: 'pix-key', label: 'Pix key', make: (rng, opts) => pixKey(rng, opts) },
+  { id: 'charge', label: 'Charge', make: (rng, opts) => charge(rng, opts) },
 ]
 
 /**

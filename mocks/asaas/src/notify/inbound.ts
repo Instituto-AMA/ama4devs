@@ -1,7 +1,7 @@
 /**
  * What the WhatsApp mock sends back to the sender number's webhook: delivery
  * statuses of the templates and the payer's replies. Kept in memory (the last
- * 100), for Integrações › WhatsApp; nothing in the business depends on it.
+ * 100), for the Integrations > WhatsApp page; nothing in the business depends on it.
  */
 export interface InboundWhatsapp {
   kind: 'status' | 'message'

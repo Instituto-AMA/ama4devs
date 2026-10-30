@@ -36,11 +36,11 @@ export const NOTIFICATION_LABEL: Record<NotifiableEvent, string> = {
 }
 
 const TEMPLATE: Record<NotifiableEvent, string> = {
-  PAYMENT_CREATED: 'asaas_cobranca_criada',
-  PAYMENT_UPDATED: 'asaas_cobranca_alterada',
-  PAYMENT_DUEDATE_WARNING: 'asaas_lembrete_vencimento',
-  PAYMENT_OVERDUE: 'asaas_cobranca_vencida',
-  PAYMENT_RECEIVED: 'asaas_pagamento_confirmado',
+  PAYMENT_CREATED: 'asaas_charge_created',
+  PAYMENT_UPDATED: 'asaas_charge_changed',
+  PAYMENT_DUEDATE_WARNING: 'asaas_due_date_reminder',
+  PAYMENT_OVERDUE: 'asaas_charge_overdue',
+  PAYMENT_RECEIVED: 'asaas_payment_confirmed',
 }
 
 /** The plan a first installment opens: the payer hears about the N installments at once. */

@@ -1,22 +1,22 @@
 /**
- * Cartão de crédito — a camada impura: tokenização, resolução de token e o
- * fluxo de cobrança com cartão.
+ * Credit card — the impure layer: tokenization, token resolution and the
+ * card charging flow.
  *
- * DUAS REGRAS DO ASAAS QUE SÃO FÁCEIS DE ERRAR E QUE ESTÃO AQUI:
+ * TWO ASAAS RULES THAT ARE EASY TO GET WRONG AND THAT LIVE HERE:
  *
- * 1. **A cobrança com cartão já nasce CONFIRMED.** A captura acontece no ato da
- *    criação, INDEPENDENTE da `dueDate` — mandar `dueDate` para daqui a 30 dias
- *    não adia nada. O que a `dueDate` faz é... nada, no cartão. O dinheiro
- *    credita em D+32 da confirmação (job `credit-settlement`).
+ * 1. **The card charge is already born CONFIRMED.** The capture happens at
+ *    creation time, INDEPENDENT of the `dueDate` — sending a `dueDate` 30 days
+ *    from now postpones nothing. What the `dueDate` does is... nothing, on a card.
+ *    The money credits at D+32 from the confirmation (job `credit-settlement`).
  *
- * 2. **Cartão recusado → HTTP 400 e a cobrança NÃO existe.** Não é uma cobrança
- *    com status "recusado": ela não é criada. E a mensagem é genérica de
- *    propósito — dizer "cartão sem limite" ou "cartão bloqueado" para o lojista
- *    (que repassa ao comprador) é vetor de enumeração de cartão roubado. O Asaas
- *    não diz, e nós também não.
+ * 2. **A declined card → HTTP 400 and the charge DOES NOT exist.** It is not a
+ *    charge with a "declined" status: it is not created at all. And the message is
+ *    generic on purpose — telling the merchant (who passes it on to the buyer)
+ *    "card over the limit" or "card blocked" is a stolen-card enumeration
+ *    vector. Asaas does not say it, and neither do we.
  *
- * O PAN completo nunca chega ao banco: `inspectCard` (puro) devolve só `last4`,
- * bandeira e desfecho. Não há caminho aqui que persista o número.
+ * The full PAN never reaches the database: `inspectCard` (pure) returns only
+ * `last4`, the brand and the outcome. There is no path here that persists the number.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -43,17 +43,17 @@ import { loadCardRules } from './test-cards.ts'
 export type CreditCardRow = typeof creditCards.$inferSelect
 
 /**
- * A recusa. Genérica DE PROPÓSITO: o Asaas não diz o motivo — não há campo de
- * razão no corpo, e os dois cartões de recusa devolvem a MESMA frase. Um mock que
- * inventasse "saldo insuficiente" ensinaria o cliente a tratar um erro que a
- * produção nunca manda.
+ * The refusal. Generic ON PURPOSE: Asaas does not say the reason — there is no
+ * reason field in the body, and the two declining cards return the SAME sentence.
+ * A mock that invented "insufficient funds" would teach the client to handle an
+ * error production never sends.
  *
- * Código e frase capturados do sandbox (tools/probe-cards.ts). Antes daqui isto
- * era `invalid_creditCard` com outro texto — inventado, e errado.
+ * Code and sentence captured from the sandbox (tools/probe-cards.ts). Before this it
+ * was `invalid_creditCard` with another text — invented, and wrong.
  */
 export const DECLINED = badRequest(CARD_ERRORS.DECLINE.code, CARD_ERRORS.DECLINE.description)
 
-/** Traduz o erro puro do domínio para o formato de erro do Asaas. */
+/** Translates the pure domain error into Asaas's error format. */
 function toApiError(err: unknown): never {
   if (err instanceof CreditCardError) throw badRequest(err.code, err.description)
   throw err
@@ -69,7 +69,7 @@ export async function inspect(db: DB, card: CardInput, now: Date): Promise<CardI
   }
 }
 
-/** `remoteIp` é obrigatório em toda transação de cartão. O Asaas recusa sem ele. */
+/** `remoteIp` is mandatory in every card transaction. Asaas refuses without it. */
 export function requireRemoteIp(body: Record<string, unknown>): string {
   const ip = String(body.remoteIp ?? '').trim()
   if (!ip) {
@@ -81,21 +81,21 @@ export function requireRemoteIp(body: Record<string, unknown>): string {
   return ip
 }
 
-/** O body traz cartão? (é o que decide entre `create-new-payment` e a variante) */
+/** Does the body carry a card? (it is what decides between `create-new-payment` and the variant) */
 export function hasCreditCard(body: Record<string, unknown>): boolean {
   return Boolean(body.creditCard) || Boolean(body.creditCardToken)
 }
 
 /**
- * Um cartão pronto para uso: já tokenizado (veio `creditCardToken`) ou cru
- * (veio `creditCard`). Em ambos os casos sabemos bandeira, last4 e desfecho —
- * e em nenhum dos dois o PAN sobrevive a esta função.
+ * A card ready to use: already tokenized (it came as `creditCardToken`) or raw
+ * (it came as `creditCard`). In both cases we know the brand, last4 and outcome —
+ * and in neither of them does the PAN survive this function.
  */
 export interface ResolvedCard {
   info: CardInfo
-  /** Preenchido quando veio por token: o cartão já existe no banco. */
+  /** Filled in when it came by token: the card already exists in the database. */
   existing: CreditCardRow | null
-  /** Preenchido quando veio cru: o que falta para gravar. */
+  /** Filled in when it came raw: what is missing to store it. */
   raw: {
     holderName: string
     expiryMonth: string
@@ -105,22 +105,22 @@ export interface ResolvedCard {
 }
 
 /**
- * Token não encontrado — ou encontrado, mas de OUTRO cliente. O Asaas não
- * distingue os dois casos: para ele, um token que não é do cliente da cobrança
- * simplesmente "não existe". Capturado (tools/probe-tokenization.ts).
+ * Token not found — or found, but from ANOTHER customer. Asaas does not
+ * distinguish the two cases: for it, a token that is not the charge's customer
+ * simply "does not exist". Captured (tools/probe-tokenization.ts).
  *
- * Note o código: `invalid_creditCard`, não `invalid_creditCardToken`. E a
- * descrição CARREGA o token — nós devolvíamos uma frase genérica.
+ * Note the code: `invalid_creditCard`, not `invalid_creditCardToken`. And the
+ * description CARRIES the token — we used to return a generic sentence.
  */
 const tokenNotFound = (token: string) =>
   badRequest('invalid_creditCard', `CreditCardToken ${token} não encontrado.`)
 
 /**
- * Os campos que o Asaas exige quando um objeto `creditCard` está PRESENTE — e
- * exige mesmo que um `creditCardToken` venha junto. Capturado: mandar
- * `{creditCardToken, creditCard: {ccv}}` devolve QUATRO erros, um por campo que
- * faltou. É a pegadinha do "revalidar o CVV na recompra": o cliente acha que está
- * reforçando a segurança e o Asaas rejeita a requisição inteira.
+ * The fields Asaas requires when a `creditCard` object is PRESENT — and it
+ * requires them even when a `creditCardToken` comes along. Captured: sending
+ * `{creditCardToken, creditCard: {ccv}}` returns FOUR errors, one per field that
+ * was missing. It is the trap of "revalidating the CVV on the repeat purchase":
+ * the client thinks it is reinforcing security and Asaas rejects the whole request.
  */
 const REQUIRED_CARD_FIELDS: ReadonlyArray<[key: string, description: string]> = [
   ['holderName', 'Informe o nome do portador.'],
@@ -131,9 +131,9 @@ const REQUIRED_CARD_FIELDS: ReadonlyArray<[key: string, description: string]> = 
 ]
 
 /**
- * Valida a PRESENÇA dos campos e devolve TODOS os erros de uma vez — o Asaas não
- * para no primeiro. Um cliente que só olha `errors[0]` continua funcionando; um
- * que lista os campos faltantes também.
+ * Validates the PRESENCE of the fields and returns ALL the errors at once — Asaas
+ * does not stop at the first. A client that only looks at `errors[0]` keeps
+ * working; so does one that lists the missing fields.
  */
 function assertCompleteCard(card: Record<string, any>): void {
   const missing = REQUIRED_CARD_FIELDS.filter(
@@ -144,13 +144,14 @@ function assertCompleteCard(card: Record<string, any>): void {
 }
 
 /**
- * Resolve o cartão do body SEM gravar nada. Puro do ponto de vista do banco
- * (só lê) — é o que permite recusar um cartão sem deixar lixo persistido.
+ * Resolves the card from the body WITHOUT storing anything. Pure from the
+ * database's point of view (it only reads) — it is what lets a card be refused
+ * without leaving junk persisted.
  *
- * `customerId` é o cliente DA COBRANÇA. Ele entra porque, no Asaas, **o token é
- * preso ao cliente que o criou**: usar o token do cliente A para cobrar o B
- * devolve "não encontrado". Sem esse parâmetro, o mock aceitava (e um app que
- * embaralhasse tokens entre clientes só descobriria em produção).
+ * `customerId` is the charge's OWNER customer. It is there because, in Asaas,
+ * **the token is bound to the customer who created it**: using customer A's token
+ * to charge B returns "not found". Without that parameter the mock accepted it
+ * (and an app that shuffled tokens between customers would only find out in production).
  */
 export async function resolveCard(
   ctx: AppContext,
@@ -162,8 +163,8 @@ export async function resolveCard(
   const token = body.creditCardToken ? String(body.creditCardToken) : null
   const card = body.creditCard as Record<string, any> | undefined
 
-  // A PRESENÇA da chave `creditCard` manda, mesmo com token junto: o Asaas valida
-  // o objeto inteiro. `creditCard: {}` com um token válido é 400, não 200.
+  // The PRESENCE of the `creditCard` key rules, even with a token along: Asaas
+  // validates the whole object. `creditCard: {}` with a valid token is 400, not 200.
   if (card !== undefined) assertCompleteCard(card)
 
   if (token && card === undefined) {
@@ -173,7 +174,7 @@ export async function resolveCard(
       .where(and(eq(creditCards.creditCardToken, token), eq(creditCards.accountId, accountId)))
       .limit(1)
 
-    // O token existe, mas é de outro cliente → para o Asaas, não existe.
+    // The token exists, but it belongs to another customer → for Asaas, it does not exist.
     if (!row || (row.customerId !== null && row.customerId !== customerId)) {
       throw tokenNotFound(token)
     }
@@ -197,8 +198,8 @@ export async function resolveCard(
     )
   }
 
-  // O `now` do RELÓGIO, não o do sistema: avançar 5 anos no painel tem que expirar
-  // um cartão 05/2027, senão a viagem no tempo mente sobre o cartão.
+  // The `now` from the CLOCK, not the system's: advancing 5 years in the panel has to
+  // expire a 05/2027 card, otherwise time travel lies about the card.
   const info = await inspect(
     db,
     {
@@ -224,8 +225,8 @@ export async function resolveCard(
 }
 
 /**
- * Grava o cartão (ou reaproveita o já tokenizado) e devolve o id da linha.
- * Só o `last4` vai para o banco — o PAN já não existe neste ponto.
+ * Stores the card (or reuses the already tokenized one) and returns the row id.
+ * Only the `last4` goes to the database — the PAN no longer exists at this point.
  */
 export async function persistCard(
   ctx: AppContext,
@@ -257,7 +258,7 @@ export async function persistCard(
   return row
 }
 
-/** O cliente existe e é desta conta? (isolamento por conta) */
+/** Does the customer exist and belong to this account? (per-account isolation) */
 export async function assertOwnedCustomer(
   ctx: AppContext,
   db: DB,
@@ -286,14 +287,14 @@ export async function tokenize(
   const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body, customerId)
 
   /**
-   * A TOKENIZAÇÃO AUTORIZA. Capturado: tokenizar `5184019740373151` (o cartão de
-   * recusa) devolve **400 invalid_action** no sandbox real — não um token.
+   * The TOKENIZATION AUTHORIZES. Captured: tokenizing `5184019740373151` (the
+   * declining card) returns **400 invalid_action** in the real sandbox — not a token.
    *
-   * Faz sentido: o Asaas faz uma autorização de valor zero para provar que o
-   * cartão vive antes de guardá-lo. E muda a feature de "memorizar cartão": o
-   * cartão ruim é rejeitado NA HORA de salvar, e não na primeira cobrança, três
-   * semanas depois. Nós tokenizávamos qualquer coisa e só recusávamos ao cobrar —
-   * o app mostrava "cartão salvo!" e falhava na compra seguinte.
+   * It makes sense: Asaas does a zero-amount authorization to prove that the card
+   * is alive before storing it. And it changes the "save the card" feature: the bad
+   * card is rejected AT THE MOMENT of saving, and not on the first charge, three
+   * weeks later. We used to tokenize anything and only refuse at charging time —
+   * the app showed "card saved!" and failed on the next purchase.
    */
   if (declinesOnTokenize(resolved.info.outcome)) throw DECLINED
 
@@ -303,8 +304,8 @@ export async function tokenize(
 }
 
 /**
- * A bandeira limita o parcelamento: Visa/Mastercard até 21x, as demais até 12x.
- * (Regra do Asaas, não da adquirente.)
+ * The brand limits the installments: Visa/Mastercard up to 21x, the others up to 12x.
+ * (Asaas's rule, not the acquirer's.)
  */
 export function assertInstallmentsAllowed(brand: string, count: number): void {
   const max = maxInstallmentsForBrand(brand)
@@ -317,11 +318,11 @@ export function assertInstallmentsAllowed(brand: string, count: number): void {
 }
 
 /**
- * `POST /v3/payments` com cartão — a variante `create-new-payment-with-credit-card`.
+ * `POST /v3/payments` with a card — the `create-new-payment-with-credit-card` variant.
  *
- * Aprovado → a cobrança nasce e vai para CONFIRMED na hora (gatilho CONFIRM).
- * `authorizeOnly` → para em AUTHORIZED (gatilho AUTHORIZE), sem crédito.
- * Recusado → 400, e nada é gravado (nem a cobrança, nem o cartão).
+ * Approved → the charge is born and goes to CONFIRMED right away (CONFIRM trigger).
+ * `authorizeOnly` → it stops at AUTHORIZED (AUTHORIZE trigger), without credit.
+ * Declined → 400, and nothing is stored (neither the charge nor the card).
  */
 export async function createPaymentWithCard(
   ctx: AppContext,
@@ -340,14 +341,14 @@ export async function createPaymentWithCard(
   requireRemoteIp(body)
   await assertOwnedCustomer(ctx, ctx.db, auth.accountId, input.customerId)
 
-  // Resolve (e VALIDA) o cartão antes de gravar coisa alguma.
+  // Resolves (and VALIDATES) the card before storing anything.
   const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body, input.customerId)
 
-  // Parcelamento não chega aqui: `create-new-payment` desvia para o fluxo de
-  // installments antes de nos chamar. Esta é a porta da cobrança à vista.
+  // An installment plan does not get here: `create-new-payment` diverts to the
+  // installments flow before calling us. This is the door of the single-payment charge.
   assertInstallmentsAllowed(resolved.info.brand, 1)
 
-  // A recusa acontece ANTES de qualquer escrita: a cobrança não chega a existir.
+  // The refusal happens BEFORE any write: the charge does not come to exist.
   if (declinesOnCharge(resolved.info.outcome)) throw DECLINED
 
   const authorizeOnly = body.authorizeOnly === true
@@ -364,9 +365,9 @@ export async function createPaymentWithCard(
     })
 
     /**
-     * TODA mudança de status passa por aqui. Nunca `UPDATE payments SET status`.
-     * AUTHORIZE → pré-autorização (não credita).
-     * CONFIRM   → capturado agora; credita em D+32 pelo scheduler.
+     * EVERY status change goes through here. Never `UPDATE payments SET status`.
+     * AUTHORIZE → pre-authorization (it does not credit).
+     * CONFIRM   → captured now; it credits at D+32 by the scheduler.
      */
     const r = await applyTransition(
       ctx,
@@ -382,13 +383,13 @@ export async function createPaymentWithCard(
 }
 
 /**
- * `POST /v3/payments/{id}/payWithCreditCard` e `/payWithCard` — pagar uma
- * cobrança QUE JÁ EXISTE com cartão.
+ * `POST /v3/payments/{id}/payWithCreditCard` and `/payWithCard` — paying a charge
+ * that ALREADY EXISTS with a card.
  *
- * Repare no `billingType`: uma cobrança criada como UNDEFINED (ou boleto) e paga
- * no cartão VIRA uma cobrança de cartão — e por isso a taxa cobrada passa a ser
- * a do cartão e o crédito vai para D+32. Isso é uma mudança de `billingType`,
- * não de status: continua sendo `applyTransition` quem move o status.
+ * Mind the `billingType`: a charge created as UNDEFINED (or bank slip) and paid
+ * with a card BECOMES a card charge — and therefore the fee charged becomes the
+ * card's one and the credit goes to D+32. That is a change of `billingType`, not
+ * of status: it is still `applyTransition` who moves the status.
  */
 export async function payExistingWithCard(
   ctx: AppContext,
@@ -417,7 +418,7 @@ export async function payExistingWithCard(
 
     const card = await persistCard(ctx, tx, auth.accountId, payment.customerId, resolved)
 
-    // billingType e creditCardId — NÃO status. O status é do applyTransition.
+    // billingType and creditCardId — NOT status. The status is applyTransition's.
     await tx
       .update(payments)
       .set({ billingType: 'CREDIT_CARD', creditCardId: card.id })

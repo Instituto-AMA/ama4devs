@@ -1,15 +1,15 @@
 /**
- * KYC / onboarding: os documentos da conta e a ação de sandbox que a aprova.
+ * KYC / onboarding: the account's documents and the sandbox action that approves it.
  *
- * O fluxo inteiro do cliente cabe num teste: cria a subconta, descobre o
- * documento pendente, envia o arquivo (multipart de verdade, com um Blob), vê o
- * documento ser aprovado, e vê `GET /v3/myAccount/status` fechar em APPROVED.
+ * The whole client flow fits in one test: it creates the subaccount, discovers the
+ * pending document, sends the file (a real multipart, with a Blob), sees the
+ * document get approved, and sees `GET /v3/myAccount/status` close at APPROVED.
  *
- * SOBRE `responsible.type`: a spec declara ARRAY; o sandbox real devolve STRING.
- * Devolvemos string — o golden ganha (AGENTS.md) —, e `spec/overlays/006` conserta
- * a spec, de modo que a validação de contrato do harness volta a valer aqui. Sem
- * o overlay, o simulador teria de escolher entre estar certo e passar no próprio
- * contrato.
+ * ABOUT `responsible.type`: the spec declares an ARRAY; the real sandbox returns a STRING.
+ * We return a string — the golden wins (AGENTS.md) —, and `spec/overlays/006` fixes
+ * the spec, so that the harness's contract validation applies here again. Without
+ * the overlay, the simulator would have to choose between being right and passing its own
+ * contract.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createHarness, TEST_API_KEY, type Harness } from '../helpers/harness.ts'
@@ -33,14 +33,14 @@ const subaccountBody = {
   postalCode: '14079-452',
 }
 
-/** `GET /v3/myAccount/documents` — pelo ApiClient, com validação de contrato. */
+/** `GET /v3/myAccount/documents` — through the ApiClient, with contract validation. */
 async function getDocuments(apiKey: string): Promise<any> {
   const res = await h.as(apiKey).call('check-pending-documents', {})
   expect(res.status).toBe(200)
   return res.body
 }
 
-/** O upload que o cliente faz: multipart/form-data com o campo `documentFile`. */
+/** The upload the client makes: multipart/form-data with the `documentFile` field. */
 async function upload(
   apiKey: string,
   documentId: string,
@@ -66,8 +66,8 @@ async function newSubaccount(): Promise<{ apiKey: string; id: string }> {
   return { apiKey: res.body.apiKey, id: res.body.id }
 }
 
-describe('listagem de documentos', () => {
-  it('a conta principal nasce aprovada — e o grupo APPROVED não traz `documents`', async () => {
+describe('document listing', () => {
+  it('the main account is born approved — and the APPROVED group does not bring `documents`', async () => {
     const body = await getDocuments(TEST_API_KEY)
 
     expect(body.rejectReasons).toBeNull()
@@ -82,14 +82,14 @@ describe('listagem de documentos', () => {
       type: 'INDIVIDUAL_COMPANY',
     })
 
-    // É o que o sandbox real devolve para uma conta aprovada: link nulo, e NEM
-    // `documents` NEM `onboardingUrlExpirationDate` na resposta.
+    // It is what the real sandbox returns for an approved account: a null link, and NOT
+    // `documents` NOR `onboardingUrlExpirationDate` in the response.
     expect(group.onboardingUrl).toBeNull()
     expect(group).not.toHaveProperty('documents')
     expect(group).not.toHaveProperty('onboardingUrlExpirationDate')
   })
 
-  it('a subconta nasce com documento pendente, com id e link de onboarding', async () => {
+  it('a subaccount is born with a pending document, with an id and an onboarding link', async () => {
     const sub = await newSubaccount()
     const body = await getDocuments(sub.apiKey)
 
@@ -98,19 +98,19 @@ describe('listagem de documentos', () => {
 
     expect(group.status).toBe('NOT_SENT')
     expect(group.type).toBe('IDENTIFICATION')
-    // FISICA: quem responde pelo documento é o dono da conta.
+    // FISICA: who answers for the document is the account's owner.
     expect(group.responsible).toEqual({ name: 'Loja do Fulano', type: 'ASAAS_ACCOUNT_OWNER' })
 
     expect(group.onboardingUrl).toBeString()
     expect(group.onboardingUrlExpirationDate).toBeString()
 
-    // É daqui que o cliente tira o `documentId` do upload.
+    // It is from here that the client takes the upload's `documentId`.
     expect(group.documents).toHaveLength(1)
     expect(group.documents[0].id).toBeString()
     expect(group.documents[0].status).toBe('NOT_SENT')
   })
 
-  it('cada conta só enxerga os próprios documentos', async () => {
+  it('each account only sees its own documents', async () => {
     const sub = await newSubaccount()
 
     const mine = await getDocuments(TEST_API_KEY)
@@ -120,40 +120,40 @@ describe('listagem de documentos', () => {
   })
 })
 
-describe('envio de documento (multipart)', () => {
-  it('o fluxo inteiro: subconta → documento pendente → upload → conta aprovada', async () => {
+describe('document upload (multipart)', () => {
+  it('the whole flow: subaccount → pending document → upload → approved account', async () => {
     const sub = await newSubaccount()
     const as = h.as(sub.apiKey)
 
-    // 1. A subconta transaciona, mas o KYC está pendente.
+    // 1. The subaccount transacts, but the KYC is pending.
     const before = await as.call('check-account-registration-status')
     expect(before.body.commercialInfo).toBe('APPROVED')
     expect(before.body.documentation).toBe('PENDING')
     expect(before.body.general).toBe('PENDING')
 
-    // 2. O cliente descobre qual documento enviar.
+    // 2. The client finds out which document to send.
     const pending = await getDocuments(sub.apiKey)
     const documentId = pending.data[0].documents[0].id
 
-    // 3. Envia a imagem. Em sandbox qualquer arquivo é aceito e auto-aprovado.
+    // 3. Sends the image. In the sandbox any file is accepted and auto-approved.
     const sent = await upload(sub.apiKey, documentId)
     expect(sent.status).toBe(200)
     expect(sent.body).toEqual({ id: documentId, status: 'APPROVED' })
 
-    // 4. Era o último documento do grupo: o grupo inteiro é aprovado — e passa a
-    //    responder como um grupo aprovado responde (sem `documents`, sem link).
+    // 4. It was the group's last document: the whole group is approved — and it starts
+    //    answering as an approved group answers (no `documents`, no link).
     const after = await getDocuments(sub.apiKey)
     expect(after.data[0].status).toBe('APPROVED')
     expect(after.data[0].onboardingUrl).toBeNull()
     expect(after.data[0]).not.toHaveProperty('documents')
 
-    // 5. E o status da conta fecha sozinho.
+    // 5. And the account status closes by itself.
     const status = await as.call('check-account-registration-status')
     expect(status.body.documentation).toBe('APPROVED')
     expect(status.body.general).toBe('APPROVED')
   })
 
-  it('sem `documentFile` → 400, porque o multipart não passa pelo TypeBox', async () => {
+  it('without `documentFile` → 400, because the multipart does not go through TypeBox', async () => {
     const sub = await newSubaccount()
     const pending = await getDocuments(sub.apiKey)
 
@@ -163,30 +163,30 @@ describe('envio de documento (multipart)', () => {
     expect(res.body.errors[0].code).toBe('invalid_documentFile')
   })
 
-  it('documento inexistente → 404', async () => {
-    const res = await upload(TEST_API_KEY, 'nao-existe')
+  it('nonexistent document → 404', async () => {
+    const res = await upload(TEST_API_KEY, 'does-not-exist')
 
     expect(res.status).toBe(404)
     expect(res.body.errors[0].code).toBe('not_found')
   })
 
-  it('o documento de OUTRA conta é um 404, não um 403', async () => {
+  it('the document of ANOTHER account is a 404, not a 403', async () => {
     const sub = await newSubaccount()
     const pending = await getDocuments(sub.apiKey)
     const alheio = pending.data[0].documents[0].id
 
-    // A conta pai NÃO envia documento pela subconta, mesmo tendo-a criado.
+    // The parent account does NOT send a document through the subaccount, even having created it.
     const res = await upload(TEST_API_KEY, alheio)
     expect(res.status).toBe(404)
 
-    // E o documento da subconta continua intacto.
+    // And the subaccount's document stays intact.
     const still = await getDocuments(sub.apiKey)
     expect(still.data[0].documents[0].status).toBe('NOT_SENT')
   })
 })
 
-describe('aprovação da conta (sandbox)', () => {
-  it('aprova a conta e todos os documentos de uma vez', async () => {
+describe('the account approval (sandbox)', () => {
+  it('approves the account and all its documents at once', async () => {
     const sub = await newSubaccount()
     const as = h.as(sub.apiKey)
 
@@ -201,17 +201,17 @@ describe('aprovação da conta (sandbox)', () => {
       general: 'APPROVED',
     })
 
-    // Não é só o status: os documentos que estavam NOT_SENT foram aprovados.
+    // It is not just the status: the documents that were NOT_SENT got approved.
     const docs = await getDocuments(sub.apiKey)
     expect(docs.data[0].status).toBe('APPROVED')
     expect(docs.data[0]).not.toHaveProperty('documents')
 
-    // E `GET /v3/myAccount/status` concorda com a resposta da aprovação.
+    // And `GET /v3/myAccount/status` agrees with the approval's response.
     const status = await as.call('check-account-registration-status')
     expect(status.body.general).toBe('APPROVED')
   })
 
-  it('aprovar de novo não quebra nada', async () => {
+  it('approving again breaks nothing', async () => {
     const sub = await newSubaccount()
     const as = h.as(sub.apiKey)
 
@@ -222,7 +222,7 @@ describe('aprovação da conta (sandbox)', () => {
     expect(again.body.general).toBe('APPROVED')
   })
 
-  it('aprova SÓ a conta autenticada', async () => {
+  it('approves ONLY the authenticated account', async () => {
     const a = await newSubaccount()
     const b = await newSubaccount2()
 
@@ -233,10 +233,10 @@ describe('aprovação da conta (sandbox)', () => {
   })
 })
 
-/** Uma segunda subconta — o CPF/CNPJ é único por conta. */
+/** A second subaccount — the CPF/CNPJ is unique per account. */
 async function newSubaccount2(): Promise<{ apiKey: string; id: string }> {
   const res = await h.api.call('create-subaccount', {
-    body: { ...subaccountBody, cpfCnpj: '11144477735', email: 'outra@localhost' },
+    body: { ...subaccountBody, cpfCnpj: '11144477735', email: 'other@localhost' },
   })
   expect(res.status).toBe(200)
   return { apiKey: res.body.apiKey, id: res.body.id }

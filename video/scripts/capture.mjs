@@ -480,7 +480,7 @@ async function spotlight(selector, label, ms = SPOT_MS) {
     ([s, l, d]) => window.__fx?.spotlight(s, l, d),
     [selector, label ?? null, ms],
   )
-  if (!ok) console.log(`   ! sem elemento para o holofote: ${selector}`)
+  if (!ok) console.log(`   ! no element for the spotlight: ${selector}`)
   return ok
 }
 
@@ -734,7 +734,7 @@ async function openWebhookLog(event, captionText, needle) {
 }
 
 /**
- * Opens a call of the application in the request log (Logs de Requisições), with
+ * Opens an application call in the request log, with
  * both bodies.
  * The method matters: the list has a GET of the same path, and the film is
  * about the POST the application made.
@@ -894,7 +894,7 @@ await click(page.locator('.modal button[type="submit"]'))
 await wait(2600)
 await caption('1 · Cliente criado — a ficha dele abre na hora')
 await progress(0.1)
-await shot('cliente')
+await shot('customer')
 
 log('The charge')
 await click(page.locator('button', { hasText: 'Nova cobrança' }))
@@ -912,7 +912,7 @@ const invoiceHref = await page
   .locator('.modal a.btn.primary', { hasText: 'Abrir fatura' })
   .first()
   .getAttribute('href')
-console.log('   fatura:', invoiceHref)
+console.log('   invoice:', invoiceHref)
 await scrollTo(260)
 await wait(800)
 await click(page.locator('.modal button', { hasText: 'Concluir' }))
@@ -926,7 +926,7 @@ await scrollTo(260)
 await wait(900)
 await scrollTo(0)
 await wait(600)
-await shot('fatura')
+await shot('invoice')
 
 log('Paying with a card')
 await click(page.locator('[data-tab="CREDIT_CARD"]'))
@@ -946,7 +946,7 @@ await caption('3 · Pagamento no cartão — o mesmo caminho de um pagamento rea
 await click(page.locator('#card-form button[type="submit"]'))
 await wait(3600)
 await caption('3 · Pago — o status da cobrança vira Confirmada')
-await shot('pago')
+await shot('paid')
 
 log('The charge on the panel')
 await goto(`${BASE}/#payments`, { waitUntil: 'networkidle' })
@@ -1059,7 +1059,7 @@ await scrollTo(300)
 await wait(900)
 await scrollTo(0)
 await wait(600)
-await shot('cartao-recusante')
+await shot('declining-card')
 
 // ── ACT 3 · the channels ───────────────────────────────────────────────────────
 log('The channels')
@@ -1178,7 +1178,7 @@ await scrollTo(0)
 await wait(800)
 await caption('14 · A URL da sua aplicação e os eventos que ela passou a escutar')
 await spot(['Eventos da clínica'], 'O destino dos eventos', '.webhook-card')
-await shot('webhook-criado')
+await shot('webhook-created')
 await progress(0.6)
 
 log('A new account')
@@ -1189,7 +1189,7 @@ await wait(600)
 await click(page.locator('button', { hasText: 'Criar perfil' }))
 await wait(3200)
 await caption('16 · Perfil criado — a chave de API da conta nova, na mão')
-await shot('perfil-criado')
+await shot('profile-created')
 const enterProfile = page.locator('button', { hasText: 'Entrar no perfil' })
 if (await enterProfile.count()) {
   await click(enterProfile)
@@ -1199,7 +1199,7 @@ if (await enterProfile.count()) {
   await wait(900)
   await scrollTo(0)
   await wait(800)
-  await shot('conta-nova')
+  await shot('new-account')
 }
 await nav('Perfis', null, 2400)
 const backToMain = page.locator('tr', { hasText: 'Conta Principal' }).locator('button', { hasText: 'Entrar' })
@@ -1213,7 +1213,7 @@ log('The virtual clock')
 await act('O TEMPO', 'O simulador anda o relógio — e o dinheiro junto', 2500)
 await nav('Relógio virtual', '18 · Um tick por dia: vencidos, cartões, assinaturas e webhooks', 2800)
 await progress(0.66)
-await shot('relogio')
+await shot('clock')
 
 // 18.1 · one day: the subscription's charge becomes due today.
 await advanceClock('+1 dia', { from: day(0), days: 1, duration: 2600 })
@@ -1221,7 +1221,7 @@ await caption('19 · Um dia passou — a cobrança da assinatura venceu hoje')
 await nav('Cobranças', null, 2600)
 await spot(['199,90', day(1)], 'Vence hoje')
 await wait(2600)
-await shot('cobranca-vence-hoje')
+await shot('charge-due-today')
 
 // 18.2 · a week: the charge is overdue and the application hears about it.
 await nav('Relógio virtual', null, 2600)
@@ -1231,7 +1231,7 @@ await nav('Cobranças', null, 2600)
 await spot(['199,90', day(1)], 'Vencida')
 await flash('[data-fx="target"]', 'bad')
 await wait(2800)
-await shot('cobranca-vencida')
+await shot('charge-overdue')
 await nav('Integrações', null, 2400)
 await tab('Logs de Webhooks', '21 · PAYMENT_OVERDUE — a entrega do evento na sua aplicação', 3400)
 await spot(['PAYMENT_OVERDUE'], 'HTTP 200', 'li')
@@ -1242,7 +1242,7 @@ await openWebhookLog(
   '22 · PAYMENT_OVERDUE — o que chegou: a cobrança de R$ 199,90 com status OVERDUE',
   '"status": "OVERDUE"',
 )
-await shot('log-overdue-detalhe')
+await shot('log-overdue-detail')
 await progress(0.74)
 
 // 18.3 · 32 days: the card of the first charge credits the balance.
@@ -1254,7 +1254,7 @@ await scrollTo(260)
 await wait(1200)
 await scrollTo(0)
 await wait(900)
-await shot('saldo')
+await shot('balance')
 await nav('Integrações', null, 2400)
 await tab('Logs de Webhooks', '25 · PAYMENT_RECEIVED — o dinheiro entrou e o evento foi entregue', 3200)
 await spot(['PAYMENT_RECEIVED'], 'HTTP 200', 'li')
@@ -1272,7 +1272,7 @@ await scrollTo(0)
 await wait(700)
 await spot(['Cartão da paciente'], 'Recusa ao cobrar', '.card')
 await wait(2600)
-await shot('cartao-na-lista')
+await shot('card-in-list')
 
 log('The subscription with the card')
 if (await gotoSoft(API_CONSOLE, { waitUntil: 'networkidle' })) {
@@ -1284,7 +1284,7 @@ if (await gotoSoft(API_CONSOLE, { waitUntil: 'networkidle' })) {
   await click(page.locator('#run'))
   await page.waitForFunction(() => document.body.dataset.done === '1', null, { timeout: 40000 })
   await wait(2200)
-  await shot('console-assinatura')
+  await shot('console-subscription')
 }
 
 log('The request log')
@@ -1298,17 +1298,17 @@ await tab(
   3400,
 )
 await spot(['POST', '/v3/subscriptions'], 'A chamada real', 'li')
-await shot('log-requisicoes')
+await shot('log-requests')
 await openRequestLog(
   'POST',
   '/v3/subscriptions',
   '29 · POST /v3/subscriptions — o que sua aplicação mandou: a recorrência no cartão recusante',
   '"number"',
 )
-await shot('log-requisicao-pedido')
+await shot('log-request-payload')
 await revealPayload('"creditCardNumber"', 1)
 await caption('30 · E o que o mock devolveu: a assinatura criada, com o cartão já tokenizado')
-await shot('log-requisicao-resposta')
+await shot('log-request-response')
 
 log('The subscription on the panel')
 await goto(`${BASE}/#payments`, { waitUntil: 'networkidle' })
@@ -1322,7 +1322,7 @@ if (await newPlan.count()) {
   await wait(900)
   await scrollTo(0)
   await wait(600)
-  await shot('assinatura-cartao')
+  await shot('subscription-card')
   await closeModal()
 }
 
@@ -1334,7 +1334,7 @@ await scrollTo(0)
 await wait(800)
 await spot(['Recusa toda cobrança'], 'O banco recusou', 'tr')
 await wait(2600)
-await shot('cartao-salvo')
+await shot('card-saved')
 
 log('One month ahead')
 if (await gotoSoft(API_CONSOLE, { waitUntil: 'networkidle' })) {
@@ -1351,7 +1351,7 @@ if (await gotoSoft(API_CONSOLE, { waitUntil: 'networkidle' })) {
   await stopWarp()
   await page.waitForFunction(() => document.body.dataset.done === '1', null, { timeout: 40000 })
   await wait(2400)
-  await shot('console-30-dias')
+  await shot('console-30-days')
 }
 
 log('The refusal of the bank')
@@ -1360,7 +1360,7 @@ await wait(2600)
 await nav('Cobranças', null, 2600)
 await caption('34 · A cobrança de R$ 349,90 ainda espera — o Asaas tenta de novo no dia seguinte')
 await spot(['349,90', 'Aguardando pagamento', day(70)], 'Ainda vai tentar')
-await shot('cobranca-aguardando')
+await shot('charge-pending')
 
 // One day: the first three attempts of the card — the bank refuses all of them.
 log('The first three attempts')
@@ -1369,14 +1369,14 @@ await advanceClock('+1 dia', { from: day(70), days: 1, duration: 2600 })
 await nav('Integrações', null, 2400)
 await tab('Logs de Webhooks', '36 · O banco recusou — e cada recusa virou um evento na sua aplicação', 3400)
 await spot(['PAYMENT_CREDIT_CARD_CAPTURE_REFUSED'], 'HTTP 200', 'li')
-await shot('log-recusa')
+await shot('log-refusal')
 // The detail: the refusal that really arrived in the application.
 await openWebhookLog(
   'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED',
   '37 · PAYMENT_CREDIT_CARD_CAPTURE_REFUSED — a recusa que chegou, com a cobrança ainda pendente',
   '"creditCardNumber"',
 )
-await shot('log-recusa-detalhe')
+await shot('log-refusal-detail')
 
 // One more day: the last three attempts — and then the charge gives up.
 log('One more day')
@@ -1387,21 +1387,21 @@ await caption('39 · Sem mais tentativas: a cobrança de R$ 349,90 ficou vencida
 await spot(['349,90', 'Vencida', day(70)], 'Vencida')
 await flash('[data-fx="target"]', 'bad')
 await wait(2600)
-await shot('cobranca-vencida-recusa')
+await shot('charge-overdue-refusal')
 
 log('The webhooks of the refusal')
 await nav('Integrações', null, 2400)
 await tab('Logs de Webhooks', '40 · O log completo: seis recusas, cada uma entregue com o 200', 3400)
 await spot(['PAYMENT_CREDIT_CARD_CAPTURE_REFUSED'], 'HTTP 200', 'li')
 await wait(2200)
-await shot('log-recusa-6')
+await shot('log-refusal-6')
 // And the overdue event, with the charge already overdue in the payload.
 await openWebhookLog(
   'PAYMENT_OVERDUE',
   '41 · PAYMENT_OVERDUE — a cobrança recusada ficou vencida, e o aviso saiu com o status OVERDUE',
   '"status": "OVERDUE"',
 )
-await shot('log-overdue-recusa')
+await shot('log-overdue-refusal')
 await progress(0.94)
 
 // ── the end ────────────────────────────────────────────────────────────────────
@@ -1418,7 +1418,7 @@ await scrollTo(240)
 await wait(1000)
 await scrollTo(0)
 await wait(900)
-await shot('fim')
+await shot('end')
 await act('MOCK DO ASAAS', 'Venceu, pagou, recusou — e contou tudo', 2600)
 await caption('O mock do Asaas: o dinheiro andando de verdade')
 await progress(1)

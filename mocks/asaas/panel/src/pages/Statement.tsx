@@ -1,13 +1,15 @@
 /**
- * O extrato — e o motivo de ele existir aqui é ser AUDITÁVEL.
+ * The statement — and the reason it exists here is to be AUDITABLE.
  *
- * Cada linha é um lançamento no ledger, e a soma delas TEM que fechar com o saldo
- * mostrado na topbar. É essa a invariante que os testes de integração checam a cada
- * transação (`balance_cents === SUM(financial_transactions.value_cents)`), e é ela que
- * torna possível olhar um split e ver o dinheiro sair de uma conta e entrar na outra.
+ * Each line is an entry in the ledger, and the sum of them HAS to match the
+ * balance shown in the topbar. It is the invariant the integration tests check
+ * on every transaction (`balance_cents === SUM(financial_transactions.value_cents)`),
+ * and it is what makes it possible to look at a split and see the money leave
+ * one account and enter the other.
  *
- * A coluna "Saldo" é um acumulado: ordenar por ela ou filtrar a lista NÃO recalcula
- * nada — o número continua sendo o saldo daquele instante, que é o que ele quer dizer.
+ * The "Balance" column is an accumulated one: sorting by it or filtering the
+ * list does NOT recalculate anything — the number keeps being the balance of
+ * that instant, which is what it means.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
@@ -25,7 +27,7 @@ interface Tx {
   paymentId: string | null
 }
 
-/** Os tipos que tiram dinheiro. Pintar todos de verde seria mentir com cor. */
+/** The types that take money out. Painting every one green would lie through color. */
 const DEBIT = /FEE|REFUND|TRANSFER|CHARGEBACK|DEBIT|CANCEL/
 
 export function Statement({ store }: PageProps) {

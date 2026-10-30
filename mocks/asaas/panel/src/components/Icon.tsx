@@ -1,19 +1,21 @@
 /**
- * Os ícones. HugeIcons (licença livre), no estilo `stroke-rounded`.
+ * The icons. HugeIcons (free license), in the `stroke-rounded` style.
  *
- * Antes eram glifos Unicode (`⌂`, `⚡`, `⑃`), e a troca não é cosmética: metade deles
- * tinha apresentação de EMOJI por padrão, então o browser pintava um raio amarelo e uma
- * casinha colorida no meio de uma navegação monocromática — e a mesma string virava um
- * desenho diferente em cada sistema operacional. Um glifo de fonte não é um ícone: é o
- * que a fonte do usuário decidir que ele é.
+ * They used to be Unicode glyphs (`⌂`, `⚡`, `⑃`), and the change is not
+ * cosmetic: half of them had the look of an EMOJI by default, so the browser
+ * painted a yellow lightning bolt and a colored little house in the middle of a
+ * monochrome navigation — and the same string became a different drawing on
+ * each operating system. A font glyph is not an icon: it is whatever the user's
+ * font decides it is.
  *
- * Importamos os DADOS (`@hugeicons/core-free-icons`), não o componente React da lib. São
- * 13.624 ícones tree-shakeable: o bundle leva só os que a tela usa, e o projeto não ganha
- * uma dependência de React só para desenhar uma casinha.
+ * We import the DATA (`@hugeicons/core-free-icons`), not the React component of
+ * the library. There are 13,624 tree-shakeable icons: the bundle carries only
+ * the ones the screen uses, and the project does not gain a React dependency
+ * just to draw a little house.
  */
 import { h, type JSX } from 'preact'
 
-/** O formato do pacote: uma lista de [tag, atributos]. */
+/** The format of the package: a list of [tag, attributes]. */
 export type IconData = ReadonlyArray<readonly [string, Record<string, unknown>]>
 
 export function Icon({
@@ -29,13 +31,13 @@ export function Icon({
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" {...rest}>
       {icon.map(([tag, attrs], i) =>
-        // `h(tag, …)` e não um `<path>` fixo: o pacote também emite `circle`, `rect` e
-        // `line`, e um path fixo engoliria esses em silêncio — o ícone renderizaria pela
-        // metade, sem erro nenhum.
+        // `h(tag, …)` and not a fixed `<path>`: the package also emits `circle`,
+        // `rect` and `line`, and a fixed path would swallow those in silence —
+        // the icon would render half, with no error at all.
         h(tag, {
           ...attrs,
-          // Sobrescreve o `stroke` que vem no dado (um preto fixo). Sem isto o ícone
-          // ignora o tema e some no fundo escuro.
+          // Overrides the `stroke` that comes in the data (a fixed black). Without
+          // this the icon ignores the theme and disappears in the dark background.
           stroke: 'currentColor',
           strokeWidth,
           key: i,

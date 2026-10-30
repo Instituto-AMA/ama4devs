@@ -176,7 +176,7 @@ console.log('   ✓ tools-templates.jpg')
 console.log('12. Capturing tools-template-editor.jpg...')
 await page.evaluate(() => {
   const btns = Array.from(document.querySelectorAll('#tpl-list button'))
-  const target = btns.find(b => b.innerText.includes('asaas_cobranca_criada')) || btns[0]
+  const target = btns.find(b => b.innerText.includes('asaas_charge_created')) || btns[0]
   if (target) target.click()
 })
 await wait(600)

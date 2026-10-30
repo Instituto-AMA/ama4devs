@@ -1,14 +1,16 @@
 /**
- * Parcelamento — as 9 operações. (Track E)
+ * Installment plans — the 9 operations. (Track E)
  *
- * O que este módulo NÃO faz, e é deliberado:
+ * What this module does NOT do, and it is deliberate:
  *
- *   - não muda o status de cobrança na mão. Remover, cancelar e estornar um
- *     parcelamento é aplicar o gatilho correspondente em CADA parcela, via
- *     `applyTransition()`. É o que garante que o webhook e o lançamento no ledger
- *     saiam iguais aos de uma cobrança avulsa — sem que ninguém precise lembrar.
- *   - não recalcula taxa nem netValue por conta própria: quem cria a parcela é o
- *     `createPayment()` de payments/service.ts, o mesmo de uma cobrança avulsa.
+ *   - it does not change the charge status by hand. Removing, cancelling and
+ *     refunding an installment plan is applying the matching trigger to EACH
+ *     installment, through `applyTransition()`. It is what guarantees that the
+ *     webhook and the ledger entry are the same as the ones of a one-off charge
+ *     — without anyone having to remember it.
+ *   - it does not recalculate the fee or the netValue on its own: what creates
+ *     the installment is the `createPayment()` of payments/service.ts, the same
+ *     one of a one-off charge.
  */
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -31,7 +33,7 @@ import {
   type InstallmentRow,
 } from './service.ts'
 
-/** Isolamento por conta: parcelamento de outra conta NÃO EXISTE (404, não 403). */
+/** Isolation per account: an installment plan of another account DOES NOT EXIST (404, not 403). */
 async function findOwned(
   ctx: AppContext,
   auth: AuthContext,
@@ -46,7 +48,7 @@ async function findOwned(
   return row
 }
 
-/** As parcelas, na ordem em que o cliente as recebe: 1, 2, 3… */
+/** The installments, in the order the customer receives them: 1, 2, 3… */
 async function paymentsOf(ctx: AppContext, installmentId: string): Promise<PaymentRow[]> {
   const rows = await ctx.db
     .select()
@@ -56,27 +58,27 @@ async function paymentsOf(ctx: AppContext, installmentId: string): Promise<Payme
   return rows as PaymentRow[]
 }
 
-/** Aguardando pagamento: são as únicas que podem ser removidas ou canceladas. */
+/** Awaiting payment: they are the only ones that can be removed or cancelled. */
 const OPEN = ['PENDING', 'OVERDUE']
-/** Já pagas: são as únicas que podem ser estornadas. */
+/** Already paid: they are the only ones that can be refunded. */
 const PAID = ['CONFIRMED', 'RECEIVED']
 
 export const installmentHandlers: HandlerMap = {
   /**
-   * Atende TAMBÉM `create-installment-with-credit-card` — as duas dividem
-   * POST /v3/installments na spec do Asaas, e é o body que decide.
+   * Serves `create-installment-with-credit-card` too — the two share
+   * POST /v3/installments in the Asaas spec, and it is the body that decides.
    *
-   * As N cobranças nascem AQUI, todas de uma vez. É a diferença que define o
-   * recurso: a assinatura não cria nada na criação.
+   * The N charges are born HERE, all at once. It is the difference that defines
+   * the resource: the subscription creates nothing at the creation.
    *
-   * Com cartão, as N parcelas nascem CONFIRMED: a emissora autoriza o total de
-   * uma vez e o cliente é quem paga em N vezes. Ignorar o cartão e deixar as
-   * parcelas PENDING seria uma falha silenciosa — a cobrança nunca aconteceria e
-   * ninguém veria erro nenhum.
+   * With a card, the N installments are born CONFIRMED: the issuer authorizes the
+   * total at once and the customer is the one who pays in N times. Ignoring the
+   * card and leaving the installments PENDING would be a silent failure — the
+   * charge would never happen and nobody would see any error.
    *
-   * TODO(regra): o cronograma de crédito de um parcelamento no cartão não está
-   * documentado. Aqui cada parcela credita pela regra normal do cartão (D+32 a
-   * partir da confirmação). A suíte de paridade é quem decide isto — ver
+   * TODO(rule): the credit schedule of an installment plan on the card is not
+   * documented. Here each installment credits by the normal card rule (D+32
+   * from the confirmation). The parity suite is what decides this — see
    * progress.md.
    */
   'create-installment': async ({ ctx, auth, body }) => {
@@ -110,8 +112,8 @@ export const installmentHandlers: HandlerMap = {
     serializeInstallment(ctx.db, await findOwned(ctx, auth, params.id!)),
 
   /**
-   * Remove o parcelamento. As parcelas ainda ABERTAS são removidas junto; as já
-   * pagas ficam (não se apaga dinheiro que entrou).
+   * Removes the installment plan. The installments still OPEN are removed with
+   * it; the ones already paid stay (money that came in is not deleted).
    */
   'remove-installment': async ({ ctx, auth, params }) => {
     const inst = await findOwned(ctx, auth, params.id!)
@@ -130,9 +132,9 @@ export const installmentHandlers: HandlerMap = {
   },
 
   /**
-   * Cancela as COBRANÇAS do parcelamento, mas mantém o parcelamento. É diferente
-   * de `remove-installment`, e a diferença é sutil: aqui o registro do
-   * parcelamento continua consultável (com as parcelas pagas intactas).
+   * Cancels the CHARGES of the installment plan, but keeps the plan itself. It
+   * is different from `remove-installment`, and the difference is subtle: here
+   * the record of the plan stays queryable (with the paid installments intact).
    */
   'cancel-charges-of-an-installment': async ({ ctx, auth, params }) => {
     const inst = await findOwned(ctx, auth, params.id!)
@@ -172,7 +174,7 @@ export const installmentHandlers: HandlerMap = {
     return listEnvelope(data, total?.n ?? 0, limit, offset)
   },
 
-  /** O carnê. Devolve um PDF de verdade — ver src/modules/booklet.ts. */
+  /** The booklet. It returns a real PDF — see src/modules/booklet.ts. */
   'generate-installment-booklet': async ({ ctx, auth, params, query }) => {
     const inst = await findOwned(ctx, auth, params.id!)
     const { field, desc: descending } = bookletOrder(query)
@@ -198,13 +200,13 @@ export const installmentHandlers: HandlerMap = {
   },
 
   /**
-   * Reescreve o split do parcelamento. Só as parcelas AINDA NÃO PAGAS mudam —
-   * mexer no split de uma parcela já paga reescreveria dinheiro que já foi
-   * repartido.
+   * Rewrites the split of the installment plan. Only the installments NOT YET
+   * PAID change — touching the split of an installment already paid would
+   * rewrite money that was already shared.
    *
-   * Aqui vive a regra que ninguém acerta de primeira:
-   *   `fixedValue`      → aplicado EM CADA parcela
-   *   `totalFixedValue` → dividido ENTRE as parcelas, sobra na última
+   * Here lives the rule nobody gets right on the first try:
+   *   `fixedValue`      → applied TO EACH installment
+   *   `totalFixedValue` → divided BETWEEN the installments, remainder in the last one
    */
   'update-installment-splits': async ({ ctx, auth, params, body }) => {
     const inst = await findOwned(ctx, auth, params.id!)
@@ -220,7 +222,8 @@ export const installmentHandlers: HandlerMap = {
       )
     }
 
-    // A validação é a mesma da criação — inclusive a de não splitar para si mesmo.
+    // The validation is the same as the creation — including the one of not
+    // splitting to itself.
     const errors = validateSplits(
       specs.map((s) => ({
         walletId: s.walletId,
@@ -301,15 +304,15 @@ export const installmentHandlers: HandlerMap = {
   },
 
   /**
-   * Estorna o parcelamento: cada parcela JÁ PAGA é estornada integralmente, uma a
-   * uma, pelo mesmo caminho de `refund-payment`.
+   * Refunds the installment plan: each installment ALREADY PAID is refunded in
+   * full, one by one, through the same path of `refund-payment`.
    *
-   * TODO(regra): a spec aceita um `value` ("Total amount to be refunded"), mas não
-   * define como esse total se reparte entre as parcelas — pela ordem? pro-rata?
-   * só a última? Inventar uma regra aqui produziria um estorno com cara de certo e
-   * valores errados, que é exatamente o que este projeto não pode fazer. Por
-   * enquanto só o estorno TOTAL é suportado, e um `value` divergente é recusado
-   * explicitamente em vez de ser silenciosamente reinterpretado.
+   * TODO(rule): the spec accepts a `value` ("Total amount to be refunded"), but
+   * does not define how that total is shared among the installments — by order?
+   * pro-rata? only the last one? Inventing a rule here would produce a refund
+   * that looks right and has wrong values, which is exactly what this project
+   * cannot do. For now only the TOTAL refund is supported, and a diverging
+   * `value` is explicitly refused instead of being silently reinterpreted.
    */
   'refund-installment': async ({ ctx, auth, params, body }) => {
     const inst = await findOwned(ctx, auth, params.id!)
@@ -347,7 +350,7 @@ export const installmentHandlers: HandlerMap = {
         status: 'DONE',
         valueCents: p.valueCents,
         description: b.description ?? null,
-        // As taxas NÃO são devolvidas — o Asaas retém.
+        // The fees are NOT returned — Asaas keeps them.
         refundedFeeCents: 0,
         effectiveDate: today,
         transactionReceiptUrl: null,

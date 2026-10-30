@@ -1,19 +1,20 @@
 /**
- * As 6 operações da tag "Webhook" da API v3.
+ * The 6 operations of the "Webhook" tag of the v3 API.
  *
- * O CRUD é o de sempre; o que não é trivial mora em duas regras:
+ * The CRUD is the usual one; what is not trivial lives in two rules:
  *
- *   - `interrupted` é o freio da fila. Vira `true` sozinho quando uma entrega
- *     esgota as 15 tentativas (ver src/webhooks/dispatcher.ts). Enquanto estiver
- *     `true`, NADA daquele webhook é entregue — nem os eventos novos.
+ *   - `interrupted` is the brake of the queue. It becomes `true` on its own when
+ *     a delivery exhausts the 15 attempts (see src/webhooks/dispatcher.ts). While
+ *     it is `true`, NOTHING of that webhook is delivered — not even the new
+ *     events.
  *
- *   - `removeBackoff` (e um PUT com `interrupted: false`) é o destravamento:
- *     zera o contador de tentativas, reagenda tudo para agora e solta a fila.
- *     É o botão que o dev aperta depois de consertar o endpoint dele.
+ *   - `removeBackoff` (and a PUT with `interrupted: false`) is the unblocking: it
+ *     zeroes the attempt counter, reschedules everything for now and releases the
+ *     queue. It is the button the developer presses after fixing their endpoint.
  *
- * A resposta NÃO devolve o `authToken` — só `hasAuthToken`. É o que a spec diz e
- * é o que o Asaas faz: o token só sai daqui dentro do header `asaas-access-token`
- * de uma entrega.
+ * The answer does NOT return the `authToken` — only `hasAuthToken`. It is what
+ * the spec says and it is what Asaas does: the token only leaves here inside the
+ * `asaas-access-token` header of a delivery.
  */
 import { and, asc, count, eq, inArray } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -26,7 +27,7 @@ import type { HandlerMap } from '../../http/register.ts'
 type WebhookRow = typeof webhooks.$inferSelect
 type SendType = WebhookRow['sendType']
 
-/** O `authToken` tem 32–255 caracteres. É a regra da spec, e ela é checável. */
+/** The `authToken` has 32–255 characters. It is the rule of the spec, and it is checkable. */
 const AUTH_TOKEN_MIN = 32
 const AUTH_TOKEN_MAX = 255
 
@@ -42,11 +43,11 @@ function serialize(row: WebhookRow) {
     hasAuthToken: row.authToken !== null && row.authToken !== '',
     sendType: row.sendType,
     /**
-     * TODO(regra): a doc não define como o Asaas conta "requisição penalizada" —
-     * se é a tentativa que falhou, a que foi adiada pelo backoff, ou a janela de
-     * throttling da conta. Inventar um número aqui seria pior que devolver 0:
-     * produziria falsa confiança num campo que ninguém consegue conferir.
-     * Registrado em progress.md.
+     * TODO(rule): the docs do not define how Asaas counts a "penalized request" —
+     * whether it is the attempt that failed, the one that the backoff deferred,
+     * or the throttling window of the account. Inventing a number here would be
+     * worse than returning 0: it would produce false confidence in a field
+     * nobody can check. Recorded in progress.md.
      */
     penalizedRequestsCount: 0,
     events: row.events,
@@ -102,13 +103,14 @@ async function findOwned(ctx: AppContext, accountId: string, id: string): Promis
 }
 
 /**
- * Destrava a fila: as entregas que estavam esperando o backoff (ou que já haviam
- * esgotado as tentativas) voltam a PENDING, com o contador zerado e agendadas
- * para AGORA. O próximo tick as entrega.
+ * Unblocks the queue: the deliveries that were waiting for the backoff (or that
+ * had already exhausted the attempts) go back to PENDING, with the counter zeroed
+ * and scheduled for NOW. The next tick delivers them.
  *
- * É o que `removeBackoff` faz, e é o que um PUT com `interrupted: false` também
- * precisa fazer — senão o webhook diria "não estou interrompido" e continuaria
- * sem entregar nada, que é a pior mentira possível aqui.
+ * It is what `removeBackoff` does, and it is what a PUT with
+ * `interrupted: false` also has to do — otherwise the webhook would say "I am
+ * not interrupted" and keep delivering nothing, which is the worst lie possible
+ * here.
  */
 async function releaseQueue(ctx: AppContext, webhookId: string): Promise<void> {
   const now = ctx.clock.nowMs()
@@ -130,7 +132,7 @@ async function releaseQueue(ctx: AppContext, webhookId: string): Promise<void> {
 }
 
 export const webhookHandlers: HandlerMap = {
-  /** POST /v3/webhooks — criação devolve 200, nunca 201. */
+  /** POST /v3/webhooks — the creation returns 200, never 201. */
   'create-new-webhook': async ({ ctx, auth, body }) => {
     const b = body as Record<string, unknown>
 
@@ -205,16 +207,17 @@ export const webhookHandlers: HandlerMap = {
     if (b.events != null) patch.events = assertEvents(b.events)
     if ('authToken' in b) patch.authToken = assertAuthToken(b.authToken)
 
-    // `interrupted: true` congela a fila à mão — é como o dev simula um webhook
-    // travado sem precisar derrubar o próprio endpoint.
+    // `interrupted: true` freezes the queue by hand — it is how the developer
+    // simulates a stuck webhook without having to take their own endpoint down.
     const reactivating = b.interrupted === false && current.interrupted
     if (b.interrupted != null) patch.interrupted = Boolean(b.interrupted)
 
     if (Object.keys(patch).length > 0) {
       await ctx.db.update(webhooks).set(patch).where(eq(webhooks.id, current.id))
     }
-    // Soltar a fila é mais do que virar o booleano: as entregas travadas
-    // precisam voltar a PENDING, senão o webhook mentiria sobre estar ativo.
+    // Releasing the queue is more than flipping the boolean: the stuck deliveries
+    // have to go back to PENDING, otherwise the webhook would lie about being
+    // active.
     if (reactivating) await releaseQueue(ctx, current.id)
 
     return serialize(await findOwned(ctx, auth.accountId, current.id))
@@ -224,8 +227,8 @@ export const webhookHandlers: HandlerMap = {
   'remove-webhook': async ({ ctx, auth, params }) => {
     const row = await findOwned(ctx, auth.accountId, params.id!)
 
-    // As entregas referenciam o webhook (FK ON): saem primeiro. O histórico de
-    // um webhook removido não tem para onde apontar.
+    // The deliveries reference the webhook (FK ON): they go first. The history of
+    // a removed webhook has nowhere to point to.
     await ctx.db.delete(webhookDeliveries).where(eq(webhookDeliveries.webhookId, row.id))
     await ctx.db.delete(webhooks).where(eq(webhooks.id, row.id))
 
@@ -233,10 +236,10 @@ export const webhookHandlers: HandlerMap = {
   },
 
   /**
-   * POST /v3/webhooks/{id}/removeBackoff — 204, sem corpo.
+   * POST /v3/webhooks/{id}/removeBackoff — 204, no body.
    *
-   * O endpoint que o dev chama depois de consertar a rota dele: zera o backoff,
-   * reagenda a fila para agora e destrava o webhook.
+   * It is the endpoint the developer calls after fixing their route: it zeroes
+   * the backoff, reschedules the queue for now and unblocks the webhook.
    */
   'remove-webhook-backoff': async ({ ctx, auth, params }) => {
     const row = await findOwned(ctx, auth.accountId, params.id!)

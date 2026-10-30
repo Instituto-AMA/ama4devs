@@ -1,13 +1,14 @@
 /**
- * Perfis: as contas RAIZ do simulador — cada uma, um tenant da sua aplicação, com chave,
- * carteira, clientes e webhooks próprios.
+ * Profiles: the ROOT accounts of the simulator — each one, a tenant of your
+ * application, with its own key, wallet, customers and webhooks.
  *
- * Mora no bloco do Simulador porque o Asaas não abre conta raiz por API: lá, cada
- * clínica cria a própria conta no site. Aqui você cria e apaga quantas quiser, sem
- * reiniciar o container.
+ * It lives in the Simulador block because Asaas does not open a root account
+ * through the API: there, each clinic creates its own account on the site. Here
+ * you create and delete as many as you want, without restarting the container.
  *
- * Os perfis do AMBIENTE (`ASAAS_API_KEY`, `SEED_EXTRA_ACCOUNTS`) também se apagam, mas
- * voltam no próximo boot — zerados e com a chave do ambiente. A tela avisa antes.
+ * The ENVIRONMENT profiles (`ASAAS_API_KEY`, `SEED_EXTRA_ACCOUNTS`) are deleted
+ * too, but they come back on the next boot — zeroed and with the environment
+ * key. The screen warns before that.
  *
  * Zerar is the other way out: the profile stays, with its id and keys, and the chosen
  * groups go (POST /_admin/accounts/:id/reset). The app's configuration does not change.

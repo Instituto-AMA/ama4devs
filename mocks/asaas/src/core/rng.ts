@@ -1,22 +1,22 @@
 /**
- * Fonte de aleatoriedade. Injetada, nunca global.
+ * Source of randomness. Injected, never global.
  *
- * `Math.random()` e `crypto.randomUUID()` são PROIBIDOS no resto do código pelo
- * mesmo motivo que `Date.now()`: sem RNG semeado, os IDs mudam a cada execução e
- * qualquer teste de snapshot ou de determinismo vira ruído.
+ * `Math.random()` and `crypto.randomUUID()` are FORBIDDEN in the rest of the code
+ * for the same reason as `Date.now()`: without a seeded RNG the ids change on
+ * every run and any snapshot or determinism test becomes noise.
  */
 export interface Rng {
   /** [0, 1) */
   float(): number
-  /** inteiro em [0, max) */
+  /** integer in [0, max) */
   int(max: number): number
-  /** string hex de `len` caracteres */
+  /** hex string of `len` characters */
   hex(len: number): string
   /** UUID v4 */
   uuid(): string
-  /** `len` dígitos decimais, como string (pode começar com 0) */
+  /** `len` decimal digits, as a string (it may start with 0) */
   digits(len: number): string
-  /** caracteres de um alfabeto alfanumérico */
+  /** characters of an alphanumeric alphabet */
   alphanumeric(len: number): string
 }
 
@@ -50,7 +50,7 @@ abstract class BaseRng implements Rng {
 
   uuid(): string {
     const h = this.hex(32).split('')
-    // versão 4 e variante RFC 4122
+    // version 4 and the RFC 4122 variant
     h[12] = '4'
     h[16] = HEX[(this.int(16) & 0x3) | 0x8]!
     const s = h.join('')
@@ -58,7 +58,7 @@ abstract class BaseRng implements Rng {
   }
 }
 
-/** xorshift128. Mesma semente → mesma sequência de IDs. */
+/** xorshift128. Same seed → same sequence of ids. */
 export class SeededRng extends BaseRng {
   #a: number
   #b: number
@@ -67,12 +67,12 @@ export class SeededRng extends BaseRng {
 
   constructor(seed: number) {
     super()
-    // espalha a semente para que seeds pequenas (1, 2, 3) não degenerem
+    // spread the seed so that small seeds (1, 2, 3) do not degenerate
     this.#a = seed | 0 || 0x9e3779b9
     this.#b = (seed * 0x85ebca6b) | 0 || 0x243f6a88
     this.#c = (seed * 0xc2b2ae35) | 0 || 0xb7e15162
     this.#d = (seed * 0x27d4eb2f) | 0 || 0x9e3779b9
-    for (let i = 0; i < 12; i++) this.float() // aquece
+    for (let i = 0; i < 12; i++) this.float() // warms it up
   }
 
   override float(): number {

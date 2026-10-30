@@ -1,7 +1,8 @@
 /**
- * Criação de cobrança. Compartilhado por: cobrança avulsa, parcelamento e
- * assinatura — os três nascem da mesma função, e é isso que garante que uma
- * parcela de assinatura tenha exatamente o mesmo formato de uma cobrança avulsa.
+ * Charge creation. Shared by: single charge, installment plan and
+ * subscription — the three are born from the same function, and that is what
+ * guarantees that a subscription installment has exactly the same shape as a
+ * single charge.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -37,45 +38,45 @@ export interface CreatePaymentInput {
   postalService?: boolean
   daysAfterDueDateToRegistrationCancellation?: number | null
 
-  /** Vínculos, quando a cobrança nasce de um parcelamento/assinatura. */
+  /** The links, when the charge is born from an installment plan/subscription. */
   installmentId?: string | null
   installmentNumber?: number | null
-  /** Total de parcelas — define a faixa de taxa do cartão. */
+  /** The total number of installments — it defines the card's fee bracket. */
   installmentCount?: number
   /**
-   * O TOTAL do parcelamento (soma das parcelas), quando esta cobrança é uma
-   * parcela.
+   * The TOTAL of the plan (the sum of the installments), when this charge is an
+   * installment.
    *
-   * Existe porque a taxa do cartão parcelado NÃO se calcula sobre a parcela:
-   * o Asaas cobra `fixo + pct% × total` uma única vez e divide entre as N
-   * parcelas. Sem o total aqui, cada parcela pagaria o fixo de novo e o
-   * percentual sobre si mesma — e o netValue sairia errado. Provado contra o
-   * sandbox real; ver `calcInstallmentFee`.
+   * It exists because the fee of an installment card is NOT computed over the
+   * installment: Asaas charges `fixed + pct% × total` once and divides it among the
+   * N installments. Without the total here, each installment would pay the fixed
+   * part again and the percentage over itself — and the netValue would come out
+   * wrong. Proven against the real sandbox; see `calcInstallmentFee`.
    */
   installmentTotalCents?: Cents
   subscriptionId?: string | null
   creditCardId?: string | null
 }
 
-/** Traduz o body da API para a entrada do serviço. Valida o que o Asaas valida. */
+/** Translates the API body into the service's input. It validates what Asaas validates. */
 export function parseCreateBody(b: Record<string, any>): Omit<CreatePaymentInput, 'customerId'> & {
   customerId: string
 } {
   /**
-   * A ORDEM IMPORTA, e é a do Asaas — que valida semanticamente e PARA no
-   * primeiro erro, em vez de devolver a lista inteira.
+   * The ORDER MATTERS, and it is Asaas's order — which validates semantically and
+   * STOPS at the first error, instead of returning the whole list.
    *
-   * Um `POST /v3/payments` com body vazio devolve UM erro no Asaas real:
+   * A `POST /v3/payments` with an empty body returns ONE error in the real Asaas:
    *   {"code":"invalid_customer","description":"Customer inválido ou não informado."}
    *
-   * Enquanto o schema tinha `required`, o Elysia rejeitava antes daqui e cuspia
-   * 17 erros do TypeBox em inglês ("Expected string") — que nenhum cliente do
-   * Asaas jamais veria. O overlay 004 tirou o `required` justamente para que a
-   * validação voltasse a este lugar. Ver spec/overlays/004-payment-required.json.
+   * While the schema had `required`, Elysia rejected the request before here and
+   * spat out 17 TypeBox errors in English ("Expected string") — that no Asaas client
+   * would ever see. Overlay 004 removed the `required` precisely so that the
+   * validation would come back to this place. See spec/overlays/004-payment-required.json.
    *
-   * A mensagem de `customer` está PROVADA contra o sandbox. As demais são nossas:
-   * o Asaas curto-circuita antes delas, então não há como capturá-las sem um
-   * roteiro dedicado por campo. Está anotado em progress.md.
+   * The `customer` message is PROVEN against the sandbox. The others are ours:
+   * Asaas short-circuits before them, so there is no way to capture them without a
+   * dedicated script per field. It is recorded in progress.md.
    */
   if (!b.customer) {
     throw invalid('customer', 'Customer inválido ou não informado.')
@@ -92,9 +93,9 @@ export function parseCreateBody(b: Record<string, any>): Omit<CreatePaymentInput
   }
 
   /**
-   * Cobrança avulsa usa `value`. Parcelamento usa installmentCount +
-   * (installmentValue OU totalValue). Misturar os dois é o erro clássico, e o
-   * Asaas rejeita.
+   * A single charge uses `value`. An installment plan uses installmentCount +
+   * (installmentValue OR totalValue). Mixing the two is the classic mistake, and
+   * Asaas rejects it.
    */
   const hasInstallment = b.installmentCount !== undefined && Number(b.installmentCount) > 1
 
@@ -141,7 +142,7 @@ export function parseSplits(raw: unknown): SplitSpec[] {
   return raw.map((s: any) => ({
     walletId: String(s.walletId ?? ''),
     fixedValueCents: s.fixedValue !== undefined ? brlToCents(Number(s.fixedValue)) : null,
-    // 4 casas decimais → escala 1e4. 92.3444% → 923444
+    // 4 decimal places → 1e4 scale. 92.3444% → 923444
     percentualValueE4:
       s.percentualValue !== undefined
         ? percentE4(Math.round(Number(s.percentualValue) * 10_000))
@@ -152,8 +153,8 @@ export function parseSplits(raw: unknown): SplitSpec[] {
 }
 
 /**
- * Cria UMA cobrança. Emite PAYMENT_CREATED.
- * Não decide sobre parcelamento — quem parcela chama isto N vezes.
+ * Creates ONE charge. It emits PAYMENT_CREATED.
+ * It does not decide about installment plans — whoever splits calls this N times.
  */
 export async function createPayment(
   ctx: AppContext,
@@ -172,8 +173,8 @@ export async function createPayment(
 
   const installmentCount = input.installmentCount ?? 1
 
-  // Parcela de um parcelamento: a taxa vem do TOTAL, não do valor da parcela.
-  // (No cartão isso muda o número; no boleto dá no mesmo — a taxa é por boleto.)
+  // An installment of a plan: the fee comes from the TOTAL, not from the installment's value.
+  // (On the card it changes the number; on the bank slip it comes out the same — the fee is per bank slip.)
   const fee =
     input.installmentTotalCents !== undefined && installmentCount > 1
       ? calcInstallmentFee(
@@ -226,8 +227,8 @@ export async function createPayment(
     clientPaymentDate: null,
     confirmedDate: null,
     creditDate: null,
-    // null enquanto PENDING — o Asaas real não promete data de crédito para
-    // dinheiro que ainda não entrou. Ver `estimatedCreditDateFor`.
+    // null while PENDING — the real Asaas does not promise a credit date for
+    // money that has not come in yet. See `estimatedCreditDateFor`.
     estimatedCreditDate: estimatedCreditDateFor(),
 
     discount: input.discount ?? null,
@@ -267,7 +268,7 @@ export async function createPayment(
 
   await db.insert(payments).values(row)
 
-  // Os splits são calculados sobre o netValue — não sobre o bruto.
+  // The splits are computed over the netValue — not over the gross amount.
   let divergent = false
   if (splits.length) {
     const computed = computeSplits(net, splits)
@@ -275,20 +276,20 @@ export async function createPayment(
     divergent = computed.divergent
 
     /**
-     * Divergência de valor: a soma dos splits excede o netValue. O Asaas não
-     * rejeita a cobrança — ele BLOQUEIA os splits e dá 2 dias úteis para o
-     * integrador ajustar. Passado o prazo, o job `split-divergence-expiry`
-     * cancela. `blockedUntil` é esse prazo, e sem ele o job não teria como saber
-     * quando o relógio começou a correr.
+     * Value divergence: the sum of the splits exceeds the netValue. Asaas does not
+     * reject the charge — it BLOCKS the splits and gives 2 business days for the
+     * integrator to adjust. Once the deadline passes, the `split-divergence-expiry`
+     * job cancels them. `blockedUntil` is that deadline, and without it the job
+     * would have no way to know when the clock started running.
      */
     const blockedUntil = divergent
       ? addBusinessDays(today, ctx.config.rules.splitDivergenceGraceBusinessDays)
       : null
 
     for (const c of computed.splits) {
-      // Se a carteira de destino é de uma conta deste servidor, o split vai
-      // mesmo mover dinheiro. Se não for, fica registrado mas não credita
-      // ninguém (é uma carteira externa).
+      // If the destination wallet belongs to an account of this server, the split does
+      // move money. If not, it is recorded but credits nobody
+      // (it is an external wallet).
       const { accounts } = await import('../../db/schema/index.ts')
       const [dest] = await db
         .select({ id: accounts.id })
@@ -325,8 +326,8 @@ export async function createPayment(
     resource: await serializePayment(db, row),
   })
 
-  // O bloqueio por divergência é um fato que o integrador PRECISA ver — é o
-  // relógio de 2 dias úteis começando a correr.
+  // The block by divergence is a fact the integrator NEEDS to see — it is the
+  // 2-business-day clock starting to run.
   if (divergent) {
     await ctx.emit(db, {
       accountId,

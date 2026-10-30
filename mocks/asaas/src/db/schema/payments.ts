@@ -3,7 +3,7 @@ import { accounts } from './accounts.ts'
 import { customers } from './customers.ts'
 import { bool, cents, date, datetime, json } from './_conventions.ts'
 
-/** Regras de desconto/multa/juros embutidas na cobrança. */
+/** The discount/fine/interest rules embedded in the charge. */
 export interface DiscountConfig {
   value: number
   dueDateLimitDays: number
@@ -13,7 +13,7 @@ export interface FineConfig {
   value: number
   type: 'FIXED' | 'PERCENTAGE'
 }
-/** `interest` só tem `value` — é sempre percentual AO MÊS. Não existe `type`. */
+/** `interest` only has `value` — it is always a MONTHLY percentage. There is no `type`. */
 export interface InterestConfig {
   value: number
 }
@@ -25,7 +25,7 @@ export interface CallbackConfig {
 export const payments = sqliteTable(
   'payments',
   {
-    id: text('id').primaryKey(), // pay_<12 dígitos>
+    id: text('id').primaryKey(), // pay_<12 digits>
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -33,7 +33,7 @@ export const payments = sqliteTable(
       .notNull()
       .references(() => customers.id),
 
-    /** Agrupadores. Um payment pertence a no máximo um de cada. */
+    /** The groupers. A payment belongs to at most one of each. */
     subscriptionId: text('subscription_id'),
     installmentId: text('installment_id'),
     installmentNumber: text('installment_number'),
@@ -44,30 +44,30 @@ export const payments = sqliteTable(
     status: text('status').notNull(),
 
     /**
-     * `value` é o valor A PAGAR: depois de vencer, passa a incluir juros e multa.
-     * `originalValue` guarda o valor de antes do atraso (null se nunca atrasou).
-     * `interestValue` = multa + juros.
-     * `netValue` = value − taxa do Asaas. É a base do split.
+     * `value` is the amount TO PAY: once overdue, it starts to include interest and fine.
+     * `originalValue` holds the value from before the charge went overdue (null if it never did).
+     * `interestValue` = fine + interest.
+     * `netValue` = value − Asaas's fee. It is the split's base.
      */
     valueCents: cents('value_cents').notNull(),
     netValueCents: cents('net_value_cents').notNull(),
     originalValueCents: cents('original_value_cents'),
     interestValueCents: cents('interest_value_cents'),
-    /** A taxa cobrada pelo Asaas nesta cobrança. Só é debitada se for paga. */
+    /** The fee Asaas charges on this charge. It is only debited if it is paid. */
     feeCents: cents('fee_cents').notNull(),
 
     description: text('description'),
     externalReference: text('external_reference'),
 
     dueDate: date('due_date').notNull(),
-    /** Vencimento no ato da criação. Imutável. */
+    /** The due date at the moment of creation. Immutable. */
     originalDueDate: date('original_due_date').notNull(),
-    /** Data em que o Asaas liquidou. */
+    /** The date Asaas settled the charge. */
     paymentDate: date('payment_date'),
-    /** Data em que o pagador de fato pagou. */
+    /** The date the payer actually paid. */
     clientPaymentDate: date('client_payment_date'),
     confirmedDate: date('confirmed_date'),
-    /** Quando o dinheiro virou saldo. Preenchido ao entrar em RECEIVED. */
+    /** When the money became balance. Filled when it enters RECEIVED. */
     creditDate: date('credit_date'),
     estimatedCreditDate: date('estimated_credit_date'),
 
@@ -91,7 +91,7 @@ export const payments = sqliteTable(
     invoiceNumber: text('invoice_number'),
     nossoNumero: text('nosso_numero'),
 
-    /** 0 = registro do boleto cancela ao vencer. null = padrão da conta. */
+    /** 0 = the bank slip record is cancelled when it expires. null = the account's default. */
     daysAfterDueDateToRegistrationCancellation: cents(
       'days_after_due_date_to_registration_cancellation',
     ),
@@ -105,11 +105,11 @@ export const payments = sqliteTable(
     lastInvoiceViewedDate: datetime('last_invoice_viewed_date'),
     lastBankSlipViewedDate: datetime('last_bank_slip_viewed_date'),
     dateCreated: date('date_created').notNull(),
-    createdAtMs: cents('created_at_ms').notNull(), // ordenação estável
+    createdAtMs: cents('created_at_ms').notNull(), // stable ordering
   },
   (t) => [
-    // Predicados dos jobs do scheduler — estes dois índices são o que mantém o
-    // tick barato quando a base cresce.
+    // The scheduler jobs' predicates — these two indexes are what keeps the
+    // tick cheap when the database grows.
     index('payments_overdue_idx').on(t.status, t.dueDate),
     index('payments_credit_idx').on(t.status, t.creditDate),
 
@@ -128,17 +128,17 @@ export const paymentSplits = sqliteTable(
     paymentId: text('payment_id')
       .notNull()
       .references(() => payments.id),
-    /** Carteira de destino. Pode ser de uma conta que não existe aqui. */
+    /** The destination wallet. It may belong to an account that does not exist here. */
     walletId: text('wallet_id').notNull(),
-    /** Resolvido quando o walletId é de uma conta deste servidor. */
+    /** Resolved when the walletId belongs to an account of this server. */
     recipientAccountId: text('recipient_account_id'),
 
     fixedValueCents: cents('fixed_value_cents'),
-    /** 4 casas decimais → escala 1e4. 92.3444% = 923444. */
+    /** 4 decimal places → 1e4 scale. 92.3444% = 923444. */
     percentualValueE4: cents('percentual_value_e4'),
     totalFixedValueCents: cents('total_fixed_value_cents'),
 
-    /** O valor de fato calculado sobre o netValue da cobrança. */
+    /** The amount actually computed over the charge's netValue. */
     totalValueCents: cents('total_value_cents'),
 
     /** PENDING PROCESSING PROCESSING_REFUND AWAITING_CREDIT CANCELLED DONE REFUNDED BLOCKED_BY_VALUE_DIVERGENCE */
@@ -146,7 +146,7 @@ export const paymentSplits = sqliteTable(
     cancellationReason: text('cancellation_reason'),
     refusalReason: text('refusal_reason'),
 
-    /** Prazo para ajustar um split bloqueado por divergência (2 dias úteis). */
+    /** The deadline to fix a split blocked by a divergence (2 business days). */
     blockedUntil: date('blocked_until'),
     creditDate: date('credit_date'),
 
@@ -172,7 +172,7 @@ export const paymentRefunds = sqliteTable(
     status: text('status').notNull(),
     valueCents: cents('value_cents').notNull(),
     description: text('description'),
-    /** Taxas NÃO são devolvidas num estorno — o Asaas retém. */
+    /** The fees are NOT refunded on a reversal — Asaas keeps them. */
     refundedFeeCents: cents('refunded_fee_cents').notNull(),
     effectiveDate: date('effective_date'),
     transactionReceiptUrl: text('transaction_receipt_url'),
@@ -191,7 +191,7 @@ export const creditCards = sqliteTable(
     customerId: text('customer_id').references(() => customers.id),
 
     creditCardToken: text('credit_card_token').notNull(), // UUID
-    /** Só os 4 últimos dígitos — nunca guardamos o PAN. */
+    /** Only the last 4 digits — we never store the PAN. */
     last4: text('last4').notNull(),
     brand: text('brand').notNull(),
     holderName: text('holder_name').notNull(),
@@ -199,13 +199,13 @@ export const creditCards = sqliteTable(
     expiryYear: text('expiry_year').notNull(),
 
     /**
-     * O desfecho da AUTORIZAÇÃO, decidido na tokenização e carregado pelo token —
-     * é o que faz um cartão recusado continuar recusando quando cobrado pelo
-     * token, como no Asaas.
+     * The AUTHORIZATION outcome, decided at the tokenization and carried by the token —
+     * it is what makes a declined card keep declining when charged by the
+     * token, as in Asaas.
      *
-     * Só os desfechos de autorização chegam aqui. Os de validação (expirado, CVV
-     * ausente…) recusam a requisição na porta e nenhum token nasce.
-     * Ver `src/domain/credit-card.ts`.
+     * Only the authorization outcomes get here. The validation ones (expired, missing
+     * CVV…) refuse the request at the door and no token is born.
+     * See `src/domain/credit-card.ts`.
      */
     simulatedOutcome: text('simulated_outcome', {
       enum: ['APPROVE', 'DECLINE'],

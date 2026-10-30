@@ -1,22 +1,22 @@
 /**
- * Configuração de emissão automática de nota fiscal de uma assinatura. (Track E)
+ * The automatic invoice issuance configuration of a subscription. (Track E)
  *
- * Uma linha por assinatura — a API é um CRUD de recurso único
- * (`/v3/subscriptions/{id}/invoiceSettings`), não uma coleção.
+ * One row per subscription — the API is a CRUD of a single resource
+ * (`/v3/subscriptions/{id}/invoiceSettings`), not a collection.
  *
- * `taxes` fica em JSON: são PERCENTUAIS (ISS, PIS, COFINS…), não dinheiro — a
- * regra dos centavos não se aplica. Já `deductions` É dinheiro, e por isso é
- * inteiro em centavos como manda a convenção.
+ * `taxes` stays as JSON: they are PERCENTAGES (ISS, PIS, COFINS…), not money — the
+ * cents rule does not apply. `deductions`, on the other hand, IS money, and that
+ * is why it is an integer in cents as the convention demands.
  *
- * A NF em si (emissão, PDF, XML) é do track G; aqui guardamos só a política de
- * quando emiti-la.
+ * The NF itself (issuance, PDF, XML) belongs to track G; here we only store the
+ * policy of when to issue it.
  */
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { accounts } from './accounts.ts'
 import { subscriptions } from './recurrence.ts'
 import { bool, cents, datetime, json } from './_conventions.ts'
 
-/** Os percentuais da nota. Espelha InvoiceTaxesRequest da spec. */
+/** The invoice's percentages. It mirrors the spec's InvoiceTaxesRequest. */
 export interface InvoiceTaxesConfig {
   retainIss: boolean
   iss: number
@@ -40,19 +40,19 @@ export const subscriptionInvoiceConfigs = sqliteTable('subscription_invoice_conf
   municipalServiceCode: text('municipal_service_code'),
   municipalServiceName: text('municipal_service_name'),
 
-  /** Dinheiro → centavos. Deduções não mudam o valor da nota, mudam a base do ISS. */
+  /** Money → cents. Deductions do not change the invoice's amount, they change the ISS base. */
   deductionsCents: cents('deductions_cents'),
 
   /**
-   * No request o campo chama `effectiveDatePeriod`; na resposta,
-   * `invoiceCreationPeriod`. É o mesmo dado — a spec do Asaas troca o nome.
+   * In the request the field is called `effectiveDatePeriod`; in the response,
+   * `invoiceCreationPeriod`. It is the same data — the Asaas spec changes the name.
    * ON_PAYMENT_CONFIRMATION | ON_PAYMENT_DUE_DATE | BEFORE_PAYMENT_DUE_DATE |
    * ON_DUE_DATE_MONTH | ON_NEXT_MONTH
    */
   invoiceCreationPeriod: text('invoice_creation_period'),
   daysBeforeDueDate: cents('days_before_due_date'),
   receivedOnly: bool('received_only'),
-  /** Atualiza o valor da cobrança já descontando os impostos da nota. */
+  /** Updates the charge's amount already discounting the invoice's taxes. */
   updatePayment: bool('update_payment'),
   observations: text('observations'),
 

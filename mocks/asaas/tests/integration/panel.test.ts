@@ -1,11 +1,11 @@
 /**
- * O painel e a introspecção de contas.
+ * The panel and the accounts' introspection.
  *
- * `GET /_admin/accounts` devolve as CHAVES DE API de todas as contas — algo que a
- * API do Asaas jamais faria. É aceitável porque isto é um simulador de localhost,
- * mas só enquanto estiver de fato trancado atrás de `ADMIN_ENABLED`. É isso que o
- * último teste deste arquivo existe para garantir: se alguém mover a rota para
- * fora do bloco do admin, o teste quebra.
+ * `GET /_admin/accounts` returns the API KEYS of every account — something the
+ * Asaas's API would ever do. It is acceptable because this is a localhost simulator,
+ * but only as long as it is really locked behind `ADMIN_ENABLED`. That is what the
+ * last test of this file exists to guarantee: if someone moves the route out of
+ * the admin block, the test breaks.
  */
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createHarness, type Harness } from '../helpers/harness.ts'
@@ -16,8 +16,8 @@ afterEach(() => h?.close())
 const get = (app: Harness['app'], path: string) =>
   app.app.handle(new Request(`http://localhost${path}`))
 
-describe('painel', () => {
-  it('é servido na raiz, como HTML', async () => {
+describe('panel', () => {
+  it('is served at the root, as HTML', async () => {
     h = await createHarness()
     const res = await get(h.app, '/')
 
@@ -27,35 +27,35 @@ describe('painel', () => {
   })
 
   /**
-   * O PAINEL TEM QUE SER UM ARQUIVO SÓ. É a regressão que o build de front introduziu,
-   * e ela é silenciosa da pior forma.
+   * THE PANEL HAS TO BE A SINGLE FILE. It is the regression the front build introduced,
+   * and it is silent in the worst way.
    *
-   * O servidor serve UM arquivo: `src/admin/ui.html`. Não há rota de estáticos. Se
-   * alguém mexer no `vite.config.ts` e tirar o `viteSingleFile`, o Vite passa a emitir
-   * `<script src="/assets/index-a1b2c3.js">` — que o servidor não conhece. O HTML
-   * continua respondendo 200, o teste acima continua passando, e o painel abre EM
-   * BRANCO no container de todo mundo.
+   * The server serves ONE file: `src/admin/ui.html`. There is no static route. If
+   * someone touches `vite.config.ts` and removes the `viteSingleFile`, Vite starts emitting
+   * `<script src="/assets/index-a1b2c3.js">` — which the server does not know. The HTML
+   * keeps answering 200, the test above keeps passing, and the panel opens
+   * BLANK in everyone's container.
    */
-  it('é autocontido: nenhum asset externo, ou o painel abre em branco no container', async () => {
+  it('is self-contained: no external asset, or the panel opens blank in the container', async () => {
     h = await createHarness()
     const html = await (await get(h.app, '/')).text()
 
-    // O JS e o CSS têm que estar INLINE.
+    // The JS and the CSS have to be INLINE.
     expect(html).toContain('<script')
     expect(html).not.toMatch(/<script[^>]+src=["']\/(assets|src)\//)
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']\/(assets|src)\//)
 
-    // E o bundle tem que ter de fato entrado: um HTML com a casca e sem o app
-    // passaria nos asserts acima.
+    // And the bundle has to have really gone in: an HTML with the shell and without
+    // the app would pass the asserts above.
     expect(html.length).toBeGreaterThan(20_000)
   })
 
   /**
-   * As rotas de que o painel VIVE. Se uma sumir, a tela carrega e fica vazia — sem
-   * erro no console do servidor, sem nada. É o tipo de quebra que só aparece quando
-   * alguém abre o painel, que pode ser semanas depois.
+   * The routes the panel LIVES on. If one disappears, the screen loads and stays empty — with
+   * error in the server's console, with nothing else. It is the kind of breakage that only shows up when
+   * someone opens the panel, which can be weeks later.
    */
-  it('as rotas que o painel consome existem', async () => {
+  it('the routes the panel consumes exist', async () => {
     h = await createHarness()
     const account = h.app.seed.accountId
 
@@ -67,23 +67,23 @@ describe('painel', () => {
       `/_admin/summary?accountId=${account}`,
     ]) {
       const res = await get(h.app, path)
-      expect(res.status, `${path} deveria responder 200`).toBe(200)
+      expect(res.status, `${path} should answer 200`).toBe(200)
     }
   })
 
-  it('lista as contas com saldo e chave — inclusive as subcontas', async () => {
+  it('lists the accounts with balance and key — subaccounts included', async () => {
     h = await createHarness()
 
     await h.api.call('create-subaccount', {
       body: {
-        name: 'Loja Parceira',
+        name: 'Partner Store',
         email: 'loja@localhost',
         cpfCnpj: '24971563792',
         mobilePhone: '47996321478',
         incomeValue: 25000,
-        address: 'Rua A',
+        address: 'Street A',
         addressNumber: '1',
-        province: 'Centro',
+        province: 'Center',
         postalCode: '14079-452',
       },
     })
@@ -97,18 +97,18 @@ describe('painel', () => {
     expect(principal.id).toBe(h.accountId)
     expect(sub.parentAccountId).toBe(h.accountId)
 
-    // O que o painel precisa de cada conta, e que a API do Asaas não dá:
+    // What the panel needs from each account, and that Asaas's API does not give:
     for (const a of [principal, sub]) {
       expect(a.apiKey).toStartWith('$aact_hmlg_')
       expect(a.walletId).toBeString()
-      expect(a.balance).toBe(0) // em REAIS, não centavos
+      expect(a.balance).toBe(0) // in REAIS, not cents
     }
 
-    // Carteiras distintas — é o que faz o split ter para onde ir.
+    // Distinct wallets — it is what gives the split somewhere to go.
     expect(sub.walletId).not.toBe(principal.walletId)
   })
 
-  it('o saldo vem em REAIS, e acompanha o ledger', async () => {
+  it('the balance comes in REAIS, and follows the ledger', async () => {
     h = await createHarness()
 
     const customer = await h.api.call('create-new-customer', {
@@ -127,7 +127,7 @@ describe('painel', () => {
     const body = (await (await get(h.app, '/_admin/accounts')).json()) as any
     const principal = body.accounts.find((a: any) => !a.parentAccountId)
 
-    // 100 − 1,99 de taxa do Pix. Em reais: o painel exibe direto.
+    // 100 − 1.99 of Pix fee. In reais: the panel displays it directly.
     expect(principal.balance).toBe(98.01)
     await h.assertLedgerBalances()
   })
@@ -136,10 +136,10 @@ describe('painel', () => {
     h = await createHarness()
 
     const kept = await h.api.call('create-new-customer', {
-      body: { name: 'Ativo', cpfCnpj: '24971563792' },
+      body: { name: 'Active', cpfCnpj: '24971563792' },
     })
     const gone = await h.api.call('create-new-customer', {
-      body: { name: 'Removido', cpfCnpj: '24971563792' },
+      body: { name: 'Removed', cpfCnpj: '24971563792' },
     })
     await h.api.call('remove-customer', { params: { id: gone.body.id } })
 
@@ -175,13 +175,13 @@ describe('painel', () => {
     expect(awaiting.customers).toBe(1)
   })
 
-  it('com ADMIN_ENABLED=false, o painel some e as chaves não vazam', async () => {
+  it('with ADMIN_ENABLED=false, the panel disappears and the keys do not leak', async () => {
     h = await createHarness({ adminEnabled: false })
 
-    // A rota do painel nem é montada.
+    // The panel's route is not even mounted.
     expect((await get(h.app, '/')).status).toBe(404)
 
-    // E o endpoint que expõe as chaves recusa.
+    // And the endpoint that exposes the keys refuses.
     const res = await get(h.app, '/_admin/accounts')
     expect(res.status).toBeGreaterThanOrEqual(400)
 

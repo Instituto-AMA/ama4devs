@@ -5,14 +5,14 @@ import { bool, datetime } from './_conventions.ts'
 export const customers = sqliteTable(
   'customers',
   {
-    id: text('id').primaryKey(), // cus_<12 dígitos>
+    id: text('id').primaryKey(), // cus_<12 digits>
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
 
     name: text('name').notNull(),
-    cpfCnpj: text('cpf_cnpj').notNull(), // validado com dígito verificador
-    personType: text('person_type', { enum: ['FISICA', 'JURIDICA'] }).notNull(), // derivado do cpfCnpj
+    cpfCnpj: text('cpf_cnpj').notNull(), // validated with the check digit
+    personType: text('person_type', { enum: ['FISICA', 'JURIDICA'] }).notNull(), // derived from the cpfCnpj
     email: text('email'),
     phone: text('phone'),
     mobilePhone: text('mobile_phone'),
@@ -22,7 +22,7 @@ export const customers = sqliteTable(
     complement: text('complement'),
     province: text('province'),
     postalCode: text('postal_code'),
-    city: text('city'), // id numérico da cidade no Asaas
+    city: text('city'), // the numeric city id in Asaas
     cityName: text('city_name'),
     state: text('state'),
     country: text('country'),

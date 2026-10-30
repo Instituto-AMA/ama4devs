@@ -1,13 +1,14 @@
 /**
- * Track H — cartão de crédito.
+ * Track H — credit card.
  *
- * Tokenização, captura de pré-autorização, pagamento de cobrança existente com
- * cartão e a configuração de pré-autorização.
+ * Tokenization, capture of a pre-authorization, payment of an existing charge
+ * with a card and the pre-authorization configuration.
  *
- * A criação de cobrança com cartão (`create-new-payment-with-credit-card`) NÃO
- * está aqui: ela divide a rota `POST /v3/payments` com `create-new-payment`, e
- * quem decide pelo body é o handler canônico, em `../payments/handlers.ts` — que
- * chama `createPaymentWithCard()` deste módulo. É assim que o Asaas real faz.
+ * The creation of a charge with a card (`create-new-payment-with-credit-card`)
+ * is NOT here: it shares the route `POST /v3/payments` with `create-new-payment`,
+ * and whoever decides by the body is the canonical handler, in
+ * `../payments/handlers.ts` — which calls `createPaymentWithCard()` of this
+ * module. It is how the real Asaas does it.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -29,17 +30,18 @@ async function findOwned(ctx: AppContext, auth: AuthContext, id: string): Promis
 }
 
 /**
- * A configuração de pré-autorização é UMA linha por conta, e não tem tabela
- * própria: mora em `settings`, que existe exatamente para isso. Namespaced por
- * conta — isolamento é invariante, não detalhe.
+ * The pre-authorization configuration is ONE row per account, and it has no
+ * table of its own: it lives in `settings`, which exists exactly for this.
+ * Namespaced by account — isolation is an invariant, not a detail.
  */
 const PRE_AUTH_KEY = (accountId: string) => `credit_card.pre_authorization:${accountId}`
 
 /**
- * TODO(regra): a doc não publica o default de `daysToExpire` nem o intervalo
- * aceito. Usamos 5 (o exemplo da spec). Uma pré-autorização que EXPIRA sozinha
- * depois de N dias ainda não existe — precisaria de um job no scheduler; hoje
- * uma cobrança AUTHORIZED fica AUTHORIZED até alguém capturar. Está em progress.md.
+ * TODO(rule): the docs do not publish the default of `daysToExpire` nor the
+ * accepted range. We use 5 (the example of the spec). A pre-authorization that
+ * EXPIRES on its own after N days does not exist yet — it would need a job in
+ * the scheduler; today an AUTHORIZED charge stays AUTHORIZED until someone
+ * captures it. It is in progress.md.
  */
 const DEFAULT_DAYS_TO_EXPIRE = 5
 
@@ -51,9 +53,9 @@ export const creditCardHandlers: HandlerMap = {
   /**
    * `POST /v3/creditCard/tokenizeCreditCard`
    *
-   * Devolve os 4 ÚLTIMOS dígitos — não uma máscara com asteriscos, não o número.
-   * O PAN completo não é gravado em lugar nenhum (nem em log): `inspectCard`
-   * (puro) já o descarta.
+   * It returns the LAST 4 digits — not a mask with asterisks, not the number.
+   * The full PAN is not stored anywhere (not even in a log): `inspectCard`
+   * (pure) already discards it.
    */
   'credit-card-tokenization': async ({ ctx, auth, body }) => {
     const card = await tokenize(ctx, auth, body as Record<string, any>)
@@ -67,9 +69,10 @@ export const creditCardHandlers: HandlerMap = {
   /**
    * `POST /v3/payments/{id}/captureAuthorizedPayment`
    *
-   * Só funciona em AUTHORIZED. Capturar duas vezes → 400 (a segunda encontra a
-   * cobrança já CONFIRMED e a máquina de estados recusa). É a máquina que diz
-   * não, não um `if` neste handler — por isso não há como divergir.
+   * It only works in AUTHORIZED. Capturing twice → 400 (the second one finds the
+   * charge already CONFIRMED and the state machine refuses). It is the machine
+   * that says no, not an `if` in this handler — that is why there is no way for
+   * the two to diverge.
    */
   'capture-payment-with-pre-authorization': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
@@ -77,14 +80,15 @@ export const creditCardHandlers: HandlerMap = {
     return serializePayment(ctx.db, r.payment)
   },
 
-  /** `POST /v3/payments/{id}/payWithCreditCard` — pagar cobrança existente. */
+  /** `POST /v3/payments/{id}/payWithCreditCard` — pay an existing charge. */
   'pay-a-charge-with-credit-card': async ({ ctx, auth, params, body }) =>
     payExistingWithCard(ctx, auth, params.id!, body as Record<string, any>),
 
   /**
-   * `POST /v3/payments/{id}/payWithCard` — a versão nova do endpoint acima.
-   * O body é `{ cardType, card, cardToken }` em vez de
-   * `{ creditCard, creditCardToken }`; traduzimos e caímos no mesmo caminho.
+   * `POST /v3/payments/{id}/payWithCard` — the new version of the endpoint
+   * above. The body is `{ cardType, card, cardToken }` instead of
+   * `{ creditCard, creditCardToken }`; we translate it and fall into the same
+   * path.
    */
   'pay-a-charge-with-card': async ({ ctx, auth, params, body }) => {
     const b = (body ?? {}) as Record<string, any>
@@ -137,5 +141,5 @@ export const creditCardHandlers: HandlerMap = {
   },
 }
 
-/** Reexportado para quem precisar do mesmo texto de recusa. */
+/** Re-exported for whoever needs the same refusal text. */
 export { DECLINED } from './service.ts'

@@ -1,15 +1,18 @@
 /**
- * A tabela com busca e ordenação. TODA listagem do painel passa por aqui.
+ * The table with search and sorting. EVERY listing of the panel goes through
+ * here.
  *
- * A tentação era resolver busca e sort dentro de cada página. Cinco páginas depois,
- * cada uma ordenaria de um jeito — uma comparando `String`, outra `localeCompare`, e a
- * de valores comparando "R$ 1.000,00" como TEXTO, onde R$ 90 vem depois de R$ 1.000.
- * Esse bug não parece um bug: parece que a tabela "está meio bagunçada".
+ * The temptation was to solve search and sort inside each page. Five pages
+ * later, each one would sort in its own way — one comparing `String`, another
+ * `localeCompare`, and the one of values comparing "R$ 1.000,00" as TEXT,
+ * where R$ 90 comes after R$ 1.000. That bug does not look like a bug: it
+ * looks like the table "is a bit messy".
  *
- * Por isso a coluna declara `value(row)` — o dado CRU (número ou string), separado do
- * `render(row)` que decide como ele aparece. Quem ordena e quem busca olham o valor;
- * quem desenha olha o render. Uma coluna sem `value` não ordena e não entra na busca,
- * e isso é explícito em vez de silencioso.
+ * That is why the column declares `value(row)` — the RAW data (number or
+ * string), apart from the `render(row)` that decides how it shows up. Whoever
+ * sorts and whoever searches looks at the value; whoever draws looks at the
+ * render. A column without `value` does not sort and does not enter the search,
+ * and that is explicit instead of silent.
  */
 import type { ComponentChildren } from 'preact'
 import { useMemo, useState } from 'preact/hooks'
@@ -22,11 +25,12 @@ import './DataTable.css'
 export interface Column<T> {
   key: string
   header: string
-  /** Como a célula aparece. */
+  /** How the cell shows up. */
   render: (row: T) => ComponentChildren
   /**
-   * O dado CRU, para ordenar e para buscar. Número ordena como número.
-   * Sem isto, a coluna não ordena nem entra na busca — de propósito e à vista.
+   * The RAW data, to sort and to search by. A number sorts as a number.
+   * Without it, the column neither sorts nor enters the search — on purpose and
+   * in plain sight.
    */
   value?: (row: T) => Value
   align?: 'right'
@@ -35,12 +39,12 @@ export interface Column<T> {
 export function DataTable<T>(props: {
   rows: T[]
   columns: Column<T>[]
-  /** Texto do campo de busca. Sem ele, sem busca. */
+  /** Text of the search field. Without it, no search. */
   searchPlaceholder?: string
-  /** Coluna e direção iniciais. */
+  /** Initial column and direction. */
   initialSort?: SortSpec
   empty?: ComponentChildren
-  /** Uma coluna de ações no fim, fora da busca e da ordenação. */
+  /** An actions column at the end, outside the search and the sorting. */
   actions?: (row: T) => ComponentChildren
   /** A click on a row (outside its actions) opens it. */
   onRowClick?: (row: T) => void

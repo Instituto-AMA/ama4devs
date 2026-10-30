@@ -1,35 +1,35 @@
 /**
- * OS ROTEIROS DE PARIDADE.
+ * THE PARITY SCENARIOS.
  *
- * Cada roteiro é uma sequência de chamadas que roda em DOIS lugares:
+ * Each scenario is a sequence of calls that runs in TWO places:
  *
- *   1. contra o sandbox REAL do Asaas  (bun run capture)  → grava o golden
- *   2. contra este simulador           (bun test parity)  → compara com o golden
+ *   1. against the REAL Asaas sandbox  (bun run capture)  → writes the golden
+ *   2. against this simulator          (bun test parity)   → compares with the golden
  *
- * É o que separa "achamos que a regra é essa" de "provamos que é". Toda regra de
- * negócio deste projeto foi lida na documentação — e a documentação do Asaas se
- * contradiz em pelo menos dois pontos que já encontramos. Um mock sutilmente
- * errado é pior que nenhum mock, porque produz falsa confiança.
+ * It is what separates "we think the rule is this" from "we proved it". Every
+ * business rule of this project was read in the documentation — and Asaas's own
+ * documentation contradicts itself in at least two points we have already found. A
+ * subtly wrong mock is worse than no mock, because it produces false confidence.
  *
- * Para adicionar cobertura, acrescente um roteiro aqui e rode a captura.
+ * To add coverage, add a scenario here and run the capture.
  */
 import type { OperationId } from '../../src/generated/operations.ts'
 
 export interface Step {
-  /** Rótulo legível — aparece no diff quando a paridade quebra. */
+  /** Readable label — it shows up in the diff when the parity breaks. */
   label: string
   operationId: OperationId
   body?: unknown
   params?: Record<string, string>
   query?: Record<string, string | number>
   /**
-   * Guarda um valor da resposta para usar nos passos seguintes.
-   * Ex.: { customerId: 'id' } grava `response.id` como `$customerId`.
+   * Keeps a value of the response for the following steps.
+   * E.g. { customerId: 'id' } stores `response.id` as `$customerId`.
    */
   capture?: Record<string, string>
   /**
-   * Campos da resposta a IGNORAR na comparação: os que são legitimamente
-   * diferentes entre ambientes (ids, URLs, datas absolutas).
+   * Response fields to IGNORE in the comparison: the ones that are legitimately
+   * different between environments (ids, URLs, absolute dates).
    */
   ignore?: string[]
 }
@@ -41,28 +41,28 @@ export interface Scenario {
 }
 
 /**
- * Campos que NUNCA batem entre o Asaas real e o simulador, e nem deveriam:
- * identificadores gerados, URLs do domínio deles, datas de criação absolutas.
+ * Fields that NEVER match between real Asaas and the simulator, and should not:
+ * generated identifiers, URLs of their domain, absolute creation dates.
  *
- * Tudo o que NÃO está nesta lista é comparado — inclusive `value`, `netValue`,
- * `status`, `billingType`, `discount`, `fine`, `interest` e a estrutura inteira
- * do objeto. É aí que uma divergência de regra aparece.
+ * Everything that is NOT on this list is compared — including `value`, `netValue`,
+ * `status`, `billingType`, `discount`, `fine`, `interest` and the whole shape of
+ * the object. That is where a rule divergence shows up.
  */
 /**
- * `anticipable` fica FORA da comparação, e a razão é honesta:
+ * `anticipable` is OUTSIDE the comparison, and the reason is honest:
  *
- * A regra está provada e implementada (`src/domain/anticipable.ts`, com os 11
- * pontos de dados reais em `tests/unit/anticipable.test.ts`):
+ * The rule is proven and implemented (`src/domain/anticipable.ts`, with the 11
+ * real data points in `tests/unit/anticipable.test.ts`):
  *
- *   anticipable = meio antecipável E valor ≤ limite disponível E vencimento ≤ D+90
+ *   anticipable = half anticipable AND value ≤ available limit AND due date ≤ D+90
  *
- * Mas o LIMITE sai da análise de crédito do Asaas e é específico da conta — a
- * conta de sandbox usada na captura tinha um limite de boleto de **R$ 66,66**.
- * Nenhum simulador pode adivinhar esse número, e compará-lo seria comparar o
- * apetite de risco do Asaas, não o nosso código.
+ * But the LIMIT comes from Asaas's credit analysis and is account-specific — the
+ * sandbox account used in the capture had a bank slip limit of **R$ 66.66**. No
+ * simulator can guess that number, and comparing it would be comparing Asaas's
+ * risk appetite, not our code.
  *
- * Se você quiser paridade também aqui, configure o limite da SUA conta
- * (`GET /v3/anticipations/limits`) e tire este campo da lista.
+ * If you want parity here too, configure the limit of YOUR account
+ * (`GET /v3/anticipations/limits`) and take this field off the list.
  */
 const ACCOUNT_SPECIFIC = ['anticipable']
 
@@ -90,9 +90,9 @@ export const VOLATILE_FIELDS = [
   'barCode',
   'apiKey',
   'accountNumber',
-  // Datas absolutas: o sandbox real usa a data de hoje; o simulador usa o
-  // relógio virtual. O que comparamos são as datas RELATIVAS (ver
-  // `deriveRelativeDates` em parity.test.ts).
+  // Absolute dates: the real sandbox uses today's date; the simulator uses the
+  // virtual clock. What we compare are the RELATIVE dates (see
+  // `deriveRelativeDates` in parity.test.ts).
   'dueDate',
   'originalDueDate',
   'paymentDate',
@@ -106,9 +106,9 @@ export const VOLATILE_FIELDS = [
 ]
 
 /**
- * Datas relativas: em vez de comparar '2026-02-06' com '2025-08-14', comparamos
- * a DISTÂNCIA de cada data até uma âncora (a data de criação). É assim que se
- * prova que o cartão credita em D+32 sem depender de quando o teste rodou.
+ * Relative dates: instead of comparing '2026-02-06' with '2025-08-14', we compare
+ * the DISTANCE of each date to an anchor (the creation date). That is how we prove
+ * the card credits at D+32 without depending on when the test ran.
  */
 export const RELATIVE_DATE_FIELDS = [
   'dueDate',
@@ -119,47 +119,46 @@ export const RELATIVE_DATE_FIELDS = [
 ]
 
 const CUSTOMER = {
-  name: 'Cliente Paridade',
+  name: 'Parity Customer',
   cpfCnpj: '24971563792',
-  email: 'paridade@example.com',
-  // O Asaas real RECUSA celular com todos os dígitos iguais (47999999999 →
-  // invalid_mobilePhone), pela mesma lógica que recusa CPF 11111111111. Provado
-  // contra o sandbox; nosso simulador ainda aceita — ver progress.md.
+  email: 'parity@example.com',
+  // Real Asaas REJECTS a mobile number with all the same digits (47999999999 →
+  // invalid_mobilePhone), by the same logic that rejects CPF 11111111111. Proven
+  // against the sandbox; our simulator still accepts it — see progress.md.
   mobilePhone: '47996321478',
 }
 
 /**
- * `$hoje`, `$hoje+N` são resolvidos na hora de executar — assim o roteiro roda
- * tanto contra o sandbox real (data de hoje) quanto contra o simulador (relógio
- * virtual congelado).
+ * `$today`, `$today+N` are resolved at run time — so the scenario runs both against
+ * the real sandbox (today's date) and against the simulator (frozen virtual clock).
  */
 export const SCENARIOS: Scenario[] = [
   {
-    name: 'pix-recebido',
+    name: 'pix-received',
     description:
-      'Pix: PENDING → RECEIVED direto (pula CONFIRMED), taxa FIXA de R$ 1,99, ' +
-      'netValue = 98,01. É a regra mais fácil de errar (achar que a taxa do Pix é %).',
+      'Pix: PENDING → RECEIVED directly (skips CONFIRMED), a FIXED R$ 1.99 fee, ' +
+      'netValue = 98.01. This is the easiest rule to get wrong (assuming the Pix fee is a percentage).',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'cria cobrança Pix de R$ 100',
+        label: 'creates a R$ 100 Pix charge',
         operationId: 'create-new-payment',
         body: {
           customer: '$customerId',
           billingType: 'PIX',
           value: 100,
-          dueDate: '$hoje+5',
-          description: 'Paridade Pix',
+          dueDate: '$today+5',
+          description: 'Parity Pix',
         },
         capture: { paymentId: 'id' },
       },
       {
-        label: 'recupera a cobrança',
+        label: 'retrieves the charge',
         operationId: 'retrieve-a-single-payment',
         params: { id: '$paymentId' },
       },
@@ -167,25 +166,25 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'boleto-com-juros-e-multa',
+    name: 'bank-slip-with-interest-and-fine',
     description:
-      'Boleto com multa de 2% e juros de 1% a.m. Prova a composição do netValue ' +
-      'e o formato dos objetos discount/fine/interest na resposta.',
+      'Bank slip with a 2% fine and 1% monthly interest. Proves the netValue ' +
+      'composition and the shape of the discount/fine/interest objects in the response.',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'cria boleto de R$ 350 com multa, juros e desconto',
+        label: 'creates a R$ 350 bank slip with fine, interest and discount',
         operationId: 'create-new-payment',
         body: {
           customer: '$customerId',
           billingType: 'BOLETO',
           value: 350,
-          dueDate: '$hoje+10',
+          dueDate: '$today+10',
           fine: { value: 2, type: 'PERCENTAGE' },
           interest: { value: 1 },
           discount: { value: 5, dueDateLimitDays: 0, type: 'PERCENTAGE' },
@@ -193,7 +192,7 @@ export const SCENARIOS: Scenario[] = [
         capture: { paymentId: 'id' },
       },
       {
-        label: 'recupera a cobrança',
+        label: 'retrieves the charge',
         operationId: 'retrieve-a-single-payment',
         params: { id: '$paymentId' },
       },
@@ -201,30 +200,30 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'cartao-a-vista',
+    name: 'credit-card-single-payment',
     description:
-      'Cartão à vista: taxa R$ 0,49 + 2,99%, e estimatedCreditDate em D+32 ' +
-      '(a doc técnica diz 32; o marketing diz 30 — este roteiro decide a briga).',
+      'Credit card in a single payment: R$ 0.49 + 2.99% fee, and estimatedCreditDate at D+32 ' +
+      '(the technical doc says 32; the marketing says 30 — this scenario settles the argument).',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'cria cobrança de cartão de R$ 100',
+        label: 'creates a R$ 100 credit card charge',
         operationId: 'create-new-payment',
         body: {
           customer: '$customerId',
           billingType: 'CREDIT_CARD',
           value: 100,
-          dueDate: '$hoje+5',
+          dueDate: '$today+5',
         },
         capture: { paymentId: 'id' },
       },
       {
-        label: 'recupera a cobrança',
+        label: 'retrieves the charge',
         operationId: 'retrieve-a-single-payment',
         params: { id: '$paymentId' },
       },
@@ -232,31 +231,31 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'parcelamento-350-em-12x',
+    name: 'installment-350-in-12x',
     description:
-      'A regra do resto: R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24 na ÚLTIMA. ' +
-      'Este é o roteiro que prova (ou derruba) a linha 1 do nosso golden test.',
+      'The remainder rule: R$ 350 in 12x → 11 × R$ 29.16 + R$ 29.24 in the LAST one. ' +
+      'This is the scenario that proves (or breaks) line 1 of our golden test.',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'cria parcelamento de R$ 350 em 12x',
+        label: 'creates a R$ 350 installment plan in 12x',
         operationId: 'create-installment',
         body: {
           customer: '$customerId',
           billingType: 'BOLETO',
           installmentCount: 12,
           totalValue: 350,
-          dueDate: '$hoje+10',
+          dueDate: '$today+10',
         },
         capture: { installmentId: 'id' },
       },
       {
-        label: 'lista as 12 parcelas — os valores têm que bater um a um',
+        label: 'lists the 12 installments — the amounts must match one by one',
         operationId: 'list-payments',
         query: { installment: '$installmentId', limit: 100 },
       },
@@ -264,37 +263,37 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'parcelamento-no-cartao',
+    name: 'installment-on-card',
     description:
-      'Parcelamento no cartão: a emissora autoriza o total de uma vez. As parcelas ' +
-      'já nascem CONFIRMED? E o crédito é D+32 a partir da confirmação (todas juntas) ' +
-      'ou D+32 do vencimento de cada uma (escalonado)? A doc não diz; este roteiro diz.',
+      'Installment plan on the card: the issuer authorizes the total in one go. Are the ' +
+      'installments born CONFIRMED? And is the credit D+32 from the confirmation (all together) ' +
+      'or D+32 from each one\'s due date (staggered)? The doc does not say; this scenario does.',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'parcela R$ 300 em 3x no cartão de teste que aprova',
+        label: 'installs R$ 300 in 3x on the test card that approves',
         operationId: 'create-installment',
         body: {
           customer: '$customerId',
           billingType: 'CREDIT_CARD',
           installmentCount: 3,
           totalValue: 300,
-          dueDate: '$hoje+10',
+          dueDate: '$today+10',
           creditCard: {
-            holderName: 'Cliente Paridade',
+            holderName: 'Parity Customer',
             number: '4444444444444444',
             expiryMonth: '12',
             expiryYear: '2030',
             ccv: '123',
           },
           creditCardHolderInfo: {
-            name: 'Cliente Paridade',
-            email: 'paridade@example.com',
+            name: 'Parity Customer',
+            email: 'parity@example.com',
             cpfCnpj: '24971563792',
             postalCode: '01310-100',
             addressNumber: '100',
@@ -305,7 +304,7 @@ export const SCENARIOS: Scenario[] = [
         capture: { installmentId: 'id' },
       },
       {
-        label: 'as 3 parcelas — status e creditDate de cada uma',
+        label: 'the 3 installments — status and creditDate of each one',
         operationId: 'list-payments',
         query: { installment: '$installmentId', limit: 100 },
       },
@@ -313,32 +312,32 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'assinatura-mensal',
+    name: 'monthly-subscription',
     description:
-      'A regra mais contraintuitiva: criar a assinatura NÃO cria cobrança. ' +
-      'Ela só nasce quando faltam 40 dias para o vencimento. Se a listagem vier ' +
-      'vazia no sandbox real, nossa leitura da doc está certa.',
+      'The most counterintuitive rule: creating the subscription creates the first charge immediately. ' +
+      'The 40-day window governs the following charges. The listing must return that first ' +
+      'charge even when the original due date is 60 days away.',
     steps: [
       {
-        label: 'cria cliente',
+        label: 'creates the customer',
         operationId: 'create-new-customer',
         body: CUSTOMER,
         capture: { customerId: 'id' },
       },
       {
-        label: 'cria assinatura mensal com vencimento em 60 dias',
+        label: 'creates a monthly subscription due in 60 days',
         operationId: 'create-new-subscription',
         body: {
           customer: '$customerId',
           billingType: 'BOLETO',
           value: 100,
-          nextDueDate: '$hoje+60',
+          nextDueDate: '$today+60',
           cycle: 'MONTHLY',
         },
         capture: { subscriptionId: 'id' },
       },
       {
-        label: 'as cobranças da assinatura — esperamos ZERO (faltam 60 dias > 40)',
+        label: "the subscription's charges — we expect ZERO (60 days away > 40)",
         operationId: 'list-payments-of-a-subscription',
         params: { id: '$subscriptionId' },
       },
@@ -346,18 +345,18 @@ export const SCENARIOS: Scenario[] = [
   },
 
   {
-    name: 'erros-de-validacao',
+    name: 'validation-errors',
     description:
-      'O formato do erro é contrato: {"errors":[{"code":"invalid_<campo>",...}]}. ' +
-      'E o código HTTP da criação: 200, nunca 201.',
+      'The error format is contract: {"errors":[{"code":"invalid_<field>",...}]}. ' +
+      'And the creation status code: 200, never 201.',
     steps: [
       {
-        label: 'cliente com CPF inválido → invalid_cpfCnpj',
+        label: 'customer with an invalid CPF → invalid_cpfCnpj',
         operationId: 'create-new-customer',
-        body: { name: 'Inválido', cpfCnpj: '11111111111' },
+        body: { name: 'Invalid Customer', cpfCnpj: '11111111111' },
       },
       {
-        label: 'cobrança sem campos obrigatórios → 400',
+        label: 'charge without the required fields → 400',
         operationId: 'create-new-payment',
         body: {},
       },

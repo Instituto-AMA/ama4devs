@@ -1,34 +1,35 @@
 /**
- * BR Code EMV — o payload "copia e cola" do Pix. PURO.
+ * BR Code EMV — the Pix "copy and paste" payload. Pure.
  *
- * Formato EMV®QRCPS / Manual de Padrões do BACEN: TLV com ID de 2 dígitos,
- * tamanho de 2 dígitos zero-padded e CRC16-CCITT nos 4 hex finais.
+ * EMV®QRCPS format / BACEN Standards Manual: TLV with a 2-digit ID, a 2-digit
+ * zero-padded size and a CRC16-CCITT in the last 4 hex digits.
  *
- * Este é um QR **dinâmico**: o valor NÃO vai no payload (não existe campo `54`) —
- * ele mora atrás da URL do campo 26/25. Foi verificado contra um payload real do
- * sandbox, cujo CRC (`C50D`) é o golden de `tests/unit/pix-brcode.test.ts`.
+ * This is a **dynamic** QR: the amount does NOT go in the payload (there is no `54`
+ * field) — it lives behind the URL of the 26/25 field. It was checked against a
+ * real payload from the sandbox, whose CRC (`C50D`) is the golden of
+ * `tests/unit/pix-brcode.test.ts`.
  */
 
-/** Campo 26, subcampo 00: o GUI do arranjo Pix. */
+/** Field 26, subfield 00: the GUI of the Pix arrangement. */
 const PIX_GUI = 'br.gov.bcb.pix'
 
 const MERCHANT_NAME_MAX = 25
 const MERCHANT_CITY_MAX = 15
 
 export interface BrCodeInput {
-  /** URL do payload dinâmico (campo 26/25). O esquema `https://` é removido. */
+  /** The dynamic payload URL (field 26/25). The `https://` scheme is removed. */
   url: string
   merchantName: string
   merchantCity: string
-  /** Campo 62/05. O padrão para QR dinâmico é `***`. */
+  /** Field 62/05. The standard for a dynamic QR is `***`. */
   txid?: string
-  /** Campo 61 (CEP, só dígitos). Omitido quando ausente. */
+  /** Field 61 (postal code, digits only). Omitted when absent. */
   postalCode?: string
 }
 
 /**
- * CRC16-CCITT (poly 0x1021, init 0xFFFF, sem xor final), 4 hex maiúsculos.
- * Calculado sobre os bytes ASCII do payload já com o `6304` no fim.
+ * CRC16-CCITT (poly 0x1021, init 0xFFFF, no final xor), 4 uppercase hex digits.
+ * Computed over the ASCII bytes of the payload with the `6304` already at the end.
  */
 export function crc16(s: string): string {
   let crc = 0xffff
@@ -41,15 +42,15 @@ export function crc16(s: string): string {
   return crc.toString(16).toUpperCase().padStart(4, '0')
 }
 
-/** Um TLV: `<id 2><len 2 zero-padded><value>`. */
+/** A TLV: `<id 2><len 2 zero-padded><value>`. */
 function tlv(id: string, value: string): string {
   if (value.length > 99) {
-    throw new Error(`brCode: campo ${id} tem ${value.length} chars — o tamanho TLV só vai até 99`)
+    throw new Error(`brCode: field ${id} has ${value.length} chars — the TLV size only goes up to 99`)
   }
   return id + String(value.length).padStart(2, '0') + value
 }
 
-/** O BR Code é ASCII: acento vira letra sem acento, o resto some. */
+/** The BR Code is ASCII: an accented letter becomes its unaccented version, the rest disappears. */
 function ascii(value: string, max: number): string {
   return value
     .normalize('NFD')
@@ -67,10 +68,10 @@ export function brCodePayload(i: BrCodeInput): string {
 
   let payload =
     tlv('00', '01') + // payload format indicator
-    tlv('01', '12') + // point of initiation: 12 = dinâmico (uso único)
+    tlv('01', '12') + // point of initiation: 12 = dynamic (one-time use)
     tlv('26', merchantAccount) +
-    tlv('52', '0000') + // merchant category code: não informado
-    tlv('53', '986') + // moeda: BRL
+    tlv('52', '0000') + // merchant category code: not informed
+    tlv('53', '986') + // currency: BRL
     tlv('58', 'BR') +
     tlv('59', ascii(i.merchantName, MERCHANT_NAME_MAX)) +
     tlv('60', ascii(i.merchantCity, MERCHANT_CITY_MAX))
@@ -81,12 +82,12 @@ export function brCodePayload(i: BrCodeInput): string {
   }
 
   payload += tlv('62', tlv('05', txid))
-  payload += '6304' // o CRC entra depois — mas o "6304" já entra no cálculo dele.
+  payload += '6304' // the CRC goes in afterwards — but the "6304" already goes into its calculation.
 
   return payload + crc16(payload)
 }
 
-/** Confere o CRC de um BR Code recebido pronto. Útil em teste e em depuração. */
+/** Checks the CRC of a BR Code received ready-made. Useful in tests and debugging. */
 export function isValidBrCode(payload: string): boolean {
   if (payload.length < 8) return false
   const body = payload.slice(0, -4)

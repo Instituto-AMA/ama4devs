@@ -1,27 +1,27 @@
 /**
- * Os jobs do split. (Track F)
+ * The split jobs. (Track F)
  *
- * É AQUI que o dinheiro de fato atravessa a fronteira entre duas contas — o
- * resto do split (o cálculo, o status) já existia; o que faltava era o
- * movimento. Um split que muda de status mas não move saldo é exatamente o tipo
- * de mock sutilmente errado que este projeto não pode ser.
+ * It is HERE that the money actually crosses the boundary between two accounts —
+ * the rest of the split (the calculation, the status) already existed; what was
+ * missing was the movement. A split that changes status but does not move a
+ * balance is exactly the kind of subtly wrong mock this project cannot be.
  *
- * REGRAS QUE MORAM AQUI:
+ * THE RULES THAT LIVE HERE:
  *
- * 1. O split incide sobre o **netValue** (valor − taxa do Asaas), nunca sobre o
- *    bruto. O cálculo é `computeSplits` (puro, src/domain/split.ts) — e é
- *    REFEITO no momento do crédito, sobre o netValue FINAL da cobrança. Uma
- *    cobrança paga em atraso vale mais (juros + multa), logo o netValue é maior
- *    e o split percentual acompanha. É o que a doc do Asaas quer dizer com "os
- *    valores exibidos podem ser atualizados após a confirmação do pagamento".
+ * 1. The split applies to the **netValue** (value − Asaas fee), never to the
+ *    gross amount. The calculation is `computeSplits` (pure, src/domain/split.ts)
+ *    — and it is REDONE at credit time, over the FINAL netValue of the charge. A
+ *    charge paid late is worth more (interest + fine), so the netValue is larger
+ *    and the percentage split follows. It is what the Asaas docs mean by "the
+ *    displayed values may be updated after the payment is confirmed".
  *
- * 2. Saldo só muda via `postEntries()`, e os DOIS extratos fecham:
- *    INTERNAL_TRANSFER_DEBIT (−) na origem, INTERNAL_TRANSFER_CREDIT (+) no
- *    destino, ambos carimbados com splitId e paymentId.
+ * 2. The balance only changes through `postEntries()`, and BOTH statements
+ *    close: INTERNAL_TRANSFER_DEBIT (−) in the origin, INTERNAL_TRANSFER_CREDIT
+ *    (+) in the destination, both stamped with splitId and paymentId.
  *
- * 3. Compare-and-swap em toda mutação (`UPDATE … WHERE status = 'AWAITING_CREDIT'`).
- *    Uma execução duplicada do job altera zero linhas — e é essa camada, não o
- *    mutex, que impede o crédito em dobro.
+ * 3. Compare-and-swap on every mutation (`UPDATE … WHERE status = 'AWAITING_CREDIT'`).
+ *    A duplicated run of the job changes zero rows — and it is that layer, not
+ *    the mutex, that prevents the double credit.
  */
 import { and, eq, inArray, lt } from 'drizzle-orm'
 import { postEntries } from '../../core/ledger.ts'
@@ -35,7 +35,7 @@ import type { Job } from '../scheduler.ts'
 
 type SplitRow = typeof paymentSplits.$inferSelect
 
-/** A linha do banco vira a entrada da função pura. */
+/** The database row becomes the input of the pure function. */
 function toSpec(s: SplitRow): SplitSpec {
   return {
     walletId: s.walletId,
@@ -48,12 +48,13 @@ function toSpec(s: SplitRow): SplitSpec {
 }
 
 /**
- * Job 4 — splits AWAITING_CREDIT de cobranças já RECEBIDAS → DONE, movendo o
- * dinheiro entre as contas.
+ * Job 4 — splits AWAITING_CREDIT of already RECEIVED charges → DONE, moving the
+ * money between the accounts.
  *
- * Roda DEPOIS do credit-settlement (job 3) de propósito: só existe split do que
- * já entrou. Um cartão pago hoje só libera o split em D+32, no mesmo tick em que
- * a cobrança credita — e é isso que o teste de viagem no tempo prova.
+ * It runs AFTER the credit-settlement (job 3) on purpose: there is only a split
+ * of what already came in. A card paid today only releases the split at D+32, in
+ * the same tick in which the charge settles — and that is what the time travel
+ * test proves.
  */
 export const splitRelease: Job = {
   name: 'split-release',
@@ -61,8 +62,9 @@ export const splitRelease: Job = {
     const today = ctx.clock.today()
 
     /**
-     * Só cobrança RECEBIDA libera split. CONFIRMED não serve: o dinheiro ainda
-     * não é da conta de origem, e não se pode transferir o que não se tem.
+     * Only a RECEIVED charge releases a split. CONFIRMED does not do: the money
+     * is not the origin account's yet, and you cannot transfer what you do not
+     * have.
      */
     const pending = await ctx.db
       .select({ split: paymentSplits, payment: payments })
@@ -76,8 +78,8 @@ export const splitRelease: Job = {
         ),
       )
 
-    // Agrupa por cobrança: a divergência de valor é uma propriedade do CONJUNTO
-    // de splits, não de um split isolado.
+    // Groups by charge: the value divergence is a property of the WHOLE SET of
+    // splits, not of an isolated split.
     const byPayment = new Map<string, { payment: PaymentRow; splits: SplitRow[] }>()
     for (const row of pending) {
       const entry = byPayment.get(row.payment.id) ?? {
@@ -93,13 +95,13 @@ export const splitRelease: Job = {
         await ctx.db.transaction(async (t) => {
           const tx = t as unknown as DB
 
-          // Recalculado sobre o netValue FINAL — ver o comentário no topo.
+          // Recalculated over the FINAL netValue — see the comment at the top.
           const computed = computeSplits(cents(payment.netValueCents), splits.map(toSpec))
 
           /**
-           * A soma passou a exceder o netValue (a cobrança foi editada para
-           * menos depois de criada, por exemplo). Não credita: bloqueia, e o
-           * job de divergência assume a partir daqui.
+           * The sum went over the netValue (the charge was edited down after it
+           * was created, for example). It does not credit: it blocks, and the
+           * divergence job takes over from here.
            */
           if (computed.divergent) {
             const blockedUntil = addBusinessDays(
@@ -121,7 +123,7 @@ export const splitRelease: Job = {
               )
               .returning()
 
-            if (!blocked.length) return // outro tick já tratou
+            if (!blocked.length) return // another tick already handled it
 
             for (const s of blocked) {
               report.transitions.push({
@@ -141,9 +143,9 @@ export const splitRelease: Job = {
             const total = computed.splits[i]!.totalValueCents
 
             /**
-             * COMPARE-AND-SWAP. É o que impede o crédito em dobro se o job rodar
-             * duas vezes: a segunda execução altera zero linhas e cai fora ANTES
-             * de tocar no ledger.
+             * COMPARE-AND-SWAP. It is what prevents the double credit if the job
+             * runs twice: the second run changes zero rows and falls out BEFORE
+             * touching the ledger.
              */
             const updated = await tx
               .update(paymentSplits)
@@ -159,18 +161,20 @@ export const splitRelease: Job = {
             if (!updated.length) continue
 
             /**
-             * CARTEIRA EXTERNA: o walletId não é de nenhuma conta deste servidor,
-             * então `recipientAccountId` é null e NÃO HÁ CONTA PARA CREDITAR.
+             * EXTERNAL WALLET: the walletId belongs to no account of this
+             * server, so `recipientAccountId` is null and THERE IS NO ACCOUNT TO
+             * CREDIT.
              *
-             * Marcamos DONE (o split "aconteceu"), mas nenhum centavo se move —
-             * inclusive na origem. É uma DIVERGÊNCIA DELIBERADA com o Asaas real,
-             * onde o dinheiro sairia da sua conta rumo à carteira de outro
-             * cliente do Asaas. Aqui o dinheiro simplesmente não tem para onde ir,
-             * e debitar a origem sem creditar ninguém faria o extrato "sumir" com
-             * o valor sem contrapartida — algo que ninguém conseguiria conferir.
+             * It is marked DONE (the split "happened"), but not a cent moves —
+             * not even from the origin. It is a DELIBERATE DIVERGENCE from the
+             * real Asaas, where the money would leave your account towards the
+             * wallet of another Asaas client. Here the money simply has nowhere
+             * to go, and debiting the origin without crediting anyone would make
+             * the statement "lose" the value without a counterpart — something
+             * nobody could check.
              *
-             * Para ver o dinheiro andar de verdade, crie uma subconta
-             * (POST /v3/accounts) e use o walletId dela.
+             * To see the money really move, create a subaccount
+             * (POST /v3/accounts) and use its walletId.
              */
             if (!split.recipientAccountId) {
               report.transitions.push({
@@ -184,8 +188,9 @@ export const splitRelease: Job = {
             }
 
             /**
-             * O movimento. Débito na origem, crédito no destino, na MESMA
-             * transação — os dois extratos fecham ou nenhum dos dois fecha.
+             * The movement. Debit in the origin, credit in the destination, in
+             * the SAME transaction — the two statements close or neither of them
+             * closes.
              */
             await postEntries(tx, { clock: ctx.clock, rng: ctx.rng }, [
               {
@@ -217,7 +222,7 @@ export const splitRelease: Job = {
           }
         })
       } catch (err) {
-        ctx.log('debug', `split-release: cobrança ${payment.id} não liberou`, {
+        ctx.log('debug', `split-release: charge ${payment.id} did not release`, {
           error: String(err),
         })
       }
@@ -226,15 +231,17 @@ export const splitRelease: Job = {
 }
 
 /**
- * Job 5 — o prazo de ajuste de um split bloqueado por divergência expirou.
+ * Job 5 — the grace period of a split blocked by divergence expired.
  *
- * O Asaas bloqueia o split quando a soma excede o netValue e dá 2 DIAS ÚTEIS
- * (`SPLIT_DIVERGENCE_GRACE_BUSINESS_DAYS`) para o integrador corrigir os valores.
- * Passou o prazo, o split morre: CANCELLED com `VALUE_DIVERGENCE_BLOCK`.
+ * Asaas blocks the split when the sum goes over the netValue and gives 2
+ * BUSINESS DAYS (`SPLIT_DIVERGENCE_GRACE_BUSINESS_DAYS`) for the integrator to
+ * fix the values. Once the period is over, the split dies: CANCELLED with
+ * `VALUE_DIVERGENCE_BLOCK`.
  *
- * `blockedUntil` é o ÚLTIMO dia em que ainda dá para ajustar — por isso o
- * predicado é `blockedUntil < hoje`, e não `<=`. TODO(regra): a doc não diz se o
- * prazo vence no fim do último dia ou no início dele.
+ * `blockedUntil` is the LAST day on which it is still possible to adjust — which
+ * is why the predicate is `blockedUntil < today`, and not `<=`. TODO(rule): the
+ * docs do not say whether the period ends at the end of the last day or at its
+ * beginning.
  */
 export const splitDivergenceExpiry: Job = {
   name: 'split-divergence-expiry',
@@ -257,7 +264,7 @@ export const splitDivergenceExpiry: Job = {
         await ctx.db.transaction(async (t) => {
           const tx = t as unknown as DB
 
-          // CAS: se alguém ajustou o split neste meio-tempo, nada acontece.
+          // CAS: if someone adjusted the split in the meantime, nothing happens.
           const updated = await tx
             .update(paymentSplits)
             .set({ status: 'CANCELLED', cancellationReason: 'VALUE_DIVERGENCE_BLOCK' })
@@ -280,10 +287,10 @@ export const splitDivergenceExpiry: Job = {
           })
 
           /**
-           * Dois eventos, e não é redundância: o bloqueio terminou
-           * (DIVERGENCE_BLOCK_FINISHED) E o split foi cancelado (SPLIT_CANCELLED).
-           * TODO(regra): a doc lista os dois eventos mas não diz se o Asaas emite
-           * ambos neste caminho.
+           * Two events, and it is not redundancy: the block ended
+           * (DIVERGENCE_BLOCK_FINISHED) AND the split was cancelled (SPLIT_CANCELLED).
+           * TODO(rule): the docs list both events but do not say whether Asaas
+           * emits both on this path.
            */
           await emitSplitEvent(
             ctx,
@@ -294,7 +301,7 @@ export const splitDivergenceExpiry: Job = {
           await emitSplitEvent(ctx, tx, payment as PaymentRow, 'PAYMENT_SPLIT_CANCELLED')
         })
       } catch (err) {
-        ctx.log('debug', `split-divergence-expiry: split ${split.id} não cancelou`, {
+        ctx.log('debug', `split-divergence-expiry: split ${split.id} did not cancel`, {
           error: String(err),
         })
       }
@@ -303,13 +310,13 @@ export const splitDivergenceExpiry: Job = {
 }
 
 /**
- * O payload de um evento de split.
+ * The payload of a split event.
  *
- * TODO(regra): a spec não declara um `resourceType` "split" — os 111 eventos
- * carregam `payment`, `subscription`, `transfer`… Mandamos a COBRANÇA, cujo
- * campo `split[]` já traz cada split com status, valor e motivo do cancelamento.
- * É a leitura mais defensável: o cliente recebe tudo que precisa, no formato que
- * ele já sabe ler.
+ * TODO(rule): the spec does not declare a "split" `resourceType` — the 111 events
+ * carry `payment`, `subscription`, `transfer`… We send the CHARGE, whose `split[]`
+ * field already brings each split with its status, value and cancellation
+ * reason. It is the most defensible reading: the client receives everything it
+ * needs, in the format it already knows how to read.
  */
 async function emitSplitEvent(
   ctx: Parameters<Job['run']>[0]['ctx'],

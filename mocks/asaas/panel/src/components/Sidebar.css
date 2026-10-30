@@ -44,7 +44,7 @@
 }
 .nav-item:hover:not(:disabled) { background: var(--surface-hover); }
 
-/* O item ativo do Asaas é um pill azul-claro com texto azul. */
+/* The active item of Asaas is a light blue pill with blue text. */
 .nav-item.active {
   background: var(--primary-soft);
   color: var(--primary);
@@ -64,7 +64,7 @@
 .nav-item.active .nav-icon { color: var(--primary); }
 .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
-/* O contador vermelho — no Asaas ele fica sobre o ícone. */
+/* The red counter — in Asaas it sits over the icon. */
 .nav-badge {
   position: absolute;
   left: 30px;
@@ -84,8 +84,8 @@
 }
 
 /**
- * A fronteira. Tudo abaixo desta linha NÃO existe no Asaas — e a tela precisa
- * dizer isso sem que ninguém tenha que ler a documentação.
+ * The boundary. Everything below this line does NOT exist in Asaas — and the
+ * screen has to say that without anyone having to read the documentation.
  */
 .sim-section {
   margin-top: auto;

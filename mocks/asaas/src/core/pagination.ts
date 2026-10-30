@@ -1,5 +1,5 @@
 /**
- * Envelope de listagem do Asaas:
+ * The Asaas listing envelope:
  *
  *   { "object": "list", "hasMore": false, "totalCount": 12,
  *     "limit": 10, "offset": 0, "data": [ … ] }

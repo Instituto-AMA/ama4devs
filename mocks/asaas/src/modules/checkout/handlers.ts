@@ -1,12 +1,12 @@
 /**
- * Track G1 — Checkout (2 operações).
+ * Track G1 — Checkout (2 operations).
  *
- * Um checkout é uma sessão de pagamento hospedada: você manda os itens e recebe
- * um link. Ele nasce ACTIVE, expira em `minutesToExpire` e pode ser cancelado.
+ * A checkout is a hosted payment session: you send the items and receive a
+ * link. It is born ACTIVE, expires in `minutesToExpire` and can be cancelled.
  *
- * O cancelamento emite CHECKOUT_CANCELED — o webhook é EFEITO da transição, não
- * algo que o handler "lembra" de fazer, e por isso é emitido na mesma transação
- * que muda o status.
+ * The cancellation emits CHECKOUT_CANCELED — the webhook is an EFFECT of the
+ * transition, not something the handler "remembers" to do, and that is why it is
+ * emitted in the same transaction that changes the status.
  */
 import { and, eq } from 'drizzle-orm'
 import { toBusinessTimestamp } from '../../core/clock.ts'
@@ -53,7 +53,7 @@ function serialize(row: CheckoutRow) {
   }
 }
 
-/** Soma dos itens, em centavos. Aritmética inteira do começo ao fim. */
+/** Sum of the items, in cents. Integer arithmetic from the start to the end. */
 function totalCents(items: Record<string, unknown>[]) {
   let total = cents(0)
   for (const [i, item] of items.entries()) {
@@ -75,8 +75,8 @@ export const checkoutHandlers: HandlerMap = {
   'create-new-checkout': async ({ ctx, auth, body }) => {
     const b = (body ?? {}) as Record<string, any>
 
-    // billingTypes/chargeTypes são LISTAS: um checkout pode aceitar Pix e cartão,
-    // e ser avulso ou parcelado, na mesma sessão.
+    // billingTypes/chargeTypes are LISTS: a checkout can accept Pix and card,
+    // and be one-off or installment, in the same session.
     const billingTypes = (Array.isArray(b.billingTypes) ? b.billingTypes : []).map(String)
     const chargeTypes = (Array.isArray(b.chargeTypes) ? b.chargeTypes : []).map(String)
 
@@ -100,7 +100,7 @@ export const checkoutHandlers: HandlerMap = {
       throw invalid('callback', 'As URLs de sucesso e de cancelamento são obrigatórias.')
     }
 
-    // Regras que a spec descreve em prosa, no texto dos próprios campos.
+    // Rules the spec describes in prose, in the text of the fields themselves.
     if (chargeTypes.includes('RECURRENT') && !b.subscription) {
       throw invalid(
         'subscription',
@@ -136,11 +136,12 @@ export const checkoutHandlers: HandlerMap = {
       customerData: (b.customerData as Record<string, unknown> | null) ?? null,
       subscription: (b.subscription as Record<string, unknown> | null) ?? null,
       installment: (b.installment as Record<string, unknown> | null) ?? null,
-      // O request chama de `splits`, a resposta de `split`. É assim na spec.
+      // The request calls it `splits`, the answer calls it `split`. It is like
+      // that in the spec.
       split: (b.splits as Record<string, unknown>[] | null) ?? null,
     }
 
-    // Relógio virtual: a expiração é calculada no tempo SIMULADO.
+    // Virtual clock: the expiration is calculated in SIMULATED time.
     const expiresAt = new Date(ctx.clock.nowMs() + minutesToExpire * 60_000)
 
     const row = {
@@ -163,7 +164,7 @@ export const checkoutHandlers: HandlerMap = {
       resource: serialize(row as CheckoutRow),
     })
 
-    return serialize(row as CheckoutRow) // 200, nunca 201
+    return serialize(row as CheckoutRow) // 200, never 201
   },
 
   'cancel-a-checkout': async ({ ctx, auth, params }) => {
@@ -184,7 +185,7 @@ export const checkoutHandlers: HandlerMap = {
       )
     }
 
-    // Compare-and-swap: dois cancelamentos concorrentes, um só efeito.
+    // Compare-and-swap: two concurrent cancellations, one effect only.
     await ctx.db
       .update(checkouts)
       .set({ status: 'CANCELED' })

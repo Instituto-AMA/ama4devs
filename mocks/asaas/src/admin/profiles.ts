@@ -10,7 +10,7 @@
  */
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
-import { badRequest, invalid, notFound } from '../core/errors.ts'
+import { badRequest, invalid, notFoundMessage } from '../core/errors.ts'
 import { accounts, apiKeys } from '../db/schema/index.ts'
 import { cnpjFromBase, isValidCpfCnpj } from '../domain/cpf-cnpj.ts'
 import * as ids from '../domain/ids.ts'
@@ -27,7 +27,7 @@ export interface CreateProfileInput {
 
 const digitsOnly = (v: string) => v.replace(/\D/g, '')
 
-/** "Clínica A" → "clinica-a", the local part of a profile's default e-mail. */
+/** "Clinic A" → "clinic-a": the local part of a profile's default e-mail. */
 const slug = (name: string) =>
   name
     .toLowerCase()
@@ -52,13 +52,13 @@ export async function createProfile(
   input: CreateProfileInput,
 ): Promise<SeedResult> {
   const name = (input.name ?? '').trim()
-  if (name === '') throw invalid('name', 'Informe o nome do perfil.')
+  if (name === '') throw invalid('name', 'Provide the profile name.')
 
   // No document given: a valid CNPJ, so every validation downstream accepts it.
   const cpfCnpj = input.cpfCnpj
     ? digitsOnly(input.cpfCnpj)
     : cnpjFromBase(`${ctx.rng.digits(8)}0001`)
-  if (!isValidCpfCnpj(cpfCnpj)) throw invalid('cpfCnpj', 'O CPF/CNPJ informado é inválido.')
+  if (!isValidCpfCnpj(cpfCnpj)) throw invalid('cpfCnpj', 'The given CPF/CNPJ is invalid.')
 
   // The document is how the seed recognises a profile across restarts; two
   // roots with the same one would make that lookup ambiguous.
@@ -68,19 +68,19 @@ export async function createProfile(
     .where(and(isNull(accounts.parentAccountId), eq(accounts.cpfCnpj, cpfCnpj)))
     .limit(1)
   if (sameDocument) {
-    throw invalid('cpfCnpj', 'Já existe um perfil com este CPF/CNPJ.')
+    throw invalid('cpfCnpj', 'A profile with this CPF/CNPJ already exists.')
   }
 
   const apiKey = input.apiKey?.trim() || ids.apiKey(ctx.rng)
   if (!apiKey.startsWith('$aact_')) {
-    throw invalid('apiKey', 'A chave deve começar com "$aact_", como as do Asaas.')
+    throw invalid('apiKey', 'The key must start with "$aact_", like Asaas keys.')
   }
   const [sameKey] = await ctx.db
     .select({ id: apiKeys.id })
     .from(apiKeys)
     .where(eq(apiKeys.key, apiKey))
     .limit(1)
-  if (sameKey) throw invalid('apiKey', 'Esta chave já pertence a outra conta.')
+  if (sameKey) throw invalid('apiKey', 'This key already belongs to another account.')
 
   return insertRootAccount(
     { db: ctx.db, config: ctx.config, clock: ctx.clock, rng: ctx.rng },
@@ -173,11 +173,11 @@ export async function deleteProfile(
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1)
-  if (!account) throw notFound('Perfil')
+  if (!account) throw notFoundMessage('Profile not found.')
   if (account.parentAccountId) {
     throw badRequest(
       'invalid_account',
-      'Subcontas são encerradas pela API do Asaas (DELETE /v3/accounts/{id}), com a chave da conta principal.',
+      'Subaccounts are closed through the Asaas API (DELETE /v3/accounts/{id}), with the main account key.',
     )
   }
 
@@ -196,7 +196,7 @@ export async function deleteProfile(
     tx.delete(accounts).where(inArray(accounts.id, family)).run()
   })
 
-  ctx.log('info', `Perfil ${account.id} excluído com ${family.length - 1} subconta(s)`)
+  ctx.log('info', `Profile ${account.id} deleted with ${family.length - 1} subaccount(s)`)
   return { deleted: true, id: account.id, accounts: family.length, rows }
 }
 

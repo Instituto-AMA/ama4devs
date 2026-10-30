@@ -1,10 +1,10 @@
 /**
- * Um endpoint de webhook de verdade, num servidor HTTP de verdade.
+ * A real webhook endpoint, on a real HTTP server.
  *
- * Poderia ser um espião em memória, mas então não estaríamos testando nada do
- * que importa: o `fetch`, o timeout de 10s, o header `asaas-access-token`, e a
- * regra de que SÓ HTTP 200 conta como sucesso. É justamente aí que as
- * integrações quebram no mundo real.
+ * It could be an in-memory spy, but then we would be testing nothing of
+ * what matters: the `fetch`, the 10s timeout, the `asaas-access-token` header, and the
+ * rule that only HTTP 200 counts as a success. It is exactly there that the
+ * integrations break in the real world.
  */
 type BunServer = ReturnType<typeof Bun.serve>
 
@@ -18,7 +18,7 @@ export class WebhookSink {
   #server: BunServer
   readonly received: ReceivedWebhook[] = []
 
-  /** Respostas programadas, consumidas uma a uma. Depois volta ao default. */
+  /** Scheduled responses, consumed one by one. Then it goes back to the default. */
   #queued: (number | 'timeout')[] = []
   #default: number | 'timeout' = 200
 
@@ -29,7 +29,7 @@ export class WebhookSink {
   static async start(): Promise<WebhookSink> {
     let sink: WebhookSink
     const server = Bun.serve({
-      port: 0, // porta efêmera — testes rodam em paralelo sem colidir
+      port: 0, // ephemeral port — the tests run in parallel without colliding
       async fetch(req) {
         const payload = await req.json().catch(() => null)
         const headers: Record<string, string> = {}
@@ -42,7 +42,7 @@ export class WebhookSink {
         const outcome = sink.#queued.shift() ?? sink.#default
 
         if (outcome === 'timeout') {
-          // Nunca responde. Exercita o AbortSignal.timeout do dispatcher.
+          // Never answers. Exercises the dispatcher's AbortSignal.timeout.
           await new Promise(() => {})
         }
 
@@ -57,12 +57,12 @@ export class WebhookSink {
     return `http://localhost:${this.#server.port}/webhook`
   }
 
-  /** Todas as respostas seguintes usam este status. 200 = sucesso. */
+  /** All the following responses use this status. 200 = success. */
   respondWith(status: number | 'timeout'): void {
     this.#default = status
   }
 
-  /** As próximas `n` respostas falham com `status`; depois volta ao default. */
+  /** The next `n` responses fail with `status`; then it goes back to the default. */
   failNext(n: number, status: number | 'timeout' = 500): void {
     for (let i = 0; i < n; i++) this.#queued.push(status)
   }
@@ -71,7 +71,7 @@ export class WebhookSink {
     return this.received.filter((r) => r.payload?.event === event)
   }
 
-  /** Ordem em que os eventos chegaram — o teste de SEQUENTIALLY vive disso. */
+  /** The order the events arrived in — the SEQUENTIALLY test lives on it. */
   get eventNames(): string[] {
     return this.received.map((r) => r.payload?.event)
   }

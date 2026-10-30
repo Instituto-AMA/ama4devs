@@ -1,109 +1,108 @@
-# Asaas Mock Server — Simulador local fiel do sandbox Asaas
+# Asaas Mock Server — a faithful local simulator of the Asaas sandbox
 
-## Contexto
+## Context
 
-O sandbox do Asaas **não entrega webhooks em `localhost`**, o que torna impossível testar de ponta a
-ponta um fluxo de pagamento na máquina do dev: você cria a cobrança, ela é paga, e o evento nunca
-chega. Hoje isso obriga a gambiarras (ngrok, deploy de staging só pra testar, mock manual de
-payload) que não reproduzem o comportamento real — prazos de crédito, juros, split, retentativa de
-webhook.
+Asaas's sandbox **does not deliver webhooks to `localhost`**, which makes it impossible to test a
+payment flow end to end on the developer's machine: you create the charge, it gets paid, and the event never
+arrives. Today that forces workarounds (ngrok, a staging deploy just to test, a manual mock of the
+payload) that do not reproduce the real behavior — credit deadlines, interest, split, webhook retry.
 
-Vamos construir um **Asaas local em Docker**: um servidor que expõe a API v3 do Asaas com fidelidade
-de contrato e **simula de verdade** as máquinas de estado, os cálculos financeiros e os agendamentos
-da plataforma — e entrega webhooks em `localhost`. Não é um mock de respostas estáticas: uma cobrança
-de cartão criada nele fica `CONFIRMED`, credita em D+32, debita a taxa, movimenta o split entre
-contas e gera lançamento no extrato — tudo observável.
+We are going to build a **local Asaas in Docker**: a server that exposes Asaas's v3 API with contract
+fidelity and **really simulates** the platform's state machines, financial calculations and schedules —
+and delivers webhooks to `localhost`. It is not a mock of static responses: a card charge created in it
+stays `CONFIRMED`, credits at D+32, debits the fee, moves the split between
+accounts and produces a statement entry — all observable.
 
-O diferencial sobre o sandbox real: um **relógio virtual controlável**. Você avança 32 dias em
-milissegundos e vê o `PAYMENT_RECEIVED` chegar. Nenhuma suíte de testes contra o Asaas real consegue
-fazer isso.
+The difference from the real sandbox: a **controllable virtual clock**. You advance 32 days in
+milliseconds and watch the `PAYMENT_RECEIVED` arrive. No test suite against the real Asaas can
+do that.
 
-**Fonte de verdade:** a spec OpenAPI 3.0.1 oficial (`https://www.asaas.com/openApi/document?version=3&languageCode=en-US`
-retorna o JSON cru) — 159 paths, **213 operações**, 486 schemas, auth via header `access_token`.
-Já baixada e analisada. As regras de negócio (taxas, juros, prazos, 111 eventos de webhook, backoff)
-foram pesquisadas na doc oficial e estão consolidadas abaixo.
+**Source of truth:** the official OpenAPI 3.0.1 spec (`https://www.asaas.com/openApi/document?version=3&languageCode=en-US`
+returns the raw JSON) — 159 paths, **213 operations**, 486 schemas, auth via the `access_token` header.
+Already downloaded and analyzed. The business rules (fees, interest, deadlines, 111 webhook events, backoff)
+were researched in the official docs and are consolidated below.
 
-## Decisões (confirmadas com o usuário)
+## Decisions (confirmed with the user)
 
 | | |
 |---|---|
 | **Stack** | Bun + Elysia + Drizzle + SQLite (`bun:sqlite`) + Docker |
-| **Cobertura** | Superfície total (213 rotas registradas, com auth/validação/erro Asaas) + core com motor de negócio real |
-| **Tempo** | Relógio virtual controlável via `/_admin/clock` + scheduler por tick; modo default segue relógio real |
-| **Multi-conta** | Cada API key = uma conta com `walletId` e saldo próprios; split move dinheiro de verdade entre contas |
+| **Coverage** | Full surface (213 routes registered, with auth/validation/Asaas errors) + core with a real business engine |
+| **Time** | Controllable virtual clock via `/_admin/clock` + per-tick scheduler; the default mode follows the real clock |
+| **Multi-account** | Each API key = one account with its own `walletId` and balance; a split really moves money between accounts |
 
 ---
 
-## Arquitetura
+## Architecture
 
-### 1. Pipeline OpenAPI → código
+### 1. OpenAPI → code pipeline
 
-**Codegen próprio emitindo TypeBox** (não Kubb — é gerador de *client*; não Zod — Elysia é
-TypeBox-native e valida request **e response**). `openapi-typescript` entra só como oráculo de tipos
-em teste, para detectar drift.
+**Our own codegen emitting TypeBox** (not Kubb — it is a *client* generator; not Zod — Elysia is
+TypeBox-native and validates both request **and response**). `openapi-typescript` enters only as a type
+oracle in the tests, to detect drift.
 
-O ponto central: o codegen emite um **manifesto** das 213 operações. As rotas são registradas
-iterando o manifesto, e todo `operationId` sem handler recebe automaticamente um `notImplemented`.
-Assim *"as 213 rotas existem"* vira **invariante de build**, não checklist.
+The central point: the codegen emits a **manifest** of the 213 operations. The routes are registered by
+iterating the manifest, and every `operationId` without a handler automatically receives a `notImplemented`.
+That way, *"the 213 routes exist"* becomes a **build invariant**, not a checklist.
 
 ```
-spec/openapi.json          # vendorizado, byte-a-byte do upstream, nunca editado à mão
-spec/overlays/*.json       # JSON Patch p/ defeitos da spec (ex: status AUTHORIZED não existe no enum)
-src/generated/operations.ts # o manifesto: {operationId, tag, method, path, params, query, body, responses}
-src/generated/schemas/*.ts  # TypeBox, um arquivo por tag (486 schemas num arquivo só mata o tsc)
+spec/openapi.json          # vendored, byte-for-byte from upstream, never hand-edited
+spec/overlays/*.json       # JSON Patch for the spec's defects (e.g. the AUTHORIZED status is missing from the enum)
+src/generated/operations.ts # the manifest: {operationId, tag, method, path, params, query, body, responses}
+src/generated/schemas/*.ts  # TypeBox, one file per tag (486 schemas in one file kills tsc)
 ```
 
-Dois defeitos conhecidos da spec, já tratados:
-- **Enums desnormalizados** — 173 schemas de enum, 9 variações de "PaymentStatus" que colapsam em 2
-  conjuntos de valores. O codegen deduplica por hash do conjunto de valores.
-- **Valores faltando** — `AUTHORIZED` (pré-autorização) não aparece em nenhum enum de status. Overlay
-  adiciona. `src/domain/enums.ts` é escrito à mão e **autoritativo**; um teste garante
-  `enum_da_spec ⊆ enum_do_domínio`, então o CI quebra quando o Asaas adicionar um status novo.
+Two known spec defects, already handled:
+- **Denormalized enums** — 173 enum schemas, 9 variations of "PaymentStatus" that collapse into 2
+  value sets. The codegen deduplicates by the hash of the value set.
+- **Missing values** — `AUTHORIZED` (pre-authorization) appears in no status enum. An overlay
+  adds it. `src/domain/enums.ts` is written by hand and is **authoritative**; a test guarantees
+  `spec_enum ⊆ domain_enum`, so the CI breaks when Asaas adds a new status.
 
-Build é **hermético e offline** (o endpoint da spec dá 429 se você bater repetido). `bun run spec:diff`
-roda num job semanal separado e abre issue quando o Asaas muda a API.
+The build is **hermetic and offline** (the spec endpoint answers 429 if you hit it repeatedly). `bun run spec:diff`
+runs in a separate weekly job and opens an issue when Asaas changes the API.
 
-### 2. Estrutura
+### 2. Structure
 
 ```
 src/
-├── domain/      # PURO. Não importa db, http, nem clock. Toda fn recebe `now: Date`.
+├── domain/      # PURE. It imports no db, http or clock. Every fn receives `now: Date`.
 │                # money, fees, interest, discount, installments, split, settlement,
-│                # cpf-cnpj, calendar (dias úteis BR), payment-machine
-├── db/schema/   # Drizzle, um arquivo por área
-├── core/        # clock, rng (semeado), context, ledger, events, errors, pagination
-├── http/        # app, register (manifesto→rotas), auth, error-mapper
-├── modules/     # uma pasta por tag, handlers indexados por operationId
+│                # cpf-cnpj, calendar (BR business days), payment-machine
+├── db/schema/   # Drizzle, one file per area
+├── core/        # clock, rng (seeded), context, ledger, events, errors, pagination
+├── http/        # app, register (manifest→routes), auth, error-mapper
+├── modules/     # one folder per tag, handlers indexed by operationId
 ├── scheduler/   # tick() + jobs
-├── webhooks/    # fila, dispatcher, backoff, payload, rewrite localhost
-└── admin/       # FORA de /v3: clock, reset, state, deliveries, fees, coverage
+├── webhooks/    # queue, dispatcher, backoff, payload, localhost rewrite
+└── admin/       # OUTSIDE /v3: clock, reset, state, deliveries, fees, coverage
 ```
 
-Regra que sustenta tudo: **`src/domain/` não importa nada de infra.** É o que permite paralelizar
-agentes sem conflito e o que torna o relógio virtual um não-problema para os cálculos.
+The rule that holds everything together: **`src/domain/` imports nothing from the infrastructure.** It is what
+allows parallelizing agents without conflict and what makes the virtual clock a non-problem for the calculations.
 
-### 3. Dinheiro: inteiros em centavos
+### 3. Money: integers in cents
 
-SQLite `REAL` é IEEE-754 — o saldo corrente acumula erro ao longo de milhares de lançamentos. Pior:
-as regras do Asaas são **regras de resto exato** ("a sobra vai na última parcela"), que só se
-expressam em aritmética inteira. `value_cents: integer`. Percentuais de split têm 4 casas → escala
-1e4. Taxas em basis points.
+SQLite `REAL` is IEEE-754 — the running balance accumulates error over thousands of entries. Worse:
+Asaas's rules are **exact remainder rules** ("the remainder goes to the last installment"), which only
+express themselves in integer arithmetic. `value_cents: integer`. Split percentages have 4 decimal
+places → 1e4 scale. Fees in basis points.
 
-Datas em **TEXT** no formato de fio do Asaas (`YYYY-MM-DD` / `YYYY-MM-DD HH:mm:ss`) —
-lexicograficamente ordenável, sem surpresa de timezone. Fuso `America/Sao_Paulo`.
-**Nenhum `CURRENT_TIMESTAMP` como default de coluna** — todo timestamp vem de `clock.now()`, senão o
-relógio virtual vaza.
+Dates in **TEXT** in Asaas's wire format (`YYYY-MM-DD` / `YYYY-MM-DD HH:mm:ss`) —
+lexicographically sortable, no timezone surprises. Timezone `America/Sao_Paulo`.
+**No `CURRENT_TIMESTAMP` as a column default** — every timestamp comes from `clock.now()`, otherwise the
+virtual clock leaks.
 
-Saldo é materializado em `accounts.balance_cents` **na mesma transação** do lançamento no ledger, e um
-invariante roda no `afterEach` dos testes: `balance_cents === SUM(financial_transactions.value_cents)`.
+The balance is materialized in `accounts.balance_cents` **in the same transaction** as the ledger entry, and an
+invariant runs in the tests' `afterEach`: `balance_cents === SUM(financial_transactions.value_cents)`.
 
-### 4. Máquina de estados de payment
+### 4. The payment state machine
 
-Tabela de transições declarativa + descritores de efeito. `plan()` é **função pura** que devolve
-*dados*; `apply()` executa numa transação.
+A declarative transition table + effect descriptors. `plan()` is a **pure function** that returns
+*data*; `apply()` executes it in a transaction.
 
 ```ts
-// src/domain/payment-machine.ts — PURO
+// src/domain/payment-machine.ts — PURE
 plan(payment, trigger, now, fees) → { to: Status, patch, effects: Effect[] } | AsaasError
 
 type Effect =
@@ -113,196 +112,196 @@ type Effect =
   | { t:'SET_CREDIT_DATE'; date }
 ```
 
-`applyTransition()` é o **único lugar** onde o status de uma cobrança muda — sandbox action,
-scheduler, captura, `receiveInCash`, refund, todos passam por ele. Webhook e lançamento financeiro
-são *efeitos da transição*, não algo que o handler precisa lembrar de fazer. Não podem divergir.
-`UPDATE ... WHERE id=? AND status=?` (compare-and-swap) torna a máquina segura contra tick duplo.
+`applyTransition()` is the **only place** where a charge's status changes — sandbox action,
+scheduler, capture, `receiveInCash`, refund, they all go through it. The webhook and the financial entry
+are *effects of the transition*, not something the handler has to remember to do. They cannot diverge.
+`UPDATE ... WHERE id=? AND status=?` (compare-and-swap) makes the machine safe against a double tick.
 
-A divergência por meio de pagamento vive num único lugar (`settlementDate()`):
+The divergence per payment method lives in a single place (`settlementDate()`):
 
-| billingType | Fluxo | Crédito |
+| billingType | Flow | Credit |
 |---|---|---|
-| `PIX` | → `RECEIVED` **direto** (pula CONFIRMED) | imediato |
-| `BOLETO` | → `CONFIRMED` → `RECEIVED` | D+1 útil |
+| `PIX` | → `RECEIVED` **directly** (skips CONFIRMED) | immediate |
+| `BOLETO` | → `CONFIRMED` → `RECEIVED` | D+1 business day |
 | `CREDIT_CARD` | → `CONFIRMED` → `RECEIVED` | **D+32** |
 | `DEBIT_CARD` | → `CONFIRMED` → `RECEIVED` | D+3 |
 
-Vencido entra em `OVERDUE` antes, em qualquer um.
+Once overdue, it enters `OVERDUE` first, in any of them.
 
-### 5. Relógio virtual + scheduler
+### 5. Virtual clock + scheduler
 
-`Clock` injetado via `AppContext`. Três modos: `REAL` (default), `VIRTUAL_FLOWING`, `VIRTUAL_FROZEN`
-(CI). **`Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()` são proibidos** fora de
-`core/clock.ts` e `core/rng.ts` — regra ESLint + teste que faz grep no fonte.
+`Clock` injected through `AppContext`. Three modes: `REAL` (default), `VIRTUAL_FLOWING`, `VIRTUAL_FROZEN`
+(CI). **`Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()` are forbidden** outside of
+`core/clock.ts` and `core/rng.ts` — an ESLint rule + a test that greps the source.
 
-`advance({days: 40})` **não é um tick só em T+40** — isso geraria uma cobrança de assinatura em vez de
-várias e carimbaria `OVERDUE` com data errada. É um `tick()` completo **por dia simulado**.
+`advance({days: 40})` is **not a single tick at T+40** — that would generate one subscription charge instead
+of several and would stamp `OVERDUE` with the wrong date. It is a full `tick()` **per simulated day**.
 
-Ordem fixa dos jobs por tick (a ordem faz parte da semântica):
+The fixed order of the jobs per tick (the order is part of the semantics):
 `subscription-generation` → `overdue` → `credit-settlement` → `split-release` →
 `split-divergence-expiry` → `anticipation-settlement` → `webhook-dispatch` → `retention-purge`
 
-Idempotência em 3 camadas: mutex in-process (um processo Bun + SQLite = serial trivial), tabela
-`job_runs(jobName, tickKey)` UNIQUE, e CAS em toda mutação — a última é a que realmente salva.
+Idempotency in 3 layers: an in-process mutex (one Bun process + SQLite = trivially serial), a
+`job_runs(jobName, tickKey)` UNIQUE table, and CAS on every mutation — the last one is what actually saves you.
 
-`POST /_admin/clock/advance` devolve um `TickReport` com as transições, o que faz os testes lerem como
-especificação:
+`POST /_admin/clock/advance` returns a `TickReport` with the transitions, which makes the tests read like a
+specification:
 ```ts
 const [r] = await h.advance({ days: 32 })
 expect(r.transitions).toContainEqual({ paymentId, from:'CONFIRMED', to:'RECEIVED', job:'credit-settlement' })
 ```
 
-### 6. Motor de webhooks
+### 6. Webhook engine
 
-Um `webhook_events` por evento de domínio → N `webhook_deliveries` (uma por config inscrita).
-**O payload é congelado no momento do emit** — uma retentativa 3h depois não pode enviar o estado
-atual do recurso; o evento descreve um instante.
+One `webhook_events` per domain event → N `webhook_deliveries` (one per subscribed config).
+**The payload is frozen at the moment of the emit** — a retry 3h later cannot send the resource's
+current state; the event describes an instant.
 
-Fidelidade ao Asaas real:
-- Header `asaas-access-token` = `authToken` do webhook. **Só HTTP 200 é sucesso** (201/204 = falha —
-  é a regra real e é onde as pessoas se queimam). Timeout 10s.
-- Backoff de 15 tentativas: `0, 30s, 1min, 3.5min, 5min, 15min, 25min, 1h×5, 2h×2, 3h` → depois
-  `interrupted = true`. `POST /v3/webhooks/{id}/removeBackoff` reseta.
-- `SEQUENTIALLY` faz head-of-line blocking de verdade (é o contrato do Asaas, e é justamente o que o
-  usuário precisa poder testar). `NON_SEQUENTIALLY` roda com concorrência limitada.
-- Entrega at-least-once; `evt_` id estável entre retentativas (vive no *evento*, não na *entrega*).
-- Retenção 14 dias (simulados).
+Fidelity to the real Asaas:
+- The `asaas-access-token` header = the webhook's `authToken`. **Only HTTP 200 is a success** (201/204 = failure —
+  it is the real rule and it is where people get burned). A 10s timeout.
+- A 15-attempt backoff: `0, 30s, 1min, 3.5min, 5min, 15min, 25min, 1h×5, 2h×2, 3h` → then
+  `interrupted = true`. `POST /v3/webhooks/{id}/removeBackoff` resets it.
+- `SEQUENTIALLY` does real head-of-line blocking (it is Asaas's contract, and it is exactly what the
+  user needs to be able to test). `NON_SEQUENTIALLY` runs with limited concurrency.
+- At-least-once delivery; the `evt_` id is stable across retries (it lives in the *event*, not in the *delivery*).
+- 14-day retention (simulated).
 
-O backoff é comparado contra `clock.nowMs()` — então `advance({hours:1})` dispara a retentativa na
-hora. Dá pra exercitar as 15 tentativas e chegar em `interrupted` em ~20ms.
+The backoff is compared against `clock.nowMs()` — so `advance({hours:1})` triggers the retry at the
+right hour. You can exercise the 15 attempts and reach `interrupted` in ~20ms.
 
-### 7. Regras de negócio (pesquisadas na doc oficial)
+### 7. Business rules (researched in the official docs)
 
-**Taxas** (configuráveis por env / `PUT /_admin/fees`): boleto liquidado R$ 1,99 · Pix recebido R$ 1,99
-fixo · cartão à vista R$ 0,49 + 2,99% · 2-6x +3,49% · 7-12x +3,99% · 13-21x +4,29% · débito
-R$ 0,35 + 1,89% · TED R$ 5,00.
+**Fees** (configurable by env / `PUT /_admin/fees`): settled bank slip R$ 1.99 · Pix received R$ 1.99
+fixed · single-payment card R$ 0.49 + 2.99% · 2-6x +3.49% · 7-12x +3.99% · 13-21x +4.29% · debit
+card R$ 0.35 + 1.89% · TED R$ 5.00.
 
-**`netValue = value − taxa`.** O split incide sobre o **`netValue`**, não sobre o bruto.
+**`netValue = value − fee`.** The split applies to the **`netValue`**, not to the gross amount.
 
-**Juros/multa:** multa aplicada **uma vez** no 1º dia de atraso (FIXED|PERCENTAGE). Juros pro-rata
-die sobre mês comercial de 30 dias: `juros = value × (interest.value/100) / 30 × diasAtraso`.
-`interest` só tem `value` (percentual mensal) — **não tem `type`**. `interestValue = multa + juros`.
+**Interest/fine:** the fine is applied **once**, on the 1st day of lateness (FIXED|PERCENTAGE). Pro-rata
+die interest over a 30-day commercial month: `interest = value × (interest.value/100) / 30 × daysLate`.
+`interest` only has `value` (a monthly percentage) — it has **no `type`**. `interestValue = fine + interest`.
 
-**Parcelamento:** as N cobranças nascem imediatamente, mensais. Sobra de arredondamento vai na
-**última** parcela — `R$ 350 / 12 → 11 × R$ 29,16 + R$ 29,24` (linha 1 do golden test).
+**Installment plan:** the N charges are born immediately, monthly. The rounding remainder goes to the
+**last** installment — `R$ 350 / 12 → 11 × R$ 29.16 + R$ 29.24` (line 1 of the golden test).
 
-**Assinatura:** cobrança gerada **40 dias antes** do `nextDueDate` (configurável p/ 14 ou 7) —
-**não** na criação.
+**Subscription:** the first charge is generated **at creation**. Each following charge is generated
+**40 days before** its `nextDueDate` (configurable to 14 or 7).
 
-**Split:** `PENDING → AWAITING_CREDIT → DONE`. Soma > `netValue` → `BLOCKED_BY_VALUE_DIVERGENCE` com
-2 dias úteis pra ajustar.
+**Split:** `PENDING → AWAITING_CREDIT → DONE`. Sum > `netValue` → `BLOCKED_BY_VALUE_DIVERGENCE` with
+2 business days to adjust.
 
-**Erros:** `{"errors":[{"code":"invalid_<campo>","description":"..."}]}`. Criação retorna **200**, nunca 201.
-**Paginação:** `{object:"list", hasMore, totalCount, limit, offset, data:[]}`, limit máx 100.
-**IDs:** `pay_<12díg>`, `cus_<12díg>`, `sub_<alfanum>`, `evt_<hex32>&<n>`; installment/transfer/split/
-webhook/walletId = **UUID puro**. API key sandbox: `$aact_hmlg_…`.
-**Cartões de teste:** `4444444444444444` aprova; `5184019740373151` e `4916561358240741` recusam.
+**Errors:** `{"errors":[{"code":"invalid_<field>","description":"..."}]}`. Creation returns **200**, never 201.
+**Pagination:** `{object:"list", hasMore, totalCount, limit, offset, data:[]}`, max limit 100.
+**IDs:** `pay_<12 digits>`, `cus_<12 digits>`, `sub_<alphanumeric>`, `evt_<hex32>&<n>`; installment/transfer/split/
+webhook/walletId = **plain UUID**. Sandbox API key: `$aact_hmlg_…`.
+**Test cards:** `4444444444444444` approves; `5184019740373151` and `4916561358240741` decline.
 
-### 8. Docker — a pegadinha nº 1
+### 8. Docker — the #1 trap
 
-A promessa do produto é *webhook em localhost*, e o Docker quebra isso: dentro do container,
-`http://localhost:3000` é o próprio container.
+The product's promise is *a webhook on localhost*, and Docker breaks it: inside the container,
+`http://localhost:3000` is the container itself.
 
 ```yaml
 environment:
-  WEBHOOK_LOCALHOST_REWRITE: host.docker.internal   # reescreve a URL do webhook
+  WEBHOOK_LOCALHOST_REWRITE: host.docker.internal   # rewrites the webhook URL
 extra_hosts:
-  - "host.docker.internal:host-gateway"            # faz funcionar no Linux também
+  - "host.docker.internal:host-gateway"            # makes it work on Linux too
 ```
-Reescrita ligada por padrão, logada em voz alta na primeira vez. **Isso vai nas 20 primeiras linhas do
+The rewrite is on by default, and it is logged out loud the first time. **This goes in the first 20 lines of the
 README.**
 
 ---
 
-## Documentos pedidos
+## Requested documents
 
-- **`AGENTS.md`** — o que é o projeto, por que existe, a stack, os invariantes inegociáveis (domain
-  puro, proibição de `Date.now()`, dinheiro em centavos, toda transição via `applyTransition`), e
-  como um agente deve trabalhar aqui.
-- **`MASTER_PLAN.md`** — este plano, versionado no repo.
-- **`progress.md`** — tabela de tracks/agentes/status + a linha **gerada por máquina**
-  (`bun run coverage:ops` lê o manifesto ∩ handler map e imprime `implemented: 41/213`). Nunca manter
-  contagem à mão que um agente sabe computar.
+- **`AGENTS.md`** — what the project is, why it exists, the stack, the non-negotiable invariants (pure
+  domain, the ban on `Date.now()`, money in cents, every transition through `applyTransition`), and
+  how an agent should work here.
+- **`MASTER_PLAN.md`** — this plan, versioned in the repo.
+- **`progress.md`** — a tracks/agents/status table + the **machine-generated line**
+  (`bun run coverage:ops` reads the manifest ∩ handler map and prints `implemented: 41/213`). Never keep
+  a count by hand that an agent knows how to compute.
 
 ---
 
-## Fases
+## Phases
 
-### Fase 0 — Tronco (bloqueante, um agente, não paralelizável)
-Esqueleto, spec vendorizada + overlays, **codegen**, `src/generated/*`, **schema Drizzle completo**
-(todas as tabelas de uma vez — é a única superfície real de conflito de merge), `src/core/*`,
-`src/http/*`, **as 213 rotas montadas como stub**, harness de teste + webhook sink, Docker,
+### Phase 0 — Trunk (blocking, one agent, not parallelizable)
+Skeleton, vendored spec + overlays, **codegen**, `src/generated/*`, **the complete Drizzle schema**
+(all the tables at once — it is the only real merge-conflict surface), `src/core/*`,
+`src/http/*`, **the 213 routes assembled as stubs**, test harness + webhook sink, Docker,
 `AGENTS.md` / `MASTER_PLAN.md` / `progress.md`.
 
-*Entregável:* container sobe, `bun test` verde, as 213 ops respondem (501 no formato Asaas),
-validação de contrato ativa, `GET /_admin/coverage` → `0/213`.
+*Deliverable:* the container boots, `bun test` is green, the 213 ops answer (501 in Asaas's format),
+contract validation on, `GET /_admin/coverage` → `0/213`.
 
-### Fan-out (tracks paralelos — cada um tem pasta própria em `modules/` e arquivo próprio em `db/schema/`)
+### Fan-out (parallel tracks — each one has its own folder in `modules/` and its own file in `db/schema/`)
 
-| Track | Escopo | Depende de |
+| Track | Scope | Depends on |
 |---|---|---|
-| **C — Money** | fees, juros, multa, desconto, parcelas, split math, cpfCnpj, dias úteis + golden tests | Fase 0 (só `money.ts`) — **começa primeiro, 100% puro** |
-| **B — Webhooks** | fila, dispatcher, backoff, SEQ/NON_SEQ, retenção, log admin | Fase 0 |
-| **G — Long tail** | ~150 ops CRUD/stub (invoices, bills, dunning, pix, checkout, recharge…) | Fase 0 |
-| **A — Payments core** | customers, payments, máquina de estados, sandbox actions | C |
+| **C — Money** | fees, interest, fine, discount, installments, split math, cpfCnpj, business days + golden tests | Phase 0 (only `money.ts`) — **starts first, 100% pure** |
+| **B — Webhooks** | queue, dispatcher, backoff, SEQ/NON_SEQ, retention, admin log | Phase 0 |
+| **G — Long tail** | ~150 CRUD/stub ops (invoices, bills, dunning, pix, checkout, recharge…) | Phase 0 |
+| **A — Payments core** | customers, payments, state machine, sandbox actions | C |
 | **D — Finance** | ledger, balance, financialTransactions, transfers | A |
-| **H — Cartão** | tokenização, cartões de teste, pré-autorização/captura | A |
-| **E — Recorrência** | installments, subscriptions, geração D-40 | A, C |
-| **F — Split multiconta** | engine de split, subcontas, movimento entre contas | A, D |
+| **H — Card** | tokenization, test cards, pre-authorization/capture | A |
+| **E — Recurrence** | installments, subscriptions, D-40 generation | A, C |
+| **F — Multi-account split** | split engine, subaccounts, movement between accounts | A, D |
 
-Sequência: `0` → `{C, B, G}` → `A` → `{D, H}` → `{E, F}`
+Sequence: `0` → `{C, B, G}` → `A` → `{D, H}` → `{E, F}`
 
 ---
 
-## Verificação
+## Verification
 
-**Unit** (`src/domain/`, puro, table-driven + golden files): taxas, juros, desconto, divisão de
-parcelas, split, cpfCnpj, dias úteis, matriz completa `status × trigger` (15×10) em snapshot.
+**Unit** (`src/domain/`, pure, table-driven + golden files): fees, interest, discount, installment
+division, split, cpfCnpj, business days, the complete `status × trigger` matrix (15×10) in a snapshot.
 
-**Integração** (SQLite em memória + `VirtualClock` congelado + RNG semeado + webhook sink real via
-`Bun.serve`). Cenários que são o critério de aceite:
-1. Boleto → `OVERDUE` em D+1 → juros acumulam por dia → `receiveInCash` → ledger + webhooks na ordem.
-2. Pix → `RECEIVED` na hora, **sem webhook `PAYMENT_CONFIRMED`**, `netValue = value − 199`, ledger com
+**Integration** (in-memory SQLite + frozen `VirtualClock` + seeded RNG + a real webhook sink via
+`Bun.serve`). The scenarios that are the acceptance criterion:
+1. Bank slip → `OVERDUE` at D+1 → interest accrues day by day → `receiveInCash` → ledger + webhooks in order.
+2. Pix → `RECEIVED` right away, **without a `PAYMENT_CONFIRMED` webhook**, `netValue = value − 199`, a ledger with
    `PAYMENT_RECEIVED` + `PAYMENT_FEE`.
-3. Cartão 12× R$ 350 com 2 splits → 12 payments imediatas com valores `[29,16 ×11 , 29,24]`, cada uma
-   credita em **D+32**, split move dinheiro pras duas contas, **os dois extratos fecham**.
-4. Assinatura MONTHLY → cobrança gerada **exatamente 40 dias antes** do `nextDueDate`, e **não** no 41º.
-5. Sink devolve 500 → exatamente 15 tentativas nos offsets exatos do backoff → `interrupted=true` →
-   `removeBackoff` → entrega.
+3. A 12× R$ 350 card with 2 splits → 12 immediate payments with the values `[29.16 ×11 , 29.24]`, each one
+   crediting at **D+32**, the split moving money to both accounts, **both statements balancing**.
+4. A MONTHLY subscription → the charge generated **exactly 40 days before** the `nextDueDate`, and **not** on the 41st.
+5. The sink returns 500 → exactly 15 attempts at the exact backoff offsets → `interrupted=true` →
+   `removeBackoff` → delivery.
 
-**Contract tests de graça:** um hook no `ApiClient` do harness valida **toda resposta que a suíte
-inteira produzir** contra o schema TypeBox gerado da spec. Cobertura de contrato vira subproduto de
-escrever teste de feature. Mais um teste de superfície que percorre os 213 operationIds e garante que
-a rota resolve.
+**Contract tests for free:** a hook in the harness's `ApiClient` validates **every response the whole
+suite produces** against the TypeBox schema generated from the spec. Contract coverage becomes a by-product of
+writing a feature test. Plus a surface test that walks the 213 operationIds and guarantees that
+the route resolves.
 
-**Determinismo:** roda a suíte duas vezes com o mesmo `SEED` e faz diff de um dump canônico do banco.
-Byte-idêntico ou o build quebra.
+**Determinism:** run the suite twice with the same `SEED` and diff a canonical dump of the database.
+Byte-identical or the build breaks.
 
-**Paridade com o Asaas real** (a mitigação do maior risco): `tools/capture.ts` roda um roteiro contra
-o **sandbox real** com a chave do usuário, captura respostas HTTP e payloads de webhook, grava em
-`tests/golden/`. Uma suíte de paridade replica o roteiro contra o mock e faz diff campo a campo. É o
-que transforma fidelidade de esperança em teste.
+**Parity with the real Asaas** (the mitigation of the biggest risk): `tools/capture.ts` runs a script against
+the **real sandbox** with the user's key, captures HTTP responses and webhook payloads, writes them to
+`tests/golden/`. A parity suite replicates the script against the mock and diffs field by field. It is what
+turns fidelity from hope into a test.
 
-**Manual, no fim:** `docker compose up`, criar cobrança Pix via curl, confirmar via
-`/v3/sandbox/payment/{id}/confirm`, ver o `PAYMENT_RECEIVED` chegar num listener local.
+**Manual, at the end:** `docker compose up`, create a Pix charge via curl, confirm it via
+`/v3/sandbox/payment/{id}/confirm`, watch the `PAYMENT_RECEIVED` arrive at a local listener.
 
 ---
 
-## Riscos
+## Risks
 
-1. **Fidelidade não verificável.** Toda regra aqui é *pesquisada*, não *provada* — arredondamento
-   exato, composição do `netValue`, roll pra dia útil, conjunto exato de campos do payload. Um mock
-   sutilmente errado é pior que nenhum mock, porque produz falsa confiança.
-   → **`tools/capture.ts` + suíte de paridade é a prioridade nº 1 depois do tronco.** Secundário: toda
-   taxa/regra atrás de config, pra que divergência seja mudança de config, não de código.
+1. **Unverifiable fidelity.** Every rule here is *researched*, not *proven* — exact
+   rounding, the composition of the `netValue`, the roll to the next business day, the exact set of payload fields. A subtly
+   wrong mock is worse than no mock, because it produces false confidence.
+   → **`tools/capture.ts` + the parity suite is the #1 priority after the trunk.** Secondary: every
+   fee/rule behind a config, so that a divergence is a config change, not a code change.
 
-2. **Vazamento do relógio virtual.** Um único `Date.now()` fora do `core/` destrói o determinismo em
-   silêncio, e o bug aparece como teste flaky três meses depois.
-   → Lint + teste de grep no fonte + zero default de tempo no schema + suíte de determinismo.
+2. **Virtual clock leakage.** A single `Date.now()` outside of `core/` destroys determinism in
+   silence, and the bug shows up as a flaky test three months later.
+   → Lint + a grep test on the source + zero time defaults in the schema + a determinism suite.
 
-3. **Viagem no tempo × fila de webhooks.** `advance({days:40})` pra testar assinatura vai, sem você
-   pedir, fast-forwardar as 15 tentativas de backoff, marcar `interrupted` e — em `SEQUENTIALLY` —
-   congelar a fila. Os testes seguintes veem zero webhooks.
-   → `TickReport` expõe mudanças de estado de webhook; `advance()` do harness **drena a fila antes** de
-   cada passo de dia; `POST /_admin/webhooks/pause` pra viagem no tempo pura; `webhook-dispatch` roda
-   **por último** no tick.
+3. **Time travel × the webhook queue.** `advance({days:40})` to test a subscription will, without you
+   asking, fast-forward the 15 backoff attempts, mark `interrupted` and — in `SEQUENTIALLY` —
+   freeze the queue. The following tests see zero webhooks.
+   → `TickReport` exposes webhook state changes; the harness's `advance()` **drains the queue before**
+   each day step; `POST /_admin/webhooks/pause` for pure time travel; `webhook-dispatch` runs
+   **last** in the tick.

@@ -103,7 +103,7 @@ describe('Message templates through the Cloud API', () => {
 	})
 
 	test('a new template is born PENDING and a restart finds it in the library', async () => {
-		const res = await create(draft('cobranca_vencida'), {
+		const res = await create(draft('charge_overdue'), {
 			'X-Mock-Template-Review-Delay': '60000',
 		})
 
@@ -116,7 +116,7 @@ describe('Message templates through the Cloud API', () => {
 		})
 		const restarted = new TemplateStore(dir, undefined, db)
 		await restarted.initialize()
-		const kept = restarted.getTemplate('cobranca_vencida', 'pt_BR') as Json
+		const kept = restarted.getTemplate('charge_overdue', 'pt_BR') as Json
 		expect(kept.status).toBe('PENDING')
 		expect(kept.wabaId).toBe(waba)
 		expect(kept.variables['1'].example).toBe('Mariana')
@@ -124,16 +124,16 @@ describe('Message templates through the Cloud API', () => {
 	})
 
 	test('a seed deleted through the API stays deleted until its file changes', async () => {
-		const seed = join(dir, 'semente.json')
+		const seed = join(dir, 'seed.json')
 		await writeFile(
 			seed,
-			JSON.stringify({ ...draft('semente'), status: 'APPROVED' })
+			JSON.stringify({ ...draft('seed'), status: 'APPROVED' })
 		)
 		await store.initialize()
-		expect(store.getTemplate('semente', 'pt_BR')).toBeDefined()
+		expect(store.getTemplate('seed', 'pt_BR')).toBeDefined()
 
 		const removed = await call(
-			`/v23.0/${waba}/message_templates?name=semente`,
+			`/v23.0/${waba}/message_templates?name=seed`,
 			{
 				method: 'DELETE',
 			}
@@ -141,24 +141,24 @@ describe('Message templates through the Cloud API', () => {
 		expect(removed.status).toBe(200)
 		const again = new TemplateStore(dir, undefined, db)
 		await again.initialize()
-		expect(again.getTemplate('semente', 'pt_BR')).toBeUndefined()
+		expect(again.getTemplate('seed', 'pt_BR')).toBeUndefined()
 
 		await writeFile(
 			seed,
-			JSON.stringify({ ...draft('semente'), category: 'MARKETING' })
+			JSON.stringify({ ...draft('seed'), category: 'MARKETING' })
 		)
 		await again.reloadTemplates()
-		expect(again.getTemplate('semente', 'pt_BR')?.category).toBe('MARKETING')
+		expect(again.getTemplate('seed', 'pt_BR')?.category).toBe('MARKETING')
 		await store.cleanup()
 		await again.cleanup()
 	})
 
 	test('the review approves it and tells every webhook of the account', async () => {
 		setWebhookUrl(phone, 'http://app.test/hooks/meta')
-		const created = (await (await create(draft('lembrete'))).json()) as Json
+		const created = (await (await create(draft('reminder'))).json()) as Json
 
 		await vi.waitFor(async () => {
-			expect((await statusOf('lembrete')).status).toBe('APPROVED')
+			expect((await statusOf('reminder')).status).toBe('APPROVED')
 		})
 		await vi.waitFor(() => expect(delivered).toHaveLength(1))
 		const entry = delivered[0].body.entry[0]
@@ -167,7 +167,7 @@ describe('Message templates through the Cloud API', () => {
 		expect(entry.changes[0].value).toMatchObject({
 			event: 'APPROVED',
 			message_template_id: created.id,
-			message_template_name: 'lembrete',
+			message_template_name: 'reminder',
 			message_template_language: 'pt_BR',
 			reason: 'NONE',
 		})
@@ -199,9 +199,9 @@ describe('Message templates through the Cloud API', () => {
 	})
 
 	test('a paused template is refused with the code Meta uses for it', async () => {
-		await create(draft('pausado'), { 'X-Mock-Template-Review': 'PAUSED' })
+		await create(draft('paused'), { 'X-Mock-Template-Review': 'PAUSED' })
 		await vi.waitFor(async () => {
-			expect((await statusOf('pausado')).status).toBe('PAUSED')
+			expect((await statusOf('paused')).status).toBe('PAUSED')
 		})
 		const send = await call(`/v23.0/${phone}/messages`, {
 			method: 'POST',
@@ -209,14 +209,14 @@ describe('Message templates through the Cloud API', () => {
 				messaging_product: 'whatsapp',
 				to: '5511999999999',
 				type: 'template',
-				template: { name: 'pausado', language: { code: 'pt_BR' } },
+				template: { name: 'paused', language: { code: 'pt_BR' } },
 			},
 		})
 		expect(((await send.json()) as Json).error.code).toBe(132015)
 	})
 
 	test('refuses what Meta refuses', async () => {
-		const badName = await create({ ...draft('x'), name: 'Cobrança Vencida' })
+		const badName = await create({ ...draft('x'), name: 'Overdue Charge' })
 		expect(badName.status).toBe(400)
 		expect(((await badName.json()) as Json).error).toMatchObject({
 			type: 'OAuthException',
@@ -224,25 +224,25 @@ describe('Message templates through the Cloud API', () => {
 		})
 
 		const noBody = await create({
-			...draft('sem_corpo'),
-			components: [{ type: 'FOOTER', text: 'rodapé' }],
+			...draft('without_body'),
+			components: [{ type: 'FOOTER', text: 'footer' }],
 		})
 		expect(noBody.status).toBe(400)
 
-		await create(draft('duplicado'))
-		const twice = await create(draft('duplicado'))
+		await create(draft('duplicate'))
+		const twice = await create(draft('duplicate'))
 		expect(twice.status).toBe(400)
 		expect(((await twice.json()) as Json).error.error_subcode).toBe(2388024)
 	})
 
 	test('reads a template by its id and edits it back into the review', async () => {
-		const { id } = (await (await create(draft('edicao'))).json()) as Json
+		const { id } = (await (await create(draft('edit'))).json()) as Json
 		await vi.waitFor(async () => {
-			expect((await statusOf('edicao')).status).toBe('APPROVED')
+			expect((await statusOf('edit')).status).toBe('APPROVED')
 		})
 
 		const read = (await (await call(`/v23.0/${id}`)).json()) as Json
-		expect(read.name).toBe('edicao')
+		expect(read.name).toBe('edit')
 		expect(read.components[1].example.body_text[0]).toEqual([
 			'Mariana',
 			'R$ 120,00',
@@ -256,7 +256,7 @@ describe('Message templates through the Cloud API', () => {
 			headers: { 'X-Mock-Template-Review-Delay': '60000' },
 		})
 		expect(((await edit.json()) as Json).success).toBe(true)
-		expect((await statusOf('edicao')).status).toBe('PENDING')
+		expect((await statusOf('edit')).status).toBe('PENDING')
 
 		const whileInReview = await call(`/v23.0/${id}`, {
 			method: 'POST',
@@ -266,38 +266,38 @@ describe('Message templates through the Cloud API', () => {
 	})
 
 	test('deletes one language by hsm_id, or every language by name', async () => {
-		const pt = (await (await create(draft('aviso'))).json()) as Json
-		await create({ ...draft('aviso'), language: 'en_US' })
+		const pt = (await (await create(draft('notice'))).json()) as Json
+		await create({ ...draft('notice'), language: 'en_US' })
 
-		await call(`/v23.0/${waba}/message_templates?name=aviso&hsm_id=${pt.id}`, {
+		await call(`/v23.0/${waba}/message_templates?name=notice&hsm_id=${pt.id}`, {
 			method: 'DELETE',
 		})
-		expect(store.getTemplate('aviso', 'pt_BR')).toBeUndefined()
-		expect(store.getTemplate('aviso', 'en_US')).toBeDefined()
+		expect(store.getTemplate('notice', 'pt_BR')).toBeUndefined()
+		expect(store.getTemplate('notice', 'en_US')).toBeDefined()
 
-		const all = await call(`/v23.0/${waba}/message_templates?name=aviso`, {
+		const all = await call(`/v23.0/${waba}/message_templates?name=notice`, {
 			method: 'DELETE',
 		})
 		expect(((await all.json()) as Json).success).toBe(true)
-		expect(store.getTemplate('aviso', 'en_US')).toBeUndefined()
+		expect(store.getTemplate('notice', 'en_US')).toBeUndefined()
 
-		const none = await call(`/v23.0/${waba}/message_templates?name=aviso`, {
+		const none = await call(`/v23.0/${waba}/message_templates?name=notice`, {
 			method: 'DELETE',
 		})
 		expect(none.status).toBe(400)
 	})
 
 	test('lists with the filters and the paging of Meta', async () => {
-		await create(draft('um'))
-		await create(draft('dois'), { 'X-Mock-Template-Review-Delay': '60000' })
+		await create(draft('one'))
+		await create(draft('two'), { 'X-Mock-Template-Review-Delay': '60000' })
 		await vi.waitFor(async () => {
-			expect((await statusOf('um')).status).toBe('APPROVED')
+			expect((await statusOf('one')).status).toBe('APPROVED')
 		})
 
 		const pending = (await (
 			await call(`/v23.0/${waba}/message_templates?status=PENDING`)
 		).json()) as Json
-		expect(pending.data.map((t: Json) => t.name)).toEqual(['dois'])
+		expect(pending.data.map((t: Json) => t.name)).toEqual(['two'])
 
 		const page = (await (
 			await call(`/v23.0/${waba}/message_templates?limit=1`)
@@ -308,9 +308,9 @@ describe('Message templates through the Cloud API', () => {
 
 	test('a template in review when the mock stops resumes its review', async () => {
 		await writeFile(
-			join(dir, 'retomado_pt_BR.json'),
+			join(dir, 'resumed_pt_BR.json'),
 			JSON.stringify({
-				...draft('retomado'),
+				...draft('resumed'),
 				status: 'PENDING',
 				review: { event: 'APPROVED', delayMs: 0 },
 			})
@@ -320,9 +320,7 @@ describe('Message templates through the Cloud API', () => {
 		const { resumeReviews } = await import('../template-review.ts')
 		resumeReviews(restarted)
 		await vi.waitFor(() => {
-			expect(restarted.getTemplate('retomado', 'pt_BR')?.status).toBe(
-				'APPROVED'
-			)
+			expect(restarted.getTemplate('resumed', 'pt_BR')?.status).toBe('APPROVED')
 		})
 		await restarted.cleanup()
 	})

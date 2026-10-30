@@ -12,12 +12,12 @@ FROM oven/bun:1.4.2-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# O codegen roda no build, offline: lê só a spec vendorizada. O endpoint da spec
-# do Asaas responde 429 com facilidade — buscar durante o build tornaria a
-# imagem irreprodutível.
-# O painel compila para UM arquivo (`src/admin/ui.html`) e o runtime volta a ser só
-# Bun servindo esse arquivo — sem rota de estáticos, sem cache-busting, sem uma segunda
-# coisa que pode 404 dentro do container. Este stage some depois do COPY lá embaixo.
+# The codegen runs in the build, offline: it only reads the vendored spec. Asaas's
+# spec endpoint answers 429 easily — fetching during the build would make the
+# image irreproducible.
+# The panel compiles into ONE file (`src/admin/ui.html`) and the runtime goes back to
+# being just Bun serving that file — no static route, no cache-busting, no second
+# thing that can 404 inside the container. This stage disappears after the COPY below.
 RUN bun run codegen && bunx tsc --noEmit && bun run panel:check && bun run panel:build
 
 FROM oven/bun:1.4.2-alpine AS runtime
@@ -25,11 +25,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV TZ=America/Sao_Paulo
 
-# Sem esta linha o default do código vale (`./data/asaas.db`, dentro de /app), e o
-# `VOLUME /data` abaixo vira decoração: um `docker run -v meus-dados:/data` monta um
-# volume que fica VAZIO, o banco vive na camada efêmera do container e some no
-# primeiro `docker rm` — sem erro nenhum. O compose escapava porque define a
-# variável na mão; quem usasse `docker run` perdia os dados em silêncio.
+# Without this line the code's default applies (`./data/asaas.db`, inside /app), and the
+# `VOLUME /data` below becomes decoration: a `docker run -v my-data:/data` mounts a
+# volume that stays EMPTY, the database lives in the container's ephemeral layer and
+# disappears on the first `docker rm` — with no error at all. The compose escaped it
+# because it sets the variable by hand; whoever used `docker run` lost the data silently.
 ENV DATABASE_PATH=/data/asaas.db
 
 # Filled by scripts/publish.sh (repository root) when the image is published to GHCR.
@@ -39,7 +39,7 @@ ARG REVISION=unknown
 # `source` links the GHCR package to this repository.
 # No comma in the description: publish.sh repeats it as a buildx annotation, a comma-separated value.
 LABEL org.opencontainers.image.title="Asaas Mock Server - Asaas API sandbox simulator" \
-      org.opencontainers.image.description="Asaas API mock server (v3 sandbox simulator) for local development and tests: customers and charges with Pix and boleto and credit card - installments and subscriptions - webhooks delivered to localhost - payer e-mail and WhatsApp notifications - virtual clock. Simulador local do Asaas." \
+      org.opencontainers.image.description="Asaas API mock server (v3 sandbox simulator) for local development and tests: customers and charges with Pix, bank slip and credit card - installments and subscriptions - webhooks delivered to localhost - payer e-mail and WhatsApp notifications - virtual clock." \
       org.opencontainers.image.source="https://github.com/Instituto-AMA/ama4devs" \
       org.opencontainers.image.vendor="Instituto-AMA ama4devs" \
       org.opencontainers.image.licenses="MIT" \

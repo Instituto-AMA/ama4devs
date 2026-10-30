@@ -1,0 +1,27 @@
+{
+	"name": "asaas_due_date_reminder",
+	"language": "pt_BR",
+	"category": "UTILITY",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "Lembrete de vencimento"
+		},
+		{
+			"type": "BODY",
+			"text": "Olá, {{1}}. Lembrete: a cobrança de {{3}} de {{2}} vence em {{4}}. Pague por aqui: {{5}}"
+		},
+		{
+			"type": "FOOTER",
+			"text": "Enviado pelo Asaas (simulador)"
+		}
+	],
+	"variables": {
+		"1": { "description": "Payer name", "example": "Maria" },
+		"2": { "description": "Who is charging", "example": "Clínica Exemplo" },
+		"3": { "description": "Amount", "example": "R$ 150,00" },
+		"4": { "description": "Due date", "example": "30/10/2026" },
+		"5": { "description": "Invoice link", "example": "http://localhost:45445/i/123456789012" }
+	}
+}

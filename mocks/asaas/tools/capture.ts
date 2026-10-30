@@ -1,28 +1,28 @@
 /**
- * CAPTURA DE PARIDADE — roda os roteiros contra o SANDBOX REAL do Asaas e grava
- * as respostas em tests/golden/.
+ * PARITY CAPTURE — runs the scenarios against the REAL Asaas sandbox and writes
+ * the responses to tests/golden/.
  *
  *   ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun run capture
- *   ASAAS_SANDBOX_API_KEY='…' bun run capture -- pix-recebido   # um roteiro só
+ *   ASAAS_SANDBOX_API_KEY='…' bun run capture -- pix-received   # one scenario only
  *
- * Depois: `bun test tests/parity` replica os mesmos roteiros contra o simulador
- * e faz diff campo a campo.
+ * After that: `bun test tests/parity` replays the same scenarios against the
+ * simulator and diffs field by field.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * POR QUE ISTO É A PEÇA MAIS IMPORTANTE DO PROJETO
+ * WHY THIS IS THE MOST IMPORTANT PIECE OF THE PROJECT
  *
- * Toda regra de negócio aqui foi LIDA na documentação, não PROVADA contra a API.
- * E a documentação do Asaas se contradiz: diz "só HTTP 200 é sucesso" numa página
- * e "família 2xx" em outra; o marketing diz que o cartão credita em 30 dias e a
- * doc técnica diz 32.
+ * Every business rule here was READ in the documentation, not PROVEN against the
+ * API. And Asaas's documentation contradicts itself: it says "only HTTP 200 is a
+ * success" on one page and "the 2xx family" on another; the marketing says the
+ * card credits in 30 days and the technical doc says 32.
  *
- * Um mock sutilmente errado é PIOR que nenhum mock, porque produz falsa
- * confiança: o dev ajusta o código para agradar o simulador e quebra em produção.
- * Isto é o que fecha essa brecha.
+ * A subtly wrong mock is WORSE than no mock, because it produces false
+ * confidence: the developer tunes the code to please the simulator and breaks in
+ * production. This is what closes that gap.
  *
- * NOTA: esta captura cobre as RESPOSTAS HTTP. Os payloads de webhook exigiriam
- * um túnel público (o sandbox não entrega em localhost — que é, afinal, o motivo
- * de este projeto existir). Está registrado em progress.md como lacuna.
+ * NOTE: this capture covers the HTTP RESPONSES. Webhook payloads would require a
+ * public tunnel (the sandbox does not deliver to localhost — which is, after all,
+ * the reason this project exists). It is recorded in progress.md as a gap.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { mkdirSync } from 'node:fs'
@@ -36,28 +36,28 @@ const GOLDEN_DIR = join(import.meta.dir, '..', 'tests', 'golden')
 const apiKey = process.env.ASAAS_SANDBOX_API_KEY
 if (!apiKey) {
   console.error(`
-Falta a chave do sandbox REAL do Asaas.
+Missing the key of the REAL Asaas sandbox.
 
   ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun run capture
 
-Pegue em: https://sandbox.asaas.com → Configurações → Integrações → API.
-A chave de sandbox começa com "$aact_hmlg_". NÃO use a de produção.
+Get it at: https://sandbox.asaas.com → Settings → Integrations → API.
+A sandbox key starts with "$aact_hmlg_". Do NOT use the production one.
 `)
   process.exit(1)
 }
 
 if (!apiKey.startsWith('$aact_hmlg_')) {
   console.error(
-    `A chave não parece ser de sandbox (deveria começar com "$aact_hmlg_").\n` +
-      `Recusando por segurança: uma chave de produção criaria cobranças de verdade.`,
+    `The key does not look like a sandbox one (it should start with "$aact_hmlg_").\n` +
+      `Refusing for safety: a production key would create real charges.`,
   )
   process.exit(1)
 }
 
-/** '$hoje+5' → data ISO. O sandbox real usa o calendário de verdade. */
+/** '$today+5' → ISO date. The real sandbox uses the real calendar. */
 function resolveDates(value: unknown, today: Date): unknown {
   if (typeof value === 'string') {
-    const m = value.match(/^\$hoje(?:\+(\d+))?$/)
+    const m = value.match(/^\$today(?:\+(\d+))?$/)
     if (m) {
       const d = new Date(today)
       d.setDate(d.getDate() + Number(m[1] ?? 0))
@@ -74,7 +74,7 @@ function resolveDates(value: unknown, today: Date): unknown {
   return value
 }
 
-/** Substitui `$customerId` pelos valores capturados em passos anteriores. */
+/** Replaces `$customerId` with the values captured in the previous steps. */
 function resolveRefs(value: unknown, vars: Record<string, string>): unknown {
   if (typeof value === 'string' && value.startsWith('$') && vars[value.slice(1)]) {
     return vars[value.slice(1)]
@@ -88,14 +88,14 @@ function resolveRefs(value: unknown, vars: Record<string, string>): unknown {
 
 export interface CapturedStep {
   /**
-   * O passo ORIGINAL, com os `$refs` e `$hoje+N` ainda por resolver.
+   * The ORIGINAL step, with the `$refs` and `$today+N` still to be resolved.
    *
-   * É o que permite ao replay re-executar o roteiro contra o simulador usando os
-   * ids que ELE gera — se guardássemos só o request já resolvido, o replay
-   * mandaria o id de um cliente do Asaas real, que aqui não existe.
+   * It is what lets the replay re-run the scenario against the simulator using the
+   * ids IT generates — if we kept only the resolved request, the replay would send
+   * a customer id of the real Asaas, which does not exist here.
    */
   step: Step
-  /** O que efetivamente foi para o Asaas — para auditar o golden depois. */
+  /** What actually went to Asaas — to audit the golden afterwards. */
   request: { method: string; path: string; body?: unknown; query?: Record<string, string> }
   response: { status: number; body: unknown }
 }
@@ -104,7 +104,7 @@ export interface GoldenFile {
   scenario: string
   description: string
   capturedAt: string
-  /** A data em que a captura rodou — a âncora das datas relativas. */
+  /** The date the capture ran on — the anchor of the relative dates. */
   anchorDate: string
   source: 'asaas-sandbox'
   steps: CapturedStep[]
@@ -163,7 +163,7 @@ async function runScenario(scenario: Scenario, today: Date): Promise<GoldenFile>
       response: { status: res.status, body: responseBody },
     })
 
-    // Guarda valores para os passos seguintes.
+    // Keeps values for the following steps.
     for (const [name, field] of Object.entries(step.capture ?? {})) {
       const v = (responseBody as any)?.[field]
       if (v !== undefined) vars[name] = String(v)
@@ -172,7 +172,7 @@ async function runScenario(scenario: Scenario, today: Date): Promise<GoldenFile>
     const mark = res.status < 400 ? '✓' : '✗'
     console.log(`  ${mark} [${res.status}] ${step.label}`)
 
-    // O Asaas limita requisições; não vale a pena correr.
+    // Asaas rate-limits requests; it is not worth running.
     await Bun.sleep(700)
   }
 
@@ -194,16 +194,16 @@ const selected = only.length
   : SCENARIOS
 
 if (!selected.length) {
-  console.error(`Nenhum roteiro casou com: ${only.join(', ')}`)
-  console.error(`Disponíveis: ${SCENARIOS.map((s) => s.name).join(', ')}`)
+  console.error(`No scenario matched: ${only.join(', ')}`)
+  console.error(`Available: ${SCENARIOS.map((s) => s.name).join(', ')}`)
   process.exit(1)
 }
 
 mkdirSync(GOLDEN_DIR, { recursive: true })
 const today = new Date()
 
-console.log(`Capturando contra o sandbox REAL do Asaas (${BASE})`)
-console.log(`Chave: ${apiKey.slice(0, 18)}…`)
+console.log(`Capturing against the REAL Asaas sandbox (${BASE})`)
+console.log(`Key: ${apiKey.slice(0, 18)}…`)
 
 for (const scenario of selected) {
   try {
@@ -212,15 +212,15 @@ for (const scenario of selected) {
     await Bun.write(path, `${JSON.stringify(golden, null, 2)}\n`)
     console.log(`  → tests/golden/${scenario.name}.json`)
   } catch (err) {
-    console.error(`  ✗ ${scenario.name} falhou: ${err}`)
+    console.error(`  ✗ ${scenario.name} failed: ${err}`)
   }
 }
 
 console.log(`
-Pronto. Agora rode a paridade:
+Done. Now run the parity:
 
   bun test tests/parity
 
-Toda divergência que aparecer é um BUG NOSSO — o Asaas é a verdade. Corrija o
-simulador, adicione a linha ao golden test de unidade, e registre em progress.md.
+Every divergence that shows up is OUR BUG — Asaas is the truth. Fix the
+simulator, add the line to the unit golden test, and record it in progress.md.
 `)

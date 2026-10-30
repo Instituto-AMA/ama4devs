@@ -1,14 +1,14 @@
 /**
- * Os cartões de teste e o erro que cada um força.
+ * The test cards and the error each one forces.
  *
- * A tabela vem do SERVIDOR (`/_admin/test-cards`), que a lê do DOMÍNIO — a MESMA
- * constante que o motor consulta para decidir o desfecho. Se a tela tivesse a sua
- * própria cópia, ela poderia anunciar, com botão de copiar e tudo, um cartão que o
- * motor não honra.
+ * The table comes from the SERVER (`/_admin/test-cards`), which reads it from
+ * the DOMAIN — the SAME constant the engine consults to decide the outcome. If
+ * the screen had its own copy, it could announce, with a copy button and
+ * everything, a card the engine does not honor.
  *
- * `real: false` marca as nossas extensões: números que o Asaas de verdade APROVARIA.
- * Sem essa marca, alguém escreve um teste contra um comportamento que só existe aqui
- * e descobre em produção.
+ * `real: false` marks our extensions: numbers the real Asaas would APPROVE.
+ * Without that mark, someone writes a test against a behavior that exists only
+ * here and finds out in production.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type AsaasError, type TestCardTable } from '../../api.ts'

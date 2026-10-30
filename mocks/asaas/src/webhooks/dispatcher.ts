@@ -1,22 +1,24 @@
 /**
- * O motor de entrega. É a razão de ser do projeto.
+ * The delivery engine. It is the reason this project exists.
  *
- * Roda como ÚLTIMO job do tick (ver src/scheduler/jobs/index.ts): quando ele
- * entra, tudo que aconteceu no tick já está na fila, e os eventos saem juntos e
- * na ordem em que aconteceram.
+ * It runs as the LAST job of the tick (see src/scheduler/jobs/index.ts): by the
+ * time it starts, everything that happened in the tick is already queued, and
+ * the events go out together and in the order they happened.
  *
- * As regras aqui são as regras REAIS do Asaas, e duas delas são contraintuitivas
- * o bastante para queimar integração em produção — por isso o simulador as
- * reproduz em vez de ser "gentil":
+ * The rules here are the REAL Asaas rules, and two of them are counterintuitive
+ * enough to burn an integration in production — which is why the simulator
+ * reproduces them instead of being "gentle":
  *
- *   1. SÓ HTTP 200 É SUCESSO. 201, 204, 3xx, 4xx, 5xx: tudo é FALHA e entra no
- *      backoff. Um endpoint que devolve `res.sendStatus(201)` parece funcionar
- *      no seu teste e reentrega 15 vezes no Asaas de verdade.
+ *   1. ONLY HTTP 200 IS SUCCESS. 201, 204, 3xx, 4xx, 5xx: everything is a
+ *      FAILURE and enters the backoff. An endpoint that answers with
+ *      `res.sendStatus(201)` looks fine in your test and redelivers 15 times
+ *      in the real Asaas.
  *
- *   2. SEQUENTIALLY faz HEAD-OF-LINE BLOCKING DE VERDADE. Se a entrega de menor
- *      `sequence` falha, NADA daquele webhook anda até ela ser entregue ou
- *      esgotar as 15 tentativas. É contrato do Asaas — e é o cenário em que o
- *      dev descobre, tarde demais, que um bug numa rota travou a fila inteira.
+ *   2. SEQUENTIALLY does REAL HEAD-OF-LINE BLOCKING. If the delivery with the
+ *      lowest `sequence` fails, NOTHING of that webhook moves until it is
+ *      delivered or the 15 attempts run out. It is an Asaas contract — and it
+ *      is the scenario where the developer finds out, too late, that a bug in a
+ *      route froze the whole queue.
  */
 import { and, asc, eq, gt, lte } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
@@ -25,7 +27,7 @@ import type { TickReport } from '../scheduler/scheduler.ts'
 import { nextAttemptAt } from './backoff.ts'
 import { rewriteForContainer } from './rewrite.ts'
 
-/** NON_SEQUENTIALLY entrega em paralelo — mas não sem limite. */
+/** NON_SEQUENTIALLY delivers in parallel — but not without a limit. */
 const CONCURRENCY = 8
 
 interface DueDelivery {
@@ -51,20 +53,21 @@ const dueColumns = {
 }
 
 /**
- * Puxa de volta as entregas que ficaram agendadas no futuro. Chamado quando o
- * relógio anda PARA TRÁS (POST /_admin/clock/reset).
+ * Pulls back the deliveries that were scheduled in the future. Called when the
+ * clock moves BACKWARD (POST /_admin/clock/reset).
  *
- * O BUG QUE ISTO IMPEDE DE VOLTAR: uma entrega falha durante uma viagem no tempo,
- * o backoff a reagenda para daqui a uma hora — mas "daqui a uma hora" está três
- * meses à frente do tempo real. Voltar o relógio ao presente NÃO desfaz esse
- * agendamento: a entrega vira inalcançável, e como o `sendType` padrão do Asaas é
- * SEQUENTIALLY, ela trava a fila INTEIRA por trás dela. Nenhum webhook chega mais,
- * para sempre, e o sintoma aparece na ponta como "o pagamento consta RECEIVED mas
- * meu pedido continua pendente".
+ * The BUG THIS STOPS FROM COMING BACK: a delivery fails during a time travel,
+ * the backoff reschedules it for an hour from now — but "an hour from now" is
+ * three months ahead of real time. Turning the clock back to the present does
+ * NOT undo that schedule: the delivery becomes unreachable, and since the
+ * default `sendType` of Asaas is SEQUENTIALLY, it freezes the WHOLE queue
+ * behind it. No webhook ever arrives again, forever, and the symptom shows up
+ * on the other end as "the payment shows RECEIVED but my order is still
+ * pending".
  *
- * Devolve quantas foram reagendadas — o painel diz isso em voz alta, porque uma
- * fila que volta a andar sozinha é exatamente o tipo de coisa que a pessoa precisa
- * saber que aconteceu.
+ * It returns how many were rescheduled — the panel says that out loud, because
+ * a queue that starts moving again on its own is exactly the kind of thing the
+ * person needs to know happened.
  */
 export async function pullBackFutureDeliveries(ctx: AppContext, nowMs: number): Promise<number> {
   const stuck = await ctx.db
@@ -95,10 +98,11 @@ export async function pullBackFutureDeliveries(ctx: AppContext, nowMs: number): 
 export interface QueueHealth {
   webhookId: string
   /**
-   * A CONTA DONA do webhook. Sem isto o painel mente por omissão: cada subconta
-   * tem os seus próprios webhooks (um evento da conta X só vai para os webhooks
-   * de X), e uma lista sem dono vira "por que tenho 8 webhooks?" — além de fazer
-   * o botão "Reativar fila" chamar a /v3 com a chave errada e tomar 404.
+   * The account that OWNS the webhook. Without this the panel lies by
+   * omission: each subaccount has its own webhooks (an event of account X only
+   * goes to the webhooks of X), and a list without an owner becomes "why do I
+   * have 8 webhooks?" — besides making the "Reactivate queue" button call /v3
+   * with the wrong key and get a 404.
    */
   accountId: string
   accountName: string
@@ -108,7 +112,7 @@ export interface QueueHealth {
   enabled: boolean
   interrupted: boolean
   pending: number
-  /** Por que a fila não anda. `null` = ela anda. */
+  /** Why the queue is not moving. `null` = it is moving. */
   blocked: null | {
     reason: 'INTERRUPTED' | 'DISABLED' | 'HEAD_FAILING' | 'HEAD_IN_BACKOFF'
     event: string
@@ -116,21 +120,23 @@ export interface QueueHealth {
     lastStatusCode: number | null
     lastError: string | null
     nextAttemptAtMs: number | null
-    /** Quantas entregas estão paradas ATRÁS desta. Só faz sentido em SEQUENTIALLY. */
+    /** How many deliveries are stuck BEHIND this one. It only makes sense in SEQUENTIALLY. */
     behind: number
   }
 }
 
 /**
- * Por que a fila de cada webhook não está andando.
+ * Why each webhook queue is not moving.
  *
- * Existe porque o motor é fiel demais para ser opaco: em SEQUENTIALLY, UMA entrega
- * que falha trava todas as seguintes, e nada — nem no Asaas nem aqui — grita isso.
- * O dev vê "o pagamento consta RECEIVED mas meu pedido não atualizou" e vai
- * procurar o bug na rota de status dele, que está certa.
+ * It exists because the engine is too faithful to be opaque: in SEQUENTIALLY,
+ * ONE failed delivery freezes all the following ones, and nothing — neither in
+ * Asaas nor here — shouts about it. The developer sees "the payment shows
+ * RECEIVED but my order did not update" and goes looking for the bug in their
+ * status route, which is correct.
  *
- * A regra de bloqueio é LIDA da mesma cabeça de fila que `dispatchSequentially`
- * consulta, e não reimplementada: se as duas pudessem discordar, o painel mentiria.
+ * The blocking rule is READ from the same queue head that `dispatchSequentially`
+ * consults, and not reimplemented: if the two could disagree, the panel would
+ * lie.
  */
 export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
   const now = ctx.clock.nowMs()
@@ -167,8 +173,9 @@ export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
       pending: pending.length,
     }
 
-    // `interrupted` e `enabled` derrubam a entrega ANTES de a cabeça da fila
-    // importar — é o filtro do `dispatchDue`. Por isso vêm primeiro aqui também.
+    // `interrupted` and `enabled` drop the delivery BEFORE the head of the queue
+    // matters — it is the filter of `dispatchDue`. That is why they come first
+    // here too.
     let blocked: QueueHealth['blocked'] = null
 
     if (head) {
@@ -178,7 +185,7 @@ export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
         : !cfg.enabled
           ? 'DISABLED'
           : cfg.sendType !== 'SEQUENTIALLY'
-            ? null // sem head-of-line: uma entrega ruim não segura as outras
+            ? null // no head-of-line: one bad delivery does not hold the others
             : head.attempt > 0
               ? 'HEAD_FAILING'
               : inBackoff
@@ -206,7 +213,7 @@ export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
         }
       }
     } else if (cfg.interrupted || !cfg.enabled) {
-      // Sem fila parada, mas nada vai ser entregue daqui pra frente. Vale o aviso.
+      // No queue is blocked, but no delivery will happen from here on. The warning still matters.
       blocked = {
         reason: cfg.interrupted ? 'INTERRUPTED' : 'DISABLED',
         event: '—',
@@ -225,12 +232,13 @@ export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
 }
 
 /**
- * Entrega tudo que venceu.
+ * Delivers everything that is due.
  *
- * `paused` vem do scheduler (POST /_admin/webhooks/pause). Pausar é necessário
- * para viajar no tempo por outro motivo: um advance de 40 dias, com o dispatcher
- * ligado e um endpoint fora do ar, esgotaria as 15 tentativas de backoff e
- * marcaria o webhook como `interrupted` — de brinde, sem ninguém pedir.
+ * `paused` comes from the scheduler (POST /_admin/webhooks/pause). Pausing is
+ * needed to travel through time for another reason: an advance of 40 days,
+ * with the dispatcher on and an endpoint down, would use up the 15 backoff
+ * attempts and mark the webhook as `interrupted` — for free, without anyone
+ * asking.
  */
 export async function dispatchDue(
   ctx: AppContext,
@@ -256,12 +264,12 @@ export async function dispatchDue(
 }
 
 /**
- * Uma entrega por vez, em ordem estrita de `sequence`, e PARA na primeira que
- * falhar. É o head-of-line blocking do Asaas.
+ * One delivery at a time, in strict `sequence` order, and it STOPS at the
+ * first one that fails. It is the head-of-line blocking of Asaas.
  *
- * O laço drena a fila enquanto der certo: três eventos emitidos no mesmo tick,
- * com o endpoint no ar, chegam os três — em ordem. Basta o primeiro falhar e os
- * outros dois ficam onde estão, mesmo já vencidos.
+ * The loop drains the queue while it goes well: three events emitted in the
+ * same tick, with the endpoint up, all three arrive — in order. The moment the
+ * first one fails, the other two stay where they are, even already overdue.
  */
 async function dispatchSequentially(
   ctx: AppContext,
@@ -286,20 +294,20 @@ async function dispatchSequentially(
       .limit(1)
 
     if (!head) return
-    // A cabeça da fila ainda está em backoff → a fila INTEIRA espera com ela.
+    // The head of the queue is still in backoff → the WHOLE queue waits with it.
     if (head.nextAttemptAtMs === null || head.nextAttemptAtMs > now) return
-    // Passou da retenção: o retention-purge (job seguinte) marca EXPIRED.
+    // Past the retention: the retention-purge (the next job) marks it EXPIRED.
     if (head.expiresAtMs <= now) return
-    // Cinto de segurança: se um CAS não pegar, não giramos para sempre.
+    // Safety belt: if a CAS does not take, we do not spin forever.
     if (seen.has(head.id)) return
     seen.add(head.id)
 
     const delivered = await attemptDelivery(ctx, report, cfg, head as DueDelivery, now)
-    if (!delivered) return // head-of-line blocking: a fila trava aqui.
+    if (!delivered) return // Head-of-line blocking: the queue stops here.
   }
 }
 
-/** Todas as vencidas, em paralelo, com concorrência limitada. */
+/** All the due ones, in parallel, with limited concurrency. */
 async function dispatchConcurrently(
   ctx: AppContext,
   report: TickReport,
@@ -334,11 +342,11 @@ async function dispatchConcurrently(
 }
 
 /**
- * Uma tentativa. Devolve `true` só se o endpoint respondeu HTTP 200.
+ * One attempt. It returns `true` only if the endpoint answered HTTP 200.
  *
- * O corpo enviado é `webhook_events.payload` — CONGELADO no emit. Não
- * re-serializamos o recurso: uma retentativa três horas depois reenvia o fato
- * como ele era, não uma consulta ao estado atual.
+ * The body sent is `webhook_events.payload` — FROZEN at the emit. The resource
+ * is not re-serialized: a retry three hours later resends the fact as it was,
+ * not a query of the current state.
  */
 async function attemptDelivery(
   ctx: AppContext,
@@ -351,7 +359,7 @@ async function attemptDelivery(
   const url = rewriteForContainer(cfg.url, config.webhook.localhostRewrite, ctx.log)
 
   const headers: Record<string, string> = { 'content-type': 'application/json' }
-  // O Asaas só manda o header se o webhook tem token configurado.
+  // Asaas only sends the header if the webhook has a token configured.
   if (cfg.authToken) headers['asaas-access-token'] = cfg.authToken
 
   let statusCode: number | null = null
@@ -367,23 +375,23 @@ async function attemptDelivery(
     statusCode = res.status
     await res.text().catch(() => undefined) // drena o corpo, libera o socket
 
-    // AQUI. Só 200. 201 e 204 são falha — é a regra real, e é a que queima.
+    // HERE. Only 200. 201 and 204 are failures — it is the real rule, and the one that burns.
     if (statusCode !== 200) {
-      error = `HTTP ${statusCode}: o Asaas só considera entregue com HTTP 200.`
+      error = `HTTP ${statusCode}: Asaas only considers it delivered with HTTP 200.`
     }
   } catch (err) {
     const e = err as { name?: string; message?: string }
     error =
       e?.name === 'TimeoutError' || e?.name === 'AbortError'
-        ? `Timeout após ${config.webhook.timeoutMs}ms.`
+        ? `Timeout after ${config.webhook.timeoutMs}ms.`
         : `${e?.name ?? 'Error'}: ${e?.message ?? String(err)}`
   }
 
   const attempt = delivery.attempt + 1
   const timestamp = clock.timestamp()
 
-  // Compare-and-swap: a atualização só pega se a entrega continua PENDING e no
-  // mesmo número de tentativas. Uma execução duplicada do job altera zero linhas.
+  // Compare-and-swap: the update only takes if the delivery is still PENDING and
+  // on the same attempt number. A duplicated run of the job changes zero rows.
   const cas = and(
     eq(webhookDeliveries.id, delivery.id),
     eq(webhookDeliveries.status, 'PENDING'),
@@ -427,7 +435,7 @@ async function attemptDelivery(
     .where(cas)
 
   if (exhausted) {
-    // Esgotou: a fila INTEIRA deste webhook congela até um removeBackoff.
+    // Exhausted: the WHOLE queue of this webhook freezes until a removeBackoff.
     await db
       .update(webhooks)
       .set({ interrupted: true })
@@ -435,8 +443,8 @@ async function attemptDelivery(
 
     ctx.log(
       'warn',
-      `Webhook "${cfg.name}" interrompido após ${attempt} tentativas sem HTTP 200. ` +
-        `A fila está congelada — chame POST /v3/webhooks/${cfg.id}/removeBackoff.`,
+      `Webhook "${cfg.name}" interrupted after ${attempt} attempts without HTTP 200. ` +
+        `The queue is frozen — call POST /v3/webhooks/${cfg.id}/removeBackoff.`,
       { webhookId: cfg.id, url: cfg.url, lastError: error },
     )
   }

@@ -1,9 +1,10 @@
 /**
- * Utilitários compartilhados de manipulação da spec OpenAPI do Asaas.
+ * Shared utilities for handling Asaas's OpenAPI spec.
  *
- * `spec/openapi.json` é vendorizado byte-a-byte do upstream e NUNCA é editado à
- * mão — é isso que mantém o diff de drift limpo. Correções à spec vivem em
- * `spec/overlays/*.json` como JSON Patch e são aplicadas em memória no codegen.
+ * `spec/openapi.json` is vendored byte-for-byte from upstream and is NEVER
+ * hand-edited — that is what keeps the drift diff clean. Corrections to the spec
+ * live in `spec/overlays/*.json` as JSON Patch and are applied in memory in the
+ * codegen.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,9 +42,9 @@ export interface SpecLock {
   pathCount: number
   operationCount: number
   schemaCount: number
-  /** operationId -> hash da forma da operação. É o que detecta mudança de campo. */
+  /** operationId -> hash of the operation's shape. It is what detects a field change. */
   operations: Record<string, string>
-  /** nome do schema -> hash. */
+  /** the schema's name -> hash. */
   schemas: Record<string, string>
 }
 
@@ -56,7 +57,7 @@ export async function sha256(text: string): Promise<string> {
   return hasher.digest('hex')
 }
 
-/** Hash estável: chaves ordenadas recursivamente, para que reordenação não vire drift. */
+/** Stable hash: keys sorted recursively, so that a reordering does not become drift. */
 export function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
@@ -116,8 +117,8 @@ export async function buildLock(raw: string, fetchedAt: string): Promise<SpecLoc
 }
 
 /**
- * O endpoint da spec responde 429 com facilidade. Nunca chame isto durante o
- * build — o build lê apenas o arquivo vendorizado.
+ * The spec's endpoint answers 429 easily. Never call this during the
+ * build — the build only reads the vendored file.
  */
 export async function fetchSpec(attempts = 4): Promise<string> {
   let lastError: unknown
@@ -134,13 +135,13 @@ export async function fetchSpec(attempts = 4): Promise<string> {
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const text = await res.text()
-      JSON.parse(text) // valida que é JSON antes de gravar
+      JSON.parse(text) // validates that it is JSON before writing
       return text
     } catch (err) {
       lastError = err
     }
   }
-  throw new Error(`Falha ao baixar a spec após ${attempts} tentativas: ${lastError}`)
+  throw new Error(`Failed to download the spec after ${attempts} attempts: ${lastError}`)
 }
 
 interface Overlay {
@@ -149,7 +150,7 @@ interface Overlay {
   patch: { op: 'add' | 'replace' | 'remove'; path: string; value?: unknown }[]
 }
 
-/** Aplica os overlays de `spec/overlays/` em memória. A spec em disco não muda. */
+/** Applies the overlays of `spec/overlays/` in memory. The spec on disk does not change. */
 export function applyOverlays(spec: OpenApiSpec): { spec: OpenApiSpec; applied: string[] } {
   const files = readdirSync(OVERLAY_DIR)
     .filter((f) => f.endsWith('.json'))
@@ -175,15 +176,15 @@ function applyPatch(
     .slice(1)
     .map((t) => t.replace(/~1/g, '/').replace(/~0/g, '~'))
   const last = tokens.pop()
-  if (last === undefined) throw new Error(`${file}: path inválido "${patch.path}"`)
+  if (last === undefined) throw new Error(`${file}: invalid path "${patch.path}"`)
 
   let cursor: any = doc
   for (const token of tokens) {
     cursor = cursor?.[token]
     if (cursor === undefined) {
       throw new Error(
-        `${file}: path "${patch.path}" não resolve — o alvo sumiu da spec. ` +
-          `Isso quase sempre significa que o Asaas mudou a API e o overlay ficou obsoleto.`,
+        `${file}: path "${patch.path}" does not resolve — the target is gone from the spec. ` +
+          `This almost always means Asaas changed the API and the overlay became obsolete.`,
       )
     }
   }
@@ -195,6 +196,6 @@ function applyPatch(
   } else if (patch.op === 'remove') {
     delete cursor[last]
   } else {
-    throw new Error(`${file}: op "${patch.op}" não suportada`)
+    throw new Error(`${file}: unsupported op "${patch.op}"`)
   }
 }

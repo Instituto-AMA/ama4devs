@@ -10,7 +10,7 @@
 import { and, count, desc, eq, type SQL } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 import type { AppContext } from '../core/context.ts'
-import { notFound } from '../core/errors.ts'
+import { notFoundMessage } from '../core/errors.ts'
 import { invoices, payments } from '../db/schema/index.ts'
 import { brlToCents } from '../domain/money.ts'
 import type { Trigger } from '../domain/payment-machine.ts'
@@ -41,7 +41,7 @@ export function mockRoutes(ctx: AppContext) {
       .from(payments)
       .where(eq(payments.id, id))
       .limit(1)
-    if (!row) throw notFound('Cobrança')
+    if (!row) throw notFoundMessage('Charge not found.')
   }
 
   /**
@@ -97,18 +97,21 @@ export function mockRoutes(ctx: AppContext) {
     (wanted: string[], act: (inv: InvoiceRow, body: any) => Promise<InvoiceRow | null>) =>
     async ({ params, body }: { params: { id: string }; body: any }) => {
       const [inv] = await ctx.db.select().from(invoices).where(eq(invoices.id, params.id)).limit(1)
-      if (!inv) throw notFound('Nota fiscal')
+      if (!inv) throw notFoundMessage('Fiscal note not found.')
       if (!wanted.includes(inv.status)) {
-        throw badRequest('invalid_action', `A nota fiscal está ${inv.status}; esta ação pede ${wanted.join(' ou ')}.`)
+        throw badRequest(
+          'invalid_action',
+          `The fiscal note is ${inv.status}; this action requires ${wanted.join(' or ')}.`,
+        )
       }
       const after = await act(inv, body ?? {})
-      if (!after) throw badRequest('invalid_action', 'A nota fiscal mudou de situação. Consulte-a de novo.')
+      if (!after) throw badRequest('invalid_action', 'The fiscal note changed status. Read it again.')
       return { invoice: serializeInvoice(after), from: inv.status, to: after.status }
     }
   const reason = t.Optional(t.Object({ description: t.Optional(t.String()) }))
 
   return app
-    // ── Notas fiscais: the city hall, on demand ──────────────────────────────
+    // ── Fiscal notes: the city hall, on demand ──────────────────────────────
     // Authorizes regardless of the fiscal information: the outcome is forced.
     .post(
       '/invoices/:id/authorize',

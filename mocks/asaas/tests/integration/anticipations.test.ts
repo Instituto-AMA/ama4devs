@@ -1,14 +1,14 @@
 /**
- * Antecipação de recebíveis. (Track D)
+ * Anticipation of receivables. (Track D)
  *
- * A cena que importa é a última: o dinheiro entra HOJE e SAI quando o recebível
- * original liquida — e os dois movimentos, somados, deixam na conta exatamente o
- * líquido menos a taxa de antecipação. Se os lançamentos não se cancelarem, o
- * saldo diverge do extrato para sempre, em silêncio.
+ * The scene that matters is the last one: the money comes in TODAY and goes out when the
+ * original receivable settles — and the two movements, added together, leave exactly the
+ * net of the anticipation fee in the account. If the entries do not cancel each other, the
+ * balance diverges from the statement forever, in silence.
  *
- * ATENÇÃO: a fórmula da taxa NÃO é documentada pelo Asaas. A nossa está em
- * src/domain/anticipation.ts, registrada em progress.md, e os números vivem em
- * config.fees.anticipation. Estes testes provam a fórmula ESCOLHIDA — não a real.
+ * WARNING: the fee formula is NOT documented by Asaas. Ours is in
+ * src/domain/anticipation.ts, recorded in progress.md, and the numbers live in
+ * config.fees.anticipation. These tests prove the CHOSEN formula — not the real one.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -38,7 +38,7 @@ async function customer(): Promise<string> {
   return res.body.id
 }
 
-/** Uma cobrança de cartão CONFIRMADA: o recebível clássico, com crédito em D+32. */
+/** A CONFIRMED card charge: the classic receivable, with the credit at D+32. */
 async function confirmedCreditCard(value = 100): Promise<any> {
   const cus = await customer()
   const created = await h.api.call('create-new-payment', {
@@ -49,7 +49,7 @@ async function confirmedCreditCard(value = 100): Promise<any> {
 }
 
 describe('POST /v3/anticipations/simulate', () => {
-  it('cotação de um cartão confirmado: 32 dias, taxa pro-rata sobre o líquido', async () => {
+  it('quote of a confirmed card: 32 days, a pro-rata fee over the net', async () => {
     const payment = await confirmedCreditCard(100)
     expect(payment.estimatedCreditDate).toBe('2026-02-06') // 05/01 + 32
 
@@ -58,24 +58,24 @@ describe('POST /v3/anticipations/simulate', () => {
     expect(res.status).toBe(200)
     expect(res.body.anticipationDays).toBe(32)
 
-    // totalValue = bruto | value = líquido da cobrança (100 − 3,48 de taxa)
+    // totalValue = gross | value = the net of the charge (100 − 3.48 of fee)
     expect(res.body.totalValue).toBe(100)
     expect(res.body.value).toBe(96.52)
 
-    // fee = 96,52 × 2,49% / 30 × 32 = R$ 2,56 (arredondado meio-para-cima)
+    // fee = 96.52 × 2.49% / 30 × 32 = R$ 2.56 (rounded half-up)
     expect(res.body.fee).toBe(2.56)
     expect(res.body.netValue).toBe(93.96)
 
-    // Cartão confirmado é dinheiro certo: a operadora já autorizou.
+    // A confirmed card is certain money: the issuer already authorized it.
     expect(res.body.isDocumentationRequired).toBe(false)
 
-    // Simular NÃO grava nada.
+    // Simulating does NOT store anything.
     const list = await h.api.call('list-anticipations')
     expect(list.body.totalCount).toBe(0)
     await h.assertLedgerBalances()
   })
 
-  it('a simulação e o pedido dão o MESMO número — é a mesma função de cotação', async () => {
+  it('the simulation and the order give the SAME number — it is the same quoting function', async () => {
     const payment = await confirmedCreditCard(100)
 
     const simulated = await h.api.call('simulate-anticipation', {
@@ -85,30 +85,30 @@ describe('POST /v3/anticipations/simulate', () => {
       body: { payment: payment.id },
     })
 
-    // Se estes dois divergirem, a integração mostra uma taxa na tela e cobra
-    // outra. É o defeito mais desonesto que este endpoint pode ter.
+    // If these two diverge, the integration shows one fee on the screen and charges
+    // another. It is the most dishonest defect this endpoint can have.
     expect(requested.body.fee).toBe(simulated.body.fee)
     expect(requested.body.netValue).toBe(simulated.body.netValue)
     expect(requested.body.anticipationDays).toBe(simulated.body.anticipationDays)
   })
 })
 
-describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
-  it('credita AGORA, cobra a taxa, e marca a cobrança como antecipada', async () => {
+describe('POST /v3/anticipations — the money arrives today', () => {
+  it('credits NOW, charges the fee, and marks the charge as anticipated', async () => {
     const payment = await confirmedCreditCard(100)
 
-    // O cartão foi confirmado: o dinheiro NÃO está na conta ainda.
+    // The card was confirmed: the money is NOT in the account yet.
     expect((await h.api.call('retrieve-account-balance')).body.balance).toBe(0)
 
     const res = await h.api.call('request-anticipation', { body: { payment: payment.id } })
 
-    expect(res.status).toBe(200) // 200, nunca 201
+    expect(res.status).toBe(200) // 200, never 201
     expect(res.body.status).toBe('CREDITED')
     expect(res.body.payment).toBe(payment.id)
     expect(res.body.dueDate).toBe('2026-02-06')
-    expect(res.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/) // UUID puro
+    expect(res.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/) // a bare UUID
 
-    // 96,52 (líquido) − 2,56 (taxa) = 93,96 — hoje, não em D+32.
+    // 96.52 (net) − 2.56 (fee) = 93.96 — today, not at D+32.
     const balance = await h.api.call('retrieve-account-balance')
     expect(balance.body.balance).toBe(93.96)
 
@@ -128,13 +128,13 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
     await h.assertLedgerBalances()
   })
 
-  it('o débito acontece quando o recebível original liquida — e o saldo fecha', async () => {
+  it('the debit happens when the original receivable settles — and the balance closes', async () => {
     const payment = await confirmedCreditCard(100)
     await h.api.call('request-anticipation', { body: { payment: payment.id } })
 
     expect((await h.api.call('retrieve-account-balance')).body.balance).toBe(93.96)
 
-    // D+32: o cartão credita. É a viagem no tempo que o sandbox real não permite.
+    // D+32: the card credits. It is the time travel the real sandbox does not allow.
     await h.advance({ days: 32 })
 
     const p = await h.api.call('retrieve-a-single-payment', { params: { id: payment.id } })
@@ -142,16 +142,16 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
 
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual([
-      'RECEIVABLE_ANTICIPATION_GROSS_CREDIT', // +96,52  (hoje)
-      'RECEIVABLE_ANTICIPATION_FEE', //          − 2,56  (hoje)
+      'RECEIVABLE_ANTICIPATION_GROSS_CREDIT', // +96.52  (today)
+      'RECEIVABLE_ANTICIPATION_FEE', //          − 2.56  (today)
       'PAYMENT_RECEIVED', //                     +100,00 (D+32)
       'PAYMENT_FEE', //                          −  3,48 (D+32)
-      'RECEIVABLE_ANTICIPATION_DEBIT', //        − 96,52 (D+32) — já foi adiantado
+      'RECEIVABLE_ANTICIPATION_DEBIT', //        − 96.52 (D+32) — it was already advanced
     ])
     expect(ledger.at(-1)!.valueCents).toBe(-9652)
 
-    // O saldo NÃO dobrou: o adiantamento saiu quando o recebível entrou. Sobrou
-    // exatamente o líquido menos a taxa de antecipação.
+    // The balance did NOT double: the advance went out when the receivable came in. What was left
+    // is exactly the net minus the anticipation fee.
     const balance = await h.api.call('retrieve-account-balance')
     expect(balance.body.balance).toBe(93.96)
 
@@ -161,7 +161,7 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
     await h.assertLedgerBalances()
   })
 
-  it('a mesma cobrança não pode ser antecipada duas vezes', async () => {
+  it('the same charge cannot be anticipated twice', async () => {
     const payment = await confirmedCreditCard(100)
     await h.api.call('request-anticipation', { body: { payment: payment.id } })
 
@@ -172,7 +172,7 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
     await h.assertLedgerBalances()
   })
 
-  it('cobrança Pix não tem recebível a antecipar', async () => {
+  it('a Pix charge has no receivable to anticipate', async () => {
     const cus = await customer()
     const p = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -183,7 +183,7 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
     expect(res.body.errors[0].description).toContain('cartão de crédito ou boleto')
   })
 
-  it('cobrança de outra conta não existe (404, não 403)', async () => {
+  it('a charge from another account does not exist (404, not 403)', async () => {
     const payment = await confirmedCreditCard(100)
     const second = await createSecondAccount(h)
 
@@ -194,8 +194,8 @@ describe('POST /v3/anticipations — o dinheiro entra hoje', () => {
   })
 })
 
-describe('Boleto ainda não pago — antecipação SCHEDULED', () => {
-  it('nasce SCHEDULED e só credita quando o pagador paga', async () => {
+describe('Bank slip not paid yet — SCHEDULED anticipation', () => {
+  it('is born SCHEDULED and only credits when the payer pays', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'BOLETO', value: 200, dueDate: '2026-01-20' },
@@ -203,13 +203,13 @@ describe('Boleto ainda não pago — antecipação SCHEDULED', () => {
 
     const a = await h.api.call('request-anticipation', { body: { payment: created.body.id } })
 
-    // O dinheiro do boleto não existe ainda — ninguém pagou. Não se credita o que
-    // não entrou.
+    // The bank slip's money does not exist yet — nobody paid. You do not credit what
+    // has not come in.
     expect(a.body.status).toBe('SCHEDULED')
     expect((await h.api.call('retrieve-account-balance')).body.balance).toBe(0)
     expect((await ledgerOf(h.accountId)).length).toBe(0)
 
-    // O pagador paga. O boleto vai a CONFIRMED.
+    // The payer pays. The bank slip goes to CONFIRMED.
     await h.api.call('confirm-payment', { params: { id: created.body.id } })
     await h.tick()
 
@@ -227,7 +227,7 @@ describe('Boleto ainda não pago — antecipação SCHEDULED', () => {
     await h.assertLedgerBalances()
   })
 
-  it('cancelar uma antecipação SCHEDULED devolve a cobrança para o pool', async () => {
+  it('cancelling a SCHEDULED anticipation returns the charge to the pool', async () => {
     const cus = await customer()
     const created = await h.api.call('create-new-payment', {
       body: { customer: cus, billingType: 'BOLETO', value: 200, dueDate: '2026-01-20' },
@@ -242,12 +242,12 @@ describe('Boleto ainda não pago — antecipação SCHEDULED', () => {
     expect(cancelled.body.status).toBe('CANCELLED')
 
     const p = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
-    expect(p.body.anticipated).toBe(false) // dá para antecipar de novo
+    expect(p.body.anticipated).toBe(false) // it can be anticipated again
 
     await h.assertLedgerBalances()
   })
 
-  it('antecipação CREDITED não pode ser cancelada — o dinheiro já está na conta', async () => {
+  it('a CREDITED anticipation cannot be cancelled — the money is already in the account', async () => {
     const payment = await confirmedCreditCard(100)
     const a = await h.api.call('request-anticipation', { body: { payment: payment.id } })
 
@@ -260,8 +260,8 @@ describe('Boleto ainda não pago — antecipação SCHEDULED', () => {
   })
 })
 
-describe('Limites e antecipação automática', () => {
-  it('o limite disponível cai pelo valor já antecipado', async () => {
+describe('Limits and automatic anticipation', () => {
+  it('the available limit drops by the amount already anticipated', async () => {
     const before = await h.api.call('retrieve-anticipation-limits')
     expect(before.body.creditCard.total).toBe(50_000)
     expect(before.body.creditCard.available).toBe(50_000)
@@ -271,10 +271,10 @@ describe('Limites e antecipação automática', () => {
 
     const after = await h.api.call('retrieve-anticipation-limits')
     expect(after.body.creditCard.available).toBe(50_000 - 96.52)
-    expect(after.body.bankSlip.available).toBe(50_000) // boleto tem limite próprio
+    expect(after.body.bankSlip.available).toBe(50_000) // the bank slip has its own limit
   })
 
-  it('com o flag ligado, o cartão confirmado é antecipado sozinho', async () => {
+  it('with the flag on, the confirmed card is anticipated by itself', async () => {
     const off = await h.api.call('retrieve-status-of-automatic-anticipation')
     expect(off.body.creditCardAutomaticEnabled).toBe(false)
 
@@ -284,7 +284,7 @@ describe('Limites e antecipação automática', () => {
     expect(on.body.creditCardAutomaticEnabled).toBe(true)
 
     const payment = await confirmedCreditCard(100)
-    await h.tick() // o job antecipa sem ninguém pedir
+    await h.tick() // the job anticipates without anyone asking
 
     const list = await h.api.call('list-anticipations')
     expect(list.body.totalCount).toBe(1)
@@ -299,7 +299,7 @@ describe('Limites e antecipação automática', () => {
 })
 
 describe('Webhooks', () => {
-  it('CREDITED na antecipação e DEBITED na liquidação do recebível', async () => {
+  it('CREDITED on the anticipation and DEBITED on the settlement of the receivable', async () => {
     await h.subscribeWebhook([
       'RECEIVABLE_ANTICIPATION_CREDITED',
       'RECEIVABLE_ANTICIPATION_DEBITED',

@@ -1,31 +1,31 @@
 /**
- * Transferências. PURO.
+ * Transfers. PURE.
  *
- * Duas regras, e as duas são as que quebram integração quando erradas:
+ * Two rules, and both are the ones that break integrations when they are wrong:
  *
- *   PIX  → cai no MESMO DIA (a rede Pix é 24×7; não há dia útil aqui).
- *   TED  → cai no PRÓXIMO DIA ÚTIL. Pedir uma TED na sexta credita na segunda.
+ *   PIX  → lands on the SAME DAY (the Pix network is 24×7; there is no business day here).
+ *   TED  → lands on the NEXT BUSINESS DAY. Asking for a TED on Friday credits on Monday.
  *
- * A transferência INTERNA (entre duas contas Asaas) é instantânea e gratuita —
- * não sai da plataforma, então não tem TED nem Pix no meio.
+ * An INTERNAL transfer (between two Asaas accounts) is instantaneous and free —
+ * it does not leave the platform, so there is no TED or Pix in the middle.
  */
 import { addBusinessDays, type IsoDate } from './calendar.ts'
 import type { FeeTable } from '../core/config.ts'
 import { cents, type Cents } from './money.ts'
 
-/** O que a coluna `operation_type` guarda. */
+/** What the `operation_type` column stores. */
 export type TransferOperationType = 'PIX' | 'TED' | 'INTERNAL'
-/** O que a coluna `type` guarda. Não é a mesma coisa — veja o serializer. */
+/** What the `type` column stores. It is not the same thing — see the serializer. */
 export type TransferKind = 'BANK_ACCOUNT' | 'PIX' | 'INTERNAL'
 
 /**
- * A taxa da transferência.
+ * The transfer fee.
  *
- * TODO(regra): `config.fees.transfer.monthlyWithoutFee` (30 transferências
- * gratuitas por mês) NÃO é aplicado. O Asaas não documenta o que conta para a
- * franquia (Pix e TED juntos? por conta ou por subconta? o mês é o de
- * competência ou os últimos 30 dias?), e inventar uma resposta faria a taxa
- * aparecer ou sumir do extrato de forma que ninguém consegue conferir.
+ * TODO(rule): `config.fees.transfer.monthlyWithoutFee` (30 free transfers per
+ * month) is NOT applied. Asaas does not document what counts towards the
+ * allowance (Pix and TED together? per account or per subaccount? is the month the
+ * competence month or the last 30 days?), and inventing an answer would make the
+ * fee appear or vanish from the statement in a way nobody could check.
  */
 export function transferFee(fees: FeeTable, operationType: TransferOperationType): Cents {
   switch (operationType) {
@@ -39,8 +39,8 @@ export function transferFee(fees: FeeTable, operationType: TransferOperationType
 }
 
 /**
- * Quando o dinheiro chega na conta de destino, dado o dia em que o banco
- * começou a processar.
+ * When the money arrives in the destination account, given the day the bank
+ * started processing it.
  */
 export function transferEffectiveDate(
   operationType: TransferOperationType,

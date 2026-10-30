@@ -1,15 +1,16 @@
 /**
- * Consulta de splits. (Track F)
+ * The queries of the splits. (Track F)
  *
- * Duas visões do MESMO registro, e a diferença é o ponto:
+ * Two views of the SAME record, and the difference is the point:
  *
- *   /v3/payments/splits/paid      → o que SAIU desta conta (sou a origem)
- *   /v3/payments/splits/received  → o que ENTROU nesta conta (sou o destino)
+ *   /v3/payments/splits/paid      → what LEFT this account (I am the origin)
+ *   /v3/payments/splits/received  → what ARRIVED in this account (I am the destination)
  *
- * A mesma linha de `payment_splits` aparece nas duas listas — na conta de origem
- * como "pago" e na de destino como "recebido". É por isso que a subconta com API
- * key própria não é um detalhe de conveniência: sem ela, `received` seria sempre
- * vazio e metade do recurso não teria como ser testada.
+ * The same row of `payment_splits` shows up in the two lists — in the account of
+ * the origin as "paid" and in the one of the destination as "received". That is
+ * why the subaccount with an API key of its own is not a detail of
+ * convenience: without it, `received` would always be empty and half of the
+ * resource would have no way to be tested.
  */
 import { and, count, eq, gte, lte, type SQL } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -25,8 +26,8 @@ type PaymentRow = typeof payments.$inferSelect
 const money = (v: number | null): number | null => (v === null ? null : centsToBrl(cents(v)))
 
 /**
- * A fronteira: centavos viram reais, e o percentual sai da escala 1e4.
- * 923444 → 92.3444 (quatro casas decimais, como o Asaas).
+ * The boundary: cents become reais, and the percentage comes out of the 1e4
+ * scale. 923444 → 92.3444 (four decimal places, as in Asaas).
  */
 function serializeSplit(s: SplitRow, p: PaymentRow): Record<string, unknown> {
   return {
@@ -40,8 +41,9 @@ function serializeSplit(s: SplitRow, p: PaymentRow): Record<string, unknown> {
     externalReference: s.externalReference,
     description: s.description,
 
-    // Quem pagou e quem recebeu. `destinationAccountId` é null quando o walletId
-    // é de uma carteira externa — nesse caso não há conta neste servidor.
+    // Who paid and who received. `destinationAccountId` is null when the walletId
+    // belongs to an external wallet — in that case there is no account on this
+    // server.
     originAccountId: p.accountId,
     destinationAccountId: s.recipientAccountId,
 
@@ -54,7 +56,7 @@ function serializeSplit(s: SplitRow, p: PaymentRow): Record<string, unknown> {
   }
 }
 
-/** Os filtros que a spec declara nas duas listagens. */
+/** The filters the spec declares in the two listings. */
 function splitFilters(query: Record<string, unknown>): SQL[] {
   const filters: SQL[] = []
 
@@ -111,16 +113,16 @@ async function findSplit(ctx: AppContext, id: string, scope: SQL): Promise<unkno
     .where(and(eq(paymentSplits.id, id), scope))
     .limit(1)
 
-  // 404, não 403: um split de outra conta simplesmente NÃO EXISTE para você — a
-  // API não confirma nem desmente. É o que o Asaas faz.
+  // 404, not 403: a split of another account simply DOES NOT EXIST for you —
+  // the API neither confirms nor denies. It is what Asaas does.
   if (!row) throw notFound('Split')
   return serializeSplit(row.split, row.payment)
 }
 
-/** Sou a ORIGEM: o split saiu de uma cobrança minha. */
+/** I am the ORIGIN: the split left from one of my charges. */
 const paidScope = (auth: AuthContext): SQL => eq(payments.accountId, auth.accountId)
 
-/** Sou o DESTINO: a carteira do split é a da minha conta. */
+/** I am the DESTINATION: the wallet of the split is the one of my account. */
 const receivedScope = (auth: AuthContext): SQL =>
   eq(paymentSplits.recipientAccountId, auth.accountId)
 

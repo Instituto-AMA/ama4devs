@@ -1,13 +1,14 @@
 /**
- * A navegação. Duas seções, e a fronteira entre elas é deliberada.
+ * The navigation. Two sections, and the boundary between them is deliberate.
  *
- * Em cima, o que o painel do Asaas tem. Embaixo, sob a marca "Simulador", o que
- * SÓ existe aqui: viagem no tempo, fila de webhooks, cartões de teste. Se os dois
- * blocos se misturassem, alguém acabaria escrevendo código contando com um botão
- * que não existe em produção — e descobriria tarde.
+ * On top, what the Asaas panel has. Below, under the "Simulador" brand, what
+ * exists ONLY here: time travel, the webhook queue, the test cards. If the two
+ * blocks got mixed up, someone would end up writing code counting on a button
+ * that does not exist in production — and would find out late.
  *
- * Os itens sem tela aparecem DESABILITADOS em vez de sumirem. Ver "Antecipações"
- * apagado responde "isso ainda não tem aqui"; não ver nada faz procurar.
+ * The items without a screen show up DISABLED instead of disappearing. Seeing
+ * "Antecipações" greyed out answers "this is not here yet"; seeing nothing
+ * makes you look for it.
  */
 import * as I from '../icons.ts'
 import { Icon, type IconData } from './Icon.tsx'
@@ -18,11 +19,11 @@ export interface NavItem {
   id: string
   label: string
   icon: IconData
-  /** Sem tela ainda. Fica visível e apagado — some seria pior. */
+  /** No screen yet. It stays visible and greyed out — disappearing would be worse. */
   disabled?: boolean
 }
 
-/** As telas do Asaas. A ordem é a do painel real. */
+/** The screens of Asaas. The order is the one of the real panel. */
 export const ASAAS_NAV: NavItem[] = [
   { id: 'home', label: 'Início', icon: I.HOME },
   { id: 'customers', label: 'Meus Clientes', icon: I.CUSTOMER },
@@ -36,20 +37,20 @@ export const ASAAS_NAV: NavItem[] = [
   { id: 'splits', label: 'Split de pagamentos', icon: I.SPLIT },
   { id: 'subaccounts', label: 'Subcontas', icon: I.SUBACCOUNT },
   /**
-   * Chaves de API e webhooks são configuração DA CONTA, e existem no painel do Asaas de
-   * verdade, sob "Integrações" — por isso moram aqui em cima, e não no bloco do
-   * Simulador. Cada conta tem os seus, e um evento da conta X só é entregue aos
-   * webhooks de X.
+   * API keys and webhooks are configuration OF THE ACCOUNT, and they exist in
+   * the real Asaas panel, under "Integrações" — that is why they live up here,
+   * and not in the Simulador block. Each account has its own, and an event of
+   * account X is only delivered to the webhooks of X.
    *
-   * (O DIAGNÓSTICO da fila — por que ela travou, quantas entregas estão presas atrás —
-   * esse sim é introspecção nossa. A tela diz isso.)
+   * (The DIAGNOSIS of the queue — why it froze, how many deliveries are stuck
+   * behind — that one is our introspection. The screen says so.)
    */
   { id: 'integrations', label: 'Integrações', icon: I.INTEGRATION },
 ]
 
-/** O que NÃO existe no Asaas. É por isso que fica num bloco à parte. */
+/** What does NOT exist in Asaas. That is why it stays in a separate block. */
 export const SIM_NAV: NavItem[] = [
-  /** No Asaas não se abre conta raiz por API; aqui, um perfil é um tenant da app. */
+  /** In Asaas you do not open a root account through the API; here, a profile is a tenant of the app. */
   { id: 'sim-profiles', label: 'Perfis', icon: I.PROFILE },
   { id: 'sim-clock', label: 'Relógio virtual', icon: I.CLOCK },
   { id: 'sim-cards', label: 'Cartões de teste', icon: I.CARD },
@@ -59,7 +60,7 @@ export function Sidebar(props: {
   page: string
   onNavigate: (id: string) => void
   onSimulateSale: () => void
-  /** Quantas filas de webhook estão travadas — o badge vermelho da navegação. */
+  /** How many webhook queues are stuck — the red badge of the navigation. */
   webhookAlerts: number
 }) {
   const item = (i: NavItem, badge?: number) => (

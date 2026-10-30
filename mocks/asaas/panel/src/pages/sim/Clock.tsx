@@ -1,12 +1,15 @@
 /**
- * A viagem no tempo. É o que este simulador tem que o sandbox do Asaas não tem.
+ * The time travel. It is what this simulator has that the Asaas sandbox does
+ * not.
  *
- * Avançar 32 dias em milissegundos e ver o `PAYMENT_RECEIVED` de um cartão chegar é
- * a razão de o projeto existir. Mas o relógio é GLOBAL AO CONTAINER — ele move o tempo
- * para a aplicação que integra do outro lado também. Clicar `+32` aqui e depois
- * estranhar que "o Pix nasce OVERDUE" no seu app é o mesmo bug, e ele custou uma tarde.
+ * Advancing 32 days in milliseconds and watching the `PAYMENT_RECEIVED` of a
+ * card arrive is the reason the project exists. But the clock is GLOBAL TO THE
+ * CONTAINER — it moves the time for the application integrating on the other
+ * side too. Clicking `+32` here and then being surprised that "the Pix is born
+ * OVERDUE" in your app is the same bug, and it cost an afternoon.
  *
- * Por isso o aviso vive no shell, visível em qualquer tela, e não escondido aqui.
+ * That is why the warning lives in the shell, visible on any screen, and not
+ * hidden here.
  */
 import { useState } from 'preact/hooks'
 import { admin } from '../../api.ts'

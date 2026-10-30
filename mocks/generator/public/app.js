@@ -23,6 +23,17 @@ function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c)
 }
 
+/** Portuguese labels used only by the Portuguese interface. */
+const PRESENTATION_LABELS = {
+  person: 'Pessoa',
+  company: 'Empresa',
+  address: 'Endereço',
+  'credit-card': 'Cartão de crédito',
+  'bank-account': 'Conta bancária',
+  'pix-key': 'Chave Pix',
+  charge: 'Cobrança',
+}
+
 /** @type {{ kind: string, seed: string, count: number, items: any[] } | null} */
 let lastResult = null
 
@@ -522,7 +533,7 @@ async function runAsaasPopulate() {
     const data = await res.json()
 
     if (!res.ok) {
-      throw new Error(data?.error?.message || `Erro HTTP ${res.status}`)
+      throw new Error(data?.error?.message || `HTTP error ${res.status}`)
     }
 
     asaasResultArea.style.display = 'block'
@@ -588,7 +599,7 @@ async function runAsaasPopulate() {
 
 async function init() {
   // Populate kinds select
-  genKind.innerHTML = KINDS.map((k) => `<option value="${k.id}">${k.label}</option>`).join('')
+  genKind.innerHTML = KINDS.map((k) => `<option value="${k.id}">${PRESENTATION_LABELS[k.id] ?? k.label}</option>`).join('')
 
   // Populate states select
   for (const [code, name] of Object.entries(STATES)) {

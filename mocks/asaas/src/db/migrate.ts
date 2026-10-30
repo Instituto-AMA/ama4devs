@@ -14,5 +14,5 @@ if (import.meta.main) {
   const path = process.env.DATABASE_PATH ?? './data/asaas.db'
   const { db } = createDb(path)
   migrate(db)
-  console.log(`Migrações aplicadas em ${path}`)
+  console.log(`Migrations applied in ${path}`)
 }

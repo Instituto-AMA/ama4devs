@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quick start do mock do WhatsApp: a Cloud API no localhost | ama4devs</title>
+  <meta name="description" content="Suba o mock da WhatsApp Cloud API em Docker, receba webhooks assinados, crie e envie um template e responda como o usuário. Com compose e CI.">
+  <meta name="keywords" content="quick start mock whatsapp, whatsapp cloud api localhost, webhook whatsapp localhost, api whatsapp docker, teste template whatsapp, teste whatsapp ci">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/quick-start/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/quick-start/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/quick-start/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/whatsapp/quick-start/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Quick start do mock do WhatsApp">
+  <meta property="og:description" content="Do docker run a um webhook assinado e à resposta do usuário, em poucas chamadas.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/quick-start/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/chat.jpg">
+  <meta name="theme-color" content="#0e3a2f">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-tool="whatsapp">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../" aria-current="page">Mock do WhatsApp</a>
+        <a href="../../asaas/">Mock do Asaas</a>
+        <a href="../../generator/">Gerador</a>
+        <a href="../../sms/">Mock de SMS</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../whatsapp/quick-start/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock do WhatsApp">
+    <a href="../">Visão geral</a>
+    <a href="./" aria-current="page">Quick start</a>
+    <a href="../api/">API</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#run">Suba</a></li>
+            <li><a href="#point">Aponte sua aplicação</a></li>
+            <li><a href="#template">Crie um template</a></li>
+            <li><a href="#send">Envie</a></li>
+            <li><a href="#answer">Responda como o usuário</a></li>
+            <li><a href="#compose">No seu compose</a></li>
+            <li><a href="#ci">No CI</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Quick start</h1>
+          <p class="lead">Do <code>docker run</code> a um webhook assinado e à resposta do usuário. Cada chamada abaixo roda como está escrita contra um container novo.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <ol class="steps">
+              <li id="run">
+                <h3>Suba</h3>
+                <p>Diga onde a sua aplicação recebe os webhooks e o segredo para assiná-los.</p>
+                <div class="code"><pre><code>docker run --rm -p 3010:3010 \
+  -e WEBHOOK_URL=http://host.docker.internal:4000/webhooks/whatsapp \
+  -e WEBHOOK_SECRET=my-app-secret \
+  --add-host host.docker.internal:host-gateway \
+  ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
+                <p>Sobe com uma empresa, a WhatsApp Business Account <code>100000000000001</code> e o número <code>1234567890</code>, registrado e com ligações ativadas. O painel fica em <a href="http://localhost:3010">http://localhost:3010</a>.</p>
+              </li>
+
+              <li id="point">
+                <h3>Aponte sua aplicação</h3>
+                <p>Mesmos caminhos, mesmos corpos, mesmas respostas, mesmos códigos de erro. Qualquer token bearer é aceito, desde que exista.</p>
+                <div class="code"><pre><code><span class="del">- WHATSAPP_GRAPH_URL=https://graph.facebook.com/v23.0</span>
+<span class="add">+ WHATSAPP_GRAPH_URL=http://localhost:3010/v23.0</span>
+  WHATSAPP_PHONE_NUMBER_ID=1234567890
+  WHATSAPP_TOKEN=test</code></pre></div>
+              </li>
+
+              <li id="template">
+                <h3>Crie um template</h3>
+                <p>Ele passa por uma revisão, aprovada em 2 segundos por padrão, e o veredito chega no webhook <code>message_template_status_update</code>.</p>
+                <div class="code"><pre><code>curl -X POST localhost:3010/v23.0/100000000000001/message_templates \
+  -H 'Authorization: Bearer test' -H 'Content-Type: application/json' \
+  -d '{"name":"appointment_reminder","language":"pt_BR","category":"UTILITY",
+       "components":[{"type":"BODY","text":"Olá {{1}}, sua consulta é amanhã às {{2}}.",
+         "example":{"body_text":[["Maria","14:30"]]}},
+       {"type":"BUTTONS","buttons":[{"type":"QUICK_REPLY","text":"Confirmar"},
+         {"type":"QUICK_REPLY","text":"Remarcar"}]}]}'
+<span class="c"># → {"id":"…","status":"PENDING","category":"UTILITY"}</span></code></pre></div>
+              </li>
+
+              <li id="send">
+                <h3>Envie</h3>
+                <div class="code"><pre><code>curl -X POST localhost:3010/v23.0/1234567890/messages \
+  -H 'Authorization: Bearer test' -H 'Content-Type: application/json' \
+  -d '{"messaging_product":"whatsapp","to":"5511987654321","type":"template",
+       "template":{"name":"appointment_reminder","language":{"code":"pt_BR"},
+       "components":[{"type":"body","parameters":[
+         {"type":"text","text":"Maria"},{"type":"text","text":"14:30"}]}]}}'
+<span class="c"># → {"messages":[{"id":"wamid.…","message_status":"accepted"}]}, depois sent, delivered, read</span></code></pre></div>
+                <p>Abra o painel: a conversa com <code>5511987654321</code> mostra o template como o WhatsApp desenha, com os botões.</p>
+              </li>
+
+              <li id="answer">
+                <h3>Responda como o usuário</h3>
+                <p>Toque num botão ou digite no painel, ou faça isso de um teste com um header:</p>
+                <div class="code"><pre><code>curl -X POST localhost:3010/v23.0/1234567890/messages \
+  -H 'Authorization: Bearer test' -H 'Content-Type: application/json' \
+  -H 'X-Mock-From: 5511987654321' -H 'X-Mock-Contact-Name: Maria Souza' \
+  -d '{"messaging_product":"whatsapp","type":"text","text":{"body":"Oi! Quero remarcar."}}'
+<span class="c"># → o seu endpoint recebe o webhook messages, assinado com x-hub-signature-256</span></code></pre></div>
+              </li>
+
+              <li id="compose">
+                <h3>No seu compose</h3>
+                <div class="code"><pre><code>services:
+  whatsapp:
+    image: ghcr.io/instituto-ama/whatsapp-mock:latest
+    ports:
+      - '3010:3010'
+    environment:
+      WEBHOOK_URL: http://host.docker.internal:4000/webhooks/whatsapp
+      WEBHOOK_SECRET: my-app-secret
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   <span class="c"># Linux</span>
+    volumes:
+      - whatsapp-data:/app/data               <span class="c"># conversas, templates, números, mídia</span>
+volumes:
+  whatsapp-data:</code></pre></div>
+                <p>Templates também podem vir de arquivos: todo JSON numa pasta <code>templates/</code> montada é importado no boot e quando muda.</p>
+              </li>
+
+              <li id="ci">
+                <h3>No CI</h3>
+                <p>Não guarde nada entre execuções e tire as esperas:</p>
+                <div class="code"><pre><code>WHAP_DB=:memory:
+MOCK_WEBHOOK_RESPONSE_DELAY_MS=0
+MOCK_TEMPLATE_REVIEW_DELAY_MS=0</code></pre></div>
+              </li>
+            </ol>
+            <div class="next">
+              <a class="key confirm" href="../#use-cases">Casos de uso</a>
+              <a class="key" href="../api/">Referência da API</a>
+              <a class="key" href="../docs/">Docs</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock do WhatsApp é Apache-2.0. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/whatsapp">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Um simulador independente da WhatsApp Cloud API pública, sem vínculo com a Meta ou o WhatsApp. Os nomes são marcas de seus donos.</p>
+    </div>
+  </footer>
+  <script src="../../../assets/site.js" defer></script>
+</body>
+</html>

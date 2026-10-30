@@ -1,13 +1,13 @@
 /**
- * Transferências. (Track D)
+ * Transfers. (Track D)
  *
- * O que este arquivo prova, e que o sandbox do Asaas não deixa você provar:
+ * What this file proves, and what Asaas's sandbox does not let you prove:
  *
- *   - uma TED pedida hoje cai no PRÓXIMO DIA ÚTIL, e dá para assistir isso
- *     acontecer avançando o relógio um dia;
- *   - uma transferência entre duas contas Asaas move dinheiro DE VERDADE: os dois
- *     extratos fecham, e é isso que separa este projeto de um mock de JSON;
- *   - saldo insuficiente é recusado no ato, com o erro no formato do Asaas.
+ *   - a TED asked for today lands on the NEXT BUSINESS DAY, and you can watch it
+ *     happen by advancing the clock one day;
+ *   - a transfer between two Asaas accounts moves money FOR REAL: both
+ *     statements balance, and that is what separates this project from a JSON mock;
+ *   - an insufficient balance is refused on the spot, with the error in Asaas's format.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -30,7 +30,7 @@ const ledgerOf = async (accountId: string) =>
     .from(financialTransactions)
     .where(eq(financialTransactions.accountId, accountId))
 
-/** Põe dinheiro na conta: um Pix de `value` reais, recebido. */
+/** Puts money in the account: a Pix of `value` reais, received. */
 async function fund(value: number): Promise<void> {
   const cus = await h.api.call('create-new-customer', {
     body: { name: 'Fulano de Tal', cpfCnpj: '24971563792' },
@@ -51,29 +51,29 @@ const BANK_ACCOUNT = {
   bankAccountType: 'CONTA_CORRENTE',
 }
 
-describe('Transferência interna — os DOIS extratos fecham', () => {
-  it('debita a origem, credita o destino, e o invariante do ledger se mantém', async () => {
-    await fund(500) // saldo: 498,01 (500 − 1,99 de taxa do Pix)
+describe('Internal transfer — BOTH statements balance', () => {
+  it('debits the origin, credits the destination, and the ledger invariant holds', async () => {
+    await fund(500) // balance: 498.01 (500 − 1.99 of Pix fee)
     const second = await createSecondAccount(h)
 
     const res = await h.api.call('transfer-to-asaas-account', {
       body: { value: 100, walletId: second.walletId },
     })
 
-    expect(res.status).toBe(200) // 200, nunca 201
-    expect(res.body.status).toBe('DONE') // interna é instantânea
+    expect(res.status).toBe(200) // 200, never 201
+    expect(res.body.status).toBe('DONE') // an internal one is instantaneous
     expect(res.body.type).toBe('INTERNAL')
-    expect(res.body.transferFee).toBe(0) // e gratuita
+    expect(res.body.transferFee).toBe(0) // and free
     expect(res.body.netValue).toBe(100)
     expect(res.body.walletId).toBe(second.walletId)
-    // UUID puro, sem prefixo — é assim no Asaas, e não se "padroniza".
+    // Plain UUID, no prefix — that is how Asaas does it, and it is not "standardized".
     expect(res.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/)
 
-    // Origem: saiu 100.
+    // Origin: 100 went out.
     const origin = await h.api.call('retrieve-account-balance')
     expect(origin.body.balance).toBe(398.01)
 
-    // Destino: entrou 100. O dinheiro não evaporou.
+    // Destination: 100 came in. The money did not evaporate.
     const dest = await h.as(second.apiKey).call('retrieve-account-balance')
     expect(dest.body.balance).toBe(100)
 
@@ -91,11 +91,11 @@ describe('Transferência interna — os DOIS extratos fecham', () => {
     expect(destLedger[0]!.balanceCents).toBe(10_000)
     expect(destLedger[0]!.transferId).toBe(res.body.id)
 
-    // O invariante, nas DUAS contas.
+    // The invariant, in BOTH accounts.
     await h.assertLedgerBalances()
   })
 
-  it('walletId inexistente → 400, e nada se move', async () => {
+  it('nonexistent walletId → 400, and nothing moves', async () => {
     await fund(500)
 
     const res = await h.api.call('transfer-to-asaas-account', {
@@ -111,8 +111,8 @@ describe('Transferência interna — os DOIS extratos fecham', () => {
   })
 })
 
-describe('TED — cobra R$ 5,00 e liquida no próximo dia útil', () => {
-  it('nasce PENDING, debita valor + taxa, e só cai no dia seguinte', async () => {
+describe('TED — charges R$ 5.00 and settles on the next business day', () => {
+  it('is born PENDING, debits the amount + the fee, and only lands the next day', async () => {
     await fund(500)
 
     const res = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
@@ -120,13 +120,13 @@ describe('TED — cobra R$ 5,00 e liquida no próximo dia útil', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(res.body.status).toBe('PENDING') // ainda não saiu
+    expect(res.body.status).toBe('PENDING') // it has not gone out yet
     expect(res.body.type).toBe('TED')
     expect(res.body.transferFee).toBe(5) // R$ 5,00
     expect(res.body.netValue).toBe(95)
     expect(res.body.effectiveDate).toBeNull()
 
-    // O saldo já saiu: 498,01 − 100 − 5
+    // The balance already left: 498.01 − 100 − 5
     const afterRequest = await h.api.call('retrieve-account-balance')
     expect(afterRequest.body.balance).toBe(393.01)
 
@@ -141,26 +141,26 @@ describe('TED — cobra R$ 5,00 e liquida no próximo dia útil', () => {
     expect(ledger.at(-1)!.valueCents).toBe(-500)
     expect(ledger.at(-1)!.transferId).toBe(res.body.id)
 
-    // Um tick no mesmo dia: o banco pegou a TED, mas ela ainda não caiu.
+    // A tick on the same day: the bank picked up the TED, but it has not landed yet.
     await h.tick()
     let t = await h.api.call('retrieve-a-single-transfer', { params: { id: res.body.id } })
     expect(t.body.status).toBe('BANK_PROCESSING')
-    // 05/01/2026 é segunda → cai na terça, 06/01.
+    // 05/01/2026 is a Monday → it lands on Tuesday, 06/01.
     expect(t.body.effectiveDate).toBe('2026-01-06')
 
-    // O dia seguinte. É a viagem no tempo que o sandbox real não permite.
+    // The next day. It is the time travel the real sandbox does not allow.
     await h.advance({ days: 1 })
 
     t = await h.api.call('retrieve-a-single-transfer', { params: { id: res.body.id } })
     expect(t.body.status).toBe('DONE')
     expect(t.body.transactionReceiptUrl).toContain(t.body.id)
 
-    // Liquidar NÃO gera lançamento novo: o dinheiro já tinha saído na criação.
+    // Settling does NOT generate a new entry: the money had already left at creation.
     expect((await ledgerOf(h.accountId)).length).toBe(4)
     await h.assertLedgerBalances()
   })
 
-  it('a TED de sexta cai na SEGUNDA — o fim de semana não é dia útil', async () => {
+  it('the Friday TED lands on MONDAY — the weekend is not a business day', async () => {
     await fund(500)
     await h.advance({ days: 4 }) // 05/01 (seg) → 09/01 (sex)
 
@@ -172,9 +172,9 @@ describe('TED — cobra R$ 5,00 e liquida no próximo dia útil', () => {
     const processing = await h.api.call('retrieve-a-single-transfer', {
       params: { id: res.body.id },
     })
-    expect(processing.body.effectiveDate).toBe('2026-01-12') // segunda, não sábado
+    expect(processing.body.effectiveDate).toBe('2026-01-12') // Monday, not Saturday
 
-    await h.advance({ days: 2 }) // sábado, domingo
+    await h.advance({ days: 2 }) // Saturday, Sunday
     const weekend = await h.api.call('retrieve-a-single-transfer', {
       params: { id: res.body.id },
     })
@@ -190,8 +190,8 @@ describe('TED — cobra R$ 5,00 e liquida no próximo dia útil', () => {
   })
 })
 
-describe('Pix — gratuito e no mesmo dia', () => {
-  it('sai sem taxa e liquida no primeiro tick, com endToEndIdentifier', async () => {
+describe('Pix — free and on the same day', () => {
+  it('leaves without a fee and settles on the first tick, with endToEndIdentifier', async () => {
     await fund(500)
 
     const res = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
@@ -199,17 +199,17 @@ describe('Pix — gratuito e no mesmo dia', () => {
     })
 
     expect(res.body.type).toBe('PIX')
-    expect(res.body.transferFee).toBe(0) // Pix é gratuito
+    expect(res.body.transferFee).toBe(0) // Pix is free
     expect(res.body.netValue).toBe(100)
 
-    // Só um lançamento: TRANSFER. Taxa zero não vira linha de R$ 0,00 no extrato.
+    // Only one entry: TRANSFER. A zero fee does not become a R$ 0.00 line in the statement.
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual(['PAYMENT_RECEIVED', 'PAYMENT_FEE', 'TRANSFER'])
 
     await h.tick()
 
     const t = await h.api.call('retrieve-a-single-transfer', { params: { id: res.body.id } })
-    expect(t.body.status).toBe('DONE') // mesmo dia — a rede Pix é 24×7
+    expect(t.body.status).toBe('DONE') // same day — the Pix network is 24×7
     expect(t.body.effectiveDate).toBe('2026-01-05')
     expect(t.body.endToEndIdentifier).toMatch(/^E\d{8}20260105/)
 
@@ -219,9 +219,9 @@ describe('Pix — gratuito e no mesmo dia', () => {
   })
 })
 
-describe('Saldo insuficiente', () => {
-  it('é 400 no formato do Asaas — e o extrato continua intocado', async () => {
-    await fund(100) // saldo 98,01
+describe('Insufficient balance', () => {
+  it("is a 400 in Asaas's format — and the statement stays untouched", async () => {
+    await fund(100) // balance 98.01
 
     const res = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 200, bankAccount: BANK_ACCOUNT },
@@ -232,15 +232,15 @@ describe('Saldo insuficiente', () => {
     expect(res.body.errors[0].code).toBe('invalid_value')
     expect(res.body.errors[0].description).toContain('Saldo insuficiente')
 
-    expect((await ledgerOf(h.accountId)).length).toBe(2) // só o Pix recebido
+    expect((await ledgerOf(h.accountId)).length).toBe(2) // only the received Pix
     await h.assertLedgerBalances()
   })
 
-  it('a TAXA entra na conta do saldo: 95 + 5 de TED não cabem em 98,01', async () => {
+  it('the FEE counts against the balance: 95 + 5 of TED do not fit in 98.01', async () => {
     await fund(100) // 98,01
 
-    // O valor sozinho caberia. Com a taxa de R$ 5,00, não cabe — e é assim que o
-    // Asaas recusa. Ignorar a taxa aqui é o bug clássico deste endpoint.
+    // The amount alone would fit. With the R$ 5.00 fee it does not — and that is how
+    // Asaas refuses. Ignoring the fee here is this endpoint's classic bug.
     const res = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 95, bankAccount: BANK_ACCOUNT },
     })
@@ -250,8 +250,8 @@ describe('Saldo insuficiente', () => {
   })
 })
 
-describe('Cancelamento e agendamento', () => {
-  it('cancelar uma transferência PENDING estorna valor E taxa', async () => {
+describe('Cancellation and scheduling', () => {
+  it('cancelling a PENDING transfer reverses the amount AND the fee', async () => {
     await fund(500)
 
     const created = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
@@ -266,29 +266,29 @@ describe('Cancelamento e agendamento', () => {
     expect(cancelled.status).toBe(200)
     expect(cancelled.body.status).toBe('CANCELLED')
 
-    // Devolveu os 105: o estorno é um lançamento NOVO, não a remoção do débito.
+    // It returned the 105: the reversal is a NEW entry, not the removal of the debit.
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.at(-1)!.type).toBe('TRANSFER_REVERSAL')
     expect(ledger.at(-1)!.valueCents).toBe(10_500)
 
     const balance = await h.api.call('retrieve-account-balance')
-    expect(balance.body.balance).toBe(498.01) // exatamente o saldo de antes
+    expect(balance.body.balance).toBe(498.01) // exactly the balance from before
 
     await h.assertLedgerBalances()
   })
 
-  it('a transferência agendada NÃO sai antes da data', async () => {
+  it('the scheduled transfer does NOT go out before the date', async () => {
     await fund(500)
 
     const created = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 100, pixAddressKey: 'fulano@example.com', scheduleDate: '2026-01-08' },
     })
 
-    await h.advance({ days: 2 }) // 07/01 — ainda não
+    await h.advance({ days: 2 }) // 07/01 — not yet
     let t = await h.api.call('retrieve-a-single-transfer', { params: { id: created.body.id } })
     expect(t.body.status).toBe('PENDING')
 
-    await h.advance({ days: 1 }) // 08/01 — a data chegou
+    await h.advance({ days: 1 }) // 08/01 — the date arrived
     t = await h.api.call('retrieve-a-single-transfer', { params: { id: created.body.id } })
     expect(t.body.status).toBe('DONE')
     expect(t.body.effectiveDate).toBe('2026-01-08')
@@ -296,7 +296,7 @@ describe('Cancelamento e agendamento', () => {
     await h.assertLedgerBalances()
   })
 
-  it('transferência já liquidada não pode ser cancelada', async () => {
+  it('an already settled transfer cannot be cancelled', async () => {
     await fund(500)
     const created = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 100, pixAddressKey: 'fulano@example.com' },
@@ -309,12 +309,12 @@ describe('Cancelamento e agendamento', () => {
   })
 })
 
-describe('Falha na instituição de destino', () => {
-  it('vai a FAILED e DEVOLVE o dinheiro (TRANSFER_REVERSAL)', async () => {
+describe('Failure at the destination institution', () => {
+  it('goes to FAILED and GIVES BACK the money (TRANSFER_REVERSAL)', async () => {
     await fund(500)
 
-    // TODO(regra): o sandbox do Asaas não documenta como forçar uma falha. Este
-    // gatilho é nosso — veja src/modules/transfers/service.ts.
+    // TODO(rule): Asaas's sandbox does not document how to force a failure. This
+    // trigger is ours — see src/modules/transfers/service.ts.
     const created = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 100, pixAddressKey: 'fail@asaas.com.br' },
     })
@@ -329,14 +329,14 @@ describe('Falha na instituição de destino', () => {
     expect(ledger.at(-1)!.type).toBe('TRANSFER_REVERSAL')
 
     const balance = await h.api.call('retrieve-account-balance')
-    expect(balance.body.balance).toBe(498.01) // dinheiro de volta
+    expect(balance.body.balance).toBe(498.01) // the money back
 
     await h.assertLedgerBalances()
   })
 })
 
 describe('Webhooks', () => {
-  it('TED emite CREATED → PENDING → IN_BANK_PROCESSING → DONE, nessa ordem', async () => {
+  it('TED emits CREATED → PENDING → IN_BANK_PROCESSING → DONE, in that order', async () => {
     await h.subscribeWebhook([
       'TRANSFER_CREATED',
       'TRANSFER_PENDING',
@@ -358,7 +358,7 @@ describe('Webhooks', () => {
       'TRANSFER_DONE',
     ])
 
-    // O payload traz o recurso sob a chave `transfer`, congelado no instante do
+    // The payload carries the resource under the `transfer` key, frozen at the instant of the
     // evento.
     const done = h.sink.received.at(-1)!.payload as any
     expect(done.transfer.status).toBe('DONE')
@@ -366,8 +366,8 @@ describe('Webhooks', () => {
   })
 })
 
-describe('Isolamento por conta', () => {
-  it('transferência de outra conta é 404, não 403', async () => {
+describe('Isolation by account', () => {
+  it('a transfer from another account is a 404, not a 403', async () => {
     await fund(500)
     const created = await h.api.call('transfer-to-another-institution-account-or-pix-key', {
       body: { value: 100, pixAddressKey: 'fulano@example.com' },

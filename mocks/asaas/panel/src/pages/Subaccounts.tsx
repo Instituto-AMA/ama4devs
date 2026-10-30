@@ -1,14 +1,15 @@
 /**
- * As subcontas, com a chave de API de cada uma na tela.
+ * The subaccounts, with the API key of each one on the screen.
  *
- * No Asaas, a chave de uma subconta aparece UMA vez, na resposta da criação, e nunca
- * mais. Quem não guardou, refaz a conta. Aqui ela fica visível — é a razão de o painel
- * ter valor e de `ADMIN_ENABLED` existir.
+ * In Asaas, the key of a subaccount appears ONE time, in the answer of the
+ * creation, and never again. Whoever did not save it, recreates the account.
+ * Here it stays visible — it is the reason the panel has value and
+ * `ADMIN_ENABLED` exists.
  *
- * Clicar em "Entrar" troca a conta ativa na topbar: o painel inteiro passa a ver o
- * simulador pelos olhos dela, e você confirma que uma subconta NÃO enxerga as
- * cobranças do pai — que é o comportamento real, e o que uma tela sem isolamento
- * esconderia.
+ * Clicking "Enter" switches the active account in the topbar: the whole panel
+ * starts seeing the simulator through its eyes, and you confirm that a
+ * subaccount does NOT see the charges of the parent — which is the real
+ * behavior, and what a screen without isolation would hide.
  */
 import { useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
@@ -27,7 +28,8 @@ export function Subaccounts({ store }: PageProps) {
     if (!master?.apiKey || !name.trim()) return
     setCreating(true)
     try {
-      // Um CPF válido fixo: a tela não pede o que o simulador não usa para nada.
+      // A fixed valid CPF: the screen does not ask for what the simulator does not
+      // use for anything.
       await v3('/accounts', master.apiKey, {
         method: 'POST',
         body: JSON.stringify({

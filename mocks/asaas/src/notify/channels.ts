@@ -13,7 +13,7 @@
  * tick. Mailpit and the SMS mock need no setup. Someone may change either one by hand afterwards;
  * the registration only fills in what is missing.
  *
- * Also what Integrações shows: whether each channel answers, and what actually
+ * Also what the Integrations tab shows: whether each channel answers, and what actually
  * arrived there (read back from Mailpit's API and the number's messages).
  */
 import { networkInterfaces } from 'node:os'
@@ -50,22 +50,22 @@ export function whatsappHeaders(url: string): Record<string, string> {
   return local ? { ...WHATSAPP_AUTH, host: 'localhost' } : { ...WHATSAPP_AUTH }
 }
 
-/** Why a channel is off, for the logs, the notification rows and Integrações. */
+/** Why a channel is off, for the logs, the notification rows and the Integrations tab. */
 export function channelOffReason(notify: Config['notify'], channel: 'EMAIL' | 'WHATSAPP' | 'SMS'): string {
   const discover = notify.discover
   if (channel === 'EMAIL') {
     return discover?.mailpit.length
-      ? `nenhum Mailpit respondendo (procurado em ${discover.mailpit.join(', ')})`
-      : 'MAILPIT_URL vazio: e-mail desligado'
+      ? `no Mailpit answering (looked for it at ${discover.mailpit.join(', ')})`
+      : 'MAILPIT_URL empty: e-mail is off'
   }
   if (channel === 'SMS') {
     return discover?.sms?.length
-      ? `nenhum mock de SMS respondendo (procurado em ${discover.sms.join(', ')})`
-      : 'SMS_MOCK_URL vazio: SMS desligado'
+      ? `no SMS mock answering (looked for it at ${discover.sms.join(', ')})`
+      : 'SMS_MOCK_URL empty: SMS is off'
   }
   return discover?.whatsapp.length
-    ? `nenhum mock de WhatsApp respondendo (procurado em ${discover.whatsapp.join(', ')})`
-    : 'WHATSAPP_MOCK_URL vazio: WhatsApp desligado'
+    ? `no WhatsApp mock answering (looked for it at ${discover.whatsapp.join(', ')})`
+    : 'WHATSAPP_MOCK_URL empty: WhatsApp is off'
 }
 
 async function get(url: string, headers: Record<string, string> = {}): Promise<any> {
@@ -165,27 +165,27 @@ const FOOTER = 'Enviado pelo Asaas (simulador)'
  */
 export const WHATSAPP_TEMPLATES: Array<{ name: string; header: string; body: string }> = [
   {
-    name: 'asaas_cobranca_criada',
+    name: 'asaas_charge_created',
     header: 'Nova cobrança',
     body: 'Olá, {{1}}! {{2}} gerou uma cobrança de {{3}} com vencimento em {{4}}. Pague por aqui: {{5}}',
   },
   {
-    name: 'asaas_cobranca_alterada',
+    name: 'asaas_charge_changed',
     header: 'Cobrança alterada',
     body: 'Olá, {{1}}. {{2}} alterou a sua cobrança: agora {{3}}, com vencimento em {{4}}. Veja a fatura: {{5}}',
   },
   {
-    name: 'asaas_lembrete_vencimento',
+    name: 'asaas_due_date_reminder',
     header: 'Lembrete de vencimento',
     body: 'Olá, {{1}}. Lembrete: a cobrança de {{3}} de {{2}} vence em {{4}}. Pague por aqui: {{5}}',
   },
   {
-    name: 'asaas_cobranca_vencida',
+    name: 'asaas_charge_overdue',
     header: 'Cobrança vencida',
     body: 'Olá, {{1}}. A cobrança de {{3}} de {{2}} venceu em {{4}} e ainda não foi paga. Regularize por aqui: {{5}}',
   },
   {
-    name: 'asaas_pagamento_confirmado',
+    name: 'asaas_payment_confirmed',
     header: 'Pagamento confirmado',
     body: 'Olá, {{1}}! Recebemos o seu pagamento de {{3}} para {{2}} (vencimento {{4}}). Comprovante: {{5}}',
   },
@@ -241,7 +241,7 @@ export interface ChannelStatus {
   uiUrl: string
 }
 
-/** Whether each channel is configured and answering, for Integrações. */
+/** Whether each channel is configured and answering, for the Integrations tab. */
 export async function channelStatus(ctx: AppContext): Promise<{
   email: ChannelStatus & { from: string }
   whatsapp: ChannelStatus & { sender: string; registered: boolean; callbackUrl: string }

@@ -1,10 +1,10 @@
 /**
- * Finance — saldo, extrato e estatísticas. (Track D)
+ * Finance — balance, statement and statistics. (Track D)
  *
- * Nada aqui ESCREVE. Este módulo é a janela para o que o ledger já registrou:
- * `accounts.balanceCents` é saldo materializado, escrito só por `postEntries()`,
- * e `financial_transactions` é append-only. Se um número parecer errado, o bug
- * está em quem lançou — não aqui.
+ * Nothing here WRITES. This module is the window to what the ledger already
+ * recorded: `accounts.balanceCents` is a materialized balance, written only by
+ * `postEntries()`, and `financial_transactions` is append-only. If a number looks
+ * wrong, the bug is in whoever posted it — not here.
  */
 import { and, asc, count, desc, eq, gte, inArray, lte, sum } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -24,7 +24,7 @@ type FinancialTransactionRow = typeof financialTransactions.$inferSelect
 
 const money = (v: number | null): number | null => (v === null ? null : centsToBrl(cents(v)))
 
-/** Splits que ainda vão se mover. Um split DONE já virou lançamento no extrato. */
+/** Splits that are still going to move. A DONE split already became an entry in the statement. */
 const OPEN_SPLIT_STATUSES = ['PENDING', 'PROCESSING', 'AWAITING_CREDIT'] as const
 
 async function balanceOf(ctx: AppContext, accountId: string): Promise<number> {
@@ -38,11 +38,12 @@ async function balanceOf(ctx: AppContext, accountId: string): Promise<number> {
 }
 
 /**
- * Uma linha do extrato, no formato exato do Asaas.
+ * One line of the statement, in the exact format of Asaas.
  *
- * `balance` é o saldo DEPOIS deste lançamento — não o saldo atual da conta. É o
- * que permite auditar o extrato linha a linha, e é a razão de `balanceCents` ser
- * gravado junto com o lançamento em vez de recalculado na leitura.
+ * `balance` is the balance AFTER this entry — not the current balance of the
+ * account. It is what makes it possible to audit the statement line by line, and
+ * it is the reason `balanceCents` is written along with the entry instead of
+ * being recalculated on the read.
  */
 function serializeTransaction(t: FinancialTransactionRow): Record<string, unknown> {
   return {
@@ -76,30 +77,30 @@ export const financeHandlers: HandlerMap = {
   /**
    * GET /v3/finance/balance → { "balance": 5210.96 }
    *
-   * SÓ o campo `balance`. É o endpoint mais simples da API e o mais fácil de
-   * enfeitar por engano — um campo a mais aqui e o cliente que faz
-   * `Object.keys(res).length === 1` quebra.
+   * ONLY the `balance` field. It is the simplest endpoint of the API and the
+   * easiest to decorate by mistake — one field more here and the client that
+   * does `Object.keys(res).length === 1` breaks.
    */
   'retrieve-account-balance': async ({ ctx, auth }) => ({
     balance: centsToBrl(cents(await balanceOf(ctx, auth.accountId))),
   }),
 
   /**
-   * GET /v3/financialTransactions — o extrato.
+   * GET /v3/financialTransactions — the statement.
    *
-   * Ordenado por `seq` (ordem de inserção), não por `date`: dois lançamentos do
-   * mesmo dia — PAYMENT_RECEIVED e PAYMENT_FEE — têm a mesma data, e ordenar por
-   * data deixaria a coluna `balance` fora de ordem, que é exatamente o que o
-   * extrato existe para mostrar.
+   * Ordered by `seq` (insertion order), not by `date`: two entries of the same
+   * day — PAYMENT_RECEIVED and PAYMENT_FEE — have the same date, and ordering by
+   * date would leave the `balance` column out of order, which is exactly what
+   * the statement exists to show.
    *
-   * A ordem DEFAULT é `desc` — o mais recente primeiro. A doc não diz, e nós
-   * tínhamos escolhido `asc` por parecer mais lógico (a coluna `balance` lê melhor
-   * de cima para baixo). A captura (tools/probe-pix.ts) mostrou o contrário: o
-   * extrato real devolve a taxa de hoje antes do lançamento de maio.
+   * The DEFAULT order is `desc` — the newest first. The docs do not say, and we
+   * had chosen `asc` because it looked more logical (the `balance` column reads
+   * better from top to bottom). The capture (tools/probe-pix.ts) showed the
+   * opposite: the real statement returns today's fee before the entry from May.
    *
-   * Não é cosmético: quem lê `data[0]` para pegar "o último lançamento" — e é o que
-   * se faz com um extrato — pegava o PRIMEIRO da vida da conta aqui, e o mais
-   * recente no Asaas.
+   * It is not cosmetic: whoever reads `data[0]` to get "the latest entry" — and
+   * that is what one does with a statement — would get the FIRST of the life of
+   * the account here, and the most recent one in Asaas.
    */
   'retrieve-extract': async ({ ctx, auth, query }) => {
     const { limit, offset } = paginationParams(query)
@@ -137,8 +138,8 @@ export const financeHandlers: HandlerMap = {
   },
 
   /**
-   * GET /v3/finance/payment/statistics — quantidade e soma das cobranças que
-   * batem com o filtro. Os mesmos filtros de GET /v3/payments.
+   * GET /v3/finance/payment/statistics — quantity and sum of the charges that
+   * match the filter. The same filters as GET /v3/payments.
    */
   'billing-statistics': async ({ ctx, auth, query }) => {
     const filters = [
@@ -178,7 +179,7 @@ export const financeHandlers: HandlerMap = {
       .from(payments)
       .where(and(...filters))
 
-    // SUM() de zero linhas é NULL no SQLite — vira 0, não null.
+    // SUM() of zero rows is NULL in SQLite — it becomes 0, not null.
     return {
       quantity: row?.quantity ?? 0,
       value: centsToBrl(cents(Number(row?.value ?? 0))),
@@ -187,16 +188,16 @@ export const financeHandlers: HandlerMap = {
   },
 
   /**
-   * GET /v3/finance/split/statistics — os splits que ainda vão se mover.
+   * GET /v3/finance/split/statistics — the splits that are still going to move.
    *
-   * TODO(regra): a spec dá só dois campos e duas descrições de uma linha
-   * ("Amounts receivable" e "Values to be sent"), sem dizer quais status entram
-   * na conta. Interpretamos:
-   *   income → o que ESTA conta tem a RECEBER de splits de cobranças de outros;
-   *   value  → o que ESTA conta tem a PAGAR de splits das suas próprias cobranças.
-   * Em ambos, só os splits ainda abertos (PENDING/PROCESSING/AWAITING_CREDIT):
-   * um split DONE já virou lançamento no extrato e contá-lo aqui seria contar o
-   * mesmo dinheiro duas vezes.
+   * TODO(rule): the spec gives only two fields and two one-line descriptions
+   * ("Amounts receivable" and "Values to be sent"), without saying which statuses
+   * go into the count. We read it as:
+   *   income → what THIS account has to RECEIVE from splits of other charges;
+   *   value  → what THIS account has to PAY from splits of its own charges.
+   * In both, only the splits still open (PENDING/PROCESSING/AWAITING_CREDIT): a
+   * DONE split already became an entry in the statement, and counting it here
+   * would count the same money twice.
    */
   'retrieve-split-values': async ({ ctx, auth }) => {
     const [income] = await ctx.db

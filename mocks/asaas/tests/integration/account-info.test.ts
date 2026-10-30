@@ -1,9 +1,9 @@
 /**
- * Account info — a conta autenticada.
+ * Account info — the authenticated account.
  *
- * O que estes testes protegem, além do contrato: a tabela de taxas devolvida por
- * GET /v3/myAccount/fees vem da MESMA config que o motor usa para cobrar. Se
- * alguém "corrigir" a resposta com um número fixo, o teste quebra.
+ * What these tests protect, besides the contract: the fee table returned by
+ * GET /v3/myAccount/fees comes from the SAME config the engine charges with. If
+ * someone "corrects" the response with a fixed number, the test breaks.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { accountInfoHandlers } from '../../src/modules/account-info/handlers.ts'
@@ -16,8 +16,8 @@ beforeAll(async () => {
 })
 afterAll(() => h.close())
 
-describe('dados comerciais', () => {
-  it('recupera os dados da conta semeada', async () => {
+describe('commercial data', () => {
+  it('retrieves the seeded account data', async () => {
     const { status, body } = await h.api.call('retrieve-business-data')
 
     expect(status).toBe(200)
@@ -27,7 +27,7 @@ describe('dados comerciais', () => {
     expect(body.status).toBe('APPROVED')
   })
 
-  it('atualiza e devolve o estado novo — dinheiro faz round-trip em centavos', async () => {
+  it('updates and returns the new state — money round-trips in cents', async () => {
     const { status, body } = await h.api.call('update-business-data', {
       body: {
         companyName: 'ASAAS GESTAO',
@@ -42,7 +42,7 @@ describe('dados comerciais', () => {
     expect(body.companyName).toBe('ASAAS GESTAO')
     expect(body.incomeValue).toBe(2500.55)
     expect(body.email).toBe('novo@localhost')
-    // O Asaas preenche o nome de exibição sozinho a partir da razão social.
+    // Asaas fills the display name by itself from the legal name.
     expect(body.tradingName).toBe('ASAAS GESTAO')
 
     const again = await h.api.call('retrieve-business-data')
@@ -50,7 +50,7 @@ describe('dados comerciais', () => {
     expect(again.body.site).toBe('https://exemplo.com.br')
   })
 
-  it('CPF/CNPJ inválido → 400 invalid_cpfCnpj (array, como sempre)', async () => {
+  it('an invalid CPF/CNPJ → 400 invalid_cpfCnpj (array, as always)', async () => {
     const { status, body } = await h.api.call('update-business-data', {
       body: { cpfCnpj: '11111111111' },
     })
@@ -61,8 +61,8 @@ describe('dados comerciais', () => {
   })
 })
 
-describe('taxas', () => {
-  it('a resposta é derivada de config.fees, não de um JSON fixo', async () => {
+describe('fees', () => {
+  it('the response is derived from config.fees, not from a fixed JSON', async () => {
     const { status, body } = await h.api.call('retrieve-account-fees')
     const fees = h.app.config.fees
 
@@ -76,7 +76,7 @@ describe('taxas', () => {
     expect(body.transfer.ted.feeValue).toBe(5)
   })
 
-  it('mudar a config muda a resposta', async () => {
+  it('changing the config changes the response', async () => {
     const other = await createHarness({ fees: { ...h.app.config.fees, boleto: 349 as never } })
     try {
       const { body } = await other.api.call('retrieve-account-fees')
@@ -87,8 +87,8 @@ describe('taxas', () => {
   })
 })
 
-describe('número da conta, status e wallet', () => {
-  it('o número da conta é atribuído uma vez e não muda', async () => {
+describe('the account number, the status and the wallet', () => {
+  it('the account number is assigned once and does not change', async () => {
     const first = await h.api.call('retrieve-asaas-account-number')
     const second = await h.api.call('retrieve-asaas-account-number')
 
@@ -98,7 +98,7 @@ describe('número da conta, status e wallet', () => {
     expect(second.body).toEqual(first.body)
   })
 
-  it('status de cadastro: em sandbox a conta nasce aprovada', async () => {
+  it('registration status: in sandbox the account is born approved', async () => {
     const { status, body } = await h.api.call('check-account-registration-status')
 
     expect(status).toBe(200)
@@ -107,7 +107,7 @@ describe('número da conta, status e wallet', () => {
     expect(body.commercialInfo).toBe('APPROVED')
   })
 
-  it('walletId vem no envelope de lista, com a wallet da conta', async () => {
+  it('walletId comes in the listing envelope, with the account’s wallet', async () => {
     const { status, body } = await h.api.call('retrieve-walletid')
 
     expect(status).toBe(200)
@@ -117,8 +117,8 @@ describe('número da conta, status e wallet', () => {
   })
 })
 
-describe('personalização do checkout', () => {
-  it('sem personalização salva, vem desabilitada', async () => {
+describe('the checkout personalization', () => {
+  it('with no saved personalization, it comes disabled', async () => {
     const { status, body } = await h.api.call('retrieve-personalization-settings')
 
     expect(status).toBe(200)
@@ -127,7 +127,7 @@ describe('personalização do checkout', () => {
     expect(body.logoUrl).toBeNull()
   })
 
-  it('salva, aprova sozinho em sandbox, e a leitura seguinte devolve o mesmo', async () => {
+  it('saves, approves itself in sandbox, and the next read returns the same', async () => {
     const { status, body } = await h.api.call('save-payment-checkout-personalization', {
       body: {
         logoBackgroundColor: '#00ff00',
@@ -146,7 +146,7 @@ describe('personalização do checkout', () => {
     expect(again.body.fontColor).toBe('#ffffff')
   })
 
-  it('multipart não passa pelo TypeBox — o obrigatório é conferido no handler', async () => {
+  it('multipart does not go through TypeBox — the mandatory one is checked in the handler', async () => {
     const { status, body } = await h.api.call('save-payment-checkout-personalization', {
       body: { logoBackgroundColor: '#00ff00', infoBackgroundColor: '#000fff' },
     })
@@ -155,10 +155,10 @@ describe('personalização do checkout', () => {
     expect(body.errors[0].code).toBe('invalid_fontColor')
   })
 
-  it('cor que não é hexadecimal → 400', async () => {
+  it('a color that is not hexadecimal → 400', async () => {
     const { status, body } = await h.api.call('save-payment-checkout-personalization', {
       body: {
-        logoBackgroundColor: 'verde',
+        logoBackgroundColor: 'green',
         infoBackgroundColor: '#000fff',
         fontColor: '#ffffff',
       },
@@ -169,8 +169,8 @@ describe('personalização do checkout', () => {
   })
 })
 
-describe('desabilitar subconta white label', () => {
-  it('a conta raiz não se autodestrói', async () => {
+describe('disabling a white label subaccount', () => {
+  it('the root account does not destroy itself', async () => {
     const { status, body } = await h.api.call('Delete-white-label-subaccount', {
       query: { removeReason: 'Release data' },
     })
@@ -179,8 +179,8 @@ describe('desabilitar subconta white label', () => {
     expect(body.errors[0].code).toBe('invalid_account')
   })
 
-  it('a subconta é desabilitada — e só uma vez', async () => {
-    const sub = await createSecondAccount(h, 'Subconta White Label')
+  it('the subaccount is disabled — and only once', async () => {
+    const sub = await createSecondAccount(h, 'White Label Subaccount')
     const client = h.as(sub.apiKey)
 
     const first = await client.call('Delete-white-label-subaccount', {
@@ -194,11 +194,11 @@ describe('desabilitar subconta white label', () => {
     expect(second.body.errors[0].code).toBe('invalid_account')
   })
 
-  it('cada conta vê os SEUS dados comerciais', async () => {
-    const sub = await createSecondAccount(h, 'Outra Conta')
+  it('each account sees ITS OWN commercial data', async () => {
+    const sub = await createSecondAccount(h, 'Another Account')
     const { body } = await h.as(sub.apiKey).call('retrieve-business-data')
 
-    expect(body.name).toBe('Outra Conta')
+    expect(body.name).toBe('Another Account')
     expect(body.cpfCnpj).not.toBe('47960950000121')
   })
 })

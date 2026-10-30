@@ -30,19 +30,19 @@
       "text": "Um mock local da API do ásas."
     },
     {
-      "id": "cliente",
+      "id": "customer",
       "text": "Cadastro de cliente, cobrança e fatura: o mesmo caminho de uma API real."
     },
     {
-      "id": "fatura",
+      "id": "invoice",
       "text": "A fatura que o pagador recebe é a mesma que chega por e-mail e WhatsApp."
     },
     {
-      "id": "pago",
+      "id": "paid",
       "text": "O cartão paga, e o status da cobrança vira confirmado."
     },
     {
-      "id": "cartao",
+      "id": "card",
       "text": "E dá para forçar o desfecho que o seu código precisa tratar: o cartão tokeniza e recusa quando alguém cobra nele."
     },
     {
@@ -54,19 +54,19 @@
       "text": "Você cadastra o seu endpoint, e o mock passa a entregar cada evento lá."
     },
     {
-      "id": "perfis",
+      "id": "profiles",
       "text": "Cada conta é um tenente, com a própria chave e os próprios clientes."
     },
     {
-      "id": "relogio",
+      "id": "clock",
       "text": "O relógio virtual é o coração do mock: um tick por dia, como o simulador do Asaas."
     },
     {
-      "id": "vence",
+      "id": "due",
       "text": "Um dia passa, e a cobrança vence."
     },
     {
-      "id": "vencida",
+      "id": "charge_overdue",
       "text": "Uma semana depois, ela está vencida, e o evento sai."
     },
     {
@@ -74,7 +74,7 @@
       "text": "A sua aplicação é avisada, e o payload traz o status."
     },
     {
-      "id": "saldo",
+      "id": "balance",
       "text": "32 dias depois, o cartão credita a conta."
     },
     {
@@ -90,39 +90,39 @@
       "text": "Nos logs de requisições, a chamada da sua aplicação: o que você mandou e o que o mock devolveu."
     },
     {
-      "id": "assinatura",
+      "id": "subscription",
       "text": "A assinatura recorrente foi criada com o cartão já tokenizado."
     },
     {
-      "id": "mes",
+      "id": "month",
       "text": "Um mês adiante."
     },
     {
-      "id": "aguardando",
+      "id": "pending",
       "text": "A cobrança de R$ 349 ainda espera o banco."
     },
     {
-      "id": "recusa",
+      "id": "refusal",
       "text": "O banco recusou, e cada recusa virou um evento na sua aplicação."
     },
     {
-      "id": "recusa-detalhe",
+      "id": "refusal_detail",
       "text": "A recusa chegou com a cobrança ainda pendente."
     },
     {
-      "id": "vencida-recusa",
+      "id": "charge_overdue_refusal",
       "text": "Sem mais tentativas, a cobrança ficou vencida."
     },
     {
-      "id": "seis",
+      "id": "six",
       "text": "Seis recusas, cada uma entregue com resposta 200."
     },
     {
-      "id": "fim",
+      "id": "end",
       "text": "De volta ao presente."
     },
     {
-      "id": "outro",
+      "id": "closing",
       "text": "É o ama for deves: mocks que se comportam como a API. Roda em Docker, sem cadastro."
     }
   ]

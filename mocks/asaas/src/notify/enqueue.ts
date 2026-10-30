@@ -5,7 +5,7 @@
  * Which channels: those whose address is known, set or found (discovery.ts), for a
  * customer whose notifications are on, by the customer's notification setting for
  * the event at that offset (settings.ts; no such row, or the row off, sends
- * nothing). A forced send (the panel's "Enviar agora") names its channels and
+ * nothing). A forced send (the panel's Send now action) names its channels and
  * skips the settings.
  */
 import { eq } from 'drizzle-orm'
@@ -165,7 +165,9 @@ export async function enqueuePaymentNotifications(
       if (args.forced) {
         throw badRequest(
           'notify_no_recipient',
-          channel === 'EMAIL' ? 'O cliente não tem e-mail cadastrado.' : 'O cliente não tem celular cadastrado.',
+          channel === 'EMAIL'
+            ? 'The customer has no e-mail registered.'
+            : 'The customer has no mobile phone registered.',
         )
       }
       continue

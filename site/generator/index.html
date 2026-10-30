@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Brazilian fake data generator: CPF, CNPJ, CEP, test cards, Asaas seeder | ama4devs</title>
   <meta name="description" content="Valid fake Brazilian data generator in Docker and in the browser: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses matching real CEP ranges, credit cards, bank accounts, Pix keys, charges, and one-call Asaas mock population.">
-  <meta name="keywords" content="fake data generator, gerador de dados, gerador cpf, gerador cnpj, gerador cep, brazilian fake data, asaas seeder, test fixtures, deterministic generator, mock data, docker">
+  <meta name="keywords" content="fake data generator, data generator, cpf generator, cnpj generator, cep generator, brazilian fake data, asaas seeder, test fixtures, deterministic generator, mock data, docker">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/generator/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
@@ -33,7 +33,7 @@
     "description": "Valid fake Brazilian data generator: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses, credit cards, bank accounts, Pix keys, charges, and one-call Asaas mock seeder.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Docker (linux/amd64, linux/arm64), Browser",
-    "softwareVersion": "0.1.0",
+    "softwareVersion": "0.2.0",
     "url": "https://instituto-ama.github.io/ama4devs/generator/",
     "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock",
     "license": "https://opensource.org/licenses/MIT",
@@ -58,7 +58,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="../pt-br/generator/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="../portuguese/generator/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -221,7 +221,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
                 <tbody>
                   <tr>
                     <td><code>GET /health</code></td>
-                    <td><code>{"status":"ok","service":"generator","version":"0.1.0"}</code></td>
+                    <td><code>{"status":"ok","service":"generator","version":"0.2.0"}</code></td>
                   </tr>
                   <tr>
                     <td><code>GET /</code></td>
@@ -233,7 +233,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
                   </tr>
                   <tr>
                     <td><code>GET /v1/kinds</code></td>
-                    <td><code>{"kinds":[{"id":"person","label":"Pessoa"},...]}</code></td>
+                    <td><code>{"kinds":[{"id":"person","label":"Person"},...]}</code></td>
                   </tr>
                   <tr>
                     <td><code>GET /v1/validate/:type/:value</code></td>

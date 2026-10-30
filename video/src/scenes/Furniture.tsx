@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion'
-import { beatAt, beats, INTRO_FRAMES, OUTRO_FROM } from '../film.ts'
+import { beatAt, beats, INTRO_FRAMES, CLOSING_FROM } from '../film.ts'
 import { fonts, layout, palette } from '../theme.ts'
 
 /**
@@ -11,14 +11,14 @@ import { fonts, layout, palette } from '../theme.ts'
  */
 export const Furniture = () => {
   const frame = useCurrentFrame()
-  const beat = frame >= INTRO_FRAMES && frame < OUTRO_FROM ? beatAt(frame) : null
+  const beat = frame >= INTRO_FRAMES && frame < CLOSING_FROM ? beatAt(frame) : null
 
   const visible =
     interpolate(frame, [INTRO_FRAMES - 6, INTRO_FRAMES + 6], [0, 1], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     }) *
-    interpolate(frame, [OUTRO_FROM - 6, OUTRO_FROM + 6], [1, 0], {
+    interpolate(frame, [CLOSING_FROM - 6, CLOSING_FROM + 6], [1, 0], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     })

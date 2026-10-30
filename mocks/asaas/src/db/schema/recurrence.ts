@@ -5,14 +5,14 @@ import type { DiscountConfig, FineConfig, InterestConfig } from './payments.ts'
 import { bool, cents, date, datetime, json } from './_conventions.ts'
 
 /**
- * Parcelamento. As N cobranças nascem TODAS na criação (ao contrário da
- * assinatura, que gera sob demanda). A sobra de arredondamento vai na ÚLTIMA
- * parcela: R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24.
+ * Installment plan. The N charges are ALL born at creation (unlike the
+ * subscription, which generates on demand). The rounding remainder goes to the LAST
+ * installment: R$ 350 in 12x → 11 × R$ 29.16 + R$ 29.24.
  */
 export const installments = sqliteTable(
   'installments',
   {
-    id: text('id').primaryKey(), // UUID puro, sem prefixo
+    id: text('id').primaryKey(), // A plain UUID, no prefix
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -22,13 +22,13 @@ export const installments = sqliteTable(
 
     billingType: text('billing_type').notNull(),
     installmentCount: cents('installment_count').notNull(),
-    /** Valor de cada parcela (o da última pode diferir pela sobra). */
+    /** The value of each installment (the last one may differ by the remainder). */
     installmentValueCents: cents('installment_value_cents').notNull(),
-    /** Soma de todas as parcelas. */
+    /** The sum of all the installments. */
     totalValueCents: cents('total_value_cents').notNull(),
     netValueCents: cents('net_value_cents').notNull(),
 
-    /** Dia do mês em que cada parcela vence. */
+    /** The day of the month each installment is due. */
     expirationDay: cents('expiration_day').notNull(),
     description: text('description'),
     paymentLinkId: text('payment_link_id'),
@@ -42,8 +42,8 @@ export const installments = sqliteTable(
 )
 
 /**
- * Assinatura. A próxima cobrança NÃO é criada na hora: o Asaas a gera
- * SUBSCRIPTION_LOOKAHEAD_DAYS (padrão 40) antes do nextDueDate.
+ * Subscription. The next charge is NOT created on the spot: Asaas generates it
+ * SUBSCRIPTION_LOOKAHEAD_DAYS (40 by default) before the nextDueDate.
  */
 export const subscriptions = sqliteTable(
   'subscriptions',
@@ -66,7 +66,7 @@ export const subscriptions = sqliteTable(
     nextDueDate: date('next_due_date').notNull(),
     endDate: date('end_date'),
     maxPayments: cents('max_payments'),
-    /** Quantas cobranças já foram geradas — para respeitar maxPayments. */
+    /** How many charges were already generated — to honour maxPayments. */
     paymentsGenerated: cents('payments_generated').notNull(),
 
     description: text('description'),
@@ -83,15 +83,15 @@ export const subscriptions = sqliteTable(
     dateCreated: date('date_created').notNull(),
   },
   (t) => [
-    // Predicado do job de geração de cobrança de assinatura.
+    // The predicate of the subscription charge generation job.
     index('subscriptions_generation_idx').on(t.status, t.nextDueDate),
     index('subscriptions_account_idx').on(t.accountId, t.deleted),
   ],
 )
 
 /**
- * Split da assinatura: serve de TEMPLATE, copiado para cada cobrança gerada.
- * Alterar aqui não mexe nas cobranças já criadas.
+ * The subscription's split: it serves as a TEMPLATE, copied for each generated charge.
+ * Changing it here does not touch the charges already created.
  */
 export const subscriptionSplits = sqliteTable(
   'subscription_splits',

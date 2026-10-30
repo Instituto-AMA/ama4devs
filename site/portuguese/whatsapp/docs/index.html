@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentação do mock do WhatsApp: o que simula, ligações, painel, configuração | ama4devs</title>
+  <meta name="description" content="Como o mock da WhatsApp Cloud API se comporta: mensagens, templates e a revisão, mídia, números e onboarding, ligações com WebRTC, webhooks, o painel e cada variável de configuração.">
+  <meta name="keywords" content="documentação mock whatsapp, simulador whatsapp cloud api, calling api whatsapp, registro de número whatsapp, revisão de templates whatsapp, assinatura webhook whatsapp, configuração mock whatsapp">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/docs/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/whatsapp/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/whatsapp/docs/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Documentação do mock do WhatsApp">
+  <meta property="og:description" content="O que o mock do WhatsApp simula, o painel e a configuração.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/whatsapp/docs/">
+  <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/img/whatsapp/templates.jpg">
+  <meta name="theme-color" content="#0e3a2f">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-tool="whatsapp">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../" aria-current="page">Mock do WhatsApp</a>
+        <a href="../../asaas/">Mock do Asaas</a>
+        <a href="../../generator/">Gerador</a>
+        <a href="../../sms/">Mock de SMS</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../whatsapp/docs/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mock do WhatsApp">
+    <a href="../">Visão geral</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="../api/">API</a>
+    <a href="./" aria-current="page">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="Nesta página">
+          <p>Nesta página</p>
+          <ol>
+            <li><a href="#simulates">O que simula</a></li>
+            <li><a href="#calls">Ligações e números</a></li>
+            <li><a href="#panel">O painel</a></li>
+            <li><a href="#templates">Templates em arquivos</a></li>
+            <li><a href="#config">Configuração</a></li>
+            <li><a href="#development">Desenvolvimento</a></li>
+            <li><a href="#license">Licença</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>Docs</h1>
+          <p class="lead">O que acontece por trás de cada chamada da Cloud API, o painel onde você faz o papel do usuário, e cada configuração.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <article class="sheet">
+            <section id="simulates" aria-labelledby="simulates-title">
+              <h2 id="simulates-title">O que simula</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Área</th><th>Cloud API</th><th>O que acontece</th></tr></thead>
+                  <tbody>
+                    <tr><td>Mensagens</td><td><code>POST /{phone-number-id}/messages</code></td><td>Texto, mídia, localização, contatos, interativas, reações, respostas, templates (cabeçalho, corpo, rodapé, botões, carrossel, oferta por tempo limitado, autenticação). Confirmações enviada, entregue, lida; indicador de digitação.</td></tr>
+                    <tr><td>O usuário</td><td>a mesma chamada com <code>X-Mock-From</code></td><td>O usuário escreve, responde, manda mídia e áudios, dá confirmações: a mensagem entra como recebida e vai para o seu webhook.</td></tr>
+                    <tr><td>Templates</td><td><code>/{waba-id}/message_templates</code>, <code>/{template-id}</code></td><td>Criar, editar, apagar, listar. Uma revisão com veredito e um tempo que você escolhe, o webhook <code>message_template_status_update</code>, os erros de envio da Meta.</td></tr>
+                    <tr><td>Mídia</td><td><code>/{phone-number-id}/media</code>, <code>/{media-id}</code></td><td>Upload (multipart, com os tipos e limites da Meta), descrição, download com token, exclusão. Os arquivos ficam no disco.</td></tr>
+                    <tr><td>Números</td><td><code>/{waba-id}/phone_numbers</code>, <code>request_code</code>, <code>verify_code</code>, <code>register</code>, <code>settings</code></td><td>Empresa, WABAs e números; o onboarding de um número novo com o código por SMS; PIN de duas etapas; configurações de ligação. Um número não registrado não envia (<code>133010</code>).</td></tr>
+                    <tr><td>Ligações</td><td><code>POST /{phone-number-id}/calls</code>, <code>call_permissions</code></td><td>A Calling API com áudio WebRTC real: qualquer lado liga, com o pedido de permissão e a resposta, <code>pre_accept</code>, <code>accept</code>, <code>reject</code>, <code>terminate</code> e os webhooks de <code>calls</code>.</td></tr>
+                    <tr><td>Webhooks</td><td><code>POST /{phone-number-id}</code> (<code>webhook_configuration</code>)</td><td>Webhook por número verificado com <code>hub.challenge</code>, assinado com <code>x-hub-signature-256</code>, um atraso de resposta opcional, um log de cada tentativa.</td></tr>
+                    <tr><td>Todo o resto</td><td>o restante da especificação</td><td>Roteado, validado e respondido com o próprio exemplo da Meta (Flows, grupos, perfil comercial, QR codes…).</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>O arquivo OpenAPI da Meta para a v23.0 vem em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/README.md"><code>spec/v23.0</code></a>. Toda requisição é validada contra ele, toda resposta segue os schemas de resposta, e um teste de contrato passa todos os exemplos de requisição da especificação pelo mock. Onde a especificação contradiz os próprios exemplos da Meta, a correção fica registrada com o motivo em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/spec/v23.0/errata.json"><code>errata.json</code></a>.</p>
+            </section>
+
+            <section id="calls" aria-labelledby="calls-title">
+              <h2 id="calls-title">Ligações e números</h2>
+              <p>O botão de telefone no topo da conversa liga com áudio WebRTC real, o microfone e o alto-falante do navegador. O usuário liga para a empresa (<code>POST /{phone}/calls</code> com <code>X-Mock-From</code> e a oferta) e a aplicação recebe <code>calls</code> / <code>connect</code>, respondendo <code>pre_accept</code> e <code>accept</code> com o seu SDP. A empresa liga para o usuário: sem a permissão dele, manda antes o <code>call_permission_request</code>; com ela, <code>connect</code> com a oferta, e o celular do usuário toca. As ligações ficam na conversa como balões de histórico: atendida com a duração, perdida, recusada.</p>
+              <p>Sem nada digitado, o botão de enviar vira um microfone, como no celular: grava um áudio de voz (Ogg Opus, mono, 48 kHz) e envia como <code>audio</code> com <code>voice: true</code>.</p>
+              <ul>
+                <li><strong>Crie um número.</strong> <code>POST /{waba-id}/phone_numbers</code> com <code>cc</code>, <code>phone_number</code> e <code>verified_name</code>: ele nasce não verificado, não registrado.</li>
+                <li><strong>Peça o código.</strong> <code>POST /{phone-number-id}/request_code</code>; o código que a Meta mandaria aparece no número e num aviso.</li>
+                <li><strong>Verifique.</strong> <code>POST /{phone-number-id}/verify_code</code>; um código errado é <code>(#136025)</code>.</li>
+                <li><strong>Registre.</strong> <code>POST /{phone-number-id}/register</code> com o PIN de seis dígitos; o primeiro fica, outro depois é <code>(#133005)</code>.</li>
+                <li><strong>Ative as ligações.</strong> <code>POST /{phone-number-id}/settings</code> com <code>calling</code>; precisa do número registrado e de um webhook (<code>(#138018)</code>).</li>
+                <li><strong>Tire da Cloud API.</strong> <code>POST /{phone-number-id}/deregister</code>. Um número fora da Cloud API não envia (<code>(#133010)</code>) nem liga.</li>
+              </ul>
+            </section>
+
+            <section id="panel" aria-labelledby="panel-title">
+              <h2 id="panel-title">O painel</h2>
+              <p>Abra <a href="http://localhost:3010">http://localhost:3010</a>. Fala inglês e português e não tem rotas privadas: cada ação é a chamada da Cloud API que a sua aplicação faria.</p>
+              <div class="carousel-section" data-carousel>
+                <div class="carousel-header-bar">
+                  <div class="carousel-counter">
+                    <span class="curr" data-carousel-current>01</span>
+                    <span class="sep">/</span>
+                    <span class="tot" data-carousel-total>15</span>
+                  </div>
+                  <div class="carousel-nav">
+                    <button type="button" class="carousel-arrow" data-carousel-prev aria-label="Slide anterior">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="carousel-arrow" data-carousel-next aria-label="Próximo slide">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="carousel-track" data-carousel-track>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/chat.jpg" width="1502" height="714" alt="Interface interativa estilo WhatsApp Web no simulador." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Conversas</span>
+                      <h3 class="card-title">WhatsApp Web Ao Vivo</h3>
+                      <p class="card-desc">Chat em tempo real com mensagens de cobrança, links clicáveis de pagamento e tiques de envio e leitura.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/chat-call.jpg" width="1502" height="714" alt="Simulação de chamada de voz WebRTC no WhatsApp." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Voz / WebRTC</span>
+                      <h3 class="card-title">Chamadas de Voz no Navegador</h3>
+                      <p class="card-desc">Simulação completa de ligação com áudio real, tela de chamada, animação de toque e controles de microfone.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-template-editor.jpg" width="1502" height="714" alt="Editor de templates e prévia no celular." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Designer</span>
+                      <h3 class="card-title">Editor & Prévia no Celular</h3>
+                      <p class="card-desc">Crie modelos com cabeçalho de mídia, variáveis no corpo <code>{{1}}</code>, botões e visualização fiel de smartphone.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/chat-dark.jpg" width="1502" height="714" alt="WhatsApp Web no modo escuro." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Tema Escuro</span>
+                      <h3 class="card-title">WhatsApp Web no Modo Escuro</h3>
+                      <p class="card-desc">Paleta escura nativa com notas de voz, ondas sonoras reproduzíveis e balões de chat noturnos.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-events.jpg" width="1502" height="714" alt="Fila de eventos de webhook enviados." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Eventos</span>
+                      <h3 class="card-title">Entregas de Webhook</h3>
+                      <p class="card-desc">Histórico em tempo real de chamadas disparadas, códigos de resposta HTTP (200 OK) e controle de atraso.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/chat-new.jpg" width="1502" height="714" alt="Modal de nova conversa como usuário." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Simulador</span>
+                      <h3 class="card-title">Nova Conversa</h3>
+                      <p class="card-desc">Modal para iniciar conversas simuladas como usuário, enviando dados e mensagens ao seu webhook.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-api.jpg" width="1502" height="714" alt="Referência interativa da Cloud API." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Referência API</span>
+                      <h3 class="card-title">Meta Graph API v23.0</h3>
+                      <p class="card-desc">Documentação viva da especificação oficial, com exemplos cURL e respostas das operações simuladas.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-template-carousel.jpg" width="1502" height="714" alt="Templates com carrossel de marketing em modo escuro." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Carrossel</span>
+                      <h3 class="card-title">Cards de Carrossel no Celular</h3>
+                      <p class="card-desc">Simule mensagens de marketing interativas com múltiplos cartões deslizantes exibidos no celular.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-webhooks.jpg" width="1502" height="714" alt="Configuração de webhooks no painel de controle." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Configuração</span>
+                      <h3 class="card-title">Destinos de Webhook & HMAC</h3>
+                      <p class="card-desc">Associe números a URLs, configure verificação de assinatura HMAC e pule a validação para testes locais.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-event-detail.jpg" width="1502" height="714" alt="Inspeção detalhada de payload JSON de webhook em modo escuro." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Payload</span>
+                      <h3 class="card-title">JSON da Cloud API</h3>
+                      <p class="card-desc">Expanda qualquer entrega para auditar o formato idêntico ao da Meta Cloud API: entry, statuses e precificação.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                      <img src="../../../img/whatsapp/tools-numbers.jpg" width="1502" height="714" alt="Contas e números no painel." loading="lazy">
+                      <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                    </div>
+                    <div class="card-body">
+                      <span class="card-tag">Números</span>
+                      <h3 class="card-title">Empresas & Telefones WABA</h3>
+                      <p class="card-desc">Gerenciamento de contas Meta Business, WABAs, identificadores de telefone e classificação de qualidade.</p>
+                    </div>
+                  </article>
+                  <article class="carousel-card">
+                    <div class="card-media">
+                    <img src="../../../img/whatsapp/tools-delivery.jpg" width="1502" height="714" alt="Configurações do motor de entrega em modo escuro." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Motor</span>
+                    <h3 class="card-title">Modo de Entrega</h3>
+                    <p class="card-desc">Alterne entre entrega automática (enviada → entregue → lida) e controle manual para testes precisos.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../../img/whatsapp/tools-templates.jpg" width="1502" height="714" alt="Catálogo de templates conhecidos no painel." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Catálogo</span>
+                    <h3 class="card-title">Catálogo de Templates</h3>
+                    <p class="card-desc">Biblioteca completa de 20 templates aprovados distribuídos entre Marketing, Utilidade e Autenticação.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../../img/whatsapp/chat-filter.jpg" width="1502" height="714" alt="Filtro de mensagens não lidas e busca de conversas." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Filtros</span>
+                    <h3 class="card-title">Filtros & Busca de Mensagens</h3>
+                    <p class="card-desc">Filtre conversas não lidas, contatos aguardando resposta da clínica e realize buscas em tempo real.</p>
+                  </div>
+                </article>
+                <article class="carousel-card">
+                  <div class="card-media">
+                    <img src="../../../img/whatsapp/tools-template-map.jpg" width="1502" height="714" alt="Template de localização com mapa na prévia do celular." loading="lazy">
+                    <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
+                  </div>
+                  <div class="card-body">
+                    <span class="card-tag">Localização</span>
+                    <h3 class="card-title">Template de Localização com Mapa</h3>
+                    <p class="card-desc">Simule templates de localização com card de mapa interativo, endereço e botões de como chegar.</p>
+                  </div>
+                </article>
+              </div>
+            </div>
+            </section>
+
+            <section id="templates" aria-labelledby="templates-title">
+              <h2 id="templates-title">Templates em arquivos</h2>
+              <p>Todo JSON em <code>templates/</code> é importado no boot e quando muda, e <code>templates/examples/</code> traz um exemplo de cada componente que a Meta permite. Detalhes em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/templates.md">docs/templates.md</a>.</p>
+            </section>
+
+            <section id="config" aria-labelledby="config-title">
+              <h2 id="config-title">Configuração</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Variável</th><th>Padrão</th><th>O que faz</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>PORT</code></td><td><code>3010</code></td><td>Porta HTTP</td></tr>
+                    <tr><td><code>WEBHOOK_URL</code></td><td><em>(vazio)</em></td><td>Webhook padrão; <code>phone:url</code> associa um número</td></tr>
+                    <tr><td><code>WEBHOOK_SECRET</code></td><td><em>(vazio)</em></td><td>Assina os webhooks com <code>x-hub-signature-256</code></td></tr>
+                    <tr><td><code>WEBHOOK_LOCALHOST_REWRITE</code></td><td><em>(vazio)</em></td><td>Host que substitui <code>localhost</code> nas URLs de webhook (<code>host.docker.internal</code>)</td></tr>
+                    <tr><td><code>MOCK_WEBHOOK_RESPONSE_DELAY_MS</code></td><td><code>5000</code></td><td>Espera antes de cada entrega de webhook (também no painel)</td></tr>
+                    <tr><td><code>MOCK_DELIVERY_MODE</code></td><td><code>auto</code></td><td><code>manual</code>: os tiques só andam quando o celular do usuário confirma</td></tr>
+                    <tr><td><code>MOCK_TEMPLATE_REVIEW_DELAY_MS</code></td><td><code>2000</code></td><td>Duração padrão da revisão de um template</td></tr>
+                    <tr><td><code>WHAP_CALL_RING_MS</code></td><td><code>60000</code></td><td>Quanto tempo uma ligação toca antes de cair sem resposta</td></tr>
+                    <tr><td><code>WHAP_DATA_DIR</code></td><td><code>/app/data</code> na imagem</td><td>Banco SQLite e arquivos de mídia</td></tr>
+                    <tr><td><code>WHAP_DB</code></td><td><em>(arquivo)</em></td><td><code>:memory:</code> não guarda nada</td></tr>
+                    <tr><td><code>MOCK_PHONE_NUMBER_ID</code>, <code>MOCK_WABA_ID</code>, <code>MOCK_BUSINESS_ID</code></td><td><code>1234567890</code>, <code>100000000000001</code>, <code>100000000000002</code></td><td>Os ids do número, da WABA e da empresa padrão</td></tr>
+                    <tr><td><code>MOCK_ALLOWED_HOSTS</code></td><td><em>(vazio)</em></td><td>Nomes de <code>Host</code> extras aceitos (o nome de um serviço do compose)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="development" aria-labelledby="development-title">
+              <h2 id="development-title">Desenvolvimento</h2>
+              <div class="code"><pre><code>bun install
+bun run src/index.ts server          <span class="c"># http://localhost:3010</span>
+bun --bun vitest run --maxWorkers=2  <span class="c"># testes, incluindo o teste de contrato</span>
+bun tsc --noEmit</code></pre></div>
+              <p>Uma nova versão da Graph é uma nova pasta <code>spec/&lt;versão&gt;</code> e uma entrada em <code>src/graph/versions.ts</code>; o teste de contrato roda todas as versões. Mais em <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/docs/panel.md">docs/panel.md</a> e no <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/README.md">README</a>.</p>
+            </section>
+
+            <section id="license" aria-labelledby="license-title">
+              <h2 id="license-title">Licença</h2>
+              <p>Apache-2.0, veja a <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/whatsapp/LICENSE">LICENSE</a>. A especificação OpenAPI da Meta em <code>spec/</code> é MIT, Copyright (c) Meta Platforms, Inc. and affiliates.</p>
+              <p class="note"><strong>Sem vínculo com a Meta ou o WhatsApp.</strong> Um simulador independente da API pública deles, para desenvolvimento local e testes. WhatsApp e Meta são marcas de seus respectivos donos.</p>
+            </section>
+          </article>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O mock do WhatsApp é Apache-2.0. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/whatsapp">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Um simulador independente da WhatsApp Cloud API pública, sem vínculo com a Meta ou o WhatsApp. Os nomes são marcas de seus donos.</p>
+    </div>
+  </footer>
+  <script src="../../../assets/site.js" defer></script>
+</body>
+</html>

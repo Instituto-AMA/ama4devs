@@ -17,13 +17,13 @@ async function findOwned(
     .from(transfers)
     .where(and(eq(transfers.id, id), eq(transfers.accountId, auth.accountId)))
     .limit(1)
-  // Transferência de outra conta não é 403: é 404. Ela simplesmente não existe
-  // para quem perguntou.
+  // A transfer of another account is not 403: it is 404. It simply does not
+  // exist for whoever asked.
   if (!row) throw notFound('Transferência')
   return row as TransferRow
 }
 
-/** A resposta da interna carrega os dados da conta de destino. */
+/** The answer of the internal one carries the data of the destination account. */
 async function serialize(ctx: AppContext, t: TransferRow): Promise<Record<string, unknown>> {
   if (t.operationType !== 'INTERNAL' || !t.destinationAccountId) return serializeTransfer(t)
 
@@ -43,15 +43,16 @@ async function serialize(ctx: AppContext, t: TransferRow): Promise<Record<string
 
 export const transferHandlers: HandlerMap = {
   /**
-   * Atende TAMBÉM `transfer-to-asaas-account`: na spec do Asaas as duas
-   * operações dividem POST /v3/transfers (a variante está marcada com
-   * `variantOf` no manifesto) e o BODY decide qual é. `walletId` presente →
-   * transferência interna entre contas Asaas; senão, banco externo ou chave Pix.
+   * Serves `transfer-to-asaas-account` too: in the Asaas spec the two operations
+   * share POST /v3/transfers (the variant is marked with `variantOf` in the
+   * manifest) and the BODY decides which one it is. `walletId` present →
+   * internal transfer between Asaas accounts; otherwise, an external bank or a
+   * Pix key.
    */
   'transfer-to-another-institution-account-or-pix-key': async ({ ctx, auth, body }) => {
     const input = parseTransferBody(body, ctx.clock.today())
     const { body: out } = await createTransfer(ctx, auth, input)
-    return out // 200, nunca 201
+    return out // 200, never 201
   },
 
   'list-transfers': async ({ ctx, auth, query }) => {
@@ -61,8 +62,9 @@ export const transferHandlers: HandlerMap = {
 
     if (query.type) {
       const t = String(query.type)
-      // `type` na resposta é a operação (PIX/TED/INTERNAL); na coluna é o destino
-      // (BANK_ACCOUNT/PIX/INTERNAL). Aceitamos os dois vocabulários no filtro.
+      // `type` in the answer is the operation (PIX/TED/INTERNAL); in the column it
+      // is the destination (BANK_ACCOUNT/PIX/INTERNAL). We accept both
+      // vocabularies in the filter.
       filters.push(
         t === 'BANK_ACCOUNT' ? eq(transfers.type, t) : eq(transfers.operationType, t),
       )
@@ -73,7 +75,7 @@ export const transferHandlers: HandlerMap = {
     if (query['dateCreated[le]']) {
       filters.push(lte(transfers.dateCreated, String(query['dateCreated[le]'])))
     }
-    // `transferDate` é a data em que o dinheiro de fato saiu → effectiveDate.
+    // `transferDate` is the date the money actually left → effectiveDate.
     if (query['transferDate[ge]']) {
       filters.push(gte(transfers.effectiveDate, String(query['transferDate[ge]'])))
     }
@@ -94,7 +96,7 @@ export const transferHandlers: HandlerMap = {
     serialize(ctx, await findOwned(ctx, auth, params.id!)),
 
   'cancel-a-transfer': async ({ ctx, auth, params }) => {
-    await findOwned(ctx, auth, params.id!) // 404 antes de 400
+    await findOwned(ctx, auth, params.id!) // 404 before 400
     return cancelTransfer(ctx, auth, params.id!)
   },
 }

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Playground da API do gerador: teste toda rota /v1 | ama4devs</title>
+  <meta name="description" content="Teste a API do gerador de dados brasileiros no navegador: pessoas, empresas, endereços, CPF, CNPJ, cartões, chaves Pix e cobranças, com sementes que dão a mesma resposta do container.">
+  <meta name="keywords" content="playground api gerador, dados fake brasileiros, gerador cpf, gerador cnpj, api dados de teste, semente">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/playground/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/playground/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="Playground da API do gerador">
+  <meta property="og:description" content="Toda rota /v1 do gerador, rodando no navegador.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/generator/playground/">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="theme-color" content="#3d1a12">
+  <link rel="icon" href="../../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../../assets/style.css">
+  <link rel="stylesheet" href="../../../generator/playground/playground.css">
+</head>
+<body data-tool="generator">
+  <a class="skip" href="#content">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Principal">
+        <a href="../../whatsapp/">Mock do WhatsApp</a>
+        <a href="../../asaas/">Mock do Asaas</a>
+        <a href="../" aria-current="page">Gerador</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Idioma">
+        <a href="../../../generator/playground/" hreflang="en" lang="en">EN</a>
+        <span aria-current="true">PT</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Gerador">
+    <a href="../">Visão geral</a>
+    <a href="../quick-start/">Início rápido</a>
+    <a href="../docs/">Docs</a>
+    <a href="./" aria-current="page">Playground</a>
+  </nav>
+
+  <main id="content">
+    <div class="wrap pg">
+      <div class="doc-title">
+        <h1>Playground da API</h1>
+        <p class="lead">Monte uma chamada para qualquer rota <code>/v1</code> e rode. <strong>Esta página</strong> responde com o mesmo core que o container roda, então uma semente dá o mesmo corpo aqui e nos seus testes. <strong>Seu container</strong> manda a chamada para um gerador rodando na sua máquina.</p>
+      </div>
+
+      <div class="pg-grid">
+        <div class="paper-shadow">
+          <form class="sheet pg-form" data-playground>
+            <h2>Requisição</h2>
+
+            <fieldset class="pg-keys">
+              <legend>Rota</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Gerar</span></label><label><input type="radio" name="route" value="validate"><span>Validar</span></label><label><input type="radio" name="route" value="kinds"><span>Listar tipos</span></label></div>
+            </fieldset>
+
+            <div class="pg-field" data-for="kind">
+              <span class="pg-name">Tipo</span>
+              <select name="kind" data-picker></select>
+            </div>
+            <div class="pg-row" data-for="kind">
+              <label class="pg-field">count <small>de 1 a 1000</small>
+                <input name="count" type="number" min="1" max="1000" value="10" inputmode="numeric">
+              </label>
+              <label class="pg-field">seed <small>vazia sorteia uma</small>
+                <input name="seed" type="text" placeholder="clinica-42" data-placeholder="clinica-42" autocomplete="off" spellcheck="false">
+              </label>
+            </div>
+            <p class="pg-note" data-public-note hidden>Seed de 1 a 100 com count 10 é um arquivo do Pages que qualquer um chama com <code>curl</code>: a mesma resposta do container para essa chamada (<code>now</code> em 2026-01-01). Qualquer outra seed ou count é montada aqui pela seed, misturando itens desses arquivos, sempre igual para a mesma seed. Estado, gênero e as outras opções ficam em <strong>Esta página</strong>.</p>
+            <div class="pg-field" data-for="kind:state">
+              <span class="pg-name">state</span>
+              <select name="state" data-picker><option value="">qualquer</option></select>
+            </div>
+            <fieldset class="pg-keys" data-for="kind:gender">
+              <legend>gender</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="gender" value="" checked><span>qualquer</span></label><label><input type="radio" name="gender" value="F"><span>F</span></label><label><input type="radio" name="gender" value="M"><span>M</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:outcome">
+              <legend>outcome <small>o que o mock do Asaas faz com o cartão</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="outcome" value="APPROVE" checked><span>APPROVE</span></label><label><input type="radio" name="outcome" value="DECLINE"><span>DECLINE</span></label><label><input type="radio" name="outcome" value="RANDOM"><span>RANDOM</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:billingType">
+              <legend>billingType</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="billingType" value="" checked><span>qualquer</span></label><label><input type="radio" name="billingType" value="PIX"><span>PIX</span></label><label><input type="radio" name="billingType" value="BOLETO"><span>BOLETO</span></label><label><input type="radio" name="billingType" value="CREDIT_CARD"><span>CREDIT_CARD</span></label></div>
+            </fieldset>
+            <fieldset class="pg-keys" data-for="kind:type">
+              <legend>type</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="type" value="" checked><span>qualquer</span></label><label><input type="radio" name="type" value="CPF"><span>CPF</span></label><label><input type="radio" name="type" value="CNPJ"><span>CNPJ</span></label><label><input type="radio" name="type" value="EMAIL"><span>EMAIL</span></label><label><input type="radio" name="type" value="PHONE"><span>PHONE</span></label><label><input type="radio" name="type" value="EVP"><span>EVP</span></label></div>
+            </fieldset>
+            <div class="pg-field" data-for="kind:now">
+              <label class="pg-name" for="pg-now">now <small>o dia de onde contam idades e vencimentos</small></label>
+              <input id="pg-now" name="now" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off" spellcheck="false" data-date>
+            </div>
+            <label class="pg-check" data-for="kind:formatted">
+              <input name="formatted" type="checkbox"> formatted <small>documentos e telefones com máscara</small>
+            </label>
+
+            <fieldset class="pg-keys" data-for="validate">
+              <legend>type</legend>
+              <div class="pg-keyrow"><label><input type="radio" name="doc" value="cpf" checked><span>cpf</span></label><label><input type="radio" name="doc" value="cnpj"><span>cnpj</span></label><label><input type="radio" name="doc" value="cnh"><span>cnh</span></label><label><input type="radio" name="doc" value="pis"><span>pis</span></label></div>
+            </fieldset>
+            <label class="pg-field" data-for="validate">value
+              <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
+            </label>
+
+            <fieldset class="pg-keys">
+              <legend>Quem responde <small>o endpoint público é o Pages; esta página roda o mesmo código do container</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="target" value="public" checked><span>Endpoint público</span></label><label><input type="radio" name="target" value="browser"><span>Esta página</span></label><label><input type="radio" name="target" value="container"><span>Seu container</span></label></div>
+            </fieldset>
+            <label class="pg-field" data-base hidden>URL base
+              <input name="base" type="url" value="http://localhost:45450" spellcheck="false">
+            </label>
+
+            <div class="actions">
+              <button class="key confirm" type="submit"><span>Enviar</span></button>
+            </div>
+          </form>
+        </div>
+
+        <div class="paper-shadow">
+          <section class="sheet pg-out" data-playground-out aria-labelledby="pg-out-title" aria-live="polite">
+            <h2 id="pg-out-title">Resposta</h2>
+            <p class="pg-line"><code data-line></code></p>
+            <p class="pg-label">Link desta chamada</p>
+            <div class="code"><pre><code data-link></code></pre></div>
+            <p class="pg-label"><span data-curl-title>A mesma chamada no seu container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
+            <div class="code"><pre><code data-curl></code></pre></div>
+            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Fixar esta semente</button></p>
+            <div class="code pg-body"><pre><code data-body></code></pre></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Mantido pelo <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. O gerador é MIT. Código no <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/generator">GitHub</a>. Para modelos de linguagem: <a href="../../../llms.txt">llms.txt</a>.</p>
+      <p>Dados simulados para desenvolvimento local e testes. Todos os documentos, pessoas e empresas são fictícios.</p>
+    </div>
+  </footer>
+
+  <script src="../../../assets/site.js" defer></script>
+  <script type="module" src="../../../generator/playground/playground.js"></script>
+</body>
+</html>

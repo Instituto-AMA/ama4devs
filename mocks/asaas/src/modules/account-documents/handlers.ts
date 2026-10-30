@@ -1,14 +1,14 @@
 /**
- * KYC / onboarding da conta autenticada (tag "Account Document") e a ação de
- * sandbox que aprova a conta (tag "Sandbox Actions").
+ * KYC / onboarding of the authenticated account (tag "Account Document") and the
+ * sandbox action that approves the account (tag "Sandbox Actions").
  *
- * As duas coisas moram juntas porque são o MESMO fluxo: o cliente lista os
- * documentos pendentes, envia os arquivos, e a conta é aprovada. (As ações de
- * sandbox de COBRANÇA moram em `payments/handlers.ts` — cada ação de sandbox fica
- * ao lado do recurso que ela move, não numa pasta "sandbox" que junta domínios
- * que não conversam.)
+ * The two live together because they are the SAME flow: the client lists the
+ * pending documents, sends the files, and the account is approved. (The CHARGE
+ * sandbox actions live in `payments/handlers.ts` — each sandbox action stays
+ * next to the resource it moves, and not in a "sandbox" folder that gathers
+ * domains that do not talk to each other.)
  *
- * Nenhuma das três operações recebe id de conta: o recurso é sempre
+ * None of the three operations takes an account id: the resource is always
  * `auth.accountId`.
  */
 import { and, eq } from 'drizzle-orm'
@@ -25,9 +25,9 @@ import {
 } from './service.ts'
 
 /**
- * O nome do arquivo enviado. Em multipart o Elysia entrega um `File`; se alguém
- * mandar JSON (a validação de schema não roda em multipart — ver `register.ts`),
- * chega uma string.
+ * The name of the sent file. In multipart, Elysia delivers a `File`; if someone
+ * sends JSON (the schema validation does not run in multipart — see
+ * `register.ts`), a string arrives.
  */
 function fileNameOf(value: unknown): string | null {
   if (value instanceof File) return value.name
@@ -41,18 +41,19 @@ export const accountDocumentHandlers: HandlerMap = {
   },
 
   /**
-   * `POST /v3/myAccount/documents/{id}` — multipart/form-data, campo
-   * `documentFile`. O `{id}` é o do DOCUMENTO (o que veio em `group.documents[]`),
-   * não o do grupo.
+   * `POST /v3/myAccount/documents/{id}` — multipart/form-data, field
+   * `documentFile`. The `{id}` is the one of the DOCUMENT (the one that came in
+   * `group.documents[]`), not the one of the group.
    *
-   * Em sandbox qualquer arquivo é aceito e aprovado na hora: o documento vira
-   * APPROVED e, se era o último pendente do grupo, o grupo também.
+   * In the sandbox any file is accepted and approved on the spot: the document
+   * becomes APPROVED and, if it was the last pending one of the group, the group
+   * too.
    */
   'send-documents': async ({ ctx, auth, params, body }) => {
     const b = (body ?? {}) as Record<string, unknown>
 
-    // multipart não passa pela validação de schema do Elysia (o TypeBox do JSON
-    // não descreve um File), então o obrigatório é conferido aqui.
+    // multipart does not go through the Elysia schema validation (the JSON
+    // TypeBox does not describe a File), so the required field is checked here.
     if (b.documentFile === undefined || b.documentFile === null || b.documentFile === '') {
       throw invalid('documentFile', 'O arquivo do documento é obrigatório.')
     }
@@ -75,16 +76,17 @@ export const accountDocumentHandlers: HandlerMap = {
       await approveDocument(tx as unknown as DB, doc, fileNameOf(b.documentFile), now)
     })
 
-    // O campo `type` do request só faria sentido para criar um documento novo num
-    // grupo CUSTOM; aqui o documento já existe e o grupo define o tipo.
+    // The `type` field of the request would only make sense to create a new
+    // document in a CUSTOM group; here the document already exists and the group
+    // defines the type.
     return { id: doc.id, status: 'APPROVED' }
   },
 
   /**
-   * `POST /v3/sandbox/myAccount/approve` — aprova a conta autenticada.
-   * Devolve o mesmo corpo de `GET /v3/myAccount/status`, já com o efeito
-   * aplicado: é o que permite ao cliente confirmar a aprovação sem uma segunda
-   * chamada.
+   * `POST /v3/sandbox/myAccount/approve` — approves the authenticated account.
+   * It returns the same body as `GET /v3/myAccount/status`, already with the
+   * effect applied: it is what allows the client to confirm the approval without
+   * a second call.
    */
   'approve-account': async ({ ctx, auth }) => {
     const now = ctx.clock.timestamp()

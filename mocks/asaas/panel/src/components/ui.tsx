@@ -1,11 +1,11 @@
 /**
- * Os primitivos. Toda tela é montada com estes — nenhuma inventa cor, raio ou
- * padding próprio.
+ * The primitives. Every screen is built with these — none invents its own
+ * color, radius or padding.
  *
- * É o mesmo contrato que o resto do projeto tem com o domínio: existe um lugar só
- * onde a regra mora. Uma tela que escreve `background: #0038e5` na unha é uma tela
- * que vai divergir do tema escuro na semana que vem, e ninguém vai notar até um
- * screenshot ficar ilegível.
+ * It is the same contract the rest of the project has with the domain: there is
+ * one place where the rule lives. A screen that writes `background: #0038e5` on
+ * its own is a screen that will diverge from the dark theme next week, and
+ * nobody will notice until a screenshot becomes unreadable.
  */
 import type { ComponentChildren, JSX } from 'preact'
 import { useState } from 'preact/hooks'
@@ -13,13 +13,13 @@ import * as I from '../icons.ts'
 import { Icon, type IconData } from './Icon.tsx'
 import './ui.css'
 
-// ── moeda e formatação ──────────────────────────────────────────────────────
+// ── currency and formatting ──────────────────────────────────────────────────
 
-/** Reais, sempre no locale pt-BR. Nunca `toFixed(2)` com "R$" concatenado. */
+/** Reais, always in the pt-BR locale. Never `toFixed(2)` with "R$" concatenated. */
 export const money = (v: number | null | undefined) =>
   (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-/** "1 cliente" / "3 clientes" — o plural certo é detalhe que a tela nota. */
+/** "1 customer" / "3 customers" — the right plural is a detail the screen notices. */
 export const plural = (n: number, um: string, muitos: string) =>
   `${n} ${n === 1 ? um : muitos}`
 
@@ -41,7 +41,7 @@ export function Card(props: {
   actions?: ComponentChildren
   subtitle?: ComponentChildren
   children: ComponentChildren
-  /** Sem padding no corpo — para cards que contêm uma tabela de ponta a ponta. */
+  /** No padding in the body — for cards that contain an end-to-end table. */
   flush?: boolean
   class?: string
 }) {
@@ -64,9 +64,10 @@ export function Card(props: {
 // ── Button ──────────────────────────────────────────────────────────────────
 
 /**
- * `IntrinsicElements['button']`, não `HTMLAttributes<HTMLButtonElement>`: no Preact é
- * ali que vivem os atributos próprios do elemento (`disabled`, `type`, `form`). O
- * genérico só traz os globais, e um `<Button disabled>` não compilaria.
+ * `IntrinsicElements['button']`, not `HTMLAttributes<HTMLButtonElement>`: in Preact
+ * it is there that the attributes of the element itself live (`disabled`, `type`,
+ * `form`). The generic only brings the globals, and a `<Button disabled>` would
+ * not compile.
  */
 type ButtonProps = JSX.IntrinsicElements['button'] & {
   variant?: 'primary' | 'outline' | 'ghost' | 'danger'
@@ -87,10 +88,10 @@ export function Badge(props: { tone?: Tone; solid?: boolean; children: Component
 }
 
 /**
- * O status de uma cobrança sempre com a MESMA cor, em qualquer tela.
+ * The status of a charge always with the SAME color, on any screen.
  *
- * Se a lista pintasse OVERDUE de vermelho e o card de laranja, o dev perderia
- * tempo procurando a diferença que não existe.
+ * If the list painted OVERDUE in red and the card in orange, the developer
+ * would lose time looking for a difference that does not exist.
  */
 export const STATUS_TONE: Record<string, Tone> = {
   RECEIVED: 'success',
@@ -146,7 +147,7 @@ export const StatusBadge = ({ status }: { status: string }) => (
 
 // ── Copy ────────────────────────────────────────────────────────────────────
 
-/** Um valor que existe para ser colado no código do usuário. */
+/** A value that exists to be pasted into the user's code. */
 export function Copy({ value, children }: { value: string; children?: ComponentChildren }) {
   const [copied, setCopied] = useState(false)
 
@@ -170,12 +171,12 @@ export function Copy({ value, children }: { value: string; children?: ComponentC
 
 // ── Banner ──────────────────────────────────────────────────────────────────
 
-/** O ícone segue o TOM por padrão: aviso alerta, informação informa. */
+/** The icon follows the TONE by default: a warning alerts, information informs. */
 const BANNER_ICON = { warn: I.ALERT, danger: I.ALERT, primary: I.INFO }
 
 export function Banner(props: {
   tone?: 'warn' | 'danger' | 'primary'
-  /** Sobrescreve o ícone do tom — para quando a causa é mais específica que a gravidade. */
+  /** Overrides the icon of the tone — for when the cause is more specific than the severity. */
   icon?: IconData
   children: ComponentChildren
   action?: ComponentChildren
@@ -193,8 +194,9 @@ export function Banner(props: {
 // ── Table ───────────────────────────────────────────────────────────────────
 
 /**
- * Tabela larga rola DENTRO do card. Sem isto, a página inteira ganha barra
- * horizontal e o layout quebra na primeira coluna com um id de 32 caracteres.
+ * A wide table scrolls INSIDE the card. Without this, the whole page gains a
+ * horizontal scrollbar and the layout breaks at the first column with a 32
+ * character id.
  */
 export const Table = ({ children }: { children: ComponentChildren }) => (
   <div class="scroll">

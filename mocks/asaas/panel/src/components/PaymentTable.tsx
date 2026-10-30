@@ -1,5 +1,5 @@
 /**
- * A list of charges, the same columns wherever it appears: the Cobranças tab, a
+ * A list of charges, the same columns wherever it appears: the "Cobranças" tab, a
  * customer, a subscription, an installment plan. A click opens the charge.
  */
 import type { Customer, Payment } from '../api.ts'

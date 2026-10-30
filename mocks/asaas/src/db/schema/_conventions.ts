@@ -1,30 +1,30 @@
 /**
- * Convenções do schema. Leia antes de adicionar qualquer coluna.
+ * Schema conventions. Read this before adding any column.
  *
- * DINHEIRO É INTEIRO EM CENTAVOS. Sempre. Sufixo `Cents` no nome.
- *   SQLite REAL é IEEE-754: um saldo corrente somado ao longo de milhares de
- *   lançamentos acumula erro. E as regras do Asaas são regras de RESTO EXATO
- *   ("a sobra de arredondamento vai na última parcela"), que só se expressam em
- *   aritmética inteira. R$ 1,99 → 199.
+ * MONEY IS INTEGER IN CENTS. Always. `Cents` suffix in the name.
+ *   SQLite REAL is IEEE-754: a running balance added up over thousands of
+ *   entries accumulates error. And Asaas's rules are EXACT REMAINDER rules
+ *   ("the rounding remainder goes to the last installment"), which only express
+ *   themselves in integer arithmetic. R$ 1.99 → 199.
  *
- * PERCENTUAL DE SPLIT tem 4 casas decimais (92.3444%) → inteiro na escala 1e4,
- *   sufixo `E4`. 92.3444% → 923444.
- * TAXA PERCENTUAL em basis points (1 bp = 0,01%) → sufixo `Bp`. 2,99% → 299.
+ * SPLIT PERCENTAGE has 4 decimal places (92.3444%) → integer at the 1e4 scale,
+ *   `E4` suffix. 92.3444% → 923444.
+ * PERCENTAGE FEE in basis points (1 bp = 0.01%) → `Bp` suffix. 2.99% → 299.
  *
- * DATAS SÃO TEXT, no formato de fio do Asaas:
+ * DATES ARE TEXT, in Asaas's wire format:
  *   date     'YYYY-MM-DD'
  *   datetime 'YYYY-MM-DD HH:mm:ss'
- *   Lexicograficamente ordenável = cronologicamente ordenável. Sem surpresa de
- *   timezone. Fuso de negócio: America/Sao_Paulo.
+ *   Lexicographically sortable = chronologically sortable. No timezone
+ *   surprises. Business timezone: America/Sao_Paulo.
  *
- * PROIBIDO: `.default(sql`CURRENT_TIMESTAMP`)` ou qualquer default de tempo.
- *   TODO timestamp é escrito pela aplicação a partir de `clock.now()`. Um único
- *   default de banco e o relógio virtual vaza — a viagem no tempo passa a gravar
- *   a data real e o determinismo morre em silêncio.
+ * FORBIDDEN: `.default(sql`CURRENT_TIMESTAMP`)` or any time default.
+ *   A timestamp is written by the application from `clock.now()`. A single
+ *   database default and the virtual clock leaks — time travel starts writing
+ *   the real date and determinism dies in silence.
  */
 import { integer, text } from 'drizzle-orm/sqlite-core'
 
-/** Valor monetário em centavos. */
+/** A monetary amount in cents. */
 export const cents = (name: string) => integer(name, { mode: 'number' })
 
 /** 'YYYY-MM-DD' */
@@ -33,7 +33,7 @@ export const date = (name: string) => text(name)
 /** 'YYYY-MM-DD HH:mm:ss' */
 export const datetime = (name: string) => text(name)
 
-/** Epoch em ms. Só para ordenação estável e agendamento — nunca para exibir. */
+/** Epoch in ms. Only for stable ordering and scheduling — never for display. */
 export const epochMs = (name: string) => integer(name, { mode: 'number' })
 
 export const bool = (name: string) => integer(name, { mode: 'boolean' })

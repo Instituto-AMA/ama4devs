@@ -1,27 +1,26 @@
 /**
- * Juros, multa e desconto. PURO.
+ * Interest, fine and discount. PURE.
  *
- * Regras do Asaas:
+ * Asaas rules:
  *
- *   MULTA  — aplicada UMA VEZ, no primeiro dia de atraso. FIXED ou PERCENTAGE.
- *   JUROS  — pro-rata die sobre MÊS COMERCIAL DE 30 DIAS, a partir do 1º dia de
- *            atraso:  juros = valor × (taxa/100) / 30 × diasAtraso
- *            `interest` só tem o campo `value` — é sempre percentual ao mês.
- *            NÃO existe `interest.type` (SDKs antigos que mandam isso estão
- *            desatualizados).
+ *   FINE  — applied ONCE, on the first day of lateness. FIXED or PERCENTAGE.
+ *   INTEREST — pro-rata die over a 30-DAY COMMERCIAL MONTH, from the 1st day of
+ *            lateness:  interest = value × (rate/100) / 30 × daysLate
+ *            `interest` only has the `value` field — it is always a monthly percentage.
+ *            There is NO `interest.type` (old SDKs that send it are outdated).
  *
- *   interestValue = multa + juros
- *   value (a pagar) = originalValue + interestValue
+ *   interestValue = fine + interest
+ *   value (payable) = originalValue + interestValue
  *
- * NÃO DOCUMENTADO pelo Asaas: se os juros incidem sobre o valor original ou
- * sobre (valor + multa). Escolhemos o valor ORIGINAL — não compomos juros sobre
- * a multa. Está registrado em progress.md como regra não confirmada.
+ * NOT DOCUMENTED by Asaas: whether the interest applies to the original value or
+ * to (value + fine). We chose the ORIGINAL value — we do not compound interest
+ * over the fine. It is recorded in progress.md as an unconfirmed rule.
  */
 import { daysBetween, type IsoDate } from './calendar.ts'
 import type { DiscountConfig, FineConfig, InterestConfig } from '../db/schema/payments.ts'
 import { applyBp, bp, cents, roundCents, type Cents } from './money.ts'
 
-/** Converte um percentual "humano" (2.5 = 2,5%) para basis points. */
+/** Converts a "human" percentage (2.5 = 2.5%) into basis points. */
 const pctToBp = (pct: number) => bp(Math.round(pct * 100))
 
 export function calcFine(fine: FineConfig | null | undefined, originalValue: Cents): Cents {
@@ -30,7 +29,7 @@ export function calcFine(fine: FineConfig | null | undefined, originalValue: Cen
   return applyBp(originalValue, pctToBp(fine.value))
 }
 
-/** Juros pro-rata die, mês comercial de 30 dias. */
+/** Pro-rata die interest, 30-day commercial month. */
 export function calcInterest(
   interest: InterestConfig | null | undefined,
   originalValue: Cents,
@@ -41,23 +40,23 @@ export function calcInterest(
 }
 
 export interface OverdueTotals {
-  /** Dias de atraso. 0 = não está em atraso. */
+  /** Days of lateness. 0 = not late. */
   daysLate: number
-  /** O valor antes do atraso. */
+  /** The value before the lateness. */
   originalValue: Cents
-  /** multa + juros. */
+  /** fine + interest. */
   interestValue: Cents
-  /** O valor a pagar hoje: originalValue + interestValue. */
+  /** The value payable today: originalValue + interestValue. */
   value: Cents
   fine: Cents
   interest: Cents
 }
 
 /**
- * Quanto se paga por uma cobrança vencida, na data `on`.
+ * How much is paid for an overdue charge, on the date `on`.
  *
- * `on` é a data em que o pagamento está sendo feito — não "hoje". É o que
- * permite simular um pagamento retroativo e conferir o cálculo.
+ * `on` is the date the payment is being made — not "today". It is what allows
+ * simulating a retroactive payment and checking the calculation.
  */
 export function calcOverdueTotals(
   payment: {
@@ -97,10 +96,10 @@ export function calcOverdueTotals(
 }
 
 /**
- * Desconto por pagamento antecipado.
+ * Discount for early payment.
  *
- * Vale até `dueDateLimitDays` ANTES do vencimento. Com `dueDateLimitDays = 0`
- * (o padrão), vale até o próprio dia do vencimento.
+ * It holds until `dueDateLimitDays` BEFORE the due date. With
+ * `dueDateLimitDays = 0` (the default), it holds until the due date itself.
  */
 export function calcDiscount(
   discount: DiscountConfig | null | undefined,
@@ -113,7 +112,7 @@ export function calcDiscount(
   const daysBeforeDue = daysBetween(dueDate, on)
   const limit = discount.dueDateLimitDays ?? 0
 
-  // Pagou depois do vencimento, ou depois da janela do desconto.
+  // Paid after the due date, or after the discount window.
   if (daysBeforeDue < limit) return cents(0)
 
   if (discount.type === 'FIXED') return roundCents(discount.value * 100)

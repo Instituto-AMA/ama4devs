@@ -30,26 +30,26 @@ async function findOwned(ctx: AppContext, auth: AuthContext, id: string): Promis
 
 export const paymentHandlers: HandlerMap = {
   /**
-   * Atende TAMBÉM `create-new-payment-with-credit-card` — na spec do Asaas as
-   * duas operações dividem POST /v3/payments, e o BODY decide qual é qual.
+   * It serves ALSO `create-new-payment-with-credit-card` — in Asaas's spec the
+   * two operations share POST /v3/payments, and the BODY decides which one it is.
    *
-   * Com cartão (`creditCard` ou `creditCardToken`), a cobrança não nasce
-   * PENDING: a captura acontece no ato da criação e ela já vai para CONFIRMED
-   * (ou AUTHORIZED, se `authorizeOnly`). Se a operadora recusa, a cobrança nem
-   * chega a existir — 400. Todo esse caminho vive no track H.
+   * With a card (`creditCard` or `creditCardToken`), the charge is not born
+   * PENDING: the capture happens at creation time and it already goes to CONFIRMED
+   * (or AUTHORIZED, with `authorizeOnly`). If the issuer declines, the charge does
+   * not even come to exist — 400. That whole path lives in track H.
    */
   'create-new-payment': async ({ ctx, auth, body }) => {
     const b = body as Record<string, any>
 
     /**
-     * Parcelamento pela porta de POST /v3/payments — o Asaas aceita, e é o que o
-     * cliente típico usa (informar `installmentCount` numa cobrança comum, sem
-     * conhecer /v3/installments).
+     * Installment plan through the POST /v3/payments door — Asaas accepts it, and
+     * it is what the typical client uses (giving `installmentCount` in a regular
+     * charge, without knowing /v3/installments).
      *
-     * O que ele devolve é a PRIMEIRA PARCELA — um objeto `payment` com
-     * `installment` preenchido, `installmentNumber: 1` e a descrição gerada
-     * ("Parcela 1 de 3.") — e NÃO o objeto do parcelamento. Provado contra o
-     * sandbox real. O motor é o mesmo de /v3/installments; muda só a resposta.
+     * What it returns is the FIRST INSTALLMENT — a `payment` object with
+     * `installment` filled in, `installmentNumber: 1` and the generated description
+     * ("Parcela 1 de 3.") — and NOT the plan object. Proven against the real
+     * sandbox. The engine is the same as /v3/installments; only the response differs.
      */
     if (Number(b.installmentCount ?? 1) > 1) {
       const { payments: parts } = await createInstallmentFlow(
@@ -99,13 +99,13 @@ export const paymentHandlers: HandlerMap = {
     const [total] = await ctx.db.select({ n: count() }).from(payments).where(where)
 
     /**
-     * DA MAIS NOVA PARA A MAIS ANTIGA. Provado contra o sandbox real: listar as
-     * parcelas de um parcelamento de 12x devolve a #12 primeiro.
+     * FROM THE NEWEST TO THE OLDEST. Proven against the real sandbox: listing the
+     * installments of a 12x plan returns #12 first.
      *
-     * Ordenamos por `rowid` (a ordem física de inserção), não por `dateCreated`:
-     * as 12 parcelas nascem no MESMO dia — e, sob o relógio virtual congelado, no
-     * mesmo milissegundo. Qualquer ordenação por tempo empataria as 12 e a ordem
-     * ficaria por conta do SQLite, ou seja, indefinida.
+     * We sort by `rowid` (the physical insertion order), not by `dateCreated`:
+     * the 12 installments are born on the SAME day — and, under the frozen virtual
+     * clock, in the same millisecond. Any time-based ordering would tie the 12 and
+     * the order would be SQLite's, that is, undefined.
      */
     const rows = await ctx.db
       .select()
@@ -120,14 +120,14 @@ export const paymentHandlers: HandlerMap = {
   },
 
   /**
-   * `POST /v3/payments/simulate` — quanto sobra se eu cobrar X por cada meio.
-   * Não cria nada, não toca no banco.
+   * `POST /v3/payments/simulate` — how much is left if I charge X through each method.
+   * It creates nothing, it does not touch the database.
    *
-   * Cada meio expõe um conjunto DIFERENTE de campos, e não é por acaso — é o que
-   * o sandbox real devolve:
+   * Each method exposes a DIFFERENT set of fields, and it is not by chance — it is
+   * what the real sandbox returns:
    *
-   *   creditCard → feePercentage + operationFee   (sem feeValue)
-   *   bankSlip   → feeValue                       (sem feePercentage)
+   *   creditCard → feePercentage + operationFee   (without feeValue)
+   *   bankSlip   → feeValue                       (without feePercentage)
    *   pix        → feeValue + feePercentage: null (o campo existe, sempre nulo)
    */
   'sales-simulator': async ({ ctx, body }) => {
@@ -175,18 +175,18 @@ export const paymentHandlers: HandlerMap = {
   },
 
   /**
-   * `GET /v3/payments/{id}/pixQrCode` — o "copia e cola" e a imagem do QR.
+   * `GET /v3/payments/{id}/pixQrCode` — the "copy and paste" and the QR image.
    *
-   * Sem isto, uma compra por Pix não tem como ser paga: é a única coisa que o
-   * comprador de fato usa. O `payload` é um BR Code EMV de verdade, com CRC16 —
-   * aponte a câmera e o celular lê.
+   * Without this, a Pix purchase has no way to be paid: it is the only thing the
+   * buyer actually uses. The `payload` is a real EMV BR Code, with CRC16 —
+   * point the camera and the phone reads it.
    *
-   * BOLETO também responde: o Asaas emite boleto híbrido, com Pix embutido.
-   * Restringir a PIX seria mais estrito que a API real.
+   * BOLETO also answers: Asaas issues a hybrid bank slip, with Pix embedded.
+   * Restricting it to PIX would be stricter than the real API.
    *
-   * `expirationDate` = dueDate + 1 ANO, às 23:59:59. Não é a data de vencimento
-   * da cobrança, e não é o prazo do Pix — é um ano depois. Provado em dois
-   * pontos contra o sandbox (2026-12-31 → 2027-12-31; 2026-08-20 → 2027-08-20).
+   * `expirationDate` = dueDate + 1 YEAR, at 23:59:59. It is not the charge's due
+   * date, and it is not Pix's deadline — it is a year later. Proven at two points
+   * against the sandbox (2026-12-31 → 2027-12-31; 2026-08-20 → 2027-08-20).
    */
   'get-qr-code-for-pix-payments': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
@@ -209,7 +209,7 @@ export const paymentHandlers: HandlerMap = {
       encodedImage: qrPng(payload),
       payload,
       expirationDate: `${addMonths(p.dueDate, 12)} 23:59:59`,
-      // Sem acento, e é assim mesmo que o Asaas escreve.
+      // Without an accent, and that is exactly how Asaas writes it.
       description: p.description ?? 'Descricao nao informada',
     }
   },
@@ -226,7 +226,7 @@ export const paymentHandlers: HandlerMap = {
     const p = await findOwned(ctx, auth, params.id!)
     const b = body as Record<string, any>
 
-    // Só dá para editar cobrança que ainda não foi paga.
+    // Only a charge that has not been paid yet can be edited.
     if (p.status !== 'PENDING' && p.status !== 'OVERDUE') {
       throw badRequest(
         'invalid_action',
@@ -253,9 +253,9 @@ export const paymentHandlers: HandlerMap = {
     if (b.interest !== undefined) patch.interest = b.interest
 
     /**
-     * `customer` NÃO existe no schema de update da spec — o Asaas não permite
-     * trocar o cliente de uma cobrança, e o campo é simplesmente descartado.
-     * Não há o que validar aqui: o Elysia já o removeu do body.
+     * `customer` does NOT exist in the spec's update schema — Asaas does not allow
+     * changing the customer of a charge, and the field is simply discarded.
+     * There is nothing to validate here: Elysia has already removed it from the body.
      */
 
     await ctx.db.transaction(async (tx) => {
@@ -287,8 +287,8 @@ export const paymentHandlers: HandlerMap = {
   },
 
   /**
-   * Baixa manual. NÃO gera saldo nem lançamento — o dinheiro entrou fora da
-   * plataforma. É fácil errar isso e creditar a conta.
+   * Manual write-off. It does NOT create balance nor an entry — the money came in
+   * outside the platform. It is easy to get this wrong and credit the account.
    */
   'confirm-cash-receipt': async ({ ctx, auth, params, body }) => {
     const p = await findOwned(ctx, auth, params.id!)
@@ -328,7 +328,7 @@ export const paymentHandlers: HandlerMap = {
       status: 'DONE',
       valueCents: value,
       description: b.description ?? null,
-      // As taxas NÃO são devolvidas — o Asaas retém.
+      // The fees are NOT refunded — Asaas keeps them.
       refundedFeeCents: 0,
       effectiveDate: ctx.clock.today(),
       transactionReceiptUrl: null,
@@ -378,7 +378,7 @@ export const paymentHandlers: HandlerMap = {
         'A linha digitável só existe para cobranças com boleto.',
       )
     }
-    // Linha digitável fictícia, com o formato certo (47 dígitos em 5 blocos).
+    // A fictional identification line, with the right format (47 digits in 5 blocks).
     const d = ctx.rng.digits(47)
     return {
       identificationField: `${d.slice(0, 5)}.${d.slice(5, 10)} ${d.slice(10, 15)}.${d.slice(15, 21)} ${d.slice(21, 26)}.${d.slice(26, 32)} ${d.slice(32, 33)} ${d.slice(33, 47)}`,
@@ -396,8 +396,8 @@ export const paymentHandlers: HandlerMap = {
   },
 
   /**
-   * Quanto se paga por esta cobrança HOJE — com juros e multa se estiver
-   * vencida, com desconto se estiver na janela.
+   * How much is paid for this charge TODAY — with interest and fine if it is
+   * overdue, with the discount if it is within the window.
    */
   'retrieve-payment-billing-information': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
@@ -431,14 +431,14 @@ export const paymentHandlers: HandlerMap = {
 }
 
 /**
- * Ações que só existem no sandbox — e que são a razão de este simulador ser
- * usável: sem elas você não teria como "pagar" uma cobrança.
+ * Actions that only exist in the sandbox — and that are the reason this simulator is
+ * usable: without them you would have no way to "pay" a charge.
  */
 export const sandboxHandlers: HandlerMap = {
   'confirm-payment': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
-    // PAY passa pela máquina de estados: Pix vai direto a RECEIVED (com saldo e
-    // taxa no extrato); boleto e cartão param em CONFIRMED e creditam depois.
+    // PAY goes through the state machine: Pix goes straight to RECEIVED (with the
+    // balance and the fee in the statement); bank slip and card stop at CONFIRMED and credit later.
     const r = await applyTransition(ctx, p.id, { kind: 'PAY', on: ctx.clock.today() })
     return serializePayment(ctx.db, r.payment)
   },

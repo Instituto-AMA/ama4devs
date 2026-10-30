@@ -1,27 +1,28 @@
 /**
- * Job 1 — geração das cobranças de assinatura, da SEGUNDA em diante. (Track E)
+ * Job 1 — the generation of the subscription charges, from the SECOND one on. (Track E)
  *
- * A primeira cobrança NÃO nasce aqui: nasce no `POST /v3/subscriptions`, junto
- * com a assinatura. (Acreditávamos o contrário — que nenhuma cobrança existia
- * até faltarem 40 dias para o vencimento — e a captura contra o sandbox real
- * provou que estávamos errados. Ver o cabeçalho de `modules/subscriptions/handlers.ts`.)
+ * The first charge is NOT born here: it is born in the `POST /v3/subscriptions`,
+ * together with the subscription. (We used to believe the opposite — that no
+ * charge existed until the due date was 40 days away — and the capture against
+ * the real sandbox proved we were wrong. See the header of
+ * `modules/subscriptions/handlers.ts`.)
  *
- * O que este job faz é manter a esteira andando: quando o `nextDueDate` entra na
- * janela de LOOKAHEAD (40 dias, `SUBSCRIPTION_LOOKAHEAD_DAYS`), a próxima
- * cobrança é gerada e o ciclo avança de novo.
+ * What this job does is keep the assembly line moving: when the `nextDueDate`
+ * enters the LOOKAHEAD window (40 days, `SUBSCRIPTION_LOOKAHEAD_DAYS`), the next
+ * charge is generated and the cycle moves forward again.
  *
- * Roda PRIMEIRO no tick: a cobrança gerada hoje tem que poder vencer hoje, e os
- * jobs seguintes (overdue, credit-settlement) precisam vê-la.
+ * It runs FIRST on the tick: the charge generated today has to be able to fall
+ * due today, and the jobs after it (overdue, credit-settlement) need to see it.
  *
- * A geração em si mora em `modules/subscriptions/service.ts` (`generateOne`) —
- * porque tem dois chamadores, e uma segunda implementação aqui divergiria da do
- * POST no dia em que uma das duas fosse corrigida.
+ * The generation itself lives in `modules/subscriptions/service.ts` (`generateOne`)
+ * — because it has two callers, and a second implementation here would diverge
+ * from the POST one the day one of them was fixed.
  *
- * IDEMPOTÊNCIA — a camada que de fato salva é o COMPARE-AND-SWAP, dentro de
- * `generateOne`: a linha da assinatura é RECLAMADA (next_due_date avançado)
- * antes de a cobrança nascer. Um tick repetido encontra o vencimento já
- * consumido, altera zero linhas e não gera nada. Duas cobranças para o mesmo
- * vencimento são impossíveis por construção, não por convenção.
+ * IDEMPOTENCY — the layer that really saves is the COMPARE-AND-SWAP, inside
+ * `generateOne`: the subscription row is CLAIMED (next_due_date advanced) before
+ * the charge is born. A repeated tick finds the due date already consumed,
+ * changes zero rows and generates nothing. Two charges for the same due date are
+ * impossible by construction, not by convention.
  */
 import { and, eq, lte } from 'drizzle-orm'
 import { subscriptions } from '../../db/schema/index.ts'
@@ -36,8 +37,8 @@ export const subscriptionGeneration: Job = {
     const today = ctx.clock.today()
 
     /**
-     * A JANELA. Uma cobrança nasce quando faltam `lookaheadDays` (40) ou menos
-     * para o vencimento — nem um dia antes. No 41º dia, nada acontece.
+     * THE WINDOW. A charge is born when `lookaheadDays` (40) or fewer are left
+     * until the due date — not a day earlier. On the 41st day, nothing happens.
      */
     const horizon = addDays(today, ctx.config.rules.subscriptionLookaheadDays)
 
@@ -54,10 +55,10 @@ export const subscriptionGeneration: Job = {
 
     for (const sub of due) {
       /**
-       * Um ciclo curto tem VÁRIOS vencimentos dentro da janela — numa assinatura
-       * semanal, 40 dias de lookahead cobrem ~6 cobranças, e o Asaas as cria
-       * todas. Por isso o laço: geramos enquanto o próximo vencimento continuar
-       * dentro do horizonte.
+       * A short cycle has SEVERAL due dates inside the window — in a weekly
+       * subscription, 40 days of lookahead cover ~6 charges, and Asaas creates
+       * them all. That is why the loop: we generate while the next due date
+       * stays inside the horizon.
        */
       let current: SubscriptionRow | null = sub
 

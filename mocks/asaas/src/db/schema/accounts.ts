@@ -2,22 +2,22 @@ import { index, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { bool, cents, datetime } from './_conventions.ts'
 
 /**
- * Cada API key pertence a uma conta. Cada conta tem walletId e saldo próprios.
- * É isso que torna o split testável de verdade: o dinheiro sai de uma conta e
- * entra na outra, e os dois extratos fecham.
+ * Each API key belongs to an account. Each account has its own walletId and
+ * balance. It is what makes the split truly testable: the money leaves one account
+ * and enters the other, and both statements balance.
  */
 export const accounts = sqliteTable(
   'accounts',
   {
     id: text('id').primaryKey(), // UUID
-    walletId: text('wallet_id').notNull(), // UUID — o destino de um split
-    /** Subconta criada via POST /v3/accounts. null = conta raiz. */
+    walletId: text('wallet_id').notNull(), // UUID — the destination of a split
+    /** Subaccount created via POST /v3/accounts. null = root account. */
     parentAccountId: text('parent_account_id'),
 
     name: text('name').notNull(),
-    /** Razão social. Só faz sentido para conta JURIDICA. */
+    /** The legal name. It only makes sense for a JURIDICA account. */
     companyName: text('company_name'),
-    /** Nome de exibição. O Asaas preenche sozinho a partir da razão social. */
+    /** The display name. Asaas fills it in by itself from the legal name. */
     tradingName: text('trading_name'),
     email: text('email').notNull(),
     loginEmail: text('login_email'),
@@ -40,12 +40,12 @@ export const accounts = sqliteTable(
 
     incomeCents: cents('income_cents'),
 
-    /** PENDING | APPROVED | REJECTED — em sandbox aprova sozinho. */
+    /** PENDING | APPROVED | REJECTED — in the sandbox it approves itself. */
     status: text('status').notNull(),
 
     /**
-     * Saldo materializado. Escrito na MESMA transação do lançamento no ledger.
-     * Invariante checado nos testes:
+     * The materialized balance. Written in the SAME transaction as the ledger entry.
+     * The invariant the tests check:
      *   balanceCents === SUM(financial_transactions.value_cents WHERE accountId)
      */
     balanceCents: cents('balance_cents').notNull(),
@@ -66,7 +66,7 @@ export const apiKeys = sqliteTable(
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
-    /** `$aact_hmlg_…` — o valor do header `access_token`. */
+    /** `$aact_hmlg_…` — the value of the `access_token` header. */
     key: text('key').notNull(),
     name: text('name').notNull(),
     active: bool('active').notNull(),
@@ -74,7 +74,7 @@ export const apiKeys = sqliteTable(
     expirationDate: text('expiration_date'),
   },
   (t) => [
-    uniqueIndex('api_keys_key_uq').on(t.key), // caminho quente: toda requisição
+    uniqueIndex('api_keys_key_uq').on(t.key), // hot path: every request
     index('api_keys_account_idx').on(t.accountId),
   ],
 )

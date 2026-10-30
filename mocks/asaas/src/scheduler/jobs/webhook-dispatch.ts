@@ -1,11 +1,12 @@
 /**
- * Job 7 — entrega os webhooks vencidos.
+ * Job 7 — delivers the webhooks that are due.
  *
- * NÃO é `once()`: não é um job diário. Toda vez que o tempo anda (um tick, um
- * advance, o timer), a fila é drenada. Um evento emitido às 10h e uma retentativa
- * marcada para as 10h30 são dois instantes diferentes do mesmo dia simulado.
+ * It is NOT `once()`: it is not a daily job. Every time the clock moves (a tick,
+ * an advance, the timer), the queue is drained. An event emitted at 10am and a
+ * retry scheduled for 10:30am are two different instants of the same simulated
+ * day.
  *
- * A lógica de verdade está em src/webhooks/dispatcher.ts.
+ * The real logic is in src/webhooks/dispatcher.ts.
  */
 import { ensureWhatsappSender, ensureWhatsappTemplates } from '../../notify/channels.ts'
 import { dispatchNotifications } from '../../notify/dispatcher.ts'

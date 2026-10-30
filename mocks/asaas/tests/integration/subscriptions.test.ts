@@ -1,17 +1,19 @@
 /**
- * Assinatura. (Track E)
+ * Subscription. (Track E)
  *
- * A REGRA QUE DEFINE O RECURSO, e ela é contraintuitiva:
+ * THE RULE THAT DEFINES THE FEATURE, and it is counterintuitive:
  *
- *   **criar a assinatura NÃO cria cobrança nenhuma.**
+ *   **creating the subscription ALREADY creates the first charge, on the spot.**
  *
- * O Asaas gera a cobrança quando faltam 40 dias para o `nextDueDate`. É a
- * diferença nº 1 entre assinatura e parcelamento (que cria as N cobranças na
- * hora), e é a origem do bug clássico: "criei a assinatura e o webhook
- * PAYMENT_CREATED nunca chegou".
+ * The 40-day lookahead governs the SUBSEQUENT charges: Asaas generates the next one when
+ * 40 days are missing for the `nextDueDate`. It is the #1 difference between a
+ * subscription and an installment plan (which creates the N charges at once), and it is
+ * the origin of the classic bug: "I created the subscription and the webhook
+ * PAYMENT_CREATED never arrived" — the first charge's webhook does arrive, but the
+ * second one's only comes 40 days ahead of its due date.
  *
- * Provamos OS DOIS LADOS da janela: no 41º dia não nasce nada; no 40º, nasce.
- * Um teste que só prova o lado de dentro passaria mesmo com lookahead infinito.
+ * We prove BOTH SIDES of the window: on the 41st day nothing is born; on the 40th, it is.
+ * A test that only proves the inside would pass even with an infinite lookahead.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq } from 'drizzle-orm'
@@ -25,11 +27,11 @@ beforeEach(async () => {
 })
 afterEach(() => h.close())
 
-/** O relógio dos testes começa em 2026-01-05. */
+/** The tests' clock starts at 2026-01-05. */
 const TODAY = '2026-01-05'
-/** Exatamente 40 dias depois — o primeiro dia DENTRO da janela. */
+/** Exactly 40 days later — the first day INSIDE the window. */
 const IN_40_DAYS = '2026-02-14'
-/** 41 dias depois — um dia FORA. */
+/** 41 days later — one day OUTSIDE. */
 const IN_41_DAYS = '2026-02-15'
 
 async function customer(): Promise<string> {
@@ -52,7 +54,7 @@ async function subscribe(over: Record<string, unknown> = {}) {
       ...over,
     },
   })
-  expect(res.status).toBe(200) // 200, nunca 201
+  expect(res.status).toBe(200) // 200, never 201
   return res.body
 }
 
@@ -74,48 +76,48 @@ const ledgerOf = async (accountId: string) =>
     .from(financialTransactions)
     .where(eq(financialTransactions.accountId, accountId))
 
-describe('A primeira cobrança nasce NA CRIAÇÃO — e a segunda, na janela de 40 dias', () => {
+describe('The first charge is born AT CREATION — and the second one, in the 40-day window', () => {
   /**
-   * Este bloco já afirmou o CONTRÁRIO, com confiança, por três testes seguidos:
-   * que criar uma assinatura não criava cobrança nenhuma, e que a primeira só
-   * nascia quando faltavam 40 dias para o vencimento.
+   * This block already asserted the OPPOSITE, confidently, across three tests in a row:
+   * that creating a subscription created no charge at all, and that the first one only
+   * was born only when 40 days were missing for the due date.
    *
-   * A captura contra o sandbox real derrubou isso (`bun run capture`). O Asaas:
+   * The capture against the real sandbox disproved that (`bun run capture`). Asaas:
    *
-   *   POST /v3/subscriptions com nextDueDate = hoje+60
-   *     → devolve nextDueDate = hoje+90 (já avançou um ciclo)
-   *     → e a cobrança de hoje+60 já existe, criada na hora
+   *   POST /v3/subscriptions with nextDueDate = today+60
+   *     → returns nextDueDate = today+90 (it already advanced one cycle)
+   *     → and the charge of today+60 already exists, created on the spot
    *
-   * A janela de 40 dias é real, mas governa a SEGUNDA cobrança em diante.
+   * The 40-day window is real, but it governs the SECOND charge onwards.
    */
-  it('criar a assinatura JÁ cria a primeira cobrança e avança o ciclo', async () => {
+  it('creating the subscription ALREADY creates the first charge and advances the cycle', async () => {
     const sub = await subscribe({ nextDueDate: IN_41_DAYS })
 
     expect(sub.id).toMatch(/^sub_[A-Za-z0-9]{12}$/)
     expect(sub.status).toBe('ACTIVE')
     expect(sub.value).toBe(19.9)
 
-    // O nextDueDate JÁ AVANÇOU um ciclo — o informado virou a cobrança.
+    // The nextDueDate ALREADY advanced one cycle — the one given became the charge.
     expect(sub.nextDueDate).toBe('2026-03-15')
 
     const charges = await chargesOf(sub.id)
     expect(charges.length).toBe(1)
-    expect(charges[0]!.dueDate).toBe(IN_41_DAYS) // o vencimento que eu pedi
+    expect(charges[0]!.dueDate).toBe(IN_41_DAYS) // the due date I asked for
     expect(charges[0]!.value).toBe(19.9)
     expect(charges[0]!.status).toBe('PENDING')
     expect(charges[0]!.subscription).toBe(sub.id)
   })
 
-  it('a SEGUNDA cobrança respeita a janela: nada no 41º dia, nasce no 40º', async () => {
-    // nextDueDate=IN_41_DAYS → a 1ª cobrança é dessa data, e o ciclo vai p/ 15/03.
+  it('the SECOND charge respects the window: nothing on the 41st day, it is born on the 40th', async () => {
+    // nextDueDate=IN_41_DAYS → the 1st charge is on that date, and the cycle goes to 15/03.
     const sub = await subscribe({ nextDueDate: IN_41_DAYS })
     expect((await chargesOf(sub.id)).length).toBe(1)
 
-    // Hoje é 05/01; o próximo vencimento é 15/03 — a 69 dias. Fora da janela.
+    // Today is 05/01; the next due date is 15/03 — 69 days away. Outside the window.
     await h.tick()
     expect((await chargesOf(sub.id)).length).toBe(1)
 
-    // Avança até faltarem 40 dias para 15/03 → 03/02.
+    // Advance until 40 days are missing for 15/03 → 03/02.
     const reports = await h.advance({ days: 29 })
 
     const charges = await chargesOf(sub.id)
@@ -125,46 +127,46 @@ describe('A primeira cobrança nasce NA CRIAÇÃO — e a segunda, na janela de 
     expect(segunda).toBeDefined()
     expect(segunda!.value).toBe(19.9)
 
-    // O job registra o que criou no relatório do tick.
+    // The job records what it created in the tick's report.
     expect(reports.flatMap((r) => r.created)).toContainEqual({
       resource: 'payment',
       id: segunda!.id,
       job: 'subscription-generation',
     })
 
-    // E o ciclo avançou de novo.
+    // And the cycle advanced again.
     expect((await reload(sub.id)).nextDueDate).toBe('2026-04-15')
     void TODAY
     void IN_40_DAYS
   })
 
   /**
-   * A idempotência é o que separa "funciona" de "funciona sob viagem no tempo".
-   * O CAS reclama o vencimento ANTES de a cobrança nascer, então um tick repetido
-   * encontra o `nextDueDate` já avançado e não gera nada.
+   * Idempotency is what separates "it works" from "it works under time travel".
+   * The CAS claims the due date BEFORE the charge is born, so a repeated tick
+   * finds the `nextDueDate` already advanced and generates nothing.
    */
-  it('ticks repetidos no mesmo dia não duplicam a cobrança', async () => {
+  it('repeated ticks on the same day do not duplicate the charge', async () => {
     const sub = await subscribe({ nextDueDate: IN_40_DAYS })
 
     await h.tick()
     await h.tick()
     await h.tick()
 
-    // Uma só — a da criação. O vencimento já foi consumido.
+    // One only — the creation's. The due date was already consumed.
     expect((await chargesOf(sub.id)).length).toBe(1)
     expect((await reload(sub.id)).nextDueDate).toBe('2026-03-14')
   })
 })
 
-describe('O tempo passa e as cobranças nascem uma a uma', () => {
-  it('120 dias adiante: 4 cobranças mensais, e o nextDueDate acompanha o ciclo', async () => {
+describe('Time passes and the charges are born one by one', () => {
+  it('120 days ahead: 4 monthly charges, and the nextDueDate follows the cycle', async () => {
     const sub = await subscribe({ nextDueDate: IN_41_DAYS })
 
-    await h.advance({ days: 120 }) // hoje = 2026-05-05
+    await h.advance({ days: 120 }) // today = 2026-05-05
 
     /**
-     * Horizonte em 05/05 = 14/06. Nasceram as de 15/02, 15/03, 15/04 e 15/05.
-     * A de 15/06 ainda não: faltam 41 dias para ela. A janela nunca se antecipa.
+     * Horizon on 05/05 = 14/06. The ones of 15/02, 15/03, 15/04 and 15/05 were born.
+     * Not the one of 15/06 yet: 41 days are missing for it. The window never runs ahead.
      */
     const charges = await chargesOf(sub.id)
     expect(charges.map((c) => c.dueDate)).toEqual([
@@ -178,18 +180,18 @@ describe('O tempo passa e as cobranças nascem uma a uma', () => {
     expect(after.nextDueDate).toBe('2026-06-15')
     expect(after.status).toBe('ACTIVE')
 
-    // Quem venceu sem ser pago está OVERDUE — o job 2 fez o trabalho dele.
+    // Whatever expired without being paid is OVERDUE — job 2 did its job.
     expect(charges[0]!.status).toBe('OVERDUE')
   })
 
-  it('ciclo semanal: a janela de 40 dias cobre VÁRIOS vencimentos de uma vez', async () => {
+  it('weekly cycle: the 40-day window covers SEVERAL due dates at once', async () => {
     const sub = await subscribe({ cycle: 'WEEKLY', nextDueDate: '2026-01-10' })
 
     await h.tick()
 
     /**
-     * 40 dias de janela num ciclo de 7 dias: o Asaas gera todas as cobranças
-     * cujo vencimento cabe no horizonte (10/01 … 14/02), não só a próxima.
+     * 40 days of window in a 7-day cycle: Asaas generates all the charges
+     * whose due date fits in the horizon (10/01 … 14/02), not just the next one.
      */
     const charges = await chargesOf(sub.id)
     expect(charges.map((c) => c.dueDate)).toEqual([
@@ -203,14 +205,14 @@ describe('O tempo passa e as cobranças nascem uma a uma', () => {
     expect((await reload(sub.id)).nextDueDate).toBe('2026-02-21')
   })
 
-  it('a cobrança gerada é uma cobrança comum: paga, credita e fecha o extrato', async () => {
+  it('the generated charge is a regular charge: it pays, credits and closes the statement', async () => {
     const sub = await subscribe({ billingType: 'PIX', nextDueDate: IN_40_DAYS, value: 100 })
     await h.tick()
 
     const [charge] = await chargesOf(sub.id)
     const paid = await h.api.call('confirm-payment', { params: { id: charge!.id } })
 
-    // Pix: RECEIVED direto, taxa fixa de R$ 1,99.
+    // Pix: RECEIVED directly, fixed fee of R$ 1.99.
     expect(paid.body.status).toBe('RECEIVED')
     expect(paid.body.netValue).toBe(98.01)
 
@@ -222,11 +224,11 @@ describe('O tempo passa e as cobranças nascem uma a uma', () => {
   })
 })
 
-describe('O fim da assinatura', () => {
-  it('maxPayments esgotado → EXPIRED', async () => {
+describe('The end of the subscription', () => {
+  it('maxPayments exhausted → EXPIRED', async () => {
     const sub = await subscribe({ nextDueDate: IN_41_DAYS, maxPayments: 2 })
 
-    await h.advance({ days: 40 }) // hoje = 2026-02-14
+    await h.advance({ days: 40 }) // today = 2026-02-14
 
     const charges = await chargesOf(sub.id)
     expect(charges.map((c) => c.dueDate)).toEqual(['2026-02-15', '2026-03-15'])
@@ -235,15 +237,15 @@ describe('O fim da assinatura', () => {
     expect(after.status).toBe('EXPIRED') // acabou o contrato
     expect(after.maxPayments).toBe(2)
 
-    // E não gera mais NADA, por mais que o tempo passe.
+    // And it generates NOTHING more, however much time passes.
     await h.advance({ days: 90 })
     expect((await chargesOf(sub.id)).length).toBe(2)
   })
 
-  it('endDate ultrapassado → EXPIRED, sem gerar a cobrança que passaria do fim', async () => {
+  it('endDate passed → EXPIRED, without generating the charge that would go past the end', async () => {
     const sub = await subscribe({ nextDueDate: IN_41_DAYS, endDate: '2026-03-01' })
 
-    await h.advance({ days: 1 }) // gera a de 15/02; a próxima seria 15/03 > 01/03
+    await h.advance({ days: 1 }) // generates the one of 15/02; the next would be 15/03 > 01/03
 
     const charges = await chargesOf(sub.id)
     expect(charges.map((c) => c.dueDate)).toEqual(['2026-02-15'])
@@ -253,10 +255,10 @@ describe('O fim da assinatura', () => {
     expect((await chargesOf(sub.id)).length).toBe(1)
   })
 
-  it('INACTIVE para de gerar NOVAS cobranças (a da criação continua lá)', async () => {
+  it('INACTIVE stops generating NEW charges (the creation one stays there)', async () => {
     const sub = await subscribe({ nextDueDate: IN_41_DAYS })
 
-    // A criação já gerou uma. Desativar não apaga dinheiro que já foi cobrado.
+    // The creation already generated one. Deactivating does not erase money already charged.
     expect((await chargesOf(sub.id)).length).toBe(1)
 
     await h.api.call('update-existing-subscription', {
@@ -266,12 +268,12 @@ describe('O fim da assinatura', () => {
 
     await h.advance({ days: 60 })
 
-    // Dois meses depois, continua sendo UMA. O job não gerou mais nada.
+    // Two months later, it is still ONE. The job generated nothing more.
     expect((await chargesOf(sub.id)).length).toBe(1)
     expect((await reload(sub.id)).status).toBe('INACTIVE')
   })
 
-  it('remover a assinatura remove as cobranças ainda em aberto', async () => {
+  it('removing the subscription removes the charges still open', async () => {
     const sub = await subscribe({ nextDueDate: IN_40_DAYS })
     await h.tick()
 
@@ -284,14 +286,14 @@ describe('O fim da assinatura', () => {
     const p = await h.api.call('retrieve-a-single-payment', { params: { id: charge!.id } })
     expect(p.body.deleted).toBe(true)
 
-    // Removida, não gera mais nada.
+    // Removed, it generates nothing more.
     await h.advance({ days: 60 })
     expect(await chargesOf(sub.id)).toEqual([])
   })
 })
 
-describe('Atualizar a assinatura', () => {
-  it('`updatePendingPayments: true` alcança as cobranças já geradas', async () => {
+describe('Updating the subscription', () => {
+  it('`updatePendingPayments: true` reaches the already generated charges', async () => {
     const sub = await subscribe({ billingType: 'PIX', nextDueDate: IN_40_DAYS, value: 100 })
     await h.tick()
 
@@ -305,12 +307,12 @@ describe('Atualizar a assinatura', () => {
 
     const [after] = await chargesOf(sub.id)
     expect(after!.value).toBe(150)
-    // A taxa é recalculada junto — senão o netValue (base do split) ficaria errado.
+    // The fee is recalculated too — otherwise the netValue (the split's base) would be wrong.
     expect(after!.netValue).toBe(148.01)
     expect((await reload(sub.id)).value).toBe(150)
   })
 
-  it('sem `updatePendingPayments`, a cobrança pendente mantém o preço antigo', async () => {
+  it('without `updatePendingPayments`, the pending charge keeps the old price', async () => {
     const sub = await subscribe({ billingType: 'PIX', nextDueDate: IN_40_DAYS, value: 100 })
     await h.tick()
 
@@ -319,31 +321,31 @@ describe('Atualizar a assinatura', () => {
       body: { value: 150 },
     })
 
-    // A pendente NÃO muda — é a pegadinha clássica de quem sobe o preço do plano.
+    // The pending one does NOT change — it is the classic trap of raising the plan's price.
     const [charge] = await chargesOf(sub.id)
     expect(charge!.value).toBe(100)
 
-    // Mas a PRÓXIMA já nasce com o preço novo.
-    await h.advance({ days: 31 }) // horizonte alcança 14/03
+    // But the NEXT one is already born with the new price.
+    await h.advance({ days: 31 }) // the horizon reaches 14/03
     const charges = await chargesOf(sub.id)
     expect(charges.length).toBe(2)
     expect(charges[1]!.value).toBe(150)
   })
 
-  it('ciclo inválido é recusado', async () => {
+  it('an invalid cycle is refused', async () => {
     const sub = await subscribe()
     const res = await h.api.call('update-existing-subscription', {
       params: { id: sub.id },
       body: { cycle: 'DAILY' },
     })
-    // A spec já barra o enum: o erro sai como invalid_<campo>, no formato Asaas.
+    // The spec already bars the enum: the error comes out as invalid_<field>, in Asaas's format.
     expect(res.status).toBe(400)
     expect(res.body.errors[0].code).toMatch(/^invalid_/)
   })
 })
 
-describe('Split da assinatura — um TEMPLATE, copiado a cada cobrança', () => {
-  it('cada cobrança gerada nasce com o split da assinatura', async () => {
+describe("The subscription's split — a TEMPLATE, copied to every charge", () => {
+  it("every generated charge is born with the subscription's split", async () => {
     const other = await createSecondAccount(h)
     const sub = await subscribe({
       billingType: 'PIX',
@@ -360,11 +362,11 @@ describe('Split da assinatura — um TEMPLATE, copiado a cada cobrança', () => 
     const [charge] = await chargesOf(sub.id)
     expect(charge!.split.length).toBe(1)
     expect(charge!.split[0].walletId).toBe(other.walletId)
-    // 30% do NETVALUE (100 − 1,99 = 98,01) = R$ 29,40. Sobre o bruto daria 30,00.
+    // 30% of the NETVALUE (100 − 1.99 = 98.01) = R$ 29.40. Over the gross it would give 30.00.
     expect(charge!.split[0].totalValue).toBe(29.4)
   })
 
-  it('alterar o template NÃO mexe nas cobranças já geradas', async () => {
+  it('changing the template does NOT touch the already generated charges', async () => {
     const other = await createSecondAccount(h)
     const sub = await subscribe({
       billingType: 'PIX',
@@ -379,13 +381,13 @@ describe('Split da assinatura — um TEMPLATE, copiado a cada cobrança', () => 
       body: { split: [{ walletId: other.walletId, percentualValue: 10 }] },
     })
 
-    // A cobrança congelou o passado; a assinatura descreve o futuro.
+    // The charge froze the past; the subscription describes the future.
     const [charge] = await chargesOf(sub.id)
     expect(charge!.split[0].totalValue).toBe(29.4)
     expect((await reload(sub.id)).split[0].percentualValue).toBe(10)
   })
 
-  it('não é possível splitar para a própria carteira', async () => {
+  it('it is not possible to split to your own wallet', async () => {
     const res = await h.api.call('create-new-subscription', {
       body: {
         customer: await customer(),
@@ -401,10 +403,10 @@ describe('Split da assinatura — um TEMPLATE, copiado a cada cobrança', () => 
   })
 })
 
-describe('Nota fiscal, carnê e isolamento', () => {
+describe('Invoice, payment booklet and isolation', () => {
   const TAXES = { retainIss: false, iss: 2, pis: 0.65, cofins: 3, csll: 1, inss: 0, ir: 1.5 }
 
-  it('CRUD da configuração de emissão de nota', async () => {
+  it('CRUD of the invoice issuance configuration', async () => {
     const sub = await subscribe()
 
     const created = await h.api.call('create-configuration-for-issuance-of-invoices', {
@@ -421,8 +423,8 @@ describe('Nota fiscal, carnê e isolamento', () => {
     })
 
     expect(created.status).toBe(200)
-    // No request o campo é `effectiveDatePeriod`; na resposta, `invoiceCreationPeriod`.
-    // É a spec do Asaas que troca o nome — não um erro nosso.
+    // In the request the field is `effectiveDatePeriod`; in the response, `invoiceCreationPeriod`.
+    // It is Asaas's spec that changes the name — not a mistake of ours.
     expect(created.body.invoiceCreationPeriod).toBe('ON_PAYMENT_CONFIRMATION')
     expect(created.body.deductions).toBe(55)
     expect(created.body.taxes.iss).toBe(2)
@@ -438,7 +440,7 @@ describe('Nota fiscal, carnê e isolamento', () => {
     })
     expect(updated.body.deductions).toBe(10)
     expect(updated.body.observations).toBe('Novo texto')
-    expect(updated.body.municipalServiceCode).toBe('1.01') // o resto fica
+    expect(updated.body.municipalServiceCode).toBe('1.01') // the rest stays
 
     const removed = await h.api.call('remove-configuration-for-issuance-of-invoices', {
       params: { id: sub.id },
@@ -451,7 +453,7 @@ describe('Nota fiscal, carnê e isolamento', () => {
     expect(gone.status).toBe(404)
   })
 
-  it('as notas fiscais das cobranças da assinatura (vazio até o track G emitir)', async () => {
+  it("the invoices of the subscription's charges (empty until track G issues them)", async () => {
     const sub = await subscribe({ nextDueDate: IN_40_DAYS })
     await h.tick()
 
@@ -460,10 +462,10 @@ describe('Nota fiscal, carnê e isolamento', () => {
     })
     expect(res.status).toBe(200)
     expect(res.body.object).toBe('list')
-    expect(res.body.totalCount).toBe(0) // vazio de verdade, não inventado
+    expect(res.body.totalCount).toBe(0) // genuinely empty, not invented
   })
 
-  it('o carnê da assinatura é um PDF, e só lista o que JÁ foi gerado', async () => {
+  it("the subscription's payment booklet is a PDF, and it only lists what has ALREADY been generated", async () => {
     const sub = await subscribe({ nextDueDate: IN_40_DAYS })
     await h.tick()
 
@@ -478,10 +480,10 @@ describe('Nota fiscal, carnê e isolamento', () => {
 
     const body = await res.text()
     expect(body.startsWith('%PDF-1.4')).toBe(true)
-    expect(body).toContain('2026-02-14') // a única cobrança que existe
+    expect(body).toContain('2026-02-14') // the only charge that exists
   })
 
-  it('trocar o cartão da assinatura vincula o cartão e muda o billingType', async () => {
+  it("changing the subscription's card links the card and changes the billingType", async () => {
     const sub = await subscribe()
 
     const res = await h.api.call('update-subscription-credit-card', {
@@ -508,13 +510,13 @@ describe('Nota fiscal, carnê e isolamento', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.billingType).toBe('CREDIT_CARD')
-    // Só os 4 ÚLTIMOS dígitos — nunca o PAN.
+    // Only the LAST 4 digits — never the PAN.
     expect(res.body.creditCard.creditCardNumber).toBe('8829')
     expect(res.body.creditCard.creditCardBrand).toBe('MASTERCARD')
     expect(res.body.creditCard.creditCardToken).toMatch(/^[0-9a-f-]{36}$/)
   })
 
-  it('assinatura de outra conta não existe (404, não 403)', async () => {
+  it('a subscription from another account does not exist (404, not 403)', async () => {
     const other = await createSecondAccount(h)
     const sub = await subscribe()
 
@@ -525,33 +527,33 @@ describe('Nota fiscal, carnê e isolamento', () => {
   })
 })
 
-describe('Webhooks da assinatura', () => {
-  it('SUBSCRIPTION_CREATED e PAYMENT_CREATED saem JUNTOS na criação', async () => {
+describe('Subscription webhooks', () => {
+  it('SUBSCRIPTION_CREATED and PAYMENT_CREATED come out TOGETHER at creation', async () => {
     await h.subscribeWebhook(['SUBSCRIPTION_CREATED', 'PAYMENT_CREATED'])
 
     const sub = await subscribe({ nextDueDate: IN_41_DAYS })
     await h.tick()
 
-    // Os dois. A cobrança nasce com a assinatura — não 40 dias depois, como
-    // este teste chegou a afirmar antes da captura de paridade.
+    // Both. The charge is born with the subscription — not 40 days later, as
+    // this test used to assert before the parity capture.
     expect(h.sink.eventNames).toContain('SUBSCRIPTION_CREATED')
     expect(h.sink.eventNames).toContain('PAYMENT_CREATED')
     expect((await chargesOf(sub.id)).length).toBe(1)
   })
 })
 
-describe('Assinatura no cartão guarda o cartão', () => {
+describe('A subscription on the card stores the card', () => {
   /**
-   * Regressão de uma falha silenciosa que só apareceria 40 dias depois.
+   * Regression of a silent failure that would only appear 40 days later.
    *
-   * A rota `POST /v3/subscriptions` é COMPARTILHADA com a variante "com cartão"
-   * (o body decide, como no Asaas real). Enquanto o schema da rota era só o da
-   * operação canônica, o Elysia descartava `creditCard` antes do handler: a
-   * assinatura nascia `billingType: CREDIT_CARD` com `creditCardId: null`, sem
-   * erro nenhum — e a cobrança gerada na janela D-40 não teria cartão para
-   * cobrar. Este teste amarra as duas pontas: o body chega, e o handler o usa.
+   * The route `POST /v3/subscriptions` is SHARED with the "with card" variant
+   * (the body decides, as in the real Asaas). While the route's schema was only the
+   * canonical operation's, Elysia dropped `creditCard` before the handler: the
+   * subscription was born `billingType: CREDIT_CARD` with `creditCardId: null`, with
+   * no error at all — and the charge generated in the D-40 window would have no card
+   * to charge it. This test ties the two ends together: the body arrives, and the handler uses it.
    */
-  it('tokeniza o cartão enviado na criação e o associa à assinatura', async () => {
+  it('tokenizes the card sent at creation and links it to the subscription', async () => {
     const res = await h.api.call('create-new-subscription', {
       body: {
         customer: await customer(),
@@ -561,7 +563,7 @@ describe('Assinatura no cartão guarda o cartão', () => {
         cycle: 'MONTHLY',
         creditCard: {
           holderName: 'Fulano de Tal',
-          number: '4444444444444444', // o cartão de teste que aprova
+          number: '4444444444444444', // the test card that approves
           expiryMonth: '12',
           expiryYear: '2030',
           ccv: '123',
@@ -581,7 +583,7 @@ describe('Assinatura no cartão guarda o cartão', () => {
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('ACTIVE')
 
-    // O cartão FOI gravado — e é o que a assinatura aponta.
+    // The card WAS stored — and it is what the subscription points to.
     const [sub] = await h.app.db
       .select()
       .from(subscriptions)
@@ -595,7 +597,7 @@ describe('Assinatura no cartão guarda o cartão', () => {
       .where(eq(creditCards.id, sub!.creditCardId!))
 
     expect(card!.last4).toBe('4444')
-    // O PAN nunca é guardado — só os 4 últimos.
+    // The PAN is never stored — only the last 4 digits.
     expect(JSON.stringify(card)).not.toContain('4444444444444444')
   })
 })

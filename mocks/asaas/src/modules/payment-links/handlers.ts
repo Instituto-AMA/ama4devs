@@ -1,17 +1,17 @@
 /**
- * Track G1 — Payment Link (11 operações).
+ * Track G1 — Payment Link (11 operations).
  *
- * O link de pagamento é um "molde" de cobrança: o cliente final abre a URL,
- * preenche os dados e a cobrança nasce dali. Aqui implementamos o molde e as
- * imagens da vitrine; a geração da cobrança a partir de um checkout do link é do
- * track de payments.
+ * The payment link is a "mould" of a charge: the end customer opens the URL,
+ * fills in the data and the charge is born out of it. Here we implement the
+ * mould and the images of the showcase; the generation of the charge out of a
+ * checkout of the link belongs to the payments track.
  *
- * Duas coisas que a spec deixa implícitas e que importam:
+ * Two things the spec leaves implicit and that matter:
  *
- * - `deleted` é SOFT delete. `restore` existe justamente porque o link removido
- *   continua no banco (e continua listável com `includeDeleted=true`).
- * - Exatamente UMA imagem é a principal. A regra é mantida na escrita (setar uma
- *   como main derruba a main anterior), nunca na leitura.
+ * - `deleted` is a SOFT delete. `restore` exists precisely because the removed
+ *   link stays in the database (and stays listable with `includeDeleted=true`).
+ * - Exactly ONE image is the main one. The rule is kept on the write (setting
+ *   one as main drops the previous main), never on the read.
  */
 import { and, asc, count, desc, eq, like, ne } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -63,7 +63,7 @@ function serializeImage(ctx: AppContext, row: PaymentLinkImageRow) {
   }
 }
 
-/** Isolamento por conta: o link de outra conta simplesmente NÃO EXISTE (404). */
+/** Isolation per account: the link of another account simply DOES NOT EXIST (404). */
 async function loadLink(
   ctx: AppContext,
   accountId: string,
@@ -85,7 +85,7 @@ async function loadImage(
   linkId: string,
   imageId: string,
 ): Promise<PaymentLinkImageRow> {
-  await loadLink(ctx, accountId, linkId) // 404 antes de vazar a existência da imagem
+  await loadLink(ctx, accountId, linkId) // 404 before leaking the existence of the image
   const [row] = await ctx.db
     .select()
     .from(paymentLinkImages)
@@ -98,7 +98,7 @@ async function loadImage(
   return row
 }
 
-/** Regras que a spec descreve em prosa e o TypeBox não consegue exprimir. */
+/** Rules the spec describes in prose and the TypeBox cannot express. */
 function validateChargeRules(chargeType: string, body: Record<string, unknown>): void {
   if (chargeType === 'RECURRENT' && !body.subscriptionCycle) {
     throw invalid(
@@ -124,8 +124,8 @@ function toValueCents(value: unknown): number | null {
 }
 
 /**
- * Um upload chega de dois jeitos: multipart real (um `File`) ou, nos testes de
- * contrato, JSON com a imagem em base64. Os dois produzem os mesmos metadados.
+ * An upload arrives in two ways: real multipart (a `File`) or, in contract
+ * tests, JSON with the image in base64. Both produce the same metadata.
  */
 function readImageUpload(raw: unknown): { originalName: string; size: number } {
   if (raw instanceof File) {
@@ -155,7 +155,7 @@ function asBoolean(v: unknown, fallback: boolean): boolean {
   return String(v) === 'true' || String(v) === '1'
 }
 
-/** Garante o invariante "exatamente uma main" depois de qualquer escrita. */
+/** Guarantees the "exactly one main" invariant after any write. */
 async function ensureSingleMain(ctx: AppContext, linkId: string, mainId: string): Promise<void> {
   await ctx.db
     .update(paymentLinkImages)
@@ -206,7 +206,7 @@ export const paymentLinkHandlers: HandlerMap = {
     }
 
     await ctx.db.insert(paymentLinks).values(row)
-    return serialize(row as PaymentLinkRow) // 200, nunca 201
+    return serialize(row as PaymentLinkRow) // 200, never 201
   },
 
   'list-payments-links': async ({ ctx, auth, query }) => {
@@ -214,7 +214,8 @@ export const paymentLinkHandlers: HandlerMap = {
 
     const filters = [eq(paymentLinks.accountId, auth.accountId)]
 
-    // Removido some da listagem por padrão — é o que faz do delete um "delete".
+    // A removed one disappears from the listing by default — it is what makes the
+    // delete a "delete".
     if (!asBoolean(query.includeDeleted, false)) {
       filters.push(eq(paymentLinks.deleted, false))
     }
@@ -348,8 +349,8 @@ export const paymentLinkHandlers: HandlerMap = {
       .from(paymentLinkImages)
       .where(eq(paymentLinkImages.paymentLinkId, link.id))
 
-    // A primeira imagem é a principal por definição: um link com imagens sempre
-    // tem uma main, senão a vitrine não teria capa.
+    // The first image is the main one by definition: a link with images always
+    // has a main one, otherwise the showcase would have no cover.
     const main = asBoolean(b.main, false) || existing.length === 0
 
     const row = {
@@ -373,7 +374,7 @@ export const paymentLinkHandlers: HandlerMap = {
     const link = await loadLink(ctx, auth.accountId, params.id!)
     const { limit, offset } = paginationParams(query)
 
-    // A principal primeiro — é a capa da vitrine.
+    // The main one first — it is the cover of the showcase.
     const rows = await ctx.db
       .select()
       .from(paymentLinkImages)
@@ -400,9 +401,9 @@ export const paymentLinkHandlers: HandlerMap = {
 
     await ctx.db.delete(paymentLinkImages).where(eq(paymentLinkImages.id, image.id))
 
-    // Removeu a principal? A mais antiga que sobrou assume — o link nunca fica com
-    // imagens e nenhuma capa.
-    // TODO(regra): a doc não diz o que o Asaas faz aqui.
+    // Did it remove the main one? The oldest one left takes over — the link never
+    // stays with images and no cover.
+    // TODO(rule): the docs do not say what Asaas does here.
     if (image.main) {
       const [next] = await ctx.db
         .select({ id: paymentLinkImages.id })

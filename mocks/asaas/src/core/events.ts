@@ -1,15 +1,16 @@
 /**
- * Emissão de eventos de webhook.
+ * Webhook event emission.
  *
- * Um evento de domínio → uma linha em `webhook_events` → N linhas em
- * `webhook_deliveries` (uma por webhook inscrito e habilitado da conta).
+ * One domain event → one row in `webhook_events` → N rows in
+ * `webhook_deliveries` (one per subscribed and enabled webhook of the account).
  *
- * O PAYLOAD É CONGELADO AQUI, no momento em que o fato aconteceu. Uma
- * retentativa três horas depois reenvia este payload, não o estado atual do
- * recurso — o evento descreve um instante, não uma consulta.
+ * The PAYLOAD IS FROZEN HERE, at the moment the fact happened. A retry three
+ * hours later resends this payload, not the current state of the resource — the
+ * event describes an instant, it is not a query.
  *
- * A ENTREGA não acontece aqui. O dispatcher roda no scheduler (último job do
- * tick), o que mantém a emissão barata e dentro da transação de negócio.
+ * The DELIVERY does not happen here. The dispatcher runs on the scheduler (the
+ * last job of the tick), which keeps the emission cheap and inside the business
+ * transaction.
  */
 import { and, eq, sql } from 'drizzle-orm'
 import type { DB } from '../db/client.ts'
@@ -22,7 +23,7 @@ import { DAY_MS } from './clock.ts'
 import type { Config } from './config.ts'
 import type { Rng } from './rng.ts'
 
-/** O recurso que acompanha o evento no payload. */
+/** The resource that accompanies the event in the payload. */
 export type ResourceType =
   | 'payment'
   | 'subscription'
@@ -38,11 +39,11 @@ export type ResourceType =
 
 export interface DomainEvent {
   accountId: string
-  /** PAYMENT_RECEIVED, SUBSCRIPTION_CREATED, … (um dos 111 eventos). */
+  /** PAYMENT_RECEIVED, SUBSCRIPTION_CREATED, … (one of the 111 events). */
   event: string
   resourceType: ResourceType
   resourceId: string
-  /** O recurso SERIALIZADO no formato de resposta da API. Congelado agora. */
+  /** The resource SERIALIZED in the API response format. Frozen now. */
   resource: Record<string, unknown>
 }
 
@@ -69,8 +70,8 @@ export function createEmitter(deps: EmitDeps) {
     const timestamp = deps.clock.timestamp()
 
     /**
-     * O envelope exato do Asaas. A chave do recurso varia com o tipo do evento
-     * (`payment`, `subscription`, `transfer`…), e é isso que o cliente lê.
+     * The exact Asaas envelope. The resource key varies with the type of the event
+     * (`payment`, `subscription`, `transfer`…), and that is what the client reads.
      */
     const payload = {
       id,
@@ -91,7 +92,7 @@ export function createEmitter(deps: EmitDeps) {
       createdAtMs: nowMs,
     })
 
-    // Fan-out: só webhooks habilitados desta conta que assinaram este evento.
+    // Fan-out: only the enabled webhooks of this account that subscribed to this event.
     const configs = await tx
       .select()
       .from(webhooks)
@@ -102,7 +103,7 @@ export function createEmitter(deps: EmitDeps) {
     for (const cfg of configs) {
       if (!cfg.events.includes(event.event)) continue
 
-      // Ordem estrita por webhook. É o que dá sentido ao modo SEQUENTIALLY.
+      // Strict order per webhook. It is what gives SEQUENTIALLY its meaning.
       const sequence = await nextSequence(tx, `webhook_delivery:${cfg.id}`)
 
       await tx.insert(webhookDeliveries).values({
@@ -113,7 +114,7 @@ export function createEmitter(deps: EmitDeps) {
         sequence,
         status: 'PENDING',
         attempt: 0,
-        // Primeira tentativa é imediata (offset 0 da tabela de backoff).
+        // The first attempt is immediate (offset 0 of the backoff table).
         nextAttemptAtMs: nowMs,
         expiresAtMs,
         dateCreated: timestamp,

@@ -79,7 +79,7 @@ async function admin(path: string, method = 'GET', body?: unknown) {
 
 describe('the payer templates come up in the WhatsApp mock', () => {
   it('creates the missing ones through Meta\'s call, approved at once, and keeps an existing one', async () => {
-    const library = new Map<string, any>([['asaas_cobranca_criada', { name: 'asaas_cobranca_criada', language: 'pt_BR' }]])
+    const library = new Map<string, any>([['asaas_charge_created', { name: 'asaas_charge_created', language: 'pt_BR' }]])
     const created: any[] = []
     fake = Bun.serve({
       port: 0,
@@ -101,7 +101,7 @@ describe('the payer templates come up in the WhatsApp mock', () => {
 
     expect(await ensureWhatsappTemplates(h.app.ctx)).toEqual({ ready: true })
     expect(created.map((c) => c.body.name)).toEqual(
-      WHATSAPP_TEMPLATES.map((t) => t.name).filter((n) => n !== 'asaas_cobranca_criada'),
+      WHATSAPP_TEMPLATES.map((t) => t.name).filter((n) => n !== 'asaas_charge_created'),
     )
     expect(created[0].review).toBe('0')
     expect(created[0].body.components[1].example.body_text[0]).toHaveLength(5)
@@ -165,7 +165,7 @@ describe('payer channels come up configured', () => {
             {
               value: {
                 template_statuses: [
-                  { status: 'delivered', recipient_id: '5547988887777', template: { name: 'asaas_cobranca_criada' } },
+                  { status: 'delivered', recipient_id: '5547988887777', template: { name: 'asaas_charge_created' } },
                 ],
                 messages: [{ from: '5547988887777', type: 'text', text: { body: 'Já paguei' } }],
               },
@@ -182,6 +182,6 @@ describe('payer channels come up configured', () => {
     expect(status.body.whatsapp).toMatchObject({ on: true, reachable: true, registered: true, sender: '5511400000000' })
     expect(status.body.email.on).toBe(false)
     expect(status.body.replies.map((r: any) => r.detail)).toContain('Já paguei')
-    expect(status.body.replies.map((r: any) => r.detail)).toContain('delivered · asaas_cobranca_criada')
+    expect(status.body.replies.map((r: any) => r.detail)).toContain('delivered · asaas_charge_created')
   })
 })

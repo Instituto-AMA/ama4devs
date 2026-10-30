@@ -1,8 +1,8 @@
 /**
- * Baixa a spec do Asaas e regrava `spec/openapi.json` + `spec/openapi.lock.json`.
+ * Downloads the Asaas spec and rewrites `spec/openapi.json` + `spec/openapi.lock.json`.
  *
- * NÃO faz parte do build. O build é hermético e offline: lê só o arquivo
- * vendorizado. Rode isto à mão quando quiser atualizar a spec, e revise o diff.
+ * It is NOT part of the build. The build is hermetic and offline: it only reads the
+ * vendored file. Run this by hand when you want to update the spec, and review the diff.
  *
  *   bun run spec:fetch
  */
@@ -15,11 +15,11 @@ const raw = await fetchSpec()
 const hash = await sha256(raw)
 
 if (previous && previous.sha256 === hash) {
-  console.log(`Sem mudanças. sha256=${hash.slice(0, 12)}…`)
+  console.log(`No changes. sha256=${hash.slice(0, 12)}…`)
   process.exit(0)
 }
 
-// Reserializa indentado: um blob de 1 MB em uma linha só torna o diff do git inútil.
+// Re-serializes it indented: a 1 MB blob in a single line makes the git diff useless.
 const pretty = `${JSON.stringify(JSON.parse(raw), null, 2)}\n`
 await Bun.write(SPEC_PATH, pretty)
 
@@ -28,9 +28,9 @@ await Bun.write(LOCK_PATH, `${JSON.stringify(lock, null, 2)}\n`)
 
 console.log(`Spec atualizada.`)
 console.log(`  paths      ${lock.pathCount}`)
-console.log(`  operações  ${lock.operationCount}`)
+console.log(`  operations  ${lock.operationCount}`)
 console.log(`  schemas    ${lock.schemaCount}`)
 console.log(`  sha256     ${lock.sha256.slice(0, 12)}…`)
 if (previous) {
-  console.log(`\nA spec MUDOU. Rode "bun run spec:diff" para ver o quê, e "bun run codegen".`)
+  console.log(`\nThe spec CHANGED. Run "bun run spec:diff" to see what, and "bun run codegen".`)
 }

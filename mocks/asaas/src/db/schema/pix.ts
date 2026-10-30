@@ -30,11 +30,11 @@ export const pixQrCodes = sqliteTable(
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),
-    /** Vinculado a uma cobrança (QR dinâmico) ou avulso (QR estático). */
+    /** Linked to a charge (dynamic QR) or standalone (static QR). */
     paymentId: text('payment_id'),
     pixKeyId: text('pix_key_id'),
 
-    /** String EMV do Pix (copia-e-cola). */
+    /** The Pix EMV string (copy-and-paste). */
     payload: text('payload').notNull(),
     encodedImage: text('encoded_image').notNull(),
     valueCents: cents('value_cents'),

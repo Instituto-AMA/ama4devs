@@ -19,8 +19,8 @@ export interface AppDeps {
 }
 
 /**
- * Todo erro sai no formato do Asaas: { errors: [{ code, description }] }. Uma
- * chamada à API recusada entra nos Logs de Requisições com o corpo que saiu.
+ * Every error comes out in Asaas's format: { errors: [{ code, description }] }. A
+ * refused API call enters the Request Logs with the body that went out.
  */
 function errorHandler(ctx: AppContext) {
   const respond = asaasError(ctx)
@@ -42,8 +42,8 @@ function asaasError(ctx: AppContext) {
       return error.toResponseBody()
     }
 
-    // Falha do TypeBox → 400 no padrão `invalid_<campo>` do Asaas,
-    // não o 422 padrão do Elysia.
+    // TypeBox failure → 400 in Asaas's `invalid_<field>` pattern,
+    // not Elysia's default 422.
     if (code === 'VALIDATION') {
       set.status = 400
       const errors = (error.all ?? [])
@@ -71,7 +71,7 @@ function asaasError(ctx: AppContext) {
       }
     }
 
-    ctx.log('error', 'Erro não tratado', { error: String(error), stack: error?.stack })
+    ctx.log('error', 'Unhandled error', { error: String(error), stack: error?.stack })
     set.status = 500
     return { errors: [{ code: 'internal_error', description: 'Erro interno do simulador.' }] }
   }
@@ -92,9 +92,10 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
   const { ctx } = deps
 
   /**
-   * As rotas da API vivem num plugin próprio para que o `derive` de autenticação
-   * se aplique só a elas — os endpoints /_admin e /health não pedem access_token.
-   * Os paths do manifesto já incluem o prefixo /v3, então NÃO usamos .group().
+   * The API routes live in a plugin of their own so that the authentication
+   * `derive` applies only to them — the /_admin and /health endpoints do not ask
+   * for an access_token. The manifest paths already include the /v3 prefix, so we
+   * do NOT use .group().
    */
   const api = new Elysia({ name: 'asaas-v3' })
     .onError(errorHandler(ctx))

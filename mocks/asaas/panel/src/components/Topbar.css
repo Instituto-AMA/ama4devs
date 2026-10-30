@@ -41,7 +41,7 @@
 .spin { display: inline-block; animation: spin 700ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── seletor de conta ─────────────────────────────────────────────────────── */
+/* ── account selector ─────────────────────────────────────────────────────── */
 .acct-picker { margin-left: auto; position: relative; }
 
 .acct-trigger {

@@ -106,7 +106,7 @@ describe('immediate webhook dispatch', () => {
       new Request('http://localhost/v3/customers', {
         method: 'POST',
         headers: { access_token: 'x'.repeat(8), 'content-type': 'application/json' },
-        body: JSON.stringify({ name: 'Sem CPF' }),
+        body: JSON.stringify({ name: 'No CPF' }),
       }),
     )
     expect(res.status).toBeGreaterThanOrEqual(400)

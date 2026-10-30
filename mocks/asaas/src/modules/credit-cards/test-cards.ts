@@ -82,7 +82,7 @@ export async function addTestCard(ctx: AppContext, input: NewTestCard): Promise<
   if (!(CUSTOM_CARD_OUTCOMES as readonly string[]).includes(input.outcome)) {
     throw badRequest(
       'invalid_outcome',
-      `Resultado inválido. Use um destes: ${CUSTOM_CARD_OUTCOMES.join(', ')}.`,
+      `Invalid outcome. Use one of these: ${CUSTOM_CARD_OUTCOMES.join(', ')}.`,
     )
   }
   const outcome = input.outcome as CustomCardOutcome
@@ -93,16 +93,16 @@ export async function addTestCard(ctx: AppContext, input: NewTestCard): Promise<
   if (number === '') {
     const brand = input.brand ?? 'VISA'
     if (!GENERATED_BRANDS[brand]) {
-      throw badRequest('invalid_brand', `Bandeira inválida. Use: ${Object.keys(GENERATED_BRANDS).join(', ')}.`)
+      throw badRequest('invalid_brand', `Invalid brand. Use: ${Object.keys(GENERATED_BRANDS).join(', ')}.`)
     }
     // A collision in the table is possible in principle; a few draws make it vanish.
     do {
       number = generateCardNumber(brand, (n) => ctx.rng.digits(n))
     } while (taken.has(number))
   } else if (!/^\d{13,19}$/.test(number)) {
-    throw badRequest('invalid_number', 'O número do cartão deve ter de 13 a 19 dígitos.')
+    throw badRequest('invalid_number', 'The card number must have 13 to 19 digits.')
   } else if (taken.has(number)) {
-    throw badRequest('duplicated_number', 'Este número já está na lista de cartões de teste.')
+    throw badRequest('duplicated_number', 'This number is already in the list of test cards.')
   }
 
   const card: CustomTestCard = {

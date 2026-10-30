@@ -1,14 +1,15 @@
 /**
- * KYC / onboarding: os documentos que uma conta precisa enviar para ser aprovada.
+ * KYC / onboarding: the documents an account has to send to be approved.
  *
- * São DUAS tabelas porque a API do Asaas expõe dois níveis: o cliente lê os
- * GRUPOS (`GET /v3/myAccount/documents`) e envia arquivo para um DOCUMENTO
- * (`POST /v3/myAccount/documents/{id}`, onde `{id}` é o id do documento que veio
- * dentro do grupo). Um grupo só fica APPROVED quando todos os documentos dele
- * estão APPROVED.
+ * There are TWO tables because the Asaas API exposes two levels: the client reads
+ * the GROUPS (`GET /v3/myAccount/documents`) and sends a file for a DOCUMENT
+ * (`POST /v3/myAccount/documents/{id}`, where `{id}` is the id of the document that
+ * came inside the group). A group only becomes APPROVED when all of its documents
+ * are APPROVED.
  *
- * Persistido, e não montado a cada request, porque o upload MUDA o status — um
- * grupo gerado on-the-fly nasceria pendente de novo depois de cada envio.
+ * Persisted, and not assembled on every request, because the upload CHANGES the
+ * status — a group generated on-the-fly would be born pending again after every
+ * upload.
  */
 import { index, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { accounts } from './accounts.ts'
@@ -29,12 +30,12 @@ export const accountDocumentGroups = sqliteTable(
     /** NOT_SENT | PENDING | APPROVED | REJECTED | IGNORED */
     status: text('status').notNull(),
 
-    /** Quem tem que enviar o documento. `name` é o nome da conta. */
+    /** Who has to send the document. `name` is the account's name. */
     responsibleName: text('responsible_name'),
     /** INDIVIDUAL_COMPANY | LIMITED_COMPANY | MEI | ASAAS_ACCOUNT_OWNER … */
     responsibleType: text('responsible_type'),
 
-    /** Link de envio. Some (null) quando o grupo é aprovado. */
+    /** The upload link. It goes away (null) when the group is approved. */
     onboardingUrl: text('onboarding_url'),
     onboardingUrlExpirationDate: datetime('onboarding_url_expiration_date'),
 
@@ -46,13 +47,13 @@ export const accountDocumentGroups = sqliteTable(
 export const accountDocuments = sqliteTable(
   'account_documents',
   {
-    id: text('id').primaryKey(), // UUID — é o `{id}` do POST de envio
+    id: text('id').primaryKey(), // UUID — it is the `{id}` of the upload POST
     groupId: text('group_id')
       .notNull()
       .references(() => accountDocumentGroups.id),
-    /** Redundante com o grupo, mas é o que permite achar o documento da conta
-     * autenticada em UMA consulta — o isolamento por conta não pode depender de
-     * um JOIN que alguém esqueça de escrever. */
+    /** Redundant with the group, but it is what lets the authenticated account's
+     * document be found in ONE query — the per-account isolation cannot depend on
+     * a JOIN somebody forgets to write. */
     accountId: text('account_id')
       .notNull()
       .references(() => accounts.id),

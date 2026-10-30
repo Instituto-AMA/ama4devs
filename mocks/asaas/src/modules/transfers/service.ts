@@ -1,17 +1,18 @@
 /**
- * O motor de transferências. (Track D)
+ * The transfer engine. (Track D)
  *
- * O dinheiro sai da conta AQUI, na criação — não na liquidação. É o que permite
- * recusar a transferência por saldo insuficiente no ato, e é o que faz o extrato
- * bater com o que o lojista vê na tela.
+ * The money leaves the account HERE, at the creation — not at the settlement. It
+ * is what allows refusing the transfer for insufficient balance on the spot, and
+ * it is what makes the statement match what the merchant sees on the screen.
  *
- * TODO(regra): a doc não diz QUANDO o Asaas debita uma transferência AGENDADA
- * (`scheduleDate`) — na criação, reservando o saldo, ou na data agendada?
- * Debitamos na criação: é a leitura conservadora (o saldo não pode ser gasto
- * duas vezes) e a única que mantém `GET /v3/finance/balance` honesto.
+ * TODO(rule): the docs do not say WHEN Asaas debits a SCHEDULED transfer
+ * (`scheduleDate`) — at the creation, reserving the balance, or on the scheduled
+ * date? We debit at the creation: it is the conservative reading (the balance
+ * cannot be spent twice) and the only one that keeps `GET /v3/finance/balance`
+ * honest.
  *
- * Nenhum saldo é tocado fora de `postEntries()`. Se você está prestes a escrever
- * `UPDATE accounts SET balance_cents`, pare.
+ * No balance is touched outside `postEntries()`. If you are about to write
+ * `UPDATE accounts SET balance_cents`, stop.
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -31,10 +32,11 @@ import {
 import { serializeInternalTransfer, serializeTransfer, type TransferRow } from './serializer.ts'
 
 /**
- * TODO(regra): o sandbox do Asaas não documenta como forçar uma transferência a
- * FALHAR — e sem isso ninguém consegue testar o caminho do estorno
- * (TRANSFER_REVERSAL), que é justamente o que o dev precisa exercitar. Definimos
- * um gatilho determinístico: a chave Pix abaixo, ou `externalReference: "FAIL"`.
+ * TODO(rule): the Asaas sandbox does not document how to force a transfer to
+ * FAIL — and without that nobody can test the reversal path
+ * (TRANSFER_REVERSAL), which is exactly what the developer needs to exercise.
+ * We define a deterministic trigger: the Pix key below, or
+ * `externalReference: "FAIL"`.
  */
 export const SANDBOX_FAIL_PIX_KEY = 'fail@asaas.com.br'
 export const SANDBOX_FAIL_EXTERNAL_REFERENCE = 'FAIL'
@@ -60,12 +62,13 @@ export interface TransferInput {
 }
 
 /**
- * O body decide o tipo — exatamente como no Asaas real, onde
- * `transfer-to-asaas-account` divide POST /v3/transfers com a operação canônica.
+ * The body decides the type — exactly as in the real Asaas, where
+ * `transfer-to-asaas-account` shares POST /v3/transfers with the canonical
+ * operation.
  *
- *   walletId       → INTERNAL (outra conta deste servidor)
+ *   walletId       → INTERNAL (another account of this server)
  *   pixAddressKey  → PIX
- *   bankAccount    → TED (ou PIX, se operationType = PIX)
+ *   bankAccount    → TED (or PIX, if operationType = PIX)
  */
 export function parseTransferBody(body: unknown, today: string): TransferInput {
   const b = (body ?? {}) as Record<string, any>
@@ -153,7 +156,7 @@ export function parseTransferBody(body: unknown, today: string): TransferInput {
   )
 }
 
-/** Saldo insuficiente é 400, não 402 — o Asaas não usa 402. */
+/** Insufficient balance is 400, not 402 — Asaas does not use 402. */
 function assertBalance(balanceCents: number, needed: Cents): void {
   if (balanceCents < needed) {
     throw badRequest(
@@ -184,7 +187,7 @@ export async function createTransfer(
 
     assertBalance(origin.balanceCents, totalCents)
 
-    // ── Transferência INTERNA: instantânea, gratuita, e os DOIS extratos fecham.
+    // ── INTERNAL transfer: instant, free, and BOTH statements close.
     if (input.kind === 'INTERNAL') {
       const [destination] = await db
         .select()
@@ -235,7 +238,7 @@ export async function createTransfer(
       return { row, body }
     }
 
-    // ── Transferência EXTERNA: debita agora, liquida no scheduler.
+    // ── EXTERNAL transfer: debits now, settles in the scheduler.
     const row = await insert(ctx, db, auth, input, {
       feeCents,
       status: 'PENDING',
@@ -289,7 +292,7 @@ async function insert(
   const [row] = await db
     .insert(transfers)
     .values({
-      id: ids.transferId(ctx.rng), // UUID puro — não "padronize" com prefixo
+      id: ids.transferId(ctx.rng), // A plain UUID — do not "standardize" it with a prefix
       accountId: auth.accountId,
       type: input.kind,
       operationType: input.operationType,
@@ -335,12 +338,12 @@ export async function emitTransfer(
 }
 
 /**
- * Cancelamento. Só o que ainda não entrou no banco pode ser cancelado — depois
- * de BANK_PROCESSING o dinheiro já saiu e não há o que desfazer aqui.
+ * Cancellation. Only what has not reached the bank yet can be cancelled — after
+ * BANK_PROCESSING the money is already gone and there is nothing to undo here.
  *
- * O estorno é um lançamento NOVO (TRANSFER_REVERSAL), não a remoção do original.
- * O ledger é append-only: apagar o débito faria o extrato mentir sobre o que
- * aconteceu.
+ * The reversal is a NEW entry (TRANSFER_REVERSAL), not the removal of the
+ * original one. The ledger is append-only: deleting the debit would make the
+ * statement lie about what happened.
  */
 export async function cancelTransfer(
   ctx: AppContext,
@@ -364,7 +367,7 @@ export async function cancelTransfer(
       )
     }
 
-    // COMPARE-AND-SWAP: dois cancelamentos simultâneos, um só estorno.
+    // COMPARE-AND-SWAP: two simultaneous cancellations, only one reversal.
     const updated = await db
       .update(transfers)
       .set({ status: 'CANCELLED' })
@@ -384,7 +387,7 @@ export async function cancelTransfer(
   })
 }
 
-/** Devolve o valor E a taxa. Uma transferência que não aconteceu não custa nada. */
+/** Returns the value AND the fee. A transfer that did not happen costs nothing. */
 export async function reverse(
   ctx: AppContext,
   db: DB,
@@ -402,7 +405,7 @@ export async function reverse(
   ])
 }
 
-/** O comprovante e o E2E só existem depois que a transferência liquida. */
+/** The receipt and the E2E only exist after the transfer settles. */
 export function settlementArtifacts(
   ctx: AppContext,
   t: TransferRow,

@@ -1,17 +1,17 @@
 /**
- * Split de pagamentos. PURO.
+ * Payment splits. PURE.
  *
- * A REGRA QUE TODO MUNDO ERRA: o split incide sobre o **netValue** — o valor da
- * cobrança JÁ DESCONTADA a taxa do Asaas —, não sobre o valor bruto.
+ * THE RULE EVERYONE GETS WRONG: the split applies to the **netValue** — the value
+ * of the charge ALREADY DISCOUNTED by Asaas's fee — not to the gross amount.
  *
- *   Cobrança de R$ 100,00 no Pix (taxa R$ 1,99) → netValue = R$ 98,01
- *   Split de 30%  → R$ 29,40  (30% de 98,01), NÃO R$ 30,00.
+ *   R$ 100.00 charge on Pix (R$ 1.99 fee) → netValue = R$ 98.01
+ *   Split of 30%  → R$ 29.40  (30% of 98.01), NOT R$ 30.00.
  *
- * Ou seja: quem emite a cobrança paga a taxa; o split reparte o que sobrou.
+ * That is: whoever issues the charge pays the fee; the split divides what is left.
  *
- * Precisões (do Asaas):
- *   fixedValue      2 casas decimais → centavos
- *   percentualValue 4 casas decimais → escala 1e4 (92,3444% = 923444)
+ * Precisions (from Asaas):
+ *   fixedValue      2 decimal places → cents
+ *   percentualValue 4 decimal places → 1e4 scale (92.3444% = 923444)
  */
 import { applyPercentE4, cents, sumCents, type Cents, type PercentE4 } from './money.ts'
 import { splitTotal } from './installments.ts'
@@ -31,22 +31,22 @@ export interface ComputedSplit {
 
 export interface SplitComputation {
   splits: ComputedSplit[]
-  /** Soma de todos os splits. */
+  /** The sum of all the splits. */
   totalCents: Cents
   /**
-   * A soma excede o netValue. O Asaas BLOQUEIA o valor e dá 2 dias úteis para
-   * ajustar; se não ajustar, cancela os splits.
+   * The sum exceeds the netValue. Asaas BLOCKS the amount and gives 2 business
+   * days to adjust; if it is not adjusted, it cancels the splits.
    */
   divergent: boolean
-  /** O que sobra para quem emitiu a cobrança. */
+  /** What is left for whoever issued the charge. */
   remainderCents: Cents
 }
 
 /**
- * Calcula os splits sobre o netValue.
+ * Computes the splits over the netValue.
  *
- * Fixo e percentual podem coexistir na mesma cobrança e não há regra de
- * prioridade — o Asaas simplesmente soma.
+ * Fixed and percentage can coexist in the same charge and there is no priority
+ * rule — Asaas simply adds them up.
  */
 export function computeSplits(netValue: Cents, specs: readonly SplitSpec[]): SplitComputation {
   const splits: ComputedSplit[] = specs.map((spec) => {
@@ -69,14 +69,16 @@ export function computeSplits(netValue: Cents, specs: readonly SplitSpec[]): Spl
 }
 
 /**
- * `totalFixedValue` num parcelamento: o valor é distribuído IGUALMENTE entre as
- * parcelas, com a sobra na última — a mesma regra da divisão de parcelas.
+ * `totalFixedValue` in an installment plan: the amount is distributed EQUALLY among
+ * the installments, with the remainder on the last one — the same rule as the
+ * installment division.
  *
- *   R$ 300 em 3x com totalFixedValue = R$ 100
- *     → R$ 33,33 | R$ 33,33 | R$ 33,34
+ *   R$ 300 in 3x with totalFixedValue = R$ 100
+ *     → R$ 33.33 | R$ 33.33 | R$ 33.34
  *
- * Já `fixedValue` (sem "total") é aplicado EM CADA parcela: R$ 10 em 4x = R$ 40
- * no total. São coisas diferentes e a nomenclatura não ajuda.
+ * `fixedValue` (without "total"), on the other hand, is applied to EACH
+ * installment: R$ 10 in 4x = R$ 40 in total. They are different things and the
+ * naming does not help.
  */
 export function distributeTotalFixedValue(totalFixed: Cents, installments: number): Cents[] {
   return splitTotal(totalFixed, installments)
@@ -87,7 +89,7 @@ export interface SplitValidationError {
   description: string
 }
 
-/** Validações que o Asaas faz no momento de criar/atualizar o split. */
+/** The validations Asaas performs when creating/updating the split. */
 export function validateSplits(
   specs: readonly SplitSpec[],
   ownWalletId: string,
@@ -103,7 +105,7 @@ export function validateSplits(
       continue
     }
 
-    // O Asaas retorna exceção se você tentar splitar para si mesmo.
+    // Asaas throws if you try to split to yourself.
     if (spec.walletId === ownWalletId) {
       errors.push({
         code: 'invalid_split',

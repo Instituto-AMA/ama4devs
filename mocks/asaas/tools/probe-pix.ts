@@ -1,26 +1,26 @@
 /**
- * O ciclo do PIX, perguntado ao sandbox REAL — e ao mock, com o mesmo roteiro.
+ * The PIX cycle, asked of the REAL sandbox — and of the mock, with the same script.
  *
  *   ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun tools/probe-pix.ts
- *   BASE=http://localhost:45445/v3 ASAAS_SANDBOX_API_KEY='qualquer' bun tools/probe-pix.ts
+ *   BASE=http://localhost:45445/v3 ASAAS_SANDBOX_API_KEY='whatever' bun tools/probe-pix.ts
  *
- * As perguntas:
+ * The questions:
  *
- *   1. O que `POST /payments` com PIX devolve? (status inicial)
- *   2. O QR Code: quais campos, e o payload é um BR Code de verdade?
- *   3. `POST /v3/sandbox/payment/{id}/confirm` — é ISTO que simula o pagamento?
- *      É o que o botão "simular pagamento" do painel do Asaas faz?
- *   4. Depois de pago: status, netValue, creditDate, confirmedDate, paymentDate.
- *      (o PIX credita NA HORA — se a data de crédito não for hoje, erramos)
- *   5. O extrato mexe? Quais lançamentos?
- *   6. Confirmar DUAS vezes: o que acontece?
+ *   1. What does `POST /payments` with PIX return? (initial status)
+ *   2. The QR Code: which fields, and is the payload a real BR Code?
+ *   3. `POST /v3/sandbox/payment/{id}/confirm` — is THIS what simulates the payment?
+ *      Is it what Asaas's panel's "simulate payment" button does?
+ *   4. After being paid: status, netValue, creditDate, confirmedDate, paymentDate.
+ *      (PIX credits RIGHT AWAY — if the credit date is not today, we are wrong)
+ *   5. Does the statement move? Which entries?
+ *   6. Confirming TWICE: what happens?
  */
 const BASE = process.env.BASE ?? 'https://api-sandbox.asaas.com/v3'
 const apiKey = process.env.ASAAS_SANDBOX_API_KEY ?? ''
 const againstMock = !BASE.includes('asaas.com')
 
 if (!againstMock && !apiKey.startsWith('$aact_hmlg_')) {
-  console.error('Chave de SANDBOX obrigatória (começa com "$aact_hmlg_").')
+  console.error('A SANDBOX key is required (it starts with "$aact_hmlg_").')
   process.exit(1)
 }
 
@@ -48,28 +48,28 @@ console.log('1. POST /payments (PIX)')
 console.log(`   status=${p.status}  value=${p.value}  netValue=${p.netValue}`)
 console.log(`   dueDate=${p.dueDate}  creditDate=${p.creditDate ?? '—'}\n`)
 
-// ── 2. o QR Code ────────────────────────────────────────────────────────────
+// ── 2. the QR Code ──────────────────────────────────────────────────────────
 const qr = await api(`/payments/${p.id}/pixQrCode`)
 const q = qr.body
 console.log('2. GET /payments/{id}/pixQrCode')
 console.log(`   campos: ${Object.keys(q ?? {}).join(', ')}`)
-console.log(`   payload começa com: ${String(q?.payload ?? '').slice(0, 24)}…`)
+console.log(`   payload starts with: ${String(q?.payload ?? '').slice(0, 24)}…`)
 console.log(`   encodedImage: ${q?.encodedImage ? `base64, ${q.encodedImage.length} chars` : '—'}`)
 console.log(`   expirationDate: ${q?.expirationDate ?? '—'}\n`)
 
-// ── 3. simular o pagamento ──────────────────────────────────────────────────
+// ── 3. simulating the payment ───────────────────────────────────────────────
 const confirmed = await api(`/sandbox/payment/${p.id}/confirm`, {})
-console.log('3. POST /v3/sandbox/payment/{id}/confirm  ← o "simular pagamento"')
+console.log('3. POST /v3/sandbox/payment/{id}/confirm  ← the "simulate payment"')
 console.log(`   HTTP ${confirmed.status}`)
 if (confirmed.status !== 200) {
   console.log(`   ${JSON.stringify(confirmed.body)}\n`)
 } else {
-  console.log(`   campos da resposta: ${Object.keys(confirmed.body ?? {}).slice(0, 12).join(', ')}\n`)
+  console.log(`   response fields: ${Object.keys(confirmed.body ?? {}).slice(0, 12).join(', ')}\n`)
 }
 
-// ── 4. o estado depois ──────────────────────────────────────────────────────
+// ── 4. the state afterwards ─────────────────────────────────────────────────
 const after = (await api(`/payments/${p.id}`)).body
-console.log('4. a cobrança, depois de paga')
+console.log('4. the charge, after being paid')
 for (const k of [
   'status',
   'value',
@@ -84,15 +84,15 @@ for (const k of [
 }
 console.log()
 
-// ── 5. o extrato ────────────────────────────────────────────────────────────
+// ── 5. the statement ──────────────────────────────────────────────────────────
 const tx = await api('/financialTransactions?limit=5')
-console.log('5. extrato')
+console.log('5. statement')
 for (const t of tx.body?.data ?? []) {
   console.log(`   ${t.date}  ${String(t.type).padEnd(22)} ${String(t.value).padStart(8)}`)
 }
 console.log()
 
-// ── 6. confirmar de novo ────────────────────────────────────────────────────
+// ── 6. confirm again ────────────────────────────────────────────────────
 const again = await api(`/sandbox/payment/${p.id}/confirm`, {})
 console.log('6. confirmar DUAS vezes')
 console.log(

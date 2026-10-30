@@ -1,13 +1,14 @@
 /**
- * Taxas do Asaas. PURO.
+ * Asaas fees. PURE.
  *
- * A taxa só é cobrada quando a cobrança é PAGA — emitir boleto/Pix/cobrança não
- * custa nada. Por isso `feeCents` é calculado na criação (para poder informar o
- * `netValue`) mas só é debitado do saldo na liquidação.
+ * The fee is only charged when the charge is PAID — issuing a bank slip/Pix/charge
+ * costs nothing. That is why `feeCents` is computed at creation (so the
+ * `netValue` can be reported) but is only debited from the balance on settlement.
  *
- * Os valores vêm da tabela pública de preços e são CONFIGURÁVEIS (src/core/config).
- * Foram pesquisados na documentação, não provados contra a API real — quando
- * descobrirmos uma divergência, a correção é mudar a config, não este código.
+ * The amounts come from the public price list and are CONFIGURABLE
+ * (src/core/config). They were researched in the documentation, not proven against
+ * the real API — when we find a divergence, the correction is to change the
+ * config, not this code.
  */
 import type { FeeTable } from '../core/config.ts'
 import { applyBp, cents, type Cents } from './money.ts'
@@ -21,7 +22,7 @@ export type BillingType =
   | 'TRANSFER'
   | 'DEPOSIT'
 
-/** A faixa percentual do cartão de crédito depende do número de parcelas. */
+/** The credit card percentage bracket depends on the number of installments. */
 function creditCardRate(fees: FeeTable, installments: number) {
   if (installments <= 1) return fees.creditCard.oneInstallment
   if (installments <= 6) return fees.creditCard.upToSix
@@ -30,16 +31,18 @@ function creditCardRate(fees: FeeTable, installments: number) {
 }
 
 /**
- * A taxa cobrada por UMA cobrança.
+ * The fee charged for ONE charge.
  *
- * `installments` é o total de parcelas do parcelamento (1 = à vista) — usado só
- * para escolher a faixa percentual do cartão. A taxa incide sobre o valor DESTA
- * cobrança (a parcela), não sobre o total do parcelamento.
+ * `installments` is the total number of installments of the plan (1 = single
+ * payment) — it is used only to choose the card's percentage bracket. The fee
+ * applies to the value of THIS charge (the installment), not to the total of the
+ * plan.
  *
- * Para CARTÃO PARCELADO isto NÃO é a função certa — use `calcInstallmentFee`.
- * PROVADO contra o sandbox real: o Asaas cobra a taxa do cartão UMA vez sobre o
- * TOTAL e divide entre as parcelas. Cobrar `fixed + pct` por parcela (o que esta
- * função faria) dá um número maior e errado.
+ * For an INSTALMENT PLAN this is NOT the right function — use
+ * `calcInstallmentFee`. PROVEN against the real sandbox: Asaas charges the card
+ * fee ONCE over the TOTAL and divides it among the installments. Charging
+ * `fixed + pct` per installment (what this function would do) gives a larger and
+ * wrong number.
  */
 export function calcFee(
   fees: FeeTable,
@@ -52,7 +55,7 @@ export function calcFee(
       return fees.boleto
 
     case 'PIX':
-      // Valor FIXO, não percentual. É contraintuitivo e as pessoas erram.
+      // A FIXED amount, not a percentage. It is counterintuitive and people get it wrong.
       return fees.pix
 
     case 'CREDIT_CARD':
@@ -61,8 +64,8 @@ export function calcFee(
     case 'DEBIT_CARD':
       return cents(fees.debitCard.fixed + applyBp(value, fees.debitCard.pct))
 
-    // A cobrança ainda não sabe como será paga: sem taxa até a liquidação
-    // definir o meio de pagamento de fato.
+    // The charge does not know yet how it will be paid: no fee until the
+    // settlement defines the actual payment method.
     case 'UNDEFINED':
     case 'TRANSFER':
     case 'DEPOSIT':
@@ -71,31 +74,31 @@ export function calcFee(
 }
 
 /**
- * A taxa de CADA parcela de um parcelamento. PROVADO contra o sandbox real.
+ * The fee of EACH installment of a plan. PROVEN against the real sandbox.
  *
- * Os dois meios se comportam de formas opostas, e é fácil errar:
+ * The two payment methods behave in opposite ways, and it is easy to get wrong:
  *
- *   BOLETO — a taxa é POR BOLETO EMITIDO. R$ 350 em 12x → 12 × R$ 1,99 = R$ 23,88.
- *            (netValue do parcelamento: 350 − 23,88 = 326,12 ✓ sandbox)
+ *   BOLETO — the fee is PER BANK SLIP ISSUED. R$ 350 in 12x → 12 × R$ 1.99 = R$ 23.88.
+ *            (plan netValue: 350 − 23.88 = 326.12 ✓ sandbox)
  *
- *   CARTÃO — a taxa é calculada UMA VEZ sobre o TOTAL e depois DIVIDIDA entre as
- *            parcelas. R$ 600 em 6x → (0,49 + 3,49% × 600) = 21,43; 21,43/6 =
- *            3,5716 → R$ 3,57 por parcela. (netValue: 6 × 96,43 = 578,58 ✓ sandbox)
+ *   CARD — the fee is computed ONCE over the TOTAL and then DIVIDED among the
+ *            installments. R$ 600 in 6x → (0.49 + 3.49% × 600) = 21.43; 21.43/6 =
+ *            3.5716 → R$ 3.57 per installment. (netValue: 6 × 96.43 = 578.58 ✓ sandbox)
  *
- *            Repare que 6 × 3,57 = 21,42, um centavo A MENOS que os 21,43
- *            calculados. O Asaas NÃO redistribui essa sobra — ela simplesmente
- *            fica com o lojista. Reproduzimos isso: arredondar para cima ou jogar
- *            o resto na última parcela daria um netValue diferente do real.
+ *            Note that 6 × 3.57 = 21.42, one cent LESS than the 21.43 computed.
+ *            Asaas does NOT redistribute that leftover — it simply stays with the
+ *            merchant. We reproduce that: rounding up or throwing the remainder
+ *            into the last installment would give a netValue different from the real one.
  *
- * A divisão TRUNCA, não arredonda — e a diferença é observável:
+ * The division TRUNCATES, it does not round — and the difference is observable:
  *
- *   R$ 350 em 12x → taxa total = 0,49 + 3,99% × 350 = R$ 14,455 → 1446 centavos.
- *   1446/12 = 120,5. Arredondando dá 121; truncando dá 120.
- *   O sandbox real devolve netValue 27,96 sobre uma parcela de 29,16 → taxa
- *   de R$ 1,20. É TRUNCAMENTO. Com Math.round errávamos um centavo por parcela.
+ *   R$ 350 in 12x → total fee = 0.49 + 3.99% × 350 = R$ 14.455 → 1446 cents.
+ *   1446/12 = 120.5. Rounding gives 121; truncating gives 120.
+ *   The real sandbox returns netValue 27.96 over an installment of 29.16 → a fee
+ *   of R$ 1.20. It is TRUNCATION. With Math.round we were off by a cent per installment.
  *
- * A faixa percentual do cartão é escolhida pelo NÚMERO DE PARCELAS (2-6 → 3,49%),
- * e incide sobre o total — não sobre o valor da parcela.
+ * The card's percentage bracket is chosen by the NUMBER OF INSTALLMENTS (2-6 → 3.49%),
+ * and it applies to the total — not to the installment value.
  */
 export function calcInstallmentFee(
   fees: FeeTable,
@@ -104,7 +107,7 @@ export function calcInstallmentFee(
   installmentCount: number,
 ): Cents {
   if (billingType !== 'CREDIT_CARD') {
-    // Boleto, Pix e débito: a taxa é por cobrança, e cada parcela é uma cobrança.
+    // Bank slip, Pix and debit: the fee is per charge, and each installment is a charge.
     return calcFee(fees, billingType, totalValue, installmentCount)
   }
 
@@ -112,7 +115,7 @@ export function calcInstallmentFee(
   return cents(Math.floor(total / installmentCount))
 }
 
-/** netValue = value − taxa do Asaas. É a base sobre a qual o split incide. */
+/** netValue = value − the Asaas fee. It is the base the split applies to. */
 export function netValue(value: Cents, fee: Cents): Cents {
   return cents(value - fee)
 }

@@ -105,7 +105,7 @@ export async function populate(
         {
           step: 'asaas',
           status: 0,
-          message: 'Asaas não encontrado: defina ASAAS_URL ou suba o mock do Asaas.',
+          message: 'Asaas not found: set ASAAS_URL or start the Asaas mock.',
         },
       ],
     }

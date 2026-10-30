@@ -97,7 +97,7 @@ await page.evaluate(() => document.getElementById('tab-templates').click())
 await wait(400)
 await page.evaluate(() => {
   const btns = Array.from(document.querySelectorAll('#tpl-list button'))
-  const target = btns.find(b => b.innerText.includes('asaas_cobranca_criada')) || btns[0]
+  const target = btns.find(b => b.innerText.includes('asaas_charge_created')) || btns[0]
   if (target) target.click()
 })
 await wait(600)
@@ -225,7 +225,7 @@ await wait(600)
 await page.screenshot({ path: resolve(WA_OUT, 'tools-templates.jpg'), quality: 90 })
 console.log('   ✓ tools-templates.jpg')
 
-// 14. CHAT WITH ACTIVE FILTER & SEARCH (Filter "Não lidas" active with badge counts)
+// 14. CHAT WITH ACTIVE FILTER & SEARCH (the unread filter is active with badge counts)
 console.log('14. Capturing chat-filter.jpg...')
 await closeTools()
 await page.emulateMedia({ colorScheme: 'light' })

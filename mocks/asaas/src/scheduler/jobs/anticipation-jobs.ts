@@ -1,19 +1,19 @@
 /**
- * O ciclo de vida da antecipação, no tempo. (Track D)
+ * The lifecycle of the anticipation, through time. (Track D)
  *
- * Três coisas, nesta ordem:
+ * Three things, in this order:
  *
- *   0. ANTECIPAÇÃO AUTOMÁTICA — se a conta ligou o flag, toda cobrança de cartão
- *      confirmada é antecipada sozinha.
- *   1. SCHEDULED → CREDITED — a antecipação de uma cobrança que ainda não tinha
- *      sido paga. Quando o pagador paga (CONFIRMED), o dinheiro entra.
- *   2. CREDITED → DEBITED — o recebível original liquidou (PAYMENT_RECEIVED
- *      acabou de creditar a conta), então o adiantamento sai. É o lançamento que
- *      fecha o ciclo e mantém `balance === SUM(ledger)`.
+ *   0. AUTOMATIC ANTICIPATION — if the account turned the flag on, every
+ *      confirmed card charge is anticipated on its own.
+ *   1. SCHEDULED → CREDITED — the anticipation of a charge that was not paid
+ *      yet. When the payer pays (CONFIRMED), the money comes in.
+ *   2. CREDITED → DEBITED — the original receivable settled (PAYMENT_RECEIVED
+ *      just credited the account), so the advance goes out. It is the entry
+ *      that closes the cycle and keeps `balance === SUM(ledger)`.
  *
- * RODA DEPOIS do `credit-settlement` — e isso é semântico, não incidental: o
- * débito da antecipação só faz sentido depois que o crédito do recebível entrou.
- * Inverter a ordem deixaria o saldo negativo por um tick.
+ * It runs AFTER the `credit-settlement` — and that is semantic, not incidental:
+ * the anticipation debit only makes sense after the credit of the receivable
+ * came in. Inverting the order would leave the balance negative for one tick.
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import type { AppContext } from '../../core/context.ts'
@@ -65,10 +65,11 @@ export const anticipationSettlement: Job = {
             })
           } else if (status === 'RECEIVED' || status === 'RECEIVED_IN_CASH') {
             /**
-             * O recebível liquidou antes de a antecipação ser processada — o
-             * dinheiro já caiu por PAYMENT_RECEIVED. Não há o que adiantar.
-             * NEGAMOS, sem mover um centavo: creditar e debitar no mesmo tick
-             * cobraria uma taxa de antecipação por um adiantamento de zero dia.
+             * The receivable settled before the anticipation was processed — the
+             * money already came in through PAYMENT_RECEIVED. There is nothing
+             * to advance. We DENY it, without moving a cent: crediting and
+             * debiting in the same tick would charge an anticipation fee for a
+             * zero-day advance.
              */
             await transition(ctx, db, report, row, 'DENIED', async (after) => {
               await db
@@ -87,7 +88,7 @@ export const anticipationSettlement: Job = {
           continue
         }
 
-        // CREDITED: espera o recebível liquidar de verdade.
+        // CREDITED: waits for the receivable to really settle.
         if (status === 'RECEIVED') {
           await transition(ctx, db, report, row, 'DEBITED', async (after) => {
             await postDebit(ctx, db, after)
@@ -99,7 +100,7 @@ export const anticipationSettlement: Job = {
   },
 }
 
-/** COMPARE-AND-SWAP + efeito + webhook. Um tick repetido altera zero linhas. */
+/** COMPARE-AND-SWAP + effect + webhook. A repeated tick changes zero rows. */
 async function transition(
   ctx: AppContext,
   db: DB,
@@ -147,12 +148,12 @@ async function transition(
 }
 
 /**
- * Antecipação automática de cartão de crédito.
+ * Automatic anticipation of a credit card.
  *
- * O flag `creditCardAutomaticEnabled` (PUT /v3/anticipations/configurations)
- * existe na API do Asaas e liga exatamente isto. Um booleano persistido que não
- * antecipa nada produziria falsa confiança — que é a única coisa que este
- * projeto não pode fazer.
+ * The `creditCardAutomaticEnabled` flag (PUT /v3/anticipations/configurations)
+ * exists in the Asaas API and turns exactly this on. A persisted boolean that
+ * anticipated nothing would produce false confidence — the only thing this
+ * project cannot do.
  */
 async function autoAnticipate(ctx: AppContext, report: TickReport): Promise<void> {
   const candidates = await ctx.db
@@ -192,9 +193,9 @@ async function autoAnticipate(ctx: AppContext, report: TickReport): Promise<void
       })
       report.ledgerEntries += 2
     } catch (err) {
-      // O CAS em `payments.anticipated` já protege contra duplicata; qualquer
-      // outra recusa é informação, não erro do job.
-      ctx.log('debug', `anticipation-settlement: ${row.id} não antecipou`, {
+      // The CAS in `payments.anticipated` already guards against a duplicate; any
+      // other refusal is information, not a job error.
+      ctx.log('debug', `anticipation-settlement: ${row.id} did not anticipate`, {
         error: String(err),
       })
     }

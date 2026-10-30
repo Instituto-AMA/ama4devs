@@ -77,7 +77,7 @@ const words = (text) =>
  *
  * The brand is one of them: the script says "ama for deves", and the
  * transcription writes the English "ama for devs". The Asaas of the script is
- * spelled "ásas" — a hack that makes the model say the brand — and the
+ * spelled with a phonetic accent — a hack that makes the model say the brand — and the
  * transcription writes the real one.
  */
 const EQUIVALENT = [
@@ -243,7 +243,7 @@ const match = (script, heard) => {
 
     // The plain case: the same word, somewhere ahead in the transcription.
     // The cursor does not move when the word is not there: the transcription
-    // may simply not have it ("É o" is heard as nothing), and the next word
+    // may simply not have it (the first Portuguese word is heard as nothing), and the next word
     // of the script may still find its pair.
     let matched = false
     for (let ahead = position; ahead < spoken.length; ahead += 1) {

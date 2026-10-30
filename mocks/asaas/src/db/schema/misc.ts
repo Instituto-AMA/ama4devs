@@ -1,7 +1,7 @@
 /**
- * Tabelas dos módulos de cauda longa. Existem desde já para que o schema seja
- * criado UMA vez, na Fase 0 — assim os agentes que implementam cada módulo em
- * paralelo não precisam mexer no mesmo lugar e não conflitam.
+ * The tables of the long-tail modules. They exist from the start so that the schema
+ * is created ONCE, in Phase 0 — so the agents implementing each module in
+ * parallel do not touch the same place and do not conflict.
  */
 import { index, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { accounts } from './accounts.ts'
@@ -26,7 +26,7 @@ export const paymentLinks = sqliteTable(
     subscriptionCycle: text('subscription_cycle'),
     maxInstallmentCount: cents('max_installment_count'),
     notificationEnabled: bool('notification_enabled').notNull(),
-    /** Obriga o preenchimento de endereço no checkout do link. */
+    /** Forces the address to be filled in at the link's checkout. */
     isAddressRequired: bool('is_address_required').notNull(),
     externalReference: text('external_reference'),
     callback: json<Record<string, unknown>>('callback'),
@@ -223,10 +223,10 @@ export const paymentDocuments = sqliteTable(
   (t) => [index('payment_documents_payment_idx').on(t.paymentId)],
 )
 
-// `account_documents` era um esboço da Fase 0 (uma tabela chapada, sem grupos) e
-// nunca foi usado. O KYC real do Asaas tem dois níveis — o cliente LÊ grupos e
-// ENVIA arquivo para um documento dentro do grupo —, então a tabela definitiva
-// mora em `account-documents.ts`, junto com a de grupos.
+// `account_documents` was a Phase 0 sketch (one flat table, no groups) and was
+// never used. The real Asaas KYC has two levels — the client READS groups and
+// SENDS a file for a document inside the group —, so the definitive table
+// lives in `account-documents.ts`, next to the group table.
 
 export const creditBureauReports = sqliteTable(
   'credit_bureau_reports',
@@ -246,7 +246,7 @@ export const creditBureauReports = sqliteTable(
   (t) => [index('credit_bureau_reports_account_idx').on(t.accountId)],
 )
 
-/** Configuração fiscal da conta (NF-e). Uma linha por conta. */
+/** The account's tax configuration (NF-e). One row per account. */
 export const fiscalInfo = sqliteTable('fiscal_info', {
   accountId: text('account_id')
     .primaryKey()

@@ -1,10 +1,10 @@
 /**
- * Configuração vinda do ambiente.
+ * Configuration coming from the environment.
  *
- * Toda regra de negócio numérica do Asaas (taxas, prazos, lookahead) é
- * CONFIGURÁVEL de propósito. As regras foram pesquisadas na documentação, não
- * provadas contra a API real — então, quando descobrirmos uma divergência, a
- * correção tem que ser mudança de configuração, não de código.
+ * Every numeric business rule of Asaas (fees, deadlines, lookahead) is
+ * CONFIGURABLE on purpose. The rules were researched in the documentation, not
+ * proven against the real API — so, when we find a divergence, the correction
+ * has to be a configuration change, not a code change.
  */
 import { readFileSync } from 'node:fs'
 import { parseCaptureSchedule, type CaptureSlot } from '../domain/card-capture.ts'
@@ -15,7 +15,7 @@ const num = (key: string, fallback: number): number => {
   const raw = process.env[key]
   if (raw === undefined || raw === '') return fallback
   const n = Number(raw)
-  if (!Number.isFinite(n)) throw new Error(`Env ${key} não é um número: "${raw}"`)
+  if (!Number.isFinite(n)) throw new Error(`Env ${key} is not a number: "${raw}"`)
   return n
 }
 
@@ -93,17 +93,17 @@ const hostList = (key: string, fallback: string[]): string[] => {
 }
 
 /**
- * Tabela de taxas do Asaas (tabela pública de preços).
- * Cobradas só quando a cobrança é PAGA — emitir não custa nada.
+ * The Asaas fee table (the public price list).
+ * Charged only when the charge is PAID — issuing costs nothing.
  */
 export interface FeeTable {
-  /** Boleto liquidado. */
+  /** Bank slip settled. */
   boleto: Cents
-  /** Pix recebido: valor FIXO, não percentual. */
+  /** Pix received: a FIXED amount, not a percentage. */
   pix: Cents
   creditCard: {
     fixed: Cents
-    /** A faixa depende do número de parcelas. */
+    /** The bracket depends on the number of installments. */
     oneInstallment: BasisPoints
     upToSix: BasisPoints
     upToTwelve: BasisPoints
@@ -113,25 +113,25 @@ export interface FeeTable {
   transfer: {
     ted: Cents
     pix: Cents
-    /** Transferências gratuitas por mês. */
+    /** Free transfers per month. */
     monthlyWithoutFee: number
   }
 
   /**
-   * As taxas abaixo NÃO são cobradas na liquidação de uma cobrança — são taxas
-   * de serviço, cobradas quando o serviço é usado. Existem aqui porque
-   * GET /v3/myAccount/fees devolve a tabela inteira, e porque a consulta ao
-   * Serasa (creditBureauReport) precisa de um preço.
+   * The fees below are NOT charged when a charge is settled — they are service
+   * fees, charged when the service is used. They live here because
+   * GET /v3/myAccount/fees returns the whole table, and because the Serasa
+   * query (creditBureauReport) needs a price.
    */
-  /** Consulta Serasa. O preço difere por tipo de pessoa. */
+  /** Serasa query. The price differs by person type. */
   creditBureauReport: { naturalPerson: Cents; legalPerson: Cents }
-  /** Notificações ao cliente final. */
+  /** Notifications to the end customer. */
   notification: { phoneCall: Cents; whatsApp: Cents; messaging: Cents }
-  /** Nota fiscal de serviço emitida. */
+  /** Issued service invoice (NFS-e). */
   invoice: Cents
-  /** Negativação no Serasa. */
+  /** Negative listing at Serasa. */
   paymentDunning: Cents
-  /** Antecipação: taxa AO MÊS, em basis points. */
+  /** Anticipation: fee PER MONTH, in basis points. */
   anticipation: {
     creditCardDetached: BasisPoints
     creditCardInstallment: BasisPoints
@@ -149,9 +149,9 @@ export interface Config {
   logLevel: string
 
   /**
-   * Base das URLs públicas que a API DEVOLVE (link de pagamento, checkout,
-   * download de imagem/relatório). Não é a URL onde este servidor escuta: é o
-   * host que o Asaas colocaria na resposta, e integrações costumam exibi-lo.
+   * Base of the public URLs the API RETURNS (payment link, checkout,
+   * image/report download). It is not the URL this server listens on: it is the
+   * host Asaas would put in the response, and integrations usually display it.
    */
   publicBaseUrl: string
 
@@ -199,7 +199,7 @@ export interface Config {
      * so delivery statuses and the payer's replies come back here.
      */
     callbackBaseUrl: string
-    /** Where the browser opens Mailpit's mailbox and the WhatsApp console (Integrações). */
+    /** Where the browser opens Mailpit's mailbox and the WhatsApp console (the Integrations tab). */
     mailpitUiUrl: string
     whatsappUiUrl: string
     smsUiUrl?: string
@@ -227,9 +227,9 @@ export interface Config {
 
   webhook: {
     /**
-     * Dentro do container, "localhost" é o PRÓPRIO container — o webhook nunca
-     * chegaria na máquina do dev. Reescrevemos o host. É a pegadinha nº 1 deste
-     * projeto e a razão de ele existir.
+     * Inside the container, "localhost" is the container ITSELF — the webhook would
+     * never reach the developer's machine. We rewrite the host. It is the #1 trap
+     * of this project and the reason it exists.
      */
     localhostRewrite: string | undefined
     timeoutMs: number
@@ -239,17 +239,17 @@ export interface Config {
   }
 
   rules: {
-    /** O Asaas gera a cobrança da assinatura 40 dias antes do vencimento. */
+    /** Asaas creates each following subscription charge 40 days before its due date. */
     subscriptionLookaheadDays: number
-    /** Cartão de crédito credita em D+32. */
+    /** Credit card credits at D+32. */
     creditCardSettlementDays: number
-    /** Cartão de débito credita em D+3. */
+    /** Debit card credits at D+3. */
     debitCardSettlementDays: number
-    /** Boleto credita em D+1 útil. */
+    /** Bank slip credits at D+1 business day. */
     bankSlipSettlementDays: number
-    /** Prazo para ajustar um split bloqueado por divergência de valor. */
+    /** Deadline to fix a split blocked by a value divergence. */
     splitDivergenceGraceBusinessDays: number
-    /** TODO(regra): a doc não define o default de `minutesToExpire` do checkout. */
+    /** TODO(rule): the doc does not define the default of the checkout's `minutesToExpire`. */
     checkoutMinutesToExpire: number
     /**
      * When a recurring card charge is tried on and after its due date

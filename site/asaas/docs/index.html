@@ -8,7 +8,7 @@
   <meta name="keywords" content="asaas mock documentation, asaas sandbox rules, asaas webhook retry, asaas fees, asaas interest fine, asaas split, asaas pix qr code, asaas mock configuration">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/asaas/docs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/asaas/docs/">
-  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/asaas/docs/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/asaas/docs/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/asaas/docs/">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="ama4devs">
@@ -38,7 +38,7 @@
       </nav>
       <div class="lang" aria-label="Language">
         <span aria-current="true">EN</span>
-        <a href="../../pt-br/asaas/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
+        <a href="../../portuguese/asaas/docs/" hreflang="pt-BR" lang="pt-BR">PT</a>
       </div>
     </div>
   </header>
@@ -105,7 +105,7 @@
                 <li>Every charge event (created, updated, due soon, overdue, received) sends the payer an <strong>e-mail to Mailpit</strong>, a <strong>WhatsApp template</strong> through the <a href="../../whatsapp/">WhatsApp mock</a>'s Cloud API and an <strong>SMS</strong> to the <a href="../../sms/">SMS mock</a> (sender <code>ASAAS</code>).</li>
                 <li>An installment plan is told once: the first installment's creation tells the whole plan (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); reminders and payment notices stay per installment.</li>
                 <li>Nothing to wire, however it runs (bun, <code>docker run</code>, your compose, <code>make setup</code>): Mailpit, the WhatsApp mock and the SMS mock are found by themselves, by compose service name (<code>mailpit</code>, <code>whatsapp</code> or <code>whatsapp-mock</code>, <code>sms</code> or <code>sms-mock</code>), on this machine or on the Docker host, on boot and every 10 s, the closest one first. The address the WhatsApp mock calls back on is found the same way: the first one it verifies is kept.</li>
-                <li>The <a href="../../generator/">generator</a> is found the same way (service <code>generator</code> or <code>generator-mock</code>, port 45450, on boot and every 10 s): while reachable, the panel's <strong>Integrações › Gerador</strong> tab lets you open it or populate the selected account with customers, charges, and confirmed payments.</li>
+                <li>The <a href="../../generator/">generator</a> is found the same way (service <code>generator</code> or <code>generator-mock</code>, port 45450, on boot and every 10 s): while reachable, the panel's <strong>Integrations › Generator</strong> tab lets you open it or populate the selected account with customers, charges, and confirmed payments.</li>
                 <li>Everything comes up configured: on boot and on every tick, the sender number gets this server's webhook and the payer templates are created in the WhatsApp mock, through Meta's own calls.</li>
                 <li>Every customer is born with Asaas's eight default notification settings (<code>GET /v3/customers/{id}/notifications</code>, changed with <code>PUT /v3/notifications/batch</code>), with e-mail, SMS and WhatsApp all on here (Asaas starts WhatsApp off). The due-date warning goes out N days before (10 by default) and on the due day; an overdue charge is told again every N days (7 by default) while unpaid; a subscription's charge is not told on creation.</li>
                 <li>The customer's <code>notificationDisabled</code> and each setting are honored (the SMS needs a mobile phone on the customer), a failing channel never blocks the charge, and the panel resends on demand.</li>
@@ -211,7 +211,7 @@
                   </article>
                   <article class="carousel-card">
                     <div class="card-media">
-                      <img src="../../img/asaas/invoice-boleto.jpg" width="1502" height="714" alt="Boleto tab with digitable line." loading="lazy">
+                      <img src="../../img/asaas/invoice-bank-slip.jpg" width="1502" height="714" alt="Boleto tab with digitable line." loading="lazy">
                       <span class="card-zoom-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> Zoom</span>
                     </div>
                     <div class="card-body">

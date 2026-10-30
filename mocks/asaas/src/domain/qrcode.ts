@@ -1,36 +1,37 @@
 /**
- * QR Code do zero — byte mode, correção de erro nível M, versões 1..10. PURO.
+ * A QR Code from scratch — byte mode, error correction level M, versions 1..10. PURE.
  *
- * Existe porque `encodedImage` do Pix é o PNG do QR do BR Code e o projeto não
- * adiciona dependências. Ele precisa ESCANEAR de verdade: um QR de mentira é o
- * caso exemplar do "mock sutilmente errado" — o dev fotografa a tela, o celular
- * não lê, e ele passa a tarde procurando o bug no lugar errado.
+ * It exists because Pix's `encodedImage` is the PNG of the BR Code's QR and the
+ * project adds no dependencies. It has to SCAN for real: a fake QR is the
+ * textbook case of the "subtly wrong mock" — the developer photographs the screen,
+ * the phone does not read it, and they spend the afternoon looking for the bug in
+ * the wrong place.
  *
- * Limites, explícitos:
- * - nível de correção **fixo em M**;
- * - versões **1..10** → no máximo **213 bytes** em byte mode; acima disso, LANÇA.
- *   O BR Code do Pix cabe: 172 bytes no pior caso do handler (v9), 198 com uma URL
- *   longa do Asaas (v10). Mas uma URL de 60 chars junto de um txid de 25 dá 220 e
- *   estoura — se um dia passarmos txid real, é preciso a tabela de EC da v11+ (e ela
- *   tem que vir da norma, não de dedução: um split de blocos errado gera um QR que
- *   passa nos nossos testes e falha no leitor do banco);
- * - byte mode **sem ECI**: os bytes saem como UTF-8. O BR Code é ASCII puro, então
- *   não há ambiguidade de charset na prática;
- * - o PNG usa blocos deflate *stored* (sem compressão real): é PNG válido e evita
- *   depender de zlib, ao custo de um arquivo maior.
+ * Limits, explicit:
+ * - error correction level **fixed at M**;
+ * - versions **1..10** → at most **213 bytes** in byte mode; above that, it THROWS.
+ *   Pix's BR Code fits: 172 bytes in the handler's worst case (v9), 198 with a long
+ *   Asaas URL (v10). But a 60-char URL together with a 25-char txid gives 220 and
+ *   overflows — if one day we pass a real txid, we need the EC table of v11+ (and it
+ *   has to come from the standard, not from deduction: a wrong block split
+ *   generates a QR that passes our tests and fails in the bank's reader);
+ * - byte mode **without ECI**: the bytes come out as UTF-8. The BR Code is pure
+ *   ASCII, so in practice there is no charset ambiguity;
+ * - the PNG uses deflate *stored* blocks (no real compression): it is a valid PNG
+ *   and it avoids depending on zlib, at the cost of a bigger file.
  */
 
 const MODE_BYTE = 0b0100
-/** Indicador do nível M no format info (ISO/IEC 18004 §8.9). */
+/** The level M indicator in the format info (ISO/IEC 18004 §8.9). */
 const EC_LEVEL_M = 0b00
 
 export const MIN_VERSION = 1
 export const MAX_VERSION = 10
 
 /**
- * ISO/IEC 18004, tabelas 13-22 — **nível M**, versões 1..10:
- * `[ecPorBloco, blocosGrupo1, dadosPorBlocoGrupo1, blocosGrupo2, dadosPorBlocoGrupo2]`.
- * O grupo 2, quando existe, tem exatamente 1 codeword de dado a mais por bloco.
+ * ISO/IEC 18004, tables 13-22 — **level M**, versions 1..10:
+ * `[ecPerBlock, group1Blocks, dataPerBlockGroup1, group2Blocks, dataPerBlockGroup2]`.
+ * Group 2, when it exists, has exactly 1 data codeword more per block.
  */
 export const EC_BLOCKS_M: Readonly<Record<number, readonly [number, number, number, number, number]>> = {
   1: [10, 1, 16, 0, 0],
@@ -47,13 +48,13 @@ export const EC_BLOCKS_M: Readonly<Record<number, readonly [number, number, numb
 
 function specOf(version: number): readonly [number, number, number, number, number] {
   const spec = EC_BLOCKS_M[version]
-  if (!spec) throw new Error(`qrcode: versão ${version} fora do suporte (${MIN_VERSION}..${MAX_VERSION})`)
+  if (!spec) throw new Error(`qrcode: version ${version} is out of support (${MIN_VERSION}..${MAX_VERSION})`)
   return spec
 }
 
 export const moduleCount = (version: number): number => version * 4 + 17
 
-/** Bits do contador de caracteres em byte mode: 8 até a v9, 16 da v10 em diante. */
+/** The character counter bits in byte mode: 8 up to v9, 16 from v10 on. */
 export const charCountBits = (version: number): number => (version < 10 ? 8 : 16)
 
 export function dataCodewords(version: number): number {
@@ -66,7 +67,7 @@ export function totalCodewords(version: number): number {
   return dataCodewords(version) + (g1 + g2) * ec
 }
 
-/** Quantos bytes de payload cabem nesta versão, já descontado o cabeçalho. */
+/** How many payload bytes fit in this version, with the header already discounted. */
 export function capacityBytes(version: number): number {
   return Math.floor((dataCodewords(version) * 8 - 4 - charCountBits(version)) / 8)
 }
@@ -76,12 +77,12 @@ export function chooseVersion(byteLength: number): number {
     if (byteLength <= capacityBytes(v)) return v
   }
   throw new Error(
-    `qrcode: ${byteLength} bytes não cabem — o máximo em byte mode/nível M até a v${MAX_VERSION} é ${capacityBytes(MAX_VERSION)}`,
+    `qrcode: ${byteLength} bytes do not fit — the maximum in byte mode/level M up to v${MAX_VERSION} is ${capacityBytes(MAX_VERSION)}`,
   )
 }
 
 // ---------------------------------------------------------------------------
-// GF(256) — corpo de Galois do Reed-Solomon do QR (primitivo 0x11d, gerador 2).
+// GF(256) — the Galois field of the QR's Reed-Solomon (primitive 0x11d, generator 2).
 // ---------------------------------------------------------------------------
 
 const GF_EXP = new Uint8Array(512)
@@ -103,7 +104,7 @@ function gfMul(a: number, b: number): number {
   return GF_EXP[GF_LOG[a]! + GF_LOG[b]!]!
 }
 
-/** Polinômio gerador `(x - α⁰)(x - α¹)…(x - αⁿ⁻¹)`, coeficientes do maior grau ao menor. */
+/** The generator polynomial `(x - α⁰)(x - α¹)…(x - αⁿ⁻¹)`, coefficients from the highest degree to the lowest. */
 function rsGenerator(degree: number): number[] {
   let poly = [1]
   for (let i = 0; i < degree; i++) {
@@ -117,7 +118,7 @@ function rsGenerator(degree: number): number[] {
   return poly
 }
 
-/** Os `degree` codewords de correção: o resto da divisão de `data·x^degree` pelo gerador. */
+/** The `degree` error-correction codewords: the remainder of dividing `data·x^degree` by the generator. */
 export function rsEncode(data: readonly number[], degree: number): number[] {
   const gen = rsGenerator(degree)
   const rem = new Array<number>(degree).fill(0)
@@ -145,7 +146,7 @@ class BitBuffer {
   }
 }
 
-/** Codifica o payload em codewords de dados (com terminador e padding). */
+/** Encodes the payload into data codewords (with terminator and padding). */
 export function encodeCodewords(data: string, version: number): number[] {
   const bytes = new TextEncoder().encode(data)
   const capacity = dataCodewords(version)
@@ -155,12 +156,12 @@ export function encodeCodewords(data: string, version: number): number[] {
   buf.push(bytes.length, charCountBits(version))
   for (const byte of bytes) buf.push(byte, 8)
 
-  // Terminador: até 4 zeros, se sobrar espaço.
+  // Terminator: up to 4 zeros, if there is room left.
   const totalBits = capacity * 8
   const terminator = Math.min(4, totalBits - buf.bits.length)
-  if (terminator < 0) throw new Error(`qrcode: payload não cabe na versão ${version}`)
+  if (terminator < 0) throw new Error(`qrcode: the payload does not fit in version ${version}`)
   buf.push(0, terminator)
-  // Fecha o byte corrente.
+  // Closes the current byte.
   while (buf.bits.length % 8 !== 0) buf.bits.push(0)
 
   const codewords: number[] = []
@@ -169,13 +170,13 @@ export function encodeCodewords(data: string, version: number): number[] {
     for (let b = 0; b < 8; b++) byte = (byte << 1) | buf.bits[i + b]!
     codewords.push(byte)
   }
-  // Padding alternado 0xEC/0x11 até encher a capacidade (ISO/IEC 18004 §8.4.9).
+  // Alternating 0xEC/0x11 padding until the capacity is filled (ISO/IEC 18004 §8.4.9).
   for (let pad = 0xec; codewords.length < capacity; pad ^= 0xec ^ 0x11) codewords.push(pad)
 
   return codewords
 }
 
-/** Divide em blocos, gera o ECC de cada um e intercala dados e ECC. */
+/** Splits into blocks, generates each ECC and interleaves data and ECC. */
 export function interleave(codewords: readonly number[], version: number): number[] {
   const [ecPerBlock, g1, d1, g2, d2] = specOf(version)
 
@@ -209,7 +210,7 @@ export function interleave(codewords: readonly number[], version: number): numbe
 // Matriz
 // ---------------------------------------------------------------------------
 
-/** Centros dos alignment patterns (ISO/IEC 18004 §6.3.5). */
+/** Centers of the alignment patterns (ISO/IEC 18004 §6.3.5). */
 export function alignmentCenters(version: number): number[] {
   if (version === 1) return []
   const count = Math.floor(version / 7) + 2
@@ -223,7 +224,7 @@ type Grid = boolean[][]
 
 const emptyGrid = (size: number): Grid => Array.from({ length: size }, () => new Array<boolean>(size).fill(false))
 
-/** Marca as function patterns e devolve a matriz base + o mapa do que é reservado. */
+/** Marks the function patterns and returns the base matrix + the map of what is reserved. */
 function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid } {
   const size = moduleCount(version)
   const modules = emptyGrid(size)
@@ -234,13 +235,13 @@ function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid 
     reserved[row]![col] = true
   }
 
-  // Timing: linha 6 e coluna 6 inteiras (os finders sobrescrevem em seguida).
+  // Timing: row 6 and column 6 are complete (the finders overwrite them next).
   for (let i = 0; i < size; i++) {
     set(6, i, i % 2 === 0)
     set(i, 6, i % 2 === 0)
   }
 
-  // Finder + separador: bloco 8×8 em cada uma das três quinas.
+  // Finder + separator: an 8×8 block at each of the three corners.
   for (const [r0, c0] of [
     [0, 0],
     [0, size - 7],
@@ -259,7 +260,7 @@ function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid 
     }
   }
 
-  // Alignment: em todo cruzamento de centros, exceto os que colidem com finders.
+  // Alignment: at every crossing of centers, except those that collide with finders.
   const centers = alignmentCenters(version)
   for (let i = 0; i < centers.length; i++) {
     for (let j = 0; j < centers.length; j++) {
@@ -275,7 +276,7 @@ function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid 
     }
   }
 
-  // Reserva do format info (o valor real entra depois de escolhida a máscara).
+  // Reserves the format info (the real value comes in after the mask is chosen).
   for (let i = 0; i <= 8; i++) {
     if (i !== 6) {
       set(8, i, false)
@@ -286,7 +287,7 @@ function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid 
     set(8, size - 1 - i, false)
     set(size - 1 - i, 8, false)
   }
-  // Dark module: sempre escuro, sempre em (4v+9, 8).
+  // Dark module: always dark, always at (4v+9, 8).
   set(size - 8, 8, true)
 
   if (version >= 7) {
@@ -303,14 +304,14 @@ function drawFunctionPatterns(version: number): { modules: Grid; reserved: Grid 
   return { modules, reserved }
 }
 
-/** BCH(18,6) do version info, gerador 0x1f25 (ISO/IEC 18004 §8.10). */
+/** BCH(18,6) of the version info, generator 0x1f25 (ISO/IEC 18004 §8.10). */
 export function versionBits(version: number): number {
   let rem = version
   for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1f25)
   return ((version << 12) | rem) & 0x3ffff
 }
 
-/** BCH(15,5) do format info, gerador 0x537, mascarado com 0x5412 (ISO/IEC 18004 §8.9). */
+/** BCH(15,5) of the format info, generator 0x537, masked with 0x5412 (ISO/IEC 18004 §8.9). */
 export function formatBits(mask: number): number {
   const data = (EC_LEVEL_M << 3) | mask
   let rem = data
@@ -333,14 +334,14 @@ function drawFormatInfo(modules: Grid, mask: number): void {
   for (let i = 8; i < 15; i++) modules[size - 15 + i]![8] = bit(i)
 }
 
-/** Zigue-zague de baixo-direita para cima, pulando a coluna 6 (timing vertical). */
+/** Zigzag from bottom-right to top, skipping column 6 (vertical timing). */
 function placeCodewords(modules: Grid, reserved: Grid, codewords: readonly number[]): void {
   const size = modules.length
   let bitIndex = 0
 
   const nextBit = (): boolean => {
     const i = bitIndex >>> 3
-    // Depois dos codewords vêm os "remainder bits", que são sempre 0.
+    // After the codewords come the "remainder bits", which are always 0.
     if (i >= codewords.length) return false
     const dark = ((codewords[i]! >>> (7 - (bitIndex & 7))) & 1) === 1
     bitIndex++
@@ -380,14 +381,14 @@ function applyMask(modules: Grid, reserved: Grid, mask: number): void {
   }
 }
 
-/** Pesos das quatro regras de penalidade: 3, 3, 40 e 10 (ISO/IEC 18004 §8.8.2). */
+/** The weights of the four penalty rules: 3, 3, 40, and 10 (ISO/IEC 18004 §8.8.2). */
 const [N1, N2, N3, N4] = [3, 3, 40, 10]
 
 export function penalty(modules: Grid): number {
   const size = modules.length
   let score = 0
 
-  // Regra 1: sequências de 5+ módulos da mesma cor, em linhas e colunas.
+  // Rule 1: runs of 5+ modules of the same color, in rows and columns.
   for (let i = 0; i < size; i++) {
     for (const line of [
       (j: number) => modules[i]![j]!,
@@ -404,7 +405,7 @@ export function penalty(modules: Grid): number {
     }
   }
 
-  // Regra 2: blocos 2×2 de cor uniforme.
+  // Rule 2: 2×2 blocks of uniform color.
   for (let r = 0; r < size - 1; r++) {
     for (let c = 0; c < size - 1; c++) {
       const v = modules[r]![c]!
@@ -412,7 +413,7 @@ export function penalty(modules: Grid): number {
     }
   }
 
-  // Regra 3: o padrão 1:1:3:1:1 seguido (ou precedido) de 4 módulos claros.
+  // Rule 3: the 1:1:3:1:1 pattern followed (or preceded) by 4 light modules.
   const A = [true, false, true, true, true, false, true, false, false, false, false]
   const B = [false, false, false, false, true, false, true, true, true, false, true]
   const matches = (get: (j: number) => boolean, at: number, pat: boolean[]): boolean => {
@@ -431,7 +432,7 @@ export function penalty(modules: Grid): number {
     }
   }
 
-  // Regra 4: desvio da proporção 50/50 entre claro e escuro.
+  // Rule 4: deviation from the 50/50 proportion between light and dark.
   let dark = 0
   for (const row of modules) for (const v of row) if (v) dark++
   const ratio = (dark * 100) / (size * size)
@@ -441,8 +442,8 @@ export function penalty(modules: Grid): number {
 }
 
 /**
- * A matriz de módulos final (`true` = escuro), já mascarada e com format/version info.
- * Exposta para que o teste possa decodificá-la de volta sem passar pelo PNG.
+ * The final module matrix (`true` = dark), already masked and with the format/version info.
+ * Exposed so the test can decode it back without going through the PNG.
  */
 export function qrMatrix(data: string): Grid {
   const version = chooseVersion(new TextEncoder().encode(data).length)
@@ -514,23 +515,24 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
 }
 
 /**
- * Stream zlib com blocos deflate *stored* (BTYPE=00): sem compressão, mas é
- * exatamente o que o formato permite — e nos livra de depender de zlib.
+ * A zlib stream with *stored* deflate blocks (BTYPE=00): no compression, but it is
+ * exactly what the format allows — and it saves us from depending on zlib.
  */
 /**
- * O IDAT de um PNG é um stream **zlib**, e `Bun.deflateSync` devolve deflate
- * **cru** — sem o header de 2 bytes e sem o Adler-32 no fim. Envelopar é o que
- * falta, e omitir isso gera um PNG que alguns leitores aceitam e outros recusam.
+ * A PNG's IDAT is a **zlib** stream, and `Bun.deflateSync` returns **raw** deflate
+ * — without the 2-byte header and without the trailing Adler-32. Wrapping it is
+ * what is missing, and omitting that produces a PNG that some readers accept and
+ * others refuse.
  *
- * (Usar o deflate do runtime cabe no domínio puro: é determinístico e não é I/O.
- * É a diferença entre um `encodedImage` de ~3 KB e um de 175 KB, que era o que
- * dava emitir blocos *stored*. A imagem de um QR é quase toda branco.)
+ * (Using the runtime's deflate fits in the pure domain: it is deterministic and it
+ * is not I/O. It is the difference between an `encodedImage` of ~3 KB and one of
+ * 175 KB, which is what emitting *stored* blocks meant. A QR image is almost all white.)
  */
 function zlibDeflate(raw: Uint8Array<ArrayBuffer>): Uint8Array {
   const deflated = Bun.deflateSync(raw)
 
   const out = new Uint8Array(2 + deflated.length + 4)
-  out[0] = 0x78 // CM = deflate, CINFO = janela de 32K
+  out[0] = 0x78 // CM = deflate, CINFO = 32K window
   out[1] = 0x01 // FLEVEL + FCHECK: (0x78<<8 | 0x01) % 31 === 0
   out.set(deflated, 2)
   out.set(be32(adler32(raw)), 2 + deflated.length)
@@ -538,13 +540,13 @@ function zlibDeflate(raw: Uint8Array<ArrayBuffer>): Uint8Array {
 }
 
 export interface QrPngOptions {
-  /** Pixels por módulo. */
+  /** Pixels per module. */
   scale?: number
-  /** Quiet zone em módulos — o padrão do QR é 4. */
+  /** Quiet zone in modules — the QR standard is 4. */
   quietZone?: number
 }
 
-/** O QR como PNG em base64, sem o prefixo `data:` — pronto para `encodedImage`. */
+/** The QR as a base64 PNG, without the `data:` prefix — ready for `encodedImage`. */
 export function qrPng(data: string, options: QrPngOptions = {}): string {
   const scale = options.scale ?? 6
   const quiet = options.quietZone ?? 4
@@ -553,7 +555,7 @@ export function qrPng(data: string, options: QrPngOptions = {}): string {
   const size = modules.length
   const side = (size + quiet * 2) * scale
 
-  // Grayscale 8 bits: cada scanline começa com o byte de filtro 0 (None).
+  // 8-bit grayscale: each scanline starts with the filter byte 0 (None).
   const raw = new Uint8Array(side * (side + 1))
   raw.fill(0xff)
   for (let y = 0; y < side; y++) {

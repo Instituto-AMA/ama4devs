@@ -1,12 +1,12 @@
 /**
- * O ledger. Append-only, com saldo corrente.
+ * The ledger. Append-only, with a running balance.
  *
- * INVARIANTE, verificado nos testes a cada cenário:
- *   accounts.balanceCents === SUM(financial_transactions.valueCents) por conta.
+ * INVARIANT, checked in the tests after every scenario:
+ *   accounts.balanceCents === SUM(financial_transactions.valueCents) per account.
  *
- * Por isso `postEntries` é o ÚNICO caminho para mexer em saldo — ele grava o
- * lançamento e atualiza o saldo materializado na mesma transação. Nunca faça
- * `UPDATE accounts SET balance_cents = …` em outro lugar.
+ * That is why `postEntries` is the ONLY path to touch a balance — it writes the
+ * entry and updates the materialized balance in the same transaction. Never run
+ * `UPDATE accounts SET balance_cents = …` anywhere else.
  */
 import { eq, sql } from 'drizzle-orm'
 import type { DB } from '../db/client.ts'
@@ -15,7 +15,7 @@ import type { Cents } from '../domain/money.ts'
 import type { Clock } from './clock.ts'
 import type { Rng } from './rng.ts'
 
-/** Tipos de lançamento do extrato do Asaas usados pelo motor. */
+/** The Asaas statement entry types the engine uses. */
 export type FinancialTransactionType =
   | 'PAYMENT_RECEIVED'
   | 'PAYMENT_FEE'
@@ -44,7 +44,7 @@ export type FinancialTransactionType =
 export interface LedgerEntry {
   accountId: string
   type: FinancialTransactionType
-  /** ASSINADO: crédito positivo, débito negativo. */
+  /** SIGNED: credit positive, debit negative. */
   valueCents: Cents
   description: string
   paymentId?: string
@@ -61,11 +61,11 @@ export interface LedgerDeps {
 }
 
 /**
- * Grava os lançamentos e atualiza o saldo. Chame DENTRO de uma transação.
+ * Writes the entries and updates the balance. Call it INSIDE a transaction.
  *
- * A ordem importa: o `balanceCents` de cada linha é o saldo DEPOIS dela, então
- * um recebimento gera PAYMENT_RECEIVED (+bruto) e depois PAYMENT_FEE (−taxa),
- * exatamente como o extrato do Asaas mostra.
+ * The order matters: the `balanceCents` of each row is the balance AFTER it, so a
+ * receipt generates PAYMENT_RECEIVED (+gross) and then PAYMENT_FEE (−fee), exactly
+ * as the Asaas statement shows.
  */
 export async function postEntries(
   tx: DB,
@@ -84,7 +84,7 @@ export async function postEntries(
       .where(eq(accounts.id, entry.accountId))
       .limit(1)
 
-    if (!account) throw new Error(`Ledger: conta inexistente ${entry.accountId}`)
+    if (!account) throw new Error(`Ledger: account ${entry.accountId} does not exist`)
 
     const balanceAfter = account.balanceCents + entry.valueCents
 

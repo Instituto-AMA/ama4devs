@@ -31,8 +31,8 @@ const PAYABLE = new Set(['PENDING', 'OVERDUE'])
 type Method = 'PIX' | 'BOLETO' | 'CREDIT_CARD'
 
 /**
- * What the payer may choose. UNDEFINED ("pergunte ao cliente") offers all three; a
- * boleto also offers Pix, as the Asaas bank slip carries a Pix QR code.
+ * What the payer may choose. UNDEFINED ("ask the customer") offers all three; a
+ * bank slip also offers Pix, as the Asaas bank slip carries a Pix QR code.
  */
 export function methodsFor(billingType: string): Method[] {
   if (billingType === 'UNDEFINED') return ['PIX', 'BOLETO', 'CREDIT_CARD']
@@ -214,7 +214,7 @@ export function invoiceRoutes(ctx: AppContext) {
             creditCard: body.card ?? {},
             remoteIp: '127.0.0.1',
           })) as Record<string, any>
-          // An installment plan paid by card is "parcelado no cartão": the card takes every
+          // An installment plan paid by card is settled "on the card": the card takes every
           // pending installment at once, each confirmed now and credited in its month.
           for (const sibling of await pendingSiblings(p)) {
             await payExistingWithCard(ctx, auth, sibling.id, {

@@ -1,21 +1,22 @@
 /**
- * A pegadinha nº 1 do projeto — e a razão de ele existir.
+ * Trap nº 1 of the project — and the reason it exists.
  *
- * O sandbox do Asaas não entrega webhook em `localhost`. Este servidor entrega.
- * Só que ele roda DENTRO de um container: ali, `localhost` é o próprio container,
- * e um POST para `http://localhost:3000/webhook` bateria no nada — ou, pior, no
- * próprio simulador.
+ * The Asaas sandbox does not deliver webhooks to `localhost`. This server
+ * does. But it runs INSIDE a container: there, `localhost` is the container
+ * itself, and a POST to `http://localhost:3000/webhook` hits nothing — or,
+ * worse, the simulator itself.
  *
- * O dev configura o webhook com a URL que ele enxerga da máquina dele
- * (`http://localhost:3000/webhook`); nós reescrevemos o HOST para
- * `host.docker.internal` (WEBHOOK_LOCALHOST_REWRITE) na hora de entregar. Porta,
- * path, query e fragmento são preservados — só o host muda.
+ * The developer configures the webhook with the URL they see from their own
+ * machine (`http://localhost:3000/webhook`); we rewrite the HOST to
+ * `host.docker.internal` (WEBHOOK_LOCALHOST_REWRITE) at delivery time. Port,
+ * path, query and fragment are preserved — only the host changes.
  *
- * Fora do Docker, `WEBHOOK_LOCALHOST_REWRITE` fica vazio e nada é reescrito: é
- * o caso dos testes, onde o sink de verdade escuta em localhost.
+ * Outside Docker, `WEBHOOK_LOCALHOST_REWRITE` is empty and nothing is
+ * rewritten: that is the case of the tests, where the real sink listens on
+ * localhost.
  */
 
-/** Os nomes que, dentro de um container, apontam para o container. */
+/** The names that, inside a container, point at the container. */
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1', '0.0.0.0'])
 
 export type Logger = (
@@ -24,20 +25,21 @@ export type Logger = (
   data?: unknown,
 ) => void
 
-/** Loga a PRIMEIRA reescrita e só ela: o resto viraria ruído a cada entrega. */
+/** Logs the FIRST rewrite and only that one: the rest would be noise on every delivery. */
 let announced = false
 
-/** Só para os testes — o estado de "já avisei" é global de processo. */
+/** Only for the tests — the "already warned" state is global to the process. */
 export function resetRewriteNotice(): void {
   announced = false
 }
 
 /**
- * Reescreve o host de uma URL de loopback para `target`.
+ * Rewrites the host of a loopback URL to `target`.
  *
- * `target === undefined` → não reescreve (não estamos em Docker).
- * URL inválida → devolve a string original; quem falha é o `fetch`, com o erro
- * real registrado na entrega. Não é aqui que se descobre que a URL é inválida.
+ * `target === undefined` → no rewrite (we are not in Docker).
+ * Invalid URL → returns the original string; what fails is the `fetch`, with
+ * the real error recorded on the delivery. This is not where you find out that
+ * the URL is invalid.
  */
 export function rewriteForContainer(
   url: string,
@@ -55,7 +57,7 @@ export function rewriteForContainer(
 
   if (!LOOPBACK.has(parsed.hostname) && !LOOPBACK.has(parsed.host)) return url
 
-  const original = parsed.host // host = hostname + porta, e a porta a gente mantém
+  const original = parsed.host // host = hostname + port, and the port is kept
   parsed.hostname = target
   const rewritten = parsed.toString()
 
@@ -63,9 +65,9 @@ export function rewriteForContainer(
     announced = true
     log?.(
       'info',
-      `Webhook apontado para ${original}: reescrevendo o host para "${target}". ` +
-        `Dentro do container, "localhost" é o próprio container — sem isto o ` +
-        `webhook nunca chegaria na sua máquina. (WEBHOOK_LOCALHOST_REWRITE)`,
+      `Webhook points at ${original}: rewriting the host to "${target}". ` +
+        `Inside the container, "localhost" is the container itself — without this the ` +
+        `webhook would never reach your machine. (WEBHOOK_LOCALHOST_REWRITE)`,
       { from: url, to: rewritten },
     )
   }

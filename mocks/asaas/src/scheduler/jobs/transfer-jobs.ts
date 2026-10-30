@@ -1,18 +1,19 @@
 /**
- * A liquidação das transferências externas. (Track D)
+ * The settlement of external transfers. (Track D)
  *
- * O ciclo real: PENDING → BANK_PROCESSING → DONE. Uma transferência não some da
- * conta e reaparece no destino no mesmo instante — ela fica "no banco", e é
- * justamente esse intervalo que o dev precisa conseguir atravessar sem esperar.
+ * The real cycle: PENDING → BANK_PROCESSING → DONE. A transfer does not vanish
+ * from the account and reappear in the destination at the same instant — it
+ * stays "at the bank", and it is exactly that interval that the developer needs
+ * to be able to cross without waiting.
  *
- *   PIX → DONE no mesmo dia (a rede é 24×7).
- *   TED → DONE no PRÓXIMO DIA ÚTIL. Uma TED pedida na sexta cai na segunda.
+ *   PIX → DONE on the same day (the network is 24×7).
+ *   TED → DONE on the NEXT BUSINESS DAY. A TED asked for on Friday lands on Monday.
  *
- * A transferência INTERNA nunca passa por aqui: já nasce DONE, porque o dinheiro
- * não sai da plataforma.
+ * An INTERNAL transfer never goes through here: it is born DONE, because the
+ * money does not leave the platform.
  *
- * Toda mutação é COMPARE-AND-SWAP (`WHERE id = ? AND status = <esperado>`): dois
- * ticks no mesmo dia simulado alteram zero linhas na segunda vez.
+ * Every mutation is COMPARE-AND-SWAP (`WHERE id = ? AND status = <expected>`): two
+ * ticks on the same simulated day change zero rows the second time.
  */
 import { and, eq, isNull, lte, ne, or } from 'drizzle-orm'
 import type { DB } from '../../db/client.ts'
@@ -37,8 +38,9 @@ export const transferSettlement: Job = {
       const db = tx as unknown as DB
 
       // ── 1. PENDING → BANK_PROCESSING ────────────────────────────────
-      // Só as que já podem sair: uma transferência agendada para daqui a três
-      // dias continua PENDING (e o saldo já foi debitado na criação).
+      // Only the ones that can already go out: a transfer scheduled for three
+      // days from now stays PENDING (and the balance was already debited at
+      // creation).
       const pending = await db
         .select()
         .from(transfers)
@@ -83,7 +85,7 @@ export const transferSettlement: Job = {
         )
       }
 
-      // ── 2. BANK_PROCESSING → DONE (ou FAILED) ───────────────────────
+      // ── 2. BANK_PROCESSING → DONE (or FAILED) ───────────────────────
       const processing = await db
         .select()
         .from(transfers)
@@ -113,9 +115,9 @@ export const transferSettlement: Job = {
         if (!updated.length) continue
         const after = updated[0] as TransferRow
 
-        // A falha DEVOLVE o dinheiro — valor e taxa. Lançamento novo
-        // (TRANSFER_REVERSAL), nunca a remoção do débito original: o ledger é
-        // append-only e o extrato tem que contar o que aconteceu de verdade.
+        // The failure GIVES THE MONEY BACK — value and fee. A new entry
+        // (TRANSFER_REVERSAL), never the removal of the original debit: the ledger
+        // is append-only and the statement has to count what really happened.
         if (failed) {
           await reverse(ctx, db, after, 'Estorno de transferência não realizada')
           report.ledgerEntries += 1

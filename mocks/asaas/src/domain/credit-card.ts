@@ -1,45 +1,46 @@
 /**
- * Cartão de crédito: bandeira, validação e os cartões de teste. PURO.
+ * Credit card: brand, validation and the test cards. PURE.
  *
- * Não toca banco, relógio nem HTTP — recebe o número (e o `now`) e devolve DADOS.
+ * It touches no database, no clock and no HTTP — it receives the number (and the
+ * `now`) and returns DATA.
  *
- * O que este arquivo garante, e que é a razão de ele existir:
+ * What this file guarantees, and the reason it exists:
  *
- *   1. O PAN COMPLETO NUNCA SAI DAQUI. `inspectCard` devolve `last4`, bandeira e
- *      o desfecho simulado — nunca o número. Quem chama não tem como persistir o
- *      PAN por descuido, porque nunca o recebe de volta.
+ *   1. The FULL PAN NEVER LEAVES HERE. `inspectCard` returns `last4`, the brand and
+ *      the simulated outcome — never the number. The caller has no way to persist
+ *      the PAN by accident, because it never gets it back.
  *
- *   2. Os cartões de teste e as mensagens de erro são DADOS, não `if`s espalhados
- *      pelo handler. O painel serve a MESMA tabela que o motor consulta — não há
- *      como a tela documentar um cartão que o servidor não honra.
+ *   2. The test cards and the error messages are DATA, not `if`s scattered through
+ *      the handler. The panel serves the SAME table the engine consults — there is
+ *      no way for the screen to document a card the server does not honour.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * TUDO ABAIXO FOI CAPTURADO DO SANDBOX REAL (tools/probe-cards.ts), não deduzido.
- * A captura derrubou quatro coisas que este arquivo afirmava:
+ * EVERYTHING BELOW WAS CAPTURED FROM THE REAL SANDBOX (tools/probe-cards.ts), not
+ * deduced. The capture knocked down four things this file used to claim:
  *
- *   • A recusa NÃO é `invalid_creditCard`. É **`invalid_action`**, com outra
- *     frase. Um cliente que ramifica por `code` se comportava diferente contra o
- *     mock e contra o Asaas — que é exatamente o bug que este projeto existe para
- *     não ter.
+ *   • The refusal is NOT `invalid_creditCard`. It is **`invalid_action`**, with a
+ *     different sentence. A client that branches on `code` behaved differently
+ *     against the mock and against Asaas — which is exactly the bug this project
+ *     exists to prevent.
  *
- *   • O Asaas NÃO valida Luhn. `4111111111111112` (dígito verificador errado)
- *     é APROVADO lá. Nós recusávamos: um cartão que funcionava em produção
- *     quebrava no teste local. Luhn continua exportado — serve para o painel
- *     sugerir números plausíveis — mas NÃO recusa mais nada.
+ *   • Asaas does NOT validate Luhn. `4111111111111112` (wrong check digit) is
+ *     APPROVED there. We used to refuse it: a card that worked in production broke
+ *     in the local test. Luhn is still exported — it serves for the panel to
+ *     suggest plausible numbers — but it no longer refuses anything.
  *
- *   • O CVV de 1 dígito é ACEITO. Só o vazio é recusado.
+ *   • A 1-digit CVV is ACCEPTED. Only an empty one is refused.
  *
- *   • Cartão expirado é RECUSADO — e nós nem olhávamos a data.
+ *   • An expired card is REFUSED — and we did not even look at the date.
  *
- * Se você mudar qualquer mensagem daqui, rode `bun tools/probe-cards.ts` contra o
- * sandbox e prove que o Asaas mudou primeiro.
+ * If you change any message here, run `bun tools/probe-cards.ts` against the
+ * sandbox and prove that Asaas changed first.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 /**
- * O enum `CreditCardBrand` da spec, na íntegra — a resposta é validada contra
- * ele. `BRAND_RULES` só sabe detectar um subconjunto; o resto existe para quem
- * quiser estender a tabela sem mexer no tipo.
+ * The spec's `CreditCardBrand` enum, in full — the response is validated against
+ * it. `BRAND_RULES` only knows how to detect a subset; the rest exists for whoever
+ * wants to extend the table without touching the type.
  */
 export type CardBrand =
   | 'VISA'
@@ -57,15 +58,15 @@ export type CardBrand =
   | 'UNKNOWN'
 
 /**
- * O desfecho simulado de um cartão.
+ * The simulated outcome of a card.
  *
- * `APPROVE` e `DECLINE` são desfechos de AUTORIZAÇÃO: o cartão é válido, entra no
- * cofre, vira token — e só na hora de cobrar é que a "adquirente" responde. Os
- * demais são de VALIDAÇÃO: o Asaas recusa a requisição na porta, e nenhum token
- * nasce.
+ * `APPROVE` and `DECLINE` are AUTHORIZATION outcomes: the card is valid, enters the
+ * vault, becomes a token — and only at charging time does the "acquirer" answer. The
+ * others are VALIDATION ones: Asaas refuses the request at the door, and no token
+ * is ever born.
  *
- * A distinção não é acadêmica: um cartão `DECLINE` tokenizado continua recusando
- * quando cobrado pelo token, e é assim que o Asaas se comporta.
+ * The distinction is not academic: a tokenized `DECLINE` card keeps declining when
+ * charged by the token, and that is how Asaas behaves.
  */
 export type SimulatedOutcome =
   | 'APPROVE'
@@ -77,13 +78,13 @@ export type SimulatedOutcome =
   | 'MISSING_CVV'
   | 'MISSING_HOLDER'
 
-/** Os desfechos que sobrevivem à validação e viram token. */
+/** The outcomes that survive the validation and become a token. */
 export type AuthorizationOutcome = Extract<
   SimulatedOutcome,
   'APPROVE' | 'DECLINE' | 'DECLINE_ON_CHARGE'
 >
 
-/** Erro de domínio. Puro — a borda traduz para o formato de erro do Asaas. */
+/** Domain error. Pure — the edge translates it into the Asaas error format. */
 export class CreditCardError extends Error {
   constructor(
     readonly code: string,
@@ -95,9 +96,9 @@ export class CreditCardError extends Error {
 }
 
 /**
- * As mensagens do Asaas, LETRA A LETRA. Inclusive o "invalido" sem acento em
- * INVALID_MONTH — o typo é deles, e reproduzi-lo é o ponto: um cliente que
- * compara a string encontra a mesma string aqui e lá.
+ * Asaas's messages, WORD BY WORD. Including the "invalido" without an accent in
+ * INVALID_MONTH — the typo is theirs, and reproducing it is the point: a client
+ * that compares the string finds the same string here and there.
  */
 export const CARD_ERRORS: Readonly<
   Record<Exclude<SimulatedOutcome, 'APPROVE'>, { code: string; description: string }>
@@ -107,8 +108,8 @@ export const CARD_ERRORS: Readonly<
     description:
       'Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente.',
   },
-  // MESMO erro do DECLINE — o que muda é QUANDO ele acontece, não o que o cliente
-  // recebe. Ver o comentário de DECLINE_ON_CHARGE em TEST_CARDS.
+  // The SAME error as DECLINE — what changes is WHEN it happens, not what the client
+  // receives. See the DECLINE_ON_CHARGE comment in TEST_CARDS.
   DECLINE_ON_CHARGE: {
     code: 'invalid_action',
     description:
@@ -142,35 +143,35 @@ const errorFor = (outcome: Exclude<SimulatedOutcome, 'APPROVE'>) => {
   return new CreditCardError(e.code, e.description)
 }
 
-/** Uma linha da tabela de cartões de teste. É o que o painel exibe. */
+/** A row of the test card table. It is what the panel displays. */
 export interface TestCard {
   number: string
   outcome: SimulatedOutcome
-  /** O que este cartão faz, em português, para a tela. */
+  /** What this card does, in Portuguese, for the screen. */
   label: string
   /**
-   * `true` quando o SANDBOX REAL do Asaas faz a mesma coisa com este número.
+   * `true` when the REAL Asaas sandbox does the same thing with this number.
    *
-   * `false` é uma extensão nossa: no Asaas de verdade o número seria APROVADO.
-   * A distinção precisa aparecer no painel, senão alguém escreve um teste contra
-   * um comportamento que só existe aqui e descobre em produção.
+   * `false` is our own extension: in the real Asaas the number would be APPROVED.
+   * The distinction has to show up in the panel, otherwise someone writes a test
+   * against a behaviour that only exists here and finds out in production.
    */
   real: boolean
 }
 
 /**
- * A tabela. É DADO, e é injetável.
+ * The table. It is DATA, and it is injectable.
  *
- * Os quatro primeiros foram verificados contra o sandbox. Os três seguintes são
- * SIMULAÇÃO: números da indústria (os "canônicos" que todo dev reconhece) que no
- * Asaas real aprovariam — aqui forçam um erro, para que dê para exercitar o
- * tratamento de erro trocando um número em vez de forjar um payload.
+ * The first four were verified against the sandbox. The next three are
+ * SIMULATION: industry numbers (the "canonical" ones every developer recognizes)
+ * that would approve in the real Asaas — here they force an error, so the error
+ * handling can be exercised by swapping a number instead of forging a payload.
  *
- * Por que só estes três, e não um cartão por erro? Porque `MISSING_CVV` e
- * `MISSING_HOLDER` são propriedades de OUTROS campos. Um número que devolvesse
- * "Informe o nome do portador" quando o nome FOI informado seria uma mensagem
- * mentirosa. Esses erros se disparam quebrando o campo — que é como o Asaas os
- * produz. `TRIGGERS` abaixo diz como.
+ * Why only these three, and not one card per error? Because `MISSING_CVV` and
+ * `MISSING_HOLDER` are properties of OTHER fields. A number that returned "Informe
+ * o nome do portador" when the name WAS given would be a lying message. Those
+ * errors fire by breaking the field — which is how Asaas produces them. `TRIGGERS`
+ * below says how.
  */
 export type TestCardTable = readonly TestCard[]
 
@@ -185,18 +186,18 @@ export const TEST_CARDS: TestCardTable = [
   { number: '4000000000000101', outcome: 'INVALID_NUMBER', label: 'Número inválido', real: false },
 
   /**
-   * O cartão que TOKENIZA e só recusa DEPOIS — o único aqui que existe para tapar
-   * um buraco do sandbox, e não para reproduzi-lo.
+   * The card that TOKENIZES and only refuses LATER — the only one here that
+   * exists to plug a hole in the sandbox, not to reproduce it.
    *
-   * No Asaas real a tokenização AUTORIZA: um cartão que recusa nunca vira token.
-   * Consequência: lá, um cartão salvo SEMPRE aprova, e não há como testar o
-   * cenário que de fato quebra uma feature de "cartão memorizado" — o cartão do
-   * cliente, salvo meses atrás, falhando na renovação. É um cenário real (limite
-   * estourado, cartão cancelado) que o sandbox não sabe produzir.
+   * In the real Asaas the tokenization AUTHORIZES: a card that declines never
+   * becomes a token. Consequence: there, a saved card ALWAYS approves, and there
+   * is no way to test the scenario that actually breaks a "saved card" feature —
+   * the customer's card, saved months ago, failing on renewal. It is a real
+   * scenario (limit exceeded, card cancelled) that the sandbox cannot produce.
    *
-   * Este número produz. O erro entregue é o REAL (`invalid_action`, mesma frase):
-   * o que é nosso é o gatilho, não o payload — então o cliente aprende a tratar
-   * exatamente o que a produção vai mandar.
+   * This number produces it. The error delivered is the REAL one (`invalid_action`,
+   * same sentence): what is ours is the trigger, not the payload — so the client
+   * learns to handle exactly what production will send.
    */
   {
     number: '4000000000000341',
@@ -207,9 +208,9 @@ export const TEST_CARDS: TestCardTable = [
 ]
 
 /**
- * Os erros que NÃO se disparam por número, e o campo que os produz. O painel
- * mostra isto ao lado da tabela: sem ele, três dos seis erros do Asaas ficariam
- * sem forma de exercitar.
+ * The errors that do NOT fire from a number, and the field that produces them. The
+ * panel shows this next to the table: without it, three of the six Asaas errors
+ * would have no way to be exercised.
  */
 export const TRIGGERS: ReadonlyArray<{
   outcome: Exclude<SimulatedOutcome, 'APPROVE' | 'DECLINE'>
@@ -224,8 +225,8 @@ export const TRIGGERS: ReadonlyArray<{
 ]
 
 /**
- * Prefixos por bandeira. O match é por PREFIXO MAIS LONGO — `6011` (Discover)
- * ganha de `6` (Elo).
+ * Prefixes per brand. The match is by LONGEST PREFIX — `6011` (Discover) wins
+ * over `6` (Elo).
  */
 export interface BrandRule {
   brand: CardBrand
@@ -242,16 +243,17 @@ export const BRAND_RULES: readonly BrandRule[] = [
   { brand: 'MASTERCARD', prefixes: ['5', '2'] },
 ]
 
-/** Tira espaços e hifens. `4444 4444 4444 4444` → `4444444444444444`. */
+/** Strips spaces and dashes. `4444 4444 4444 4444` → `4444444444444444`. */
 export function normalizeCardNumber(raw: string): string {
   return String(raw ?? '').replace(/[\s.-]/g, '')
 }
 
 /**
- * O algoritmo de Luhn (mod 10).
+ * The Luhn algorithm (mod 10).
  *
- * ATENÇÃO: **o Asaas não usa isto para recusar** — foi capturado. Continua aqui
- * porque é útil para gerar números plausíveis, não para julgar os que chegam.
+ * WARNING: **Asaas does not use this to refuse** — it was captured. It stays here
+ * because it is useful to generate plausible numbers, not to judge the ones that
+ * arrive.
  */
 export function luhn(number: string): boolean {
   if (!/^\d+$/.test(number)) return false
@@ -272,7 +274,7 @@ export function luhn(number: string): boolean {
   return sum % 10 === 0
 }
 
-/** A bandeira, pelo prefixo. `UNKNOWN` quando nenhuma faixa bate. */
+/** The brand, by prefix. `UNKNOWN` when no range matches. */
 export function detectBrand(number: string, rules: readonly BrandRule[] = BRAND_RULES): CardBrand {
   const n = normalizeCardNumber(number)
 
@@ -289,8 +291,8 @@ export function detectBrand(number: string, rules: readonly BrandRule[] = BRAND_
 }
 
 /**
- * O desfecho simulado. `null` quando o número não está na tabela — e aí o cartão
- * segue o caminho normal: qualquer número bem-formado APROVA, como no Asaas.
+ * The simulated outcome. `null` when the number is not in the table — and then the
+ * card follows the normal path: any well-formed number APPROVES, as in Asaas.
  */
 export function outcomeFor(
   number: string,
@@ -300,7 +302,7 @@ export function outcomeFor(
   return table.find((c) => c.number === n)?.outcome ?? null
 }
 
-/** Os dados crus do cartão, como chegam no body. */
+/** The raw card data, as it arrives in the body. */
 export interface CardInput {
   number: string
   holderName?: string
@@ -309,18 +311,18 @@ export interface CardInput {
   ccv?: string
 }
 
-/** O cartão, sem o PAN. É EXATAMENTE isto que pode ser persistido ou serializado. */
+/** The card, without the PAN. This is EXACTLY what may be persisted or serialized. */
 export interface CardInfo {
   last4: string
   brand: CardBrand
-  /** Só APPROVE ou DECLINE chegam aqui: o resto já virou exceção. */
+  /** Only APPROVE or DECLINE get here: the rest already became an exception. */
   outcome: AuthorizationOutcome
 }
 
 /**
- * `true` se o cartão já venceu. O mês de vencimento é INCLUSIVO — um cartão
- * 05/2026 vale até 31/05/2026. É a convenção da indústria, e errá-la recusaria
- * cartões bons no último mês de vida deles.
+ * `true` if the card has already expired. The expiry month is INCLUSIVE — a card
+ * 05/2026 is good until 31/05/2026. It is the industry convention, and getting it
+ * wrong would refuse good cards in the last month of their life.
  */
 export function isExpired(month: number, year: number, now: Date): boolean {
   const nowYear = now.getFullYear()
@@ -329,15 +331,16 @@ export function isExpired(month: number, year: number, now: Date): boolean {
 }
 
 /**
- * Valida o cartão e devolve o que dá para guardar. Lança `CreditCardError`.
+ * Validates the card and returns what can be stored. Throws `CreditCardError`.
  *
- * A tabela de teste é consultada ANTES da validação: um cartão de teste é válido
- * por decreto (`4444444444444444` nem passa no Luhn, e o Asaas o aprova), e um
- * cartão de simulação precisa poder forçar o seu erro mesmo estando bem-formado.
+ * The test table is consulted BEFORE the validation: a test card is valid by
+ * decree (`4444444444444444` does not even pass Luhn, and Asaas approves it), and a
+ * simulation card must be able to force its own error even while being
+ * well-formed.
  *
- * `now` entra porque "expirado" é a única regra aqui que depende do tempo — e o
- * relógio virtual precisa alcançá-la, senão avançar 5 anos não expiraria cartão
- * nenhum.
+ * `now` is there because "expired" is the only rule here that depends on time —
+ * and the virtual clock has to reach it, otherwise advancing 5 years would not
+ * expire a single card.
  */
 export function inspectCard(
   card: CardInput,
@@ -348,9 +351,9 @@ export function inspectCard(
   const number = normalizeCardNumber(card.number)
   const simulated = outcomeFor(number, table)
 
-  // Um cartão de simulação dispara o SEU erro e ignora o resto — é o que ele é.
-  // Os desfechos de AUTORIZAÇÃO não caem aqui: eles não recusam a requisição, eles
-  // sobrevivem e decidem na hora de cobrar.
+  // A simulation card fires ITS error and ignores the rest — that is what it is.
+  // The AUTHORIZATION outcomes do not land here: they do not refuse the request,
+  // they survive and decide at charging time.
   if (
     simulated !== null &&
     simulated !== 'APPROVE' &&
@@ -360,7 +363,7 @@ export function inspectCard(
     throw errorFor(simulated)
   }
 
-  // Luhn NÃO entra aqui. Ver o cabeçalho: o Asaas aceita dígito verificador errado.
+  // Luhn does NOT go here. See the header: Asaas accepts a wrong check digit.
   if (simulated === null && !/^\d{13,19}$/.test(number)) {
     throw errorFor('INVALID_NUMBER')
   }
@@ -383,8 +386,8 @@ export function inspectCard(
     }
   }
 
-  // Só o CVV VAZIO é recusado. Um dígito passa — foi capturado, por mais estranho
-  // que pareça.
+  // Only an EMPTY CVV is refused. A single digit passes — it was captured, however
+  // strange it may look.
   if (card.ccv !== undefined && String(card.ccv).trim() === '') {
     throw errorFor('MISSING_CVV')
   }
@@ -467,13 +470,13 @@ export function generateCardNumber(brand: string, digits: (n: number) => string)
   return body + luhnCheckDigit(body)
 }
 
-/** Este desfecho recusa quando a cobrança é feita? (os dois DECLINE recusam) */
+/** Does this outcome refuse when the charge is made? (both DECLINE ones refuse) */
 export const declinesOnCharge = (o: AuthorizationOutcome): boolean => o !== 'APPROVE'
 
 /**
- * Este desfecho recusa já na TOKENIZAÇÃO?
+ * Does this outcome refuse already at the TOKENIZATION?
  *
- * É a única diferença entre `DECLINE` (o do Asaas real: nunca vira token) e
- * `DECLINE_ON_CHARGE` (o nosso: vira token e recusa depois).
+ * It is the only difference between `DECLINE` (the real Asaas one: never becomes a
+ * token) and `DECLINE_ON_CHARGE` (ours: becomes a token and refuses later).
  */
 export const declinesOnTokenize = (o: AuthorizationOutcome): boolean => o === 'DECLINE'

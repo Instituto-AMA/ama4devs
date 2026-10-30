@@ -1,13 +1,14 @@
 /**
- * A lógica da tabela — buscar e ordenar. PURA, e separada do componente de propósito:
- * é a única parte que pode estar errada de um jeito silencioso, e a única que dá para
- * testar sem um browser.
+ * The logic of the table — searching and sorting. PURE, and separated from the
+ * component on purpose: it is the only part that can be wrong in a silent way,
+ * and the only one that can be tested without a browser.
  *
- * O bug que esta separação existe para impedir: ordenar "Valor" comparando a STRING
- * "R$ 1.000,00", onde R$ 90,00 vem depois de R$ 1.000,00 porque "9" > "1". Não parece
- * um bug — parece que "a tabela está meio bagunçada", e ninguém abre um chamado para
- * isso. Por isso a coluna declara `value(row)` (o dado cru) separado de `render(row)`
- * (como ele aparece): quem ordena olha o número.
+ * The bug this separation exists to prevent: sorting "Value" by comparing the
+ * STRING "R$ 1.000,00", where R$ 90,00 comes after R$ 1.000,00 because "9" >
+ * "1". It does not look like a bug — it looks like "the table is a bit messy",
+ * and nobody opens a ticket for that. That is why the column declares
+ * `value(row)` (the raw data) apart from `render(row)` (how it shows up):
+ * whoever sorts looks at the number.
  */
 export interface SortSpec {
   key: string
@@ -24,9 +25,9 @@ export interface Sortable<T> {
 const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' })
 
 /**
- * Nulo vai para o FIM em qualquer direção. Uma coluna "Pago em" com metade das linhas
- * vazias não deve empurrar os traços para o topo quando você ordena por ela — o que
- * você quer ver é o que TEM data.
+ * Null goes to the END in any direction. A "Paid at" column with half of the
+ * rows empty must not push the dashes to the top when you sort by it — what
+ * you want to see is what HAS a date.
  */
 export function compareValues(a: Value, b: Value): number {
   const an = a === null || a === undefined || a === ''
@@ -39,7 +40,7 @@ export function compareValues(a: Value, b: Value): number {
   return collator.compare(String(a), String(b))
 }
 
-/** Busca em TUDO que a linha mostra — não só no "nome". */
+/** Search in EVERYTHING the row shows — not only in the "name". */
 export function filterRows<T>(rows: T[], columns: Sortable<T>[], query: string): T[] {
   const q = query.trim().toLowerCase()
   if (!q) return rows
@@ -55,14 +56,14 @@ export function sortRows<T>(rows: T[], columns: Sortable<T>[], sort: SortSpec | 
   const col = columns.find((c) => c.key === sort.key)
   if (!col?.value) return rows
 
-  // Cópia: `Array.sort` muta no lugar, e mutar o array do pai faz o Preact perder a
-  // referência — a lista pisca a cada render.
+  // A copy: `Array.sort` mutates in place, and mutating the array of the parent
+  // makes Preact lose the reference — the list blinks on every render.
   const out = [...rows]
   out.sort((a, b) => compareValues(col.value!(a), col.value!(b)))
   return sort.dir === 'desc' ? out.reverse() : out
 }
 
-/** asc → desc → sem ordenação (a do servidor). O terceiro clique tem que ter saída. */
+/** asc → desc → no sorting (the server's one). The third click has to have an exit. */
 export function nextSort(cur: SortSpec | null, key: string): SortSpec | null {
   if (cur?.key !== key) return { key, dir: 'asc' }
   if (cur.dir === 'asc') return { key, dir: 'desc' }

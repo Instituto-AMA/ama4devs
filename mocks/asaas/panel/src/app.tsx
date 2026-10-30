@@ -1,13 +1,14 @@
 /**
- * O shell. Sidebar + topbar + a página, e — o mais importante — as duas faixas de
- * aviso que aparecem em QUALQUER tela.
+ * The shell. Sidebar + topbar + the page, and — the most important part — the
+ * two warning banners that appear on ANY screen.
  *
- * Elas estão aqui, e não dentro das telas do Simulador, porque os dois bugs que mais
- * custaram tempo neste projeto eram invisíveis exatamente por isso: o relógio ficou
- * 105 dias no futuro e toda cobrança nova nascia OVERDUE; a fila de webhooks travou
- * atrás de uma entrega envenenada e o pedido do usuário ficou eternamente pendente.
- * Em nenhum dos dois casos o sintoma parecia ter a ver com a causa — e nada na tela
- * ligava uma coisa à outra.
+ * They are here, and not inside the Simulator screens, because the two bugs
+ * that cost the most time in this project were invisible exactly for that
+ * reason: the clock stayed 105 days in the future and every new charge was
+ * born OVERDUE; the webhook queue froze behind a poisoned delivery and the
+ * user's order stayed pending forever. In neither case did the symptom look
+ * like it had anything to do with the cause — and nothing on the screen linked
+ * one thing to the other.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin } from './api.ts'
@@ -31,7 +32,7 @@ import { TestCards } from './pages/sim/TestCards.tsx'
 import { useStore, type Store } from './store.ts'
 import './app.css'
 
-/** O que toda página recebe. `navigate` porque um card leva à lista que ele resume. */
+/** What every page receives. `navigate` because a card leads to the list it summarizes. */
 export interface PageProps {
   store: Store
   navigate: (page: string) => void
@@ -55,10 +56,10 @@ const TITLES: Record<string, string> = {
 const ALIASES: Record<string, string> = { webhooks: 'integrations/webhooks' }
 
 /**
- * A página fica no hash. Trinta linhas a menos que um router, e resolve o que
- * importa: recarregar não te joga de volta na home, o botão de voltar do browser
- * funciona, e você consegue mandar `#webhooks` para alguém que está com a fila
- * travada em vez de descrever onde clicar.
+ * The page lives in the hash. Thirty lines less than a router, and it settles
+ * what matters: reloading does not throw you back to the home, the browser back
+ * button works, and you can send `#webhooks` to someone whose queue is stuck
+ * instead of describing where to click.
  */
 function useHashPage(fallback: string) {
   const read = () => {
@@ -85,9 +86,10 @@ export function App() {
 
   const drift = store.clock?.driftDays ?? 0
 
-  // Só as filas DESTA conta. A tarja fala do que você está olhando: avisar que a fila
-  // de outra produtora travou, enquanto você depura a sua, é ruído que ensina a ignorar
-  // o aviso — e o dia em que ele for sobre você, ele já não é lido.
+  // Only the queues of THIS account. The banner speaks about what you are
+  // looking at: warning that the queue of another merchant froze while you are
+  // debugging yours is noise that teaches you to ignore the warning — and the
+  // day it is about you, it is not read anymore.
   const blocked = store.queues.filter((q) => q.blocked && q.accountId === store.selected?.id)
 
   const resetClock = async () => {
@@ -156,8 +158,8 @@ export function App() {
 
           {store.error && <Banner tone="danger">{store.error}</Banner>}
 
-          {/* O relógio é GLOBAL ao container: um `+32` clicado aqui move o tempo
-              para a aplicação que integra do outro lado também. */}
+          {/* The clock is GLOBAL to the container: a `+32` clicked here moves the
+              time for the application integrating on the other side too. */}
           {drift > 0 && (
             <Banner
               icon={I.CLOCK}
@@ -235,7 +237,7 @@ function Page({ page, ...p }: PageProps & { page: string }) {
     case 'sim-clock':
       return <Clock {...p} />
     case 'sim-cards':
-      return <TestCards /> // a tabela vem do domínio, não da conta selecionada
+      return <TestCards /> // the table comes from the domain, not from the selected account
     default:
       return null
   }

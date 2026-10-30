@@ -1,20 +1,22 @@
 /**
- * Antecipação de recebíveis. (Track D)
+ * Anticipation of receivables. (Track D)
  *
- * O que acontece de verdade quando você antecipa:
+ * What really happens when you anticipate:
  *
- *   HOJE            RECEIVABLE_ANTICIPATION_GROSS_CREDIT  +líquido da cobrança
- *                   RECEIVABLE_ANTICIPATION_FEE           −taxa da antecipação
- *   D+32 (liquida)  PAYMENT_RECEIVED                      +bruto
- *                   PAYMENT_FEE                           −taxa da cobrança
- *                   RECEIVABLE_ANTICIPATION_DEBIT         −líquido (já foi pago)
+ *   TODAY            RECEIVABLE_ANTICIPATION_GROSS_CREDIT  +net of the charge
+ *                    RECEIVABLE_ANTICIPATION_FEE           −anticipation fee
+ *   D+32 (settled)   PAYMENT_RECEIVED                      +gross
+ *                    PAYMENT_FEE                           −charge fee
+ *                    RECEIVABLE_ANTICIPATION_DEBIT         −net (already paid out)
  *
- * Some tudo: o lojista fica com o líquido da cobrança MENOS a taxa de
- * antecipação — e o dinheiro entrou hoje, não em D+32. Os quatro lançamentos do
- * futuro se cancelam, e é por isso que o extrato continua fechando com o saldo.
+ * Sum them all: the merchant keeps the net of the charge MINUS the anticipation
+ * fee — and the money came in today, not at D+32. The four entries of the
+ * future cancel each other out, and that is why the statement keeps matching
+ * the balance.
  *
- * Errar isso é fácil e caro: creditar o BRUTO na antecipação faria o lojista
- * receber a taxa da cobrança de volta, e o saldo divergiria para sempre.
+ * Getting this wrong is easy and expensive: crediting the GROSS in the
+ * anticipation would hand the charge fee back to the merchant, and the balance
+ * would diverge forever.
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
@@ -30,30 +32,31 @@ import { cents } from '../../domain/money.ts'
 import type { PaymentRow } from '../payments/serializer.ts'
 import { serializeAnticipation, type AnticipationRow } from './serializer.ts'
 
-/** Antecipações que ainda "ocupam" o recebível. */
+/** Anticipations that still "occupy" the receivable. */
 const OPEN_STATUSES = ['PENDING', 'SCHEDULED', 'CREDITED'] as const
 
 /**
- * TODO(regra): o limite de antecipação é uma análise de crédito do Asaas — não
- * há fórmula pública e nem poderia haver. Usamos um teto fixo e configurável por
- * ambiente, e descontamos dele o que já está antecipado e ainda não liquidou.
- * O número (R$ 50.000,00) é o do exemplo da própria spec.
+ * TODO(rule): the anticipation limit is a credit analysis of Asaas — there is
+ * no public formula, and there could not be. We use a fixed ceiling,
+ * configurable per environment, and subtract from it what is already anticipated
+ * and has not settled yet. The number (R$ 50.000,00) is the one of the spec's
+ * own example.
  */
 export const ANTICIPATION_LIMIT_CENTS = cents(5_000_000)
 
 export interface AnticipationTarget {
   payment: PaymentRow
   quote: AnticipationQuote
-  /** Cobrança confirmada → o dinheiro é certo, credita agora. */
+  /** Confirmed charge → the money is certain, it credits now. */
   creditsNow: boolean
 }
 
 /**
- * Resolve a cobrança do body e valida se ela pode ser antecipada.
+ * Resolves the charge of the body and validates whether it can be anticipated.
  *
- * `simulate` afrouxa só o que é de estado da antecipação (uma simulação não se
- * importa se já existe um pedido em curso) — as regras do recebível continuam
- * valendo.
+ * `simulate` relaxes only what is about the state of the anticipation (a
+ * simulation does not care whether there is a request in progress) — the
+ * receivable rules still hold.
  */
 export async function resolveTarget(
   ctx: AppContext,
@@ -64,9 +67,10 @@ export async function resolveTarget(
   const b = (body ?? {}) as Record<string, any>
 
   if (b.installment) {
-    // Honesto é dizer que não sabemos: parcelamento é o track E, e antecipar um
-    // parcelamento tem regra própria (antecipa-se o conjunto de parcelas, não a
-    // parcela). Devolver um número inventado aqui seria o pior desfecho.
+    // Being honest means saying we do not know: an installment plan is track E,
+    // and anticipating an installment plan has its own rule (the whole set of
+    // installments is anticipated, not a single installment). Returning an
+    // invented number here would be the worst outcome.
     throw badRequest(
       'not_implemented',
       'A antecipação de parcelamento ainda não foi implementada neste simulador. ' +
@@ -94,10 +98,10 @@ export async function resolveTarget(
     )
   }
 
-  // PIX e dinheiro em espécie não chegam aqui. Sobram os estados do recebível:
-  //   PENDING   → o pagador ainda não pagou   → antecipação SCHEDULED
-  //   CONFIRMED → pago, aguardando o crédito  → antecipação CREDITED agora
-  //   o resto   → não há recebível futuro para antecipar
+  // PIX and cash in hand do not get here. What is left are the receivable states:
+  //   PENDING   → the payer has not paid yet   → SCHEDULED anticipation
+  //   CONFIRMED → paid, waiting for the credit  → CREDITED anticipation now
+  //   the rest  → there is no future receivable to anticipate
   if (payment.status !== 'PENDING' && payment.status !== 'CONFIRMED') {
     throw invalid(
       'payment',
@@ -129,25 +133,28 @@ export async function resolveTarget(
   return { payment, quote, creditsNow: payment.status === 'CONFIRMED' }
 }
 
-/** A cotação. Pura por dentro — aqui só juntamos os argumentos. */
+/** The quote. Pure inside — here we only gather the arguments. */
 export function quoteFor(ctx: AppContext, payment: PaymentRow): AnticipationQuote {
   return quoteAnticipation({
     fees: ctx.config.fees,
     billingType: payment.billingType as BillingType,
-    // TODO(regra): parcelamento é o track E. Com uma parcela só, a taxa é a de
-    // cartão "avulso" — que é a mais cara das duas, então não subestimamos.
+    // TODO(rule): an installment plan is track E. With a single installment, the
+    // fee is the one of a "one-off" card — the most expensive of the two, so we
+    // do not underestimate.
     installmentCount: 1,
     totalValueCents: cents(payment.valueCents),
     paymentFeeCents: cents(payment.feeCents),
-    // `estimatedCreditDate` é preenchida na criação da cobrança e reescrita na
-    // confirmação. É o dia em que o dinheiro cairia sem a antecipação.
+    // `estimatedCreditDate` is filled at the creation of the charge and rewritten
+    // at the confirmation. It is the day the money would fall without the
+    // anticipation.
     expectedCreditDate: payment.estimatedCreditDate ?? payment.dueDate,
     today: ctx.clock.today(),
   })
 }
 
 /**
- * Cria a antecipação. Se o recebível já está confirmado, o dinheiro entra AGORA.
+ * Creates the anticipation. If the receivable is already confirmed, the money
+ * comes in NOW.
  */
 export async function requestAnticipation(
   ctx: AppContext,
@@ -161,9 +168,10 @@ export async function requestAnticipation(
     const db = tx as unknown as DB
 
     /**
-     * COMPARE-AND-SWAP no `anticipated` da cobrança: dois pedidos simultâneos
-     * para a mesma cobrança e só um passa. É a trava que impede antecipar o mesmo
-     * recebível duas vezes — o defeito mais caro que este módulo pode ter.
+     * COMPARE-AND-SWAP on the `anticipated` of the charge: of two simultaneous
+     * requests for the same charge only one passes. It is the lock that stops
+     * the same receivable from being anticipated twice — the most expensive
+     * defect this module can have.
      */
     const claimed = await db
       .update(payments)
@@ -216,7 +224,7 @@ export async function requestAnticipation(
   })
 }
 
-/** Os dois lançamentos do crédito. Chame DENTRO da transação. */
+/** The two entries of the credit. Call it INSIDE the transaction. */
 export async function postCredit(
   ctx: AppContext,
   db: DB,
@@ -232,8 +240,8 @@ export async function postCredit(
       paymentId: a.paymentId ?? undefined,
     },
   ]
-  // Antecipar zero dias não custa nada — e um lançamento de R$ 0,00 no extrato
-  // seria ruído.
+  // Anticipating zero days costs nothing — and a R$ 0,00 entry in the statement
+  // would be noise.
   if (a.feeCents > 0) {
     entries.push({
       accountId: a.accountId,
@@ -248,9 +256,9 @@ export async function postCredit(
 }
 
 /**
- * O débito da liquidação. O recebível original acabou de entrar na conta
- * (PAYMENT_RECEIVED) — mas o lojista já recebeu esse dinheiro adiantado, então
- * ele sai agora.
+ * The debit of the settlement. The original receivable just came into the
+ * account (PAYMENT_RECEIVED) — but the merchant already received that money
+ * advanced, so it goes out now.
  */
 export async function postDebit(ctx: AppContext, db: DB, a: AnticipationRow): Promise<void> {
   await postEntries(db, ctx, [
@@ -298,9 +306,10 @@ export async function cancelAnticipation(
     if (!row) throw notFound('Antecipação')
 
     /**
-     * Antecipação CREDITED não se cancela: o dinheiro já está na conta. Desfazer
-     * exigiria devolver o crédito e a taxa, e o Asaas não oferece isso — o que
-     * existe é o débito na liquidação do recebível, que já está agendado.
+     * A CREDITED anticipation is not cancelled: the money is already in the
+     * account. Undoing it would mean returning the credit and the fee, and Asaas
+     * does not offer that — what exists is the debit on the settlement of the
+     * receivable, which is already scheduled.
      */
     if (row.status !== 'PENDING' && row.status !== 'SCHEDULED') {
       throw badRequest(
@@ -321,7 +330,7 @@ export async function cancelAnticipation(
 
     const after = updated[0] as AnticipationRow
 
-    // Solta o recebível: a cobrança volta a poder ser antecipada.
+    // Releases the receivable: the charge can be anticipated again.
     if (after.paymentId) {
       await db
         .update(payments)
@@ -342,10 +351,10 @@ export async function cancelAnticipation(
   })
 }
 
-// ── Configuração da antecipação automática ────────────────────────────
+// ── The configuration of the automatic anticipation ───────────────────────────
 //
-// Uma linha por conta na tabela `settings` (chave/valor JSON). Não vale uma
-// tabela nova: é um único booleano, e `settings` existe exatamente para isto.
+// One row per account in the `settings` table (key/value JSON). A new table is
+// not worth it: it is a single boolean, and `settings` exists exactly for this.
 
 export interface AutoAnticipationConfig {
   creditCardAutomaticEnabled: boolean

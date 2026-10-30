@@ -1,17 +1,17 @@
 /**
- * Estado da conta que a tabela `accounts` não modela: a personalização do
- * checkout (GET/POST /v3/myAccount/paymentCheckoutConfig) e a desabilitação da
- * subconta white label (DELETE /v3/myAccount).
+ * The account state the `accounts` table does not model: the checkout
+ * personalization (GET/POST /v3/myAccount/paymentCheckoutConfig) and the disabling
+ * of the white label subaccount (DELETE /v3/myAccount).
  *
- * Ficam aqui, e não em `accounts`, porque são opcionais e de ciclo de vida
- * próprio — uma conta pode nunca ter personalização, e a desabilitação é um fato
- * datado, não um campo.
+ * They live here, and not in `accounts`, because they are optional and have their
+ * own lifecycle — an account may never have a personalization, and the disabling is
+ * a dated fact, not a field.
  */
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { accounts } from './accounts.ts'
 import { bool, datetime } from './_conventions.ts'
 
-/** Uma linha por conta. Personalização da tela de checkout/fatura. */
+/** One row per account. Checkout/invoice screen personalization. */
 export const accountCheckoutConfigs = sqliteTable('account_checkout_configs', {
   accountId: text('account_id')
     .primaryKey()

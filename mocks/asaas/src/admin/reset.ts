@@ -18,7 +18,7 @@
  */
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { AppContext } from '../core/context.ts'
-import { badRequest, notFound } from '../core/errors.ts'
+import { badRequest, notFoundMessage } from '../core/errors.ts'
 import {
   accounts,
   installments,
@@ -139,14 +139,14 @@ export async function resetProfile(
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1)
-  if (!account) throw notFound('Perfil')
+  if (!account) throw notFoundMessage('Profile not found.')
   if (account.parentAccountId) {
-    throw badRequest('invalid_account', 'Só um perfil (conta raiz) pode ser zerado.')
+    throw badRequest('invalid_account', 'Only a profile (root account) can be reset.')
   }
 
   const groups = resolveGroups(input.remove)
   if (groups.length === 0 && !input.cancelCharges) {
-    throw badRequest('invalid_reset', 'Escolha o que cancelar ou apagar.')
+    throw badRequest('invalid_reset', 'Choose what to cancel or delete.')
   }
 
   const family = await familyOf(ctx, account.id)
@@ -183,7 +183,7 @@ export async function resetProfile(
     }
   })
 
-  ctx.log('info', `Perfil ${account.id} zerado: ${groups.join(', ') || 'só cancelamento'}`)
+  ctx.log('info', `Profile ${account.id} reset: ${groups.join(', ') || 'cancellation only'}`)
   return { id: account.id, removed: groups, cancelled, subaccounts: closing.length, rows }
 }
 

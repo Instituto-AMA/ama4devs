@@ -49,7 +49,7 @@ async function customer(extra: Record<string, unknown> = {}): Promise<string> {
 /** Today is 2026-01-05 (TEST_CLOCK_START). */
 async function charge(cus: string, dueDate = '2026-01-20') {
   const res = await h.api.call('create-new-payment', {
-    body: { customer: cus, billingType: 'BOLETO', value: 150, dueDate, description: 'Consulta' },
+    body: { customer: cus, billingType: 'BOLETO', value: 150, dueDate, description: 'Consultation' },
   })
   expect(res.status).toBe(200)
   return res.body

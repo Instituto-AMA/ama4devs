@@ -3,10 +3,10 @@ import { Elysia } from 'elysia'
 /** The methods that change state — the guard checks the Origin on these only. */
 export const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
-/** The pt-BR description of each refusal. */
+/** The description of each refusal. */
 const FORBIDDEN = {
-  forbidden_host: 'Host não permitido para rotas locais.',
-  forbidden_origin: 'Origem não permitida para rotas locais.',
+  forbidden_host: 'Host not allowed for local routes.',
+  forbidden_origin: 'Origin not allowed for local routes.',
 } as const
 
 function normalizeHostname(value: string): string {

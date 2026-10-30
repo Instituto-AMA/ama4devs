@@ -118,7 +118,7 @@ describe('the payer SMS', () => {
     ).rejects.toMatchObject({ status: 400, errors: [{ code: 'notify_not_configured' }] })
   })
 
-  it('"Enviar teste" sends an SMS with WhatsApp off, and refuses it with SMS off', async () => {
+  it('the test send sends an SMS with WhatsApp off, and refuses it with SMS off', async () => {
     await boot()
     const sent = await admin('/_admin/notify/test', 'POST', { channel: 'SMS', to: '+5547999998888' })
     expect(sent.status).toBe(200)
@@ -128,7 +128,7 @@ describe('the payer SMS', () => {
     h.app.ctx.config.notify.smsUrl = undefined
     const off = await admin('/_admin/notify/test', 'POST', { channel: 'SMS', to: '+5547999998888' })
     expect(off.status).toBe(400)
-    expect(JSON.stringify(off.body)).toContain('de SMS')
+    expect(JSON.stringify(off.body)).toContain('The SMS channel is off')
   })
 
   it('the admin list says the SMS channel is on and returns the SMS row', async () => {

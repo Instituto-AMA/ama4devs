@@ -33,11 +33,11 @@ async function followChannels(): Promise<void> {
   const before = seen
   seen = { mailpit: notify.mailpitUrl, whatsapp: notify.whatsappUrl, sms: notify.smsUrl }
   const again = (places: string[] | undefined) =>
-    places?.length ? `; procurado de novo a cada ${LOOK_EVERY_MS / 1000} s` : ''
+    places?.length ? `; looked for again every ${LOOK_EVERY_MS / 1000} s` : ''
   if (!before || before.mailpit !== notify.mailpitUrl) {
     console.log(
       notify.mailpitUrl
-        ? `E-mail: Mailpit em ${notify.mailpitUrl}`
+        ? `E-mail: Mailpit at ${notify.mailpitUrl}`
         : `E-mail: ${channelOffReason(notify, 'EMAIL')}${again(notify.discover?.mailpit)}`,
     )
   }
@@ -56,22 +56,23 @@ async function followChannels(): Promise<void> {
   const sender = await ensureWhatsappSender(ctx)
   console.log(
     sender.registered
-      ? `WhatsApp: número ${notify.whatsappPhoneNumberId} cadastrado no mock (${notify.whatsappUrl}), respostas em ${notify.callbackBaseUrl}`
-      : `WhatsApp: mock ainda não respondeu (${sender.error}); cadastro refeito no próximo tick`,
+      ? `WhatsApp: number ${notify.whatsappPhoneNumberId} registered in the mock (${notify.whatsappUrl}), replies at ${notify.callbackBaseUrl}`
+      : `WhatsApp: the mock has not answered yet (${sender.error}); the registration is redone on the next tick`,
   )
   const templates = await ensureWhatsappTemplates(ctx)
   console.log(
     templates.ready
-      ? `WhatsApp: ${WHATSAPP_TEMPLATES.length} templates do pagador na biblioteca do mock`
-      : `WhatsApp: templates ainda não criados (${templates.error}); refeito no próximo tick`,
+      ? `WhatsApp: ${WHATSAPP_TEMPLATES.length} payer templates in the mock library`
+      : `WhatsApp: the templates were not created yet (${templates.error}); redone on the next tick`,
   )
 }
 const follow = () => followChannels().catch((err) => ctx.log('warn', 'Channel lookup failed', { error: String(err) }))
 const looking = setInterval(follow, LOOK_EVERY_MS)
 void follow()
 
-// Denominador é o total de ROTAS, não de operações: 5 operações da spec dividem
-// rota com a canônica (a variante "com cartão de crédito"). Ver progress.md.
+// The denominator is the total of ROUTES, not of operations: 5 operations of the
+// spec share a route with the canonical one (the "with credit card" variant). See
+// progress.md.
 const routable = OPERATION_COUNT - coverage.variants.length
 const pct = Math.round((coverage.implemented.length / routable) * 100)
 
@@ -80,27 +81,27 @@ console.log(`
 │  API         http://localhost:${config.port}/v3
 ${
   config.adminEnabled
-    ? `│  Painel      http://localhost:${config.port}   ← contas, saldos e viagem no tempo`
-    : `│  Painel      desligado (ADMIN_ENABLED=false)`
+    ? `│  Panel       http://localhost:${config.port}   ← accounts, balances and time travel`
+    : `│  Panel       off (ADMIN_ENABLED=false)`
 }
 │
-│  Cobertura   ${coverage.implemented.length}/${routable} operações (${pct}%) — as demais respondem 501
-│  Relógio     ${config.clock.mode}${config.clock.tickIntervalMs > 0 ? ` · tick a cada ${config.clock.tickIntervalMs}ms` : ' · timer desligado'}
-│  Banco       ${config.databasePath}
+│  Coverage    ${coverage.implemented.length}/${routable} operations (${pct}%) — the rest answer 501
+│  Clock       ${config.clock.mode}${config.clock.tickIntervalMs > 0 ? ` · tick every ${config.clock.tickIntervalMs}ms` : ' · timer off'}
+│  Database    ${config.databasePath}
 │
-│  Conta       ${seed.accountId}${seed.created ? '  (criada agora)' : ''}
+│  Account     ${seed.accountId}${seed.created ? '  (created now)' : ''}
 │  walletId    ${seed.walletId}
 │  API key     ${seed.apiKey}
 ${
   config.webhook.localhostRewrite
     ? `│
-│  Webhooks apontados para localhost são reescritos para
-│  "${config.webhook.localhostRewrite}" — é assim que o evento sai do
-│  container e chega na sua máquina. Ajuste com WEBHOOK_LOCALHOST_REWRITE.`
+│  Webhooks pointed at localhost are rewritten to
+│  "${config.webhook.localhostRewrite}" — that is how the event leaves the
+│  container and reaches your machine. Change it with WEBHOOK_LOCALHOST_REWRITE.`
     : `│
-│  Reescrita de localhost DESLIGADA. Se estiver rodando em Docker, um
-│  webhook para localhost vai bater no próprio container e nunca chegar
-│  em você. Defina WEBHOOK_LOCALHOST_REWRITE=host.docker.internal.`
+│  The localhost rewrite is OFF. If you are running in Docker, a webhook to
+│  localhost will hit the container itself and never reach you. Set
+│  WEBHOOK_LOCALHOST_REWRITE=host.docker.internal.`
 }
 └──────────────────────────────────────────────────────────────
 `)

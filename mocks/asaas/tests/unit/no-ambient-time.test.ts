@@ -1,12 +1,12 @@
 /**
- * O guarda do determinismo.
+ * The guard of determinism.
  *
- * Um único `Date.now()` ou `Math.random()` fora de core/clock.ts e core/rng.ts
- * destrói o relógio virtual em silêncio: a viagem no tempo passa a gravar a data
- * real, e o bug reaparece como um teste intermitente daqui a três meses.
+ * A single `Date.now()` or `Math.random()` outside core/clock.ts and core/rng.ts
+ * destroys the virtual clock in silence: time travel starts writing the real
+ * date, and the bug comes back as a flaky test three months from now.
  *
- * Este teste é feio de propósito — ele faz grep no fonte. Um lint rule seria mais
- * elegante, mas o lint se desliga com um comentário e este teste, não.
+ * This test is ugly on purpose — it greps the source. A lint rule would be more
+ * elegant, but the lint can be switched off with a comment and this test cannot.
  */
 import { describe, expect, it } from 'bun:test'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -14,16 +14,16 @@ import { join, relative } from 'node:path'
 
 const SRC = join(import.meta.dir, '..', '..', 'src')
 
-/** Os únicos lugares autorizados a tocar tempo e aleatoriedade ambientes. */
+/** The only places allowed to touch ambient time and randomness. */
 const ALLOWED = new Set(['core/clock.ts', 'core/rng.ts'])
 
-/** Padrões proibidos e por quê. */
+/** The forbidden patterns and why. */
 const BANNED: { pattern: RegExp; what: string }[] = [
   { pattern: /\bDate\.now\s*\(/, what: 'Date.now()' },
-  { pattern: /\bnew Date\s*\(\s*\)/, what: 'new Date() sem argumento' },
+  { pattern: /\bnew Date\s*\(\s*\)/, what: 'new Date() without an argument' },
   { pattern: /\bMath\.random\s*\(/, what: 'Math.random()' },
   { pattern: /\bcrypto\.randomUUID\s*\(/, what: 'crypto.randomUUID()' },
-  { pattern: /CURRENT_TIMESTAMP/i, what: 'CURRENT_TIMESTAMP (default de tempo no banco)' },
+  { pattern: /CURRENT_TIMESTAMP/i, what: 'CURRENT_TIMESTAMP (database time default)' },
 ]
 
 function* walk(dir: string): Generator<string> {
@@ -34,14 +34,14 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-describe('determinismo: nada de tempo/aleatoriedade ambiente fora do core', () => {
-  it('src/ não usa Date.now(), new Date(), Math.random() nem crypto.randomUUID()', () => {
+describe('determinism: no ambient time/randomness outside the core', () => {
+  it('src/ does not use Date.now(), new Date(), Math.random() nor crypto.randomUUID()', () => {
     const violations: string[] = []
 
     for (const file of walk(SRC)) {
       const rel = relative(SRC, file)
       if (ALLOWED.has(rel)) continue
-      // Código gerado não tem lógica de runtime — só schemas.
+      // Generated code has no runtime logic — only schemas.
       if (rel.startsWith('generated/')) continue
 
       const source = readFileSync(file, 'utf8')
@@ -49,7 +49,7 @@ describe('determinismo: nada de tempo/aleatoriedade ambiente fora do core', () =
         if (line.trimStart().startsWith('*') || line.trimStart().startsWith('//')) return
         for (const { pattern, what } of BANNED) {
           if (pattern.test(line)) {
-            violations.push(`${rel}:${i + 1} usa ${what} — use ctx.clock / ctx.rng`)
+            violations.push(`${rel}:${i + 1} uses ${what} — use ctx.clock / ctx.rng`)
           }
         }
       })

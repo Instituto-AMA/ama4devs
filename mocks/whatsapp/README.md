@@ -1,4 +1,4 @@
-<p align="center"><b>English</b> · <a href="README.pt-BR.md">Português</a> · <a href="https://instituto-ama.github.io/ama4devs/whatsapp/">Documentation site</a></p>
+<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/whatsapp/">Documentation site</a></p>
 
 # WhatsApp Mock Server
 
@@ -91,7 +91,7 @@ or a `/settings` call for what Meta has no endpoint for.
 ```yaml
 services:
   whatsapp:
-    image: ghcr.io/instituto-ama/whatsapp-mock:latest   # or pin a version: 0.4.1
+    image: ghcr.io/instituto-ama/whatsapp-mock:latest   # or pin a version: 0.5.0
     ports:
       - '3010:3010'
     environment:

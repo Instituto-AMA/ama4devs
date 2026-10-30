@@ -3,7 +3,7 @@
  * installment plans — from the real `/v3` filtered by customer.
  *
  * `/v3/installments` has no customer filter, so the plans are the ones whose charges
- * name this customer. "Nova cobrança" opens the form with the customer chosen.
+ * name this customer. "New charge" opens the form with the customer chosen.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { v3, type Customer, type Installment, type Payment, type Subscription } from '../api.ts'

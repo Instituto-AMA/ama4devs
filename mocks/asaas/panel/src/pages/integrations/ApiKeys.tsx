@@ -1,12 +1,14 @@
 /**
- * "Chaves de API" da conta selecionada: gerar, rotacionar, desativar e excluir.
+ * "Chaves de API" of the selected account: generate, rotate, deactivate and
+ * delete.
  *
- * No Asaas, uma conta raiz só mexe nas próprias chaves pelo painel — a API v3 não tem
- * essas operações para ela. Por isso os botões daqui vão em `/_admin`, e não em `/v3`.
+ * In Asaas, a root account only touches its own keys through the panel — the v3
+ * API has no such operations for it. That is why the buttons here go to
+ * `/_admin`, and not to `/v3`.
  *
- * O efeito é o de verdade: a chave rotacionada, desativada, expirada ou excluída
- * devolve 401 na PRÓXIMA requisição da sua aplicação. É assim que se testa o que a
- * aplicação faz quando a chave do tenant para de valer.
+ * The effect is the real one: the rotated, deactivated, expired or deleted key
+ * answers 401 on the NEXT request of your application. It is how you test what
+ * the application does when the tenant key stops being valid.
  */
 import type { ComponentChildren } from 'preact'
 import { useEffect, useState } from 'preact/hooks'

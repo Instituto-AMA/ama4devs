@@ -97,7 +97,7 @@ export const invoiceIssuing: Job = {
         updatePayment: c.updatePayment ?? false,
         taxes: (c.taxes as InvoiceTaxes | null) ?? { retainIss: false, iss: 0, pis: 0, cofins: 0, csll: 0, inss: 0, ir: 0 },
       }).catch((err) => {
-        ctx.log('warn', `Nota fiscal automática da cobrança ${p.id} recusada`, { error: String(err?.description ?? err) })
+        ctx.log('warn', `Automatic fiscal note of charge ${p.id} refused`, { error: String(err?.description ?? err) })
         return null
       })
       if (inv) report.created.push({ resource: 'invoice', id: inv.id, job: 'invoice-issuing' })
@@ -111,7 +111,7 @@ export const invoiceIssuing: Job = {
       .leftJoin(subscriptionInvoiceConfigs, eq(subscriptionInvoiceConfigs.subscriptionId, payments.subscriptionId))
       .where(and(eq(invoices.status, 'SCHEDULED'), lte(invoices.effectiveDate, today)))
     for (const { invoice, paymentStatus, receivedOnly } of due) {
-      // "Emitir somente após o pagamento": the note waits for the money.
+      // "Issue only after payment": the note waits for the money.
       if (receivedOnly && !PAID.includes(paymentStatus ?? '')) continue
       moved(await issueInvoice(ctx, invoice, false), invoice.status)
     }

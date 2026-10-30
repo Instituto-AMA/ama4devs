@@ -1,28 +1,28 @@
 /**
- * Validação de CPF/CNPJ com dígito verificador — o Asaas valida de verdade. Um
- * mock que aceita "11111111111" deixa passar um bug que só apareceria em
- * produção.
+ * CPF/CNPJ validation with the check digit — Asaas validates for real. A mock
+ * that accepts "11111111111" lets through a bug that would only show up in
+ * production.
  *
- * O código de erro é `invalid_object` (não `invalid_cpfCnpj`, como supúnhamos):
- * provado contra o sandbox real, que devolve
+ * The error code is `invalid_object` (not `invalid_cpfCnpj`, as we assumed):
+ * proven against the real sandbox, which returns
  * `{"code":"invalid_object","description":"O CPF/CNPJ informado é inválido."}`.
  */
 
 const onlyDigits = (v: string): string => v.replace(/\D/g, '')
 
 /**
- * O Asaas recusa celular com todos os dígitos iguais — `47999999999` volta
- * `invalid_mobilePhone`. É a mesma convenção do CPF `11111111111`: passa em
- * qualquer checagem de formato, mas é obviamente falso.
+ * Asaas refuses a mobile number with all the same digits — `47999999999` comes back
+ * as `invalid_mobilePhone`. It is the same convention as the CPF `11111111111`: it
+ * passes any format check, but it is obviously false.
  *
- * Provado contra o sandbox: `47996321478` e até `47912345678` (sequencial!) são
- * aceitos; só o dígito repetido é recusado.
+ * Proven against the sandbox: `47996321478` and even `47912345678` (sequential!) are
+ * accepted; only the repeated digit is refused.
  */
 export function isValidMobilePhone(raw: string): boolean {
   const phone = onlyDigits(raw)
   if (phone.length < 10 || phone.length > 11) return false
 
-  // A parte após o DDD não pode ser um único dígito repetido.
+  // The part after the area code cannot be a single repeated digit.
   const subscriber = phone.slice(2)
   return !new RegExp(`^(\\d)\\1{${subscriber.length - 1}}$`).test(subscriber)
 }
@@ -30,7 +30,7 @@ export function isValidMobilePhone(raw: string): boolean {
 export function isValidCpf(raw: string): boolean {
   const cpf = onlyDigits(raw)
   if (cpf.length !== 11) return false
-  // Todos os dígitos iguais passam no algoritmo mas são inválidos por convenção.
+  // All the same digits pass the algorithm but are invalid by convention.
   if (/^(\d)\1{10}$/.test(cpf)) return false
 
   const digit = (upTo: number): number => {
@@ -83,7 +83,7 @@ export function isValidCpfCnpj(raw: string): boolean {
   return false
 }
 
-/** O Asaas deriva o personType do tamanho do documento. */
+/** Asaas derives the personType from the document's length. */
 export function personTypeOf(raw: string): 'FISICA' | 'JURIDICA' {
   return onlyDigits(raw).length === 14 ? 'JURIDICA' : 'FISICA'
 }

@@ -1,12 +1,14 @@
 /**
- * "Integrações" — as abas que o painel do Asaas tem sob este nome: chaves de API,
- * webhooks e os logs de entrega. Tudo da CONTA SELECIONADA na topbar.
+ * "Integrações" — the tabs the Asaas panel has under this name: API keys,
+ * webhooks and the delivery logs. Everything of the SELECTED ACCOUNT in the
+ * topbar.
  *
- * A aba vai no hash (`#integrations/keys`), como as páginas: recarregar mantém a aba,
- * e dá para mandar `#integrations/webhooks` para quem está com a fila travada.
+ * The tab lives in the hash (`#integrations/keys`), like the pages: reloading
+ * keeps the tab, and you can send `#integrations/webhooks` to someone whose
+ * queue is stuck.
  *
- * "Segurança" existe no Asaas e ainda não aqui: aparece apagada em vez de sumir,
- * pela mesma razão dos itens da sidebar.
+ * "Segurança" exists in Asaas and not here yet: it shows up greyed out instead
+ * of disappearing, for the same reason as the items of the sidebar.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin } from '../api.ts'

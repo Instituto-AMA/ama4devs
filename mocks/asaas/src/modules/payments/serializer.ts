@@ -1,7 +1,7 @@
 /**
- * Serialização de cobrança no formato EXATO da resposta do Asaas.
+ * Charge serialization in the EXACT format of Asaas's response.
  *
- * A fronteira onde centavos viram reais. Nada de aritmética daqui para fora.
+ * The boundary where cents become reais. No arithmetic from here outwards.
  */
 import { desc, eq } from 'drizzle-orm'
 import type { DB } from '../../db/client.ts'
@@ -18,7 +18,7 @@ function serializeSplit(s: SplitRow) {
     id: s.id,
     walletId: s.walletId,
     fixedValue: money(s.fixedValueCents),
-    // Percentual é guardado na escala 1e4 (4 casas). 923444 → 92.3444
+    // The percentage is stored at the 1e4 scale (4 places). 923444 → 92.3444
     percentualValue: s.percentualValueE4 === null ? null : s.percentualValueE4 / 10_000,
     totalValue: money(s.totalValueCents),
     status: s.status,
@@ -41,9 +41,9 @@ export async function serializePayment(
     .orderBy(desc(paymentRefunds.dateCreated))
 
   /**
-   * O chargeback, quando existe. A cobrança em CHARGEBACK_REQUESTED que
-   * devolvesse `chargeback: null` seria uma mentira difícil de depurar: o
-   * status diz que houve disputa e o objeto diz que não.
+   * The chargeback, when it exists. A charge in CHARGEBACK_REQUESTED that
+   * returned `chargeback: null` would be a lie that is hard to debug: the
+   * status says there was a dispute and the object says there was not.
    */
   let chargeback: Record<string, unknown> | null = null
   const [cb] = await db.select().from(chargebacks).where(eq(chargebacks.paymentId, p.id)).limit(1)
@@ -61,7 +61,7 @@ export async function serializePayment(
       .limit(1)
     if (row) {
       card = {
-        // O Asaas devolve só os 4 ÚLTIMOS dígitos — não uma máscara com asteriscos.
+        // Asaas returns only the LAST 4 digits — not a mask with asterisks.
         creditCardNumber: row.last4,
         creditCardBrand: row.brand,
         creditCardToken: row.creditCardToken,
@@ -70,19 +70,19 @@ export async function serializePayment(
   }
 
   /**
-   * O CONJUNTO DE CHAVES do objeto `payment` do Asaas não é fixo — foi levantado
-   * campo a campo contra o sandbox real, e tem duas regras que não se adivinha:
+   * The SET OF KEYS of Asaas's `payment` object is not fixed — it was mapped field
+   * by field against the real sandbox, and it has two rules you cannot guess:
    *
-   *   1. Os campos relacionais são OMITIDOS quando nulos, não devolvidos como
-   *      `null`. Uma cobrança avulsa não tem a chave `installment` — ela não vem
-   *      com valor nulo, ela simplesmente não está lá. Importa: um cliente que
-   *      testa `'installment' in payment` se comporta diferente nos dois casos.
+   *   1. The relational fields are OMITTED when null, not returned as
+   *      `null`. A single charge does not have the `installment` key — it does not
+   *      come with a null value, it is simply not there. It matters: a client that
+   *      tests `'installment' in payment` behaves differently in the two cases.
    *
-   *   2. Alguns campos só existem para certos meios de pagamento:
-   *        BOLETO      → ganha `canBePaidAfterDueDate`
-   *        CREDIT_CARD → ganha `confirmedDate` e `creditCard`
-   *      Sim: um Pix PENDING **não tem** a chave `confirmedDate`. Não faz sentido
-   *      óbvio, mas é o que a API devolve, e é o que reproduzimos.
+   *   2. Some fields only exist for certain payment methods:
+   *        BOLETO      → gains `canBePaidAfterDueDate`
+   *        CREDIT_CARD → gains `confirmedDate` and `creditCard`
+   *      Yes: a PENDING Pix **does not have** the `confirmedDate` key. It makes no
+   *      obvious sense, but it is what the API returns, and it is what we reproduce.
    */
   const out: Record<string, unknown> = {
     object: 'payment',
@@ -123,13 +123,13 @@ export async function serializePayment(
     lastBankSlipViewedDate: p.lastBankSlipViewedDate ?? null,
 
     /**
-     * `limitDate` — e não `limitedDate`, que foi o que escrevemos de primeira.
+     * `limitDate` — and not `limitedDate`, which is what we wrote at first.
      *
-     * A spec do Asaas não declara NENHUM dos dois (o objeto `discount` da
-     * resposta não tem esse campo lá), então a validação de contrato não pegaria
-     * o erro. Quem pegou foi a captura contra o sandbox real. É a ilustração
-     * exata de por que a paridade existe: o contrato prova a FORMA, só a API real
-     * prova o CONTEÚDO.
+     * Asaas's spec declares NEITHER of the two (the response's `discount` object
+     * does not have that field there), so the contract validation would not catch
+     * the error. What caught it was the capture against the real sandbox. It is the exact
+     * illustration of why parity exists: the contract proves the FORM, only the real API
+     * proves the CONTENT.
      */
     discount: p.discount
       ? {
@@ -142,15 +142,15 @@ export async function serializePayment(
     fine: p.fine
       ? { value: p.fine.value, type: p.fine.type }
       : { value: 0, type: 'FIXED' },
-    // `interest` não tem `type` no request, mas a resposta do Asaas devolve
-    // PERCENTAGE — é sempre percentual ao mês. Confirmado no sandbox real.
+    // `interest` has no `type` in the request, but Asaas's response returns
+    // PERCENTAGE — it is always a monthly percentage. Confirmed in the real sandbox.
     interest: p.interest
       ? { value: p.interest.value, type: 'PERCENTAGE' }
       : { value: 0, type: 'PERCENTAGE' },
 
     postalService: p.postalService,
     escrow: null,
-    // `null`, não `[]` — mesmo quando não há estorno. Confirmado no sandbox.
+    // `null`, not `[]` — even when there is no refund. Confirmed in the sandbox.
     // With refunds, the list of them (same shape as the installment's), so a
     // client that reads `payment.refunds` sees the refund it asked for.
     refunds: refunds.length
@@ -168,28 +168,28 @@ export async function serializePayment(
       : null,
   }
 
-  // ── Regra 2: campos por meio de pagamento ──
+  // ── Rule 2: fields per payment method ──
   if (p.billingType === 'BOLETO') out.canBePaidAfterDueDate = p.canBePaidAfterDueDate
   if (p.billingType === 'CREDIT_CARD') {
-    // O cartão SEMPRE tem a chave — mesmo PENDING, e aí vale `null`.
+    // The card ALWAYS has the key — even PENDING, and then it is `null`.
     out.confirmedDate = p.confirmedDate
     out.creditCard = card
   } else if (p.confirmedDate) {
     /**
-     * E QUALQUER meio ganha a chave depois de confirmado. Nós só a emitíamos para
-     * cartão, então um Pix PAGO devolvia `confirmedDate: undefined` — e o cliente
-     * que lê esse campo para saber quando o pagamento foi reconhecido recebia nada
-     * aqui e uma data no Asaas.
+     * And ANY method gains the key after being confirmed. We only emitted it for
+     * the card, so a PAID Pix returned `confirmedDate: undefined` — and the client
+     * that reads that field to know when the payment was acknowledged got nothing
+     * here and a date on Asaas.
      *
-     * A regra real, capturada (tools/probe-pix.ts):
-     *   PIX/BOLETO PENDING   → chave AUSENTE
-     *   PIX/BOLETO RECEIVED  → chave presente, com a data
-     *   CREDIT_CARD          → chave sempre presente (null enquanto PENDING)
+     * The real rule, captured (tools/probe-pix.ts):
+     *   PIX/BOLETO PENDING   → key ABSENT
+     *   PIX/BOLETO RECEIVED  → key present, with the date
+     *   CREDIT_CARD          → key always present (null while PENDING)
      */
     out.confirmedDate = p.confirmedDate
   }
 
-  // ── Regra 1: relacionais só aparecem quando existem ──
+  // ── Rule 1: relationals only appear when they exist ──
   if (p.subscriptionId) out.subscription = p.subscriptionId
   if (p.installmentId) out.installment = p.installmentId
   if (p.pixQrCodeId) out.pixQrCodeId = p.pixQrCodeId
@@ -202,7 +202,7 @@ export async function serializePayment(
   return out
 }
 
-/** A versão "lean" (/v3/lean/payments): os mesmos dados sem os objetos aninhados. */
+/** The "lean" version (/v3/lean/payments): the same data without the nested objects. */
 export function serializeLeanPayment(p: PaymentRow): Record<string, unknown> {
   return {
     object: 'payment',

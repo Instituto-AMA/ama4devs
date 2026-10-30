@@ -1,10 +1,10 @@
 /**
- * POST /v3/payments/{id}/bankSlip/refund — the refund of a PAID boleto.
+ * POST /v3/payments/{id}/bankSlip/refund — the refund of a PAID bank slip.
  *
  * What matters here: the status goes through the SAME state machine as every
  * other transition (webhook emitted, ledger reversed when the money had
  * already credited), the 200 body is the spec's `{ requestUrl }` shape and NOT
- * the payment, and a non-boleto payment is refused instead of silently
+ * the payment, and a non-bank-slip payment is refused instead of silently
  * refunded by the wrong gateway path.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
@@ -20,7 +20,7 @@ afterEach(() => h.close())
 /** Customer + BOLETO paid via the sandbox action (stops at CONFIRMED). */
 async function paidBoleto() {
   const cus = await h.api.call('create-new-customer', {
-    body: { name: 'Pagador', cpfCnpj: '24971563792' },
+    body: { name: 'Payer', cpfCnpj: '24971563792' },
   })
   const p = await h.api.call('create-new-payment', {
     body: { customer: cus.body.id, billingType: 'BOLETO', value: 100, dueDate: '2026-01-10' },
@@ -30,7 +30,7 @@ async function paidBoleto() {
 }
 
 describe('refund-bank-slip', () => {
-  it('refunds a CONFIRMED boleto: REFUNDED and PAYMENT_REFUNDED queued', async () => {
+  it('refunds a CONFIRMED bank slip: REFUNDED and PAYMENT_REFUNDED queued', async () => {
     await h.subscribeWebhook(['PAYMENT_REFUNDED'])
     const id = await paidBoleto()
 
@@ -48,10 +48,10 @@ describe('refund-bank-slip', () => {
     await h.assertLedgerBalances()
   })
 
-  it('refunds a RECEIVED boleto and reverses the credited balance', async () => {
+  it('refunds a RECEIVED bank slip and reverses the credited balance', async () => {
     const id = await paidBoleto()
 
-    // Boleto credits in D+1 business day. Monday 05/01 → Tuesday 06/01.
+    // The bank slip credits in D+1 business day. Monday 05/01 → Tuesday 06/01.
     await h.advance({ days: 1 })
     const before = await h.api.call('retrieve-a-single-payment', { params: { id } })
     expect(before.body.status).toBe('RECEIVED')
@@ -66,9 +66,9 @@ describe('refund-bank-slip', () => {
     await h.assertLedgerBalances()
   })
 
-  it('a Pix is refused with 400 invalid_action — this path is boleto-only', async () => {
+  it('a Pix is refused with 400 invalid_action — this path is bank-slip-only', async () => {
     const cus = await h.api.call('create-new-customer', {
-      body: { name: 'Pagador Pix', cpfCnpj: '98765432100' },
+      body: { name: 'Pix Payer', cpfCnpj: '98765432100' },
     })
     const p = await h.api.call('create-new-payment', {
       body: { customer: cus.body.id, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
@@ -84,9 +84,9 @@ describe('refund-bank-slip', () => {
     expect(after.body.status).toBe('RECEIVED')
   })
 
-  it('a PENDING boleto cannot be refunded — the machine refuses', async () => {
+  it('a PENDING bank slip cannot be refunded — the machine refuses', async () => {
     const cus = await h.api.call('create-new-customer', {
-      body: { name: 'Pagador', cpfCnpj: '24971563792' },
+      body: { name: 'Payer', cpfCnpj: '24971563792' },
     })
     const p = await h.api.call('create-new-payment', {
       body: { customer: cus.body.id, billingType: 'BOLETO', value: 100, dueDate: '2026-01-10' },

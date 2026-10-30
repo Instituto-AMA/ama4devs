@@ -445,7 +445,7 @@ export class TemplateStore {
 	async upsertTemplate(template: Template): Promise<Template> {
 		if (this.templateResolver) {
 			throw new Error(
-				'Este mock resolve os templates por comando externo; eles não são editáveis aqui.'
+				'This mock resolves the templates with an external command; they are not editable here.'
 			)
 		}
 
@@ -453,7 +453,7 @@ export class TemplateStore {
 		const validationResult = validateTemplateData(processed)
 		if (!validationResult.isValid || !validationResult.data) {
 			throw new Error(
-				`Template inválido: ${formatValidationErrorForAPI(validationResult.errors ?? [])}`
+				`Invalid template: ${formatValidationErrorForAPI(validationResult.errors ?? [])}`
 			)
 		}
 
@@ -467,7 +467,7 @@ export class TemplateStore {
 	async removeTemplate(name: string, language = 'en'): Promise<boolean> {
 		if (this.templateResolver) {
 			throw new Error(
-				'Este mock resolve os templates por comando externo; eles não são editáveis aqui.'
+				'This mock resolves the templates with an external command; they are not editable here.'
 			)
 		}
 

@@ -1,9 +1,9 @@
 /**
- * Os cálculos financeiros. É onde moram 90% dos bugs reais de um gateway.
+ * The financial calculations. It is where 90% of a gateway's real bugs live.
  *
- * Tudo aqui é table-driven e vale como GOLDEN TEST: cada linha é um número que
- * afirmamos ser o do Asaas. Quando a suíte de paridade rodar contra o sandbox
- * real e encontrar uma divergência, a correção entra como uma linha nova aqui.
+ * Everything here is table-driven and counts as a GOLDEN TEST: each line is a number we
+ * assert is Asaas's. When the parity suite runs against the real sandbox
+ * and finds a divergence, the correction enters as a new line here.
  */
 import { describe, expect, it } from 'bun:test'
 import { loadConfig } from '../../src/core/config.ts'
@@ -25,67 +25,67 @@ import { creditDateFor, skipsConfirmed } from '../../src/domain/settlement.ts'
 const fees = loadConfig().fees
 const rules = { creditCardSettlementDays: 32, debitCardSettlementDays: 3 }
 
-describe('taxas', () => {
-  it('boleto: R$ 1,99 fixo, independente do valor', () => {
+describe('fees', () => {
+  it('bank slip: R$ 1.99 fixed, regardless of the amount', () => {
     expect(calcFee(fees, 'BOLETO', cents(10_000))).toBe(199 as never)
     expect(calcFee(fees, 'BOLETO', cents(1_000_000))).toBe(199 as never)
   })
 
-  it('Pix: R$ 1,99 FIXO — não é percentual', () => {
-    // É contraintuitivo e as pessoas erram: o Pix do Asaas não cobra %.
+  it('Pix: R$ 1.99 FIXED — it is not a percentage', () => {
+    // It is counterintuitive and people get it wrong: Asaas's Pix does not charge %.
     expect(calcFee(fees, 'PIX', cents(10_000))).toBe(199 as never)
     expect(calcFee(fees, 'PIX', cents(1_000_000))).toBe(199 as never)
   })
 
-  it('cartão à vista: R$ 0,49 + 2,99%', () => {
-    // R$ 100,00 → 49 + 299 = R$ 3,48
+  it('single-payment card: R$ 0.49 + 2.99%', () => {
+    // R$ 100.00 → 49 + 299 = R$ 3.48
     expect(calcFee(fees, 'CREDIT_CARD', cents(10_000), 1)).toBe(348 as never)
   })
 
-  it('cartão: a faixa percentual muda com o número de parcelas', () => {
-    const v = cents(10_000) // R$ 100,00
-    expect(calcFee(fees, 'CREDIT_CARD', v, 1)).toBe(348 as never) // 0,49 + 2,99%
-    expect(calcFee(fees, 'CREDIT_CARD', v, 6)).toBe(398 as never) // 0,49 + 3,49%
-    expect(calcFee(fees, 'CREDIT_CARD', v, 12)).toBe(448 as never) // 0,49 + 3,99%
-    expect(calcFee(fees, 'CREDIT_CARD', v, 18)).toBe(478 as never) // 0,49 + 4,29%
+  it('card: the percentage bracket changes with the number of installments', () => {
+    const v = cents(10_000) // R$ 100.00
+    expect(calcFee(fees, 'CREDIT_CARD', v, 1)).toBe(348 as never) // 0.49 + 2.99%
+    expect(calcFee(fees, 'CREDIT_CARD', v, 6)).toBe(398 as never) // 0.49 + 3.49%
+    expect(calcFee(fees, 'CREDIT_CARD', v, 12)).toBe(448 as never) // 0.49 + 3.99%
+    expect(calcFee(fees, 'CREDIT_CARD', v, 18)).toBe(478 as never) // 0.49 + 4.29%
   })
 
-  it('UNDEFINED não tem taxa: o meio de pagamento ainda não foi escolhido', () => {
+  it('UNDEFINED has no fee: the payment method has not been chosen yet', () => {
     expect(calcFee(fees, 'UNDEFINED', cents(10_000))).toBe(0 as never)
   })
 
-  it('netValue = value − taxa', () => {
-    // Pix de R$ 100,00, taxa R$ 1,99 → líquido R$ 98,01
+  it('netValue = value − fee', () => {
+    // Pix of R$ 100.00, fee R$ 1.99 → net R$ 98.01
     expect(netValue(cents(10_000), calcFee(fees, 'PIX', cents(10_000)))).toBe(9801 as never)
   })
 })
 
-describe('multa e juros', () => {
+describe('fine and interest', () => {
   const fine = { value: 2, type: 'PERCENTAGE' as const } // 2%
-  const interest = { value: 1 } // 1% ao mês
+  const interest = { value: 1 } // 1% a month
 
-  it('multa percentual é aplicada uma vez', () => {
-    expect(calcFine(fine, cents(10_000))).toBe(200 as never) // 2% de R$100
+  it('a percentage fine is applied once', () => {
+    expect(calcFine(fine, cents(10_000))).toBe(200 as never) // 2% of R$100
   })
 
-  it('multa fixa é o valor em reais', () => {
+  it('a fixed fine is the amount in reais', () => {
     expect(calcFine({ value: 5, type: 'FIXED' }, cents(10_000))).toBe(500 as never)
   })
 
-  it('juros são pro-rata die sobre mês comercial de 30 dias', () => {
-    // R$ 100,00 × 1% / 30 × 30 dias = R$ 1,00
+  it('the interest is pro-rata die over a 30-day commercial month', () => {
+    // R$ 100.00 × 1% / 30 × 30 days = R$ 1.00
     expect(calcInterest(interest, cents(10_000), 30)).toBe(100 as never)
-    // 15 dias = metade
+    // 15 days = half
     expect(calcInterest(interest, cents(10_000), 15)).toBe(50 as never)
-    // 1 dia = 1/30 de 1% de 100 = R$ 0,0333 → R$ 0,03
+    // 1 day = 1/30 of 1% of 100 = R$ 0.0333 → R$ 0.03
     expect(calcInterest(interest, cents(10_000), 1)).toBe(3 as never)
   })
 
-  it('sem atraso não há juros nem multa', () => {
+  it('without lateness there is no interest nor fine', () => {
     expect(calcInterest(interest, cents(10_000), 0)).toBe(0 as never)
   })
 
-  it('cobrança vencida há 10 dias: valor = original + multa + juros', () => {
+  it('a charge 10 days overdue: value = original + fine + interest', () => {
     const totals = calcOverdueTotals(
       {
         originalValueCents: cents(10_000),
@@ -93,58 +93,58 @@ describe('multa e juros', () => {
         fine,
         interest,
       },
-      '2026-01-15', // 10 dias depois
+      '2026-01-15', // 10 days later
     )
 
     expect(totals.daysLate).toBe(10)
-    expect(totals.fine).toBe(200 as never) // 2% aplicado UMA vez
-    expect(totals.interest).toBe(33 as never) // 100 × 1% / 30 × 10 = 0,333…
-    expect(totals.interestValue).toBe(233 as never) // multa + juros
-    expect(totals.value).toBe(10_233 as never) // R$ 102,33
+    expect(totals.fine).toBe(200 as never) // 2% applied ONCE
+    expect(totals.interest).toBe(33 as never) // 100 × 1% / 30 × 10 = 0.333…
+    expect(totals.interestValue).toBe(233 as never) // fine + interest
+    expect(totals.value).toBe(10_233 as never) // R$ 102.33
     expect(totals.originalValue).toBe(10_000 as never)
   })
 
-  it('os juros crescem um dia por vez', () => {
+  it('the interest grows one day at a time', () => {
     const at = (on: string) =>
       calcOverdueTotals(
         { originalValueCents: cents(10_000), dueDate: '2026-01-05', fine: null, interest },
         on,
       ).value
 
-    expect(at('2026-01-05')).toBe(10_000 as never) // no dia: sem juros
+    expect(at('2026-01-05')).toBe(10_000 as never) // on the day: no interest
     expect(at('2026-01-06')).toBe(10_003 as never)
     expect(at('2026-01-07')).toBe(10_007 as never)
-    expect(at('2026-02-04')).toBe(10_100 as never) // 30 dias → 1% cheio
+    expect(at('2026-02-04')).toBe(10_100 as never) // 30 days → a full 1%
   })
 })
 
-describe('desconto', () => {
+describe('discount', () => {
   const discount = { value: 10, dueDateLimitDays: 0, type: 'PERCENTAGE' as const }
 
-  it('vale até o dia do vencimento', () => {
+  it('holds until the due date', () => {
     expect(calcDiscount(discount, cents(10_000), '2026-01-10', '2026-01-05')).toBe(1000 as never)
     expect(calcDiscount(discount, cents(10_000), '2026-01-10', '2026-01-10')).toBe(1000 as never)
   })
 
-  it('não vale depois do vencimento', () => {
+  it('does not hold after the due date', () => {
     expect(calcDiscount(discount, cents(10_000), '2026-01-10', '2026-01-11')).toBe(0 as never)
   })
 
-  it('dueDateLimitDays encurta a janela', () => {
-    // Vale só até 5 dias ANTES do vencimento.
+  it('dueDateLimitDays shortens the window', () => {
+    // It only holds up to 5 days BEFORE the due date.
     const d = { value: 10, dueDateLimitDays: 5, type: 'PERCENTAGE' as const }
-    expect(calcDiscount(d, cents(10_000), '2026-01-10', '2026-01-05')).toBe(1000 as never) // 5 dias antes: vale
-    expect(calcDiscount(d, cents(10_000), '2026-01-10', '2026-01-06')).toBe(0 as never) // 4 dias antes: não
+    expect(calcDiscount(d, cents(10_000), '2026-01-10', '2026-01-05')).toBe(1000 as never) // 5 days before: it holds
+    expect(calcDiscount(d, cents(10_000), '2026-01-10', '2026-01-06')).toBe(0 as never) // 4 days before: no
   })
 
-  it('desconto fixo', () => {
+  it('fixed discount', () => {
     const d = { value: 7.5, dueDateLimitDays: 0, type: 'FIXED' as const }
     expect(calcDiscount(d, cents(10_000), '2026-01-10', '2026-01-05')).toBe(750 as never)
   })
 })
 
-describe('divisão de parcelas — a sobra vai na ÚLTIMA', () => {
-  it('R$ 350 em 12x → 11 × R$ 29,16 + R$ 29,24  (o exemplo oficial do Asaas)', () => {
+describe('installment division — the remainder goes to the LAST one', () => {
+  it('R$ 350 in 12x → 11 × R$ 29.16 + R$ 29.24  (the official Asaas example)', () => {
     const parts = splitTotal(cents(35_000), 12)
 
     expect(parts.length).toBe(12)
@@ -152,7 +152,7 @@ describe('divisão de parcelas — a sobra vai na ÚLTIMA', () => {
     expect(parts[11]).toBe(2924 as never)
   })
 
-  it('a soma das parcelas é SEMPRE exatamente o total', () => {
+  it('the sum of the installments is ALWAYS exactly the total', () => {
     for (const total of [35_000, 10_000, 9999, 1, 100_003, 777]) {
       for (const n of [1, 2, 3, 7, 12, 21]) {
         const parts = splitTotal(cents(total), n)
@@ -161,11 +161,11 @@ describe('divisão de parcelas — a sobra vai na ÚLTIMA', () => {
     }
   })
 
-  it('divisão exata não gera sobra', () => {
+  it('an exact division produces no remainder', () => {
     expect(splitTotal(cents(30_000), 3)).toEqual([10_000, 10_000, 10_000] as never)
   })
 
-  it('vencimentos são mensais a partir da primeira parcela', () => {
+  it('the due dates are monthly from the first installment', () => {
     expect(installmentDueDates('2026-01-15', 3)).toEqual([
       '2026-01-15',
       '2026-02-15',
@@ -173,9 +173,9 @@ describe('divisão de parcelas — a sobra vai na ÚLTIMA', () => {
     ])
   })
 
-  it('dia 31 não escorrega pelo calendário: cai no último dia do mês', () => {
-    // Sem isso, quem assina dia 31 de janeiro veria a cobrança de fevereiro
-    // cair em 3 de março.
+  it('the 31st does not slip through the calendar: it lands on the last day of the month', () => {
+    // Without this, someone who subscribes on January 31 would see February's charge
+    // land on March 3.
     expect(addMonths('2026-01-31', 1)).toBe('2026-02-28')
     expect(installmentDueDates('2026-01-31', 3)).toEqual([
       '2026-01-31',
@@ -185,9 +185,9 @@ describe('divisão de parcelas — a sobra vai na ÚLTIMA', () => {
   })
 })
 
-describe('split — incide sobre o netValue, não sobre o bruto', () => {
-  it('30% de uma cobrança Pix de R$ 100 é R$ 29,40, não R$ 30,00', () => {
-    // A taxa (R$ 1,99) sai primeiro. O split reparte o que sobrou.
+describe('split — it applies to the netValue, not to the gross amount', () => {
+  it('30% of a R$ 100 Pix charge is R$ 29.40, not R$ 30.00', () => {
+    // The fee (R$ 1.99) comes out first. The split divides what is left.
     const value = cents(10_000)
     const fee = calcFee(fees, 'PIX', value) // 199
     const net = netValue(value, fee) // 9801
@@ -196,12 +196,12 @@ describe('split — incide sobre o netValue, não sobre o bruto', () => {
       { walletId: 'w1', percentualValueE4: percentE4(300_000) }, // 30%
     ])
 
-    expect(result.splits[0]!.totalValueCents).toBe(2940 as never) // 30% de 98,01
+    expect(result.splits[0]!.totalValueCents).toBe(2940 as never) // 30% of 98.01
     expect(result.divergent).toBe(false)
-    expect(result.remainderCents).toBe(6861 as never) // sobra para o lojista
+    expect(result.remainderCents).toBe(6861 as never) // what is left for the merchant
   })
 
-  it('fixo e percentual coexistem e simplesmente somam', () => {
+  it('fixed and percentage coexist and simply add up', () => {
     const result = computeSplits(cents(10_000), [
       { walletId: 'w1', fixedValueCents: cents(2000) },
       { walletId: 'w2', percentualValueE4: percentE4(100_000) }, // 10%
@@ -209,7 +209,7 @@ describe('split — incide sobre o netValue, não sobre o bruto', () => {
     expect(result.totalCents).toBe(3000 as never) // R$ 20 + R$ 10
   })
 
-  it('soma acima do netValue é DIVERGÊNCIA (o Asaas bloqueia)', () => {
+  it('a sum above the netValue is a DIVERGENCE (Asaas blocks it)', () => {
     const result = computeSplits(cents(10_000), [
       { walletId: 'w1', fixedValueCents: cents(6000) },
       { walletId: 'w2', fixedValueCents: cents(5000) },
@@ -217,84 +217,84 @@ describe('split — incide sobre o netValue, não sobre o bruto', () => {
     expect(result.divergent).toBe(true)
   })
 
-  it('percentual com 4 casas decimais é preservado', () => {
+  it('a percentage with 4 decimal places is preserved', () => {
     const result = computeSplits(cents(10_000), [
-      { walletId: 'w1', percentualValueE4: percentE4(923_444) }, // 92,3444%
+      { walletId: 'w1', percentualValueE4: percentE4(923_444) }, // 92.3444%
     ])
     expect(result.splits[0]!.totalValueCents).toBe(9234 as never)
   })
 
-  it('totalFixedValue divide entre as parcelas, com a sobra na última', () => {
-    // R$ 100 em 3 parcelas → 33,33 | 33,33 | 33,34
+  it('totalFixedValue divides among the installments, with the remainder on the last one', () => {
+    // R$ 100 in 3 installments → 33.33 | 33.33 | 33.34
     expect(distributeTotalFixedValue(cents(10_000), 3)).toEqual([3333, 3333, 3334] as never)
   })
 })
 
-describe('liquidação — quando o dinheiro vira saldo', () => {
-  it('Pix pula CONFIRMED e credita na hora', () => {
+describe('settlement — when the money becomes balance', () => {
+  it('Pix skips CONFIRMED and credits right away', () => {
     expect(skipsConfirmed('PIX')).toBe(true)
     expect(creditDateFor('PIX', '2026-01-05', rules)).toBe('2026-01-05')
   })
 
-  it('boleto, cartão e débito passam por CONFIRMED', () => {
+  it('bank slip, card and debit go through CONFIRMED', () => {
     expect(skipsConfirmed('BOLETO')).toBe(false)
     expect(skipsConfirmed('CREDIT_CARD')).toBe(false)
     expect(skipsConfirmed('DEBIT_CARD')).toBe(false)
   })
 
-  it('boleto credita no próximo dia útil', () => {
-    // Segunda 05/01 → terça 06/01
+  it('the bank slip credits on the next business day', () => {
+    // Monday 05/01 → Tuesday 06/01
     expect(creditDateFor('BOLETO', '2026-01-05', rules)).toBe('2026-01-06')
-    // Sexta 09/01 → segunda 12/01 (pula o fim de semana)
+    // Friday 09/01 → Monday 12/01 (skips the weekend)
     expect(creditDateFor('BOLETO', '2026-01-09', rules)).toBe('2026-01-12')
   })
 
-  it('cartão de crédito credita em D+32', () => {
+  it('the credit card credits at D+32', () => {
     expect(creditDateFor('CREDIT_CARD', '2026-01-05', rules)).toBe('2026-02-06')
   })
 
-  it('cartão de débito credita em D+3', () => {
+  it('the debit card credits at D+3', () => {
     expect(creditDateFor('DEBIT_CARD', '2026-01-05', rules)).toBe('2026-01-08')
   })
 })
 
-describe('calendário', () => {
-  it('reconhece fim de semana', () => {
-    expect(isBusinessDay('2026-01-10')).toBe(false) // sábado
-    expect(isBusinessDay('2026-01-11')).toBe(false) // domingo
-    expect(isBusinessDay('2026-01-12')).toBe(true) // segunda
+describe('calendar', () => {
+  it('recognizes the weekend', () => {
+    expect(isBusinessDay('2026-01-10')).toBe(false) // Saturday
+    expect(isBusinessDay('2026-01-11')).toBe(false) // Sunday
+    expect(isBusinessDay('2026-01-12')).toBe(true) // Monday
   })
 
-  it('reconhece feriados fixos', () => {
-    expect(isBusinessDay('2026-01-01')).toBe(false) // Confraternização
-    expect(isBusinessDay('2026-12-25')).toBe(false) // Natal
-    expect(isBusinessDay('2026-09-07')).toBe(false) // Independência
+  it('recognizes fixed holidays', () => {
+    expect(isBusinessDay('2026-01-01')).toBe(false) // Universal Confraternization
+    expect(isBusinessDay('2026-12-25')).toBe(false) // Christmas
+    expect(isBusinessDay('2026-09-07')).toBe(false) // Independence Day
   })
 
-  it('reconhece feriados móveis (dependem da Páscoa)', () => {
-    // Páscoa 2026: 05/04. Sexta-feira Santa: 03/04. Carnaval: 16 e 17/02.
+  it('recognizes the movable holidays (they depend on Easter)', () => {
+    // Easter 2026: 05/04. Good Friday: 03/04. Carnival: 16 and 17/02.
     expect(isBusinessDay('2026-04-03')).toBe(false)
     expect(isBusinessDay('2026-02-16')).toBe(false)
     expect(isBusinessDay('2026-02-17')).toBe(false)
     expect(isBusinessDay('2026-06-04')).toBe(false) // Corpus Christi
   })
 
-  it('nextBusinessDay devolve a própria data se já for dia útil', () => {
+  it('nextBusinessDay returns the same date if it is already a business day', () => {
     expect(nextBusinessDay('2026-01-05')).toBe('2026-01-05')
-    expect(nextBusinessDay('2026-01-10')).toBe('2026-01-12') // sábado → segunda
+    expect(nextBusinessDay('2026-01-10')).toBe('2026-01-12') // Saturday → Monday
   })
 
-  it('addBusinessDays pula fim de semana e feriado', () => {
-    expect(addBusinessDays('2026-01-09', 1)).toBe('2026-01-12') // sexta +1 útil = segunda
-    expect(addBusinessDays('2026-12-24', 1)).toBe('2026-12-28') // pula Natal e o fim de semana
+  it('addBusinessDays skips the weekend and the holiday', () => {
+    expect(addBusinessDays('2026-01-09', 1)).toBe('2026-01-12') // Friday +1 business day = Monday
+    expect(addBusinessDays('2026-12-24', 1)).toBe('2026-12-28') // skips Christmas and the weekend
   })
 
-  it('daysBetween conta dias inteiros', () => {
+  it('daysBetween counts whole days', () => {
     expect(daysBetween('2026-01-15', '2026-01-05')).toBe(10)
     expect(daysBetween('2026-01-05', '2026-01-05')).toBe(0)
   })
 
-  it('ciclos de assinatura', () => {
+  it('subscription cycles', () => {
     expect(advanceCycle('2026-01-15', 'WEEKLY')).toBe('2026-01-22')
     expect(advanceCycle('2026-01-15', 'BIWEEKLY')).toBe('2026-01-29')
     expect(advanceCycle('2026-01-15', 'MONTHLY')).toBe('2026-02-15')

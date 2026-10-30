@@ -1,7 +1,7 @@
 {
 	"name": "whap",
-	"version": "0.4.1",
-	"description": "WhatsApp Cloud API mock server (Meta Graph API v23.0, WhatsApp Business API) for local development and tests: messages, templates, media, voice calls, phone numbers, webhooks and a WhatsApp Web like panel. Simulador local do WhatsApp.",
+	"version": "0.5.0",
+	"description": "WhatsApp Cloud API mock server (Meta Graph API v23.0, WhatsApp Business API) for local development and tests: messages, templates, media, voice calls, phone numbers, webhooks and a WhatsApp Web like panel.",
 	"keywords": [
 		"whatsapp",
 		"whatsapp-api",
@@ -22,7 +22,7 @@
 		"sandbox",
 		"docker",
 		"testing",
-		"simulador"
+		"simulator"
 	],
 	"homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/whatsapp",
 	"repository": {

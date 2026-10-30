@@ -1,8 +1,8 @@
 /**
- * Autenticação: header `access_token`, exatamente como o Asaas.
+ * Authentication: the `access_token` header, exactly like Asaas.
  *
- * Cada chave pertence a uma conta, e a conta carrega walletId e saldo próprios.
- * É isso que faz o split funcionar de verdade entre contas deste servidor.
+ * Each key belongs to an account, and the account carries its own walletId and
+ * balance. It is what makes the split really work between accounts of this server.
  */
 import { and, eq, gt, isNull, or } from 'drizzle-orm'
 import type { DB } from '../db/client.ts'
@@ -22,8 +22,8 @@ export async function authenticate(
 ): Promise<AuthContext> {
   if (!token) throw unauthorized()
 
-  // O Asaas distingue "formato inválido" de "chave inválida" — é o que permite
-  // ao cliente saber que colou a chave errada, e não que ela expirou.
+  // Asaas distinguishes "invalid format" from "invalid key" — it is what lets the
+  // client know it pasted the wrong key, and not that it expired.
   if (!token.startsWith('$aact_')) throw invalidTokenFormat()
 
   const [row] = await db
