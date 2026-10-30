@@ -1,5 +1,7 @@
 <p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/whatsapp/">Documentation site</a></p>
 
+<p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
+
 # WhatsApp Mock Server
 
 **A local WhatsApp Cloud API**: the Meta Graph API v23.0 of the WhatsApp Business

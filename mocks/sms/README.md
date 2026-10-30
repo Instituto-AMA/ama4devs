@@ -1,5 +1,7 @@
 <p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/sms/">Documentation site</a></p>
 
+<p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
+
 # SMS Mock Server
 
 **A local SMS gateway simulator for development and automated testing.** Provides native REST, Twilio-compatible, and simple send APIs, realistic message delivery lifecycles, status and inbound webhooks with HMAC signatures, deterministic magic numbers for delivery failure simulation, GSM-7 and UCS-2 segment counting, OTP code extraction, long-poll testing support, and a live handset inbox panel updated in real time via WebSockets.

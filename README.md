@@ -1,3 +1,5 @@
+<p align="center"><img src="site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="900"></p>
+
 # ama4devs: WhatsApp Cloud API mock and Asaas API mock
 
 Local mock servers of two third-party APIs, for development, automated tests and CI,

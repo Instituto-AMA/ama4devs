@@ -1,6 +1,6 @@
 <p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/asaas/">Documentation site</a></p>
 
-<p align="center"><img src="docs/icon.svg" alt="" width="72"></p>
+<p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
 
 # Asaas Mock Server
 
