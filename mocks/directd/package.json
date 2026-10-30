@@ -1,0 +1,33 @@
+{
+  "name": "directd-mock",
+  "version": "0.1.0",
+  "description": "Direct Data API v3 simulator for development and tests: Quod score and Boa Vista credit routes, sync and async queries, and CPF-driven scenarios for risk levels and provider failures.",
+  "keywords": [
+    "directd",
+    "direct-data",
+    "credit-bureau",
+    "quod",
+    "boa-vista",
+    "mock-server",
+    "testing",
+    "docker"
+  ],
+  "homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/directd",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Instituto-AMA/ama4devs.git",
+    "directory": "mocks/directd"
+  },
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.17",
+    "typescript": "^5.8.3"
+  }
+}
