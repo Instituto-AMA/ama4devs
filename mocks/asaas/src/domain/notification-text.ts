@@ -155,5 +155,11 @@ export function whatsappNumber(mobilePhone: string | null): string | null {
 /** A Brazilian mobile number in E.164 for the SMS mock: `+55` and the digits. */
 export function smsNumber(mobilePhone: string | null): string | null {
   const n = whatsappNumber(mobilePhone)
-  return n ? `+${n}` : null
+  if (!n) return null
+  // The SMS mock uses magic suffixes 0001–0005 for deliberate failure testing (0001 = unreachable).
+  // Notifications from Asaas must reach the mock successfully ("tem que chegar", "não mande final 0001").
+  if (/(?:000[1-5])$/.test(n)) {
+    return `+${n.slice(0, -4)}0010`
+  }
+  return `+${n}`
 }

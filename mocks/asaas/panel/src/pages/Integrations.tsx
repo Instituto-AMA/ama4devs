@@ -35,8 +35,9 @@ export const INTEGRATION_TABS: Tab[] = [
   { id: 'webhooks', label: 'Webhooks', icon: I.WEBHOOK },
   { id: 'requests', label: 'Logs de Requisições', icon: I.LOG },
   { id: 'webhook-logs', label: 'Logs de Webhooks', icon: I.LOG },
-  // The payer channels (simulator): where the e-mails and WhatsApp templates land.
+  // The payer channels (simulator): where the e-mails, WhatsApp templates and SMS land.
   { id: 'whatsapp', label: 'WhatsApp', icon: I.WHATSAPP },
+  { id: 'sms', label: 'SMS', icon: I.SMS },
   { id: 'email', label: 'E-mail (Mailpit)', icon: I.MAIL },
 ]
 
@@ -116,6 +117,7 @@ export function Integrations(props: PageProps & { tab: string | undefined }) {
       {tab.id === 'requests' && <RequestLogs {...props} />}
       {tab.id === 'webhook-logs' && <WebhookLogs {...props} />}
       {tab.id === 'whatsapp' && <ChannelPage {...props} channel="WHATSAPP" />}
+      {tab.id === 'sms' && <ChannelPage {...props} channel="SMS" />}
       {tab.id === 'email' && <ChannelPage {...props} channel="EMAIL" />}
       {tab.id === 'generator' && <GeneratorPage {...props} />}
     </div>

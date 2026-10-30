@@ -83,7 +83,11 @@ export function WebhookLogs({ store, navigate }: PageProps) {
   const match = FILTERS.find((f) => f.id === filter)!.match
   const shown = (rows ?? []).filter(match)
   const current = shown.find((d) => d.id === selectedId) ?? null
-  const nothingDelivered = (rows ?? []).length > 0 && (rows ?? []).every((d) => d.status === 'NO_WEBHOOK')
+  const hasActiveWebhooks = (store.queues ?? []).some((q) => q.accountId === account.id && q.enabled)
+  const nothingDelivered =
+    (rows ?? []).length > 0 &&
+    (rows ?? []).every((d) => d.status === 'NO_WEBHOOK') &&
+    !hasActiveWebhooks
 
   return (
     <div class="stack">

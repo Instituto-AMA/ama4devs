@@ -26,7 +26,7 @@ import {
 } from '../../components/ui.tsx'
 import * as I from '../../icons.ts'
 
-type Channel = 'EMAIL' | 'WHATSAPP'
+type Channel = 'EMAIL' | 'WHATSAPP' | 'SMS'
 
 interface ChannelState {
   on: boolean
@@ -38,6 +38,7 @@ interface ChannelState {
 interface Status {
   email: ChannelState & { from: string }
   whatsapp: ChannelState & { sender: string; registered: boolean; callbackUrl: string }
+  sms: ChannelState
   replies: Array<{ kind: 'status' | 'message'; from: string; detail: string; at: string }>
 }
 
@@ -55,10 +56,12 @@ const SENT_LABEL: Record<string, string> = { SENT: 'enviada', PENDING: 'na fila'
 export function ChannelPage(props: PageProps & { channel: Channel }) {
   const { channel } = props
   const email = channel === 'EMAIL'
+  const sms = channel === 'SMS'
+  const whatsapp = channel === 'WHATSAPP'
   const [status, setStatus] = useState<Status | null>(null)
   const [sent, setSent] = useState<PayerNotification[]>([])
   const [arrived, setArrived] = useState<{ data: Arrival[]; error: string | null } | null>(null)
-  const [to, setTo] = useState(email ? 'teste@localhost' : '5511999999999')
+  const [to, setTo] = useState(email ? 'teste@localhost' : sms ? '+5511999990010' : '5511999999999')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<{ tone: 'primary' | 'danger'; text: string } | null>(null)
   const accountId = props.store.selected?.id
@@ -75,6 +78,7 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
   }
 
   useEffect(() => {
+    setTo(email ? 'teste@localhost' : sms ? '+5511999990010' : '5511999999999')
     void load().catch((e) => setNotice({ tone: 'danger', text: errorText(e) }))
   }, [channel, accountId])
 
@@ -85,7 +89,11 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
       await admin('/notify/test', { method: 'POST', body: JSON.stringify({ channel, to }) })
       setNotice({
         tone: 'primary',
-        text: email ? `E-mail de teste enviado para ${to}. Confira no Mailpit.` : `Template de teste enviado para ${to}. Confira no console do WhatsApp.`,
+        text: email
+          ? `E-mail de teste enviado para ${to}. Confira no Mailpit.`
+          : sms
+            ? `SMS de teste enviado para ${to}. Confira no console do SMS.`
+            : `Template de teste enviado para ${to}. Confira no console do WhatsApp.`,
       })
       await load()
     } catch (e) {
@@ -96,17 +104,25 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
   }
 
   if (!status) return <Card><Empty>carregando…</Empty></Card>
-  const s = email ? status.email : status.whatsapp
+  const s = email ? status.email : sms ? status.sms : status.whatsapp
   const wa = status.whatsapp
 
   return (
     <div class="stack">
       <Card
-        title={email ? 'E-mail ao pagador (Mailpit)' : 'WhatsApp ao pagador (WhatsApp mock)'}
+        title={
+          email
+            ? 'E-mail ao pagador (Mailpit)'
+            : sms
+              ? 'SMS ao pagador (SMS mock)'
+              : 'WhatsApp ao pagador (WhatsApp mock)'
+        }
         subtitle={
           email
             ? 'Cada evento de cobrança manda um e-mail ao pagador. Ele cai no Mailpit, onde você confere a saída.'
-            : 'Cada evento de cobrança manda um template de WhatsApp ao pagador. Ele cai no console do WhatsApp mock.'
+            : sms
+              ? 'Cada evento de cobrança manda um SMS ao pagador. Ele cai no console do SMS mock.'
+              : 'Cada evento de cobrança manda um template de WhatsApp ao pagador. Ele cai no console do WhatsApp mock.'
         }
         actions={
           <>
@@ -115,7 +131,7 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
               Atualizar
             </Button>
             <a class="btn primary sm" href={s.uiUrl} target="_blank" rel="noreferrer">
-              {email ? 'Abrir Mailpit' : 'Abrir console do WhatsApp'}
+              {email ? 'Abrir Mailpit' : sms ? 'Abrir console do SMS' : 'Abrir console do WhatsApp'}
             </a>
           </>
         }
@@ -123,7 +139,7 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
         <div class="row" style={{ marginBottom: 'var(--pad-sm)' }}>
           <Badge tone={s.on ? 'success' : 'neutral'}>{s.on ? 'ligado' : 'desligado'}</Badge>
           {s.on && <Badge tone={s.reachable ? 'success' : 'danger'}>{s.reachable ? 'respondendo' : 'fora do ar'}</Badge>}
-          {!email && s.on && (
+          {whatsapp && s.on && (
             <Badge tone={wa.registered ? 'success' : 'warn'}>
               {wa.registered ? 'número cadastrado no mock' : 'cadastro pendente'}
             </Badge>
@@ -135,6 +151,8 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
           <div>
             {email ? (
               <Row label="Remetente">{status.email.from}</Row>
+            ) : sms ? (
+              <Row label="Remetente">ASAAS</Row>
             ) : (
               <>
                 <Row label="Número remetente">{wa.sender}</Row>
@@ -151,18 +169,30 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
       <Card title="Enviar teste" subtitle="Manda agora o mesmo conteúdo de uma cobrança nova, com dados de exemplo.">
         {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
         <div class="row" style={{ alignItems: 'flex-end' }}>
-          <Field label={email ? 'Para (e-mail)' : 'Para (celular com DDI)'}>
+          <Field label={email ? 'Para (e-mail)' : sms ? 'Para (celular em E.164)' : 'Para (celular com DDI)'}>
             <input class="input" value={to} onInput={(e) => setTo((e.target as HTMLInputElement).value)} />
           </Field>
           <Button variant="primary" disabled={busy || !s.on} onClick={() => void test()}>
-            {busy ? 'Enviando…' : email ? 'Enviar e-mail de teste' : 'Enviar WhatsApp de teste'}
+            {busy
+              ? 'Enviando…'
+              : email
+                ? 'Enviar e-mail de teste'
+                : sms
+                  ? 'Enviar SMS de teste'
+                  : 'Enviar WhatsApp de teste'}
           </Button>
         </div>
       </Card>
 
       <Card
-        title={email ? 'Chegou no Mailpit' : 'Chegou no WhatsApp mock'}
-        subtitle={email ? 'Lido da API do Mailpit: os e-mails deste remetente.' : 'Lido do WhatsApp mock: o que o número remetente enviou.'}
+        title={email ? 'Chegou no Mailpit' : sms ? 'Chegou no SMS mock' : 'Chegou no WhatsApp mock'}
+        subtitle={
+          email
+            ? 'Lido da API do Mailpit: os e-mails deste remetente.'
+            : sms
+              ? 'Lido da API do SMS mock: os SMS deste remetente.'
+              : 'Lido do WhatsApp mock: o que o número remetente enviou.'
+        }
         flush
       >
         {arrived?.error && <Banner tone="danger">{arrived.error}</Banner>}
@@ -174,14 +204,14 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
               <tr>
                 <th>Quando</th>
                 <th>Para</th>
-                <th>{email ? 'Assunto' : 'Template'}</th>
+                <th>{email ? 'Assunto' : sms ? 'Tipo' : 'Template'}</th>
                 <th>Conteúdo</th>
               </tr>
             </thead>
             <tbody>
               {arrived.data.map((a) => (
                 <tr key={a.id}>
-                  {/* Mailpit and the WhatsApp mock answer in UTC: shown in the browser's time zone. */}
+                  {/* Mailpit and the SMS/WhatsApp mocks answer in UTC: shown in the browser's time zone. */}
                   <td>{a.at ? new Date(a.at).toLocaleString('pt-BR') : '—'}</td>
                   <td class="mono">{a.to}</td>
                   <td>{a.title}</td>
@@ -226,7 +256,7 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
         )}
       </Card>
 
-      {!email && (
+      {whatsapp && (
         <Card title="Retornos do WhatsApp" subtitle="O que o WhatsApp mock devolveu ao webhook do número: entregas, leituras e respostas do pagador." flush>
           {status.replies.length === 0 ? (
             <Empty>nenhum retorno ainda</Empty>

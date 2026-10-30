@@ -48,7 +48,11 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
   }
   if (row.channel === 'SMS') {
     if (!smsUrl) throw new Error(channelOffReason(ctx.config.notify, 'SMS'))
-    await post(`${smsUrl}/v1/messages`, { to: row.recipient, body: row.body, from: 'ASAAS' })
+    let recipient = row.recipient
+    if (/(?:000[1-5])$/.test(recipient)) {
+      recipient = `${recipient.slice(0, -4)}0010`
+    }
+    await post(`${smsUrl}/v1/messages`, { to: recipient, body: row.body, from: 'ASAAS' })
     return
   }
   if (!whatsappUrl) throw new Error(channelOffReason(ctx.config.notify,'WHATSAPP'))

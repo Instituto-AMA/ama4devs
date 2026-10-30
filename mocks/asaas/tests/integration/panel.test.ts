@@ -64,6 +64,7 @@ describe('panel', () => {
       '/_admin/clock',
       '/_admin/test-cards',
       '/_admin/webhooks/queue',
+      '/_admin/notify/status',
       `/_admin/summary?accountId=${account}`,
     ]) {
       const res = await get(h.app, path)

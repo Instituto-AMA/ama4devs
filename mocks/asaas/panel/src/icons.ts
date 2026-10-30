@@ -49,5 +49,6 @@ export {
   UserGroupIcon as CUSTOMER,
   WebhookIcon as WEBHOOK,
   WhatsappIcon as WHATSAPP,
+  Message01Icon as SMS,
   Mail01Icon as MAIL,
 } from '@hugeicons/core-free-icons'
