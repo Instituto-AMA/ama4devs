@@ -1,6 +1,6 @@
 {
   "name": "asaas-mock-server",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Asaas API mock server: a local Asaas sandbox simulator for development and tests (Pix, bank slip, credit card, installments, subscriptions, webhooks to localhost).",
   "keywords": [
     "asaas",

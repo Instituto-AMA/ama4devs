@@ -48,7 +48,7 @@ curl -s 'http://localhost:8899/v1/messages?to=%2B5511912340010&wait=3000'
 
 In this repository the root `make up` (the `asaas` compose profile) brings the SMS mock up together with the Asaas mock, the generator and Mailpit. Set `SMS_ENABLED=0` in the `.env` file to keep it down, or run `make up MOCKS=sms` to start only the SMS mock.
 
-The Asaas mock (version `0.11.0`) finds the SMS mock by itself: first by the compose service name `sms`, then by this machine, then by the Docker host, on port `8899`. It sends the payer SMS notifications to it (`POST /v1/messages`, sender `ASAAS`) for the same charge events as its e-mails and WhatsApp messages, and only for customers with a mobile phone. There is nothing to configure.
+The Asaas mock (version `0.11.1`) finds the SMS mock by itself: first by the compose service name `sms`, then by this machine, then by the Docker host, on port `8899`. It sends the payer SMS notifications to it (`POST /v1/messages`, sender `ASAAS`) for the same charge events as its e-mails and WhatsApp messages, and only for customers with a mobile phone. There is nothing to configure.
 
 A verified run: a charge for "Maria Souza" produced the SMS
 

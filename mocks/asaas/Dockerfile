@@ -1,12 +1,14 @@
-# deps and build run on the machine doing the build, never under emulation: Bun, tsc and vite
-# under QEMU arm64 hang the publish for hours. Their output (src/generated, src/admin/ui.html)
-# is plain text, the same on every platform; only prod-deps and runtime are per platform.
+# Every stage that runs a command (deps, prod-deps, build, prep) runs on the machine doing the
+# build, never under emulation: Bun, tsc and vite under QEMU arm64 hang the publish for hours.
+# What they produce is plain text (the dependencies are pure JS; src/generated and
+# src/admin/ui.html are generated text), the same on every platform. The runtime stage runs
+# nothing: it only copies files onto the target platform's base image.
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
-FROM oven/bun:1.4.2-alpine AS prod-deps
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-alpine AS prod-deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts
@@ -23,7 +25,13 @@ COPY . .
 # thing that can 404 inside the container. This stage disappears after the COPY below.
 RUN bun run codegen && bunx tsc --noEmit && bun run panel:check && bun run panel:build
 
+# The /app and /data directories, owned by the bun user, so the runtime needs no RUN to make them.
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-alpine AS prep
+RUN mkdir -p /app /data && chown bun:bun /app /data
+
 FROM oven/bun:1.4.2-alpine AS runtime
+COPY --from=prep --chown=bun:bun /app /app
+COPY --from=prep --chown=bun:bun /data /data
 WORKDIR /app
 ENV NODE_ENV=production
 ENV TZ=America/Sao_Paulo
@@ -49,11 +57,11 @@ LABEL org.opencontainers.image.title="Asaas Mock Server - Asaas API sandbox simu
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}"
 
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/src ./src
-COPY --from=build /app/drizzle ./drizzle
-COPY --from=build /app/spec ./spec
-COPY --from=build /app/package.json ./
+COPY --from=prod-deps --chown=bun:bun /app/node_modules ./node_modules
+COPY --from=build --chown=bun:bun /app/src ./src
+COPY --from=build --chown=bun:bun /app/drizzle ./drizzle
+COPY --from=build --chown=bun:bun /app/spec ./spec
+COPY --from=build --chown=bun:bun /app/package.json ./
 
 RUN mkdir -p /data && chown -R bun:bun /data /app
 USER bun
