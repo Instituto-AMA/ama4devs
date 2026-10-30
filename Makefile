@@ -44,7 +44,7 @@ status: env ## Health of each mock, one line each
 	@asaas_port=$$(sed -n 's/^ASAAS_PORT=//p' .env | tail -n1); asaas_port=$${asaas_port:-45445}; \
 	whatsapp_port=$$(sed -n 's/^WHATSAPP_PORT=//p' .env | tail -n1); whatsapp_port=$${whatsapp_port:-3010}; \
 	generator_port=$$(sed -n 's/^GENERATOR_PORT=//p' .env | tail -n1); generator_port=$${generator_port:-45450}; \
-	sms_port=$$(sed -n 's/^SMS_PORT=//p' .env | tail -n1); sms_port=$${sms_port:-3020}; \
+	sms_port=$$(sed -n 's/^SMS_PORT=//p' .env | tail -n1); sms_port=$${sms_port:-8899}; \
 	for entry in asaas:$$asaas_port whatsapp:$$whatsapp_port generator:$$generator_port sms:$$sms_port; do \
 		name=$${entry%%:*}; port=$${entry##*:}; \
 		if curl --fail --silent --max-time 3 "http://localhost:$$port/health" >/dev/null; then \

@@ -102,8 +102,11 @@ O que o Asaas avisa a quem paga, entregue de verdade na sua máquina:
 <td>
 
 - Cada evento da cobrança (criada, alterada, vencendo, vencida, recebida) manda
-  ao pagador um **e-mail no Mailpit** e um **template de WhatsApp** pela Cloud
-  API do [WhatsApp mock](../whatsapp/README.pt-BR.md).
+  ao pagador um **e-mail no Mailpit**, um **template de WhatsApp** pela Cloud
+  API do [WhatsApp mock](../whatsapp/README.pt-BR.md) e um **SMS** no
+  [SMS mock](../sms/README.pt-BR.md), com o remetente `ASAAS`. O SMS segue o
+  interruptor `smsEnabledForCustomer` da notificação e só sai para quem tem
+  celular cadastrado.
 - **O parcelamento é avisado uma vez**: a criação da primeira parcela conta o
   plano inteiro (*R$ 3.000,00 em 5x de R$ 600,00*); lembretes e confirmações
   continuam por parcela.
@@ -207,17 +210,24 @@ curl localhost:45445/v3/customers \
   -d '{"name":"Maria Souza","cpfCnpj":"24971563792","email":"maria@example.com","mobilePhone":"11987654321"}'
 ```
 
-Para as notificações ao pagador, rode o [WhatsApp mock](../whatsapp/README.pt-BR.md)
-e o Mailpit ao lado. Não precisa configurar nada: este servidor acha os dois
-sozinho, do jeito que estiver rodando (bun, `docker run`, o seu compose, o
+Para as notificações ao pagador, rode o [WhatsApp mock](../whatsapp/README.pt-BR.md),
+o [SMS mock](../sms/README.pt-BR.md) e o Mailpit ao lado. Não precisa configurar
+nada: este servidor acha os três sozinho, do jeito que estiver rodando (bun,
+`docker run`, o seu compose, o
 [`docker-compose.yml`](../../docker-compose.yml) da raiz). Ele procura pelo nome
-do serviço no compose (`mailpit:8025`, `whatsapp:3010` ou `whatsapp-mock:3010`),
-nesta máquina (`localhost`) e no host do Docker (`host.docker.internal`, o
-gateway no Linux), na subida e a cada 10 s, e o mais próximo ganha. O endereço
-em que o WhatsApp mock responde de volta (status de entrega, respostas do
-pagador) é achado do mesmo jeito: cada endereço em que este servidor pode ser
-alcançado é oferecido, e fica o primeiro que o WhatsApp mock verifica. Uma
-variável abaixo fixa o lugar; vazia, desliga o canal.
+do serviço no compose (`mailpit:8025`, `whatsapp:3010` ou `whatsapp-mock:3010`,
+`sms:8899` ou `sms-mock:8899`), nesta máquina (`localhost`) e no host do Docker
+(`host.docker.internal`, o gateway no Linux), na subida e a cada 10 s, e o mais
+próximo ganha. O mock de SMS só é aceito quando responde `service: "sms"` no
+`GET /health`. O endereço em que o WhatsApp mock responde de volta (status de
+entrega, respostas do pagador) é achado do mesmo jeito: cada endereço em que
+este servidor pode ser alcançado é oferecido, e fica o primeiro que o WhatsApp
+mock verifica. Cada canal tem uma variável abaixo que fixa o lugar; vazia,
+desliga o canal.
+
+No compose do repositório o serviço `sms` roda no perfil `asaas`, então o
+`make up` da raiz o sobe junto com o mock do Asaas; `SMS_ENABLED=0` no `.env` o
+mantém desligado.
 
 O mesmo vale para o [gerador de dados](../generator/README.md) (`generator:45450` ou `generator-mock:45450`):
 achado sozinho no boot e a cada 10 s na porta 45450, o mais próximo primeiro, só aceita
@@ -238,11 +248,13 @@ Definir `GENERATOR_URL` fixa o endereço; vazia (`GENERATOR_URL=`), desliga o ge
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Para onde `invoiceUrl` e `bankSlipUrl` apontam, como o navegador chega neste servidor |
 | `MAILPIT_URL` | *(sem valor: achado sozinho)* | O Mailpit dos e-mails ao pagador; vazio, desliga o e-mail |
 | `WHATSAPP_MOCK_URL` | *(sem valor: achado sozinho)* | O WhatsApp mock dos templates ao pagador; vazio, desliga o WhatsApp |
+| `SMS_MOCK_URL` | *(sem valor: achado sozinho)* | O mock de SMS das mensagens ao pagador; vazio, desliga o SMS |
 | `GENERATOR_URL` | *(sem valor: achado sozinho)* | O gerador para popular o mock; vazio, desliga o gerador |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | O número remetente no WhatsApp mock |
 | `WHATSAPP_WABA_ID` | `100000000000001` | A WABA cuja biblioteca guarda os templates do pagador |
 | `NOTIFY_CALLBACK_BASE_URL` | *(sem valor: achado sozinho)* | Este servidor como o WhatsApp mock o alcança |
 | `MAILPIT_UI_URL` · `WHATSAPP_UI_URL` | `http://localhost:8025` · `http://localhost:3010` | As duas telas, como o navegador as abre a partir de Integrações |
+| `SMS_UI_URL` | `http://localhost:8899` | O painel do mock de SMS como o navegador o abre (informado em `/_admin/notify/status`) |
 | `GENERATOR_UI_URL` | `http://localhost:45450` | A tela do gerador, como o navegador a abre a partir de Integrações |
 | `NOTIFY_FROM_EMAIL` | `notificacoes@asaas.localhost` | Remetente dos e-mails |
 | `CARD_CAPTURE_SCHEDULE` | `0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00` | Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O padrão é o relato do próprio Asaas (blog.asaas.com, 2024); o painel troca em tempo de execução |

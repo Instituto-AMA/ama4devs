@@ -1,6 +1,6 @@
 /**
  * The payer channels and the data generator find themselves: Mailpit, the
- * WhatsApp mock and the generator of fake data.
+ * WhatsApp mock, the SMS mock and the generator of fake data.
  *
  * However this server runs (bun on the machine, `docker run`, a compose of
  * someone's project, the repo's `make setup`), whatever is up answers on one of a
@@ -10,8 +10,8 @@
  * boot and again every LOOK_EVERY_MS (the process entry, src/index.ts, keeps that
  * cadence), so a mock that comes up later, moves or goes away is followed. A
  * place counts only when the service there says what it is
- * (Mailpit's version, the WhatsApp mock's template library, the generator's
- * `service: 'generator'`), so another program on the same port is never taken
+ * (Mailpit's version, the WhatsApp mock's template library, the SMS mock's
+ * `service: 'sms'` and a settings answer past its guard, the generator's `service: 'generator'`), so another program on the same port is never taken
  * for it.
  *
  * The address the WhatsApp mock calls back on is found when the sender number is
@@ -47,6 +47,12 @@ const isMailpit = (base: string) => answers(`${base}/api/v1/info`, {}, (body) =>
 const isWhatsappMock = (base: string) =>
   answers(`${base}/health`, whatsappHeaders(base), (body) => body?.ok === true && body.templates !== undefined)
 
+// `/health` is the one route the SMS mock answers before its Host guard, so a place that only
+// passes it may still refuse every send: its settings route sits behind the guard.
+const isSmsMock = async (base: string) =>
+  (await answers(`${base}/health`, {}, (body) => body?.service === 'sms')) &&
+  (await answers(`${base}/_mock/sms/settings`, {}, (body) => typeof body?.defaultFrom === 'string'))
+
 const isGenerator = (base: string) => answers(`${base}/health`, {}, (body) => body?.service === 'generator')
 
 /**
@@ -62,16 +68,19 @@ async function find(places: string[], is: (base: string) => Promise<boolean>): P
 
 async function look(ctx: AppContext, discover: NotifyDiscovery): Promise<void> {
   const notify = ctx.config.notify
-  const [mailpit, whatsapp, generator] = await Promise.all([
+  const [mailpit, whatsapp, sms, generator] = await Promise.all([
     discover.mailpit.length ? find(discover.mailpit, isMailpit) : notify.mailpitUrl,
     discover.whatsapp.length ? find(discover.whatsapp, isWhatsappMock) : notify.whatsappUrl,
+    discover.sms?.length ? find(discover.sms, isSmsMock) : notify.smsUrl,
     discover.generator.length ? find(discover.generator, isGenerator) : ctx.config.generator.url,
   ])
   report(ctx, 'Mailpit', notify.mailpitUrl, mailpit)
   report(ctx, 'WhatsApp mock', notify.whatsappUrl, whatsapp)
+  report(ctx, 'SMS mock', notify.smsUrl, sms)
   report(ctx, 'Generator', ctx.config.generator.url, generator)
   notify.mailpitUrl = mailpit
   notify.whatsappUrl = whatsapp
+  notify.smsUrl = sms
   ctx.config.generator.url = generator
 }
 

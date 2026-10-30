@@ -22,7 +22,7 @@ Every mock added to this repository must follow these standards:
 7. **Control Routes with Local Guard:**
    - Key-free administrative and state-manipulation routes must live under a dedicated, non-API prefix (`/_mock/*` for new mocks; the WhatsApp mock uses `/mock` and `/webhook`).
    - Every mock must protect its key-free routes with a local guard that verifies the `Host` header on every request (DNS rebinding) and the `Origin` header on state-changing requests (cross-site requests) against an allowlist of local hostnames.
-   - Every shipped mock implements it: the Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade.
+   - Every shipped mock implements it: the Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade; the SMS mock guards every route but `/health`.
    - The allowlist is the loopback defaults (`localhost`, `127.0.0.1`, `::1`, `host.docker.internal`) plus the comma-separated `MOCK_ALLOWED_HOSTS` (the Compose service names belong there).
 8. **Automated Test Suite:**
    - Must include automated tests executed by `make test` (and individually via `bun test` inside the mock directory).

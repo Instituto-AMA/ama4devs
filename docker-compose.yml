@@ -25,6 +25,9 @@ services:
       # The generator of fake data: the Asaas mock finds it by service name; this is where the
       # browser opens it.
       GENERATOR_UI_URL: http://localhost:${GENERATOR_PORT:-45450}
+      # The SMS mock: the Asaas mock finds it by service name and sends the payer SMS to it;
+      # this is where the browser opens it.
+      SMS_UI_URL: http://localhost:${SMS_PORT:-8899}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -97,28 +100,33 @@ services:
       start_period: 3s
     restart: unless-stopped
 
-  # The SMS gateway simulator: it sends the messages, runs their lifecycle and posts the
-  # webhooks. Its own profile: `make up MOCKS=sms` starts only it.
+  # The SMS gateway simulator: it receives the payer SMS of the Asaas mock, runs their lifecycle
+  # and posts the webhooks. Rides the asaas profile, like the generator: `make up` brings it with
+  # Asaas, already found and configured. `make up MOCKS=sms` starts only it.
   sms:
     build: ./mocks/sms
     image: ama4devs/sms:local
-    profiles: [sms]
+    profiles: [sms, asaas]
     ports:
-      - '127.0.0.1:${SMS_PORT:-3020}:3020'
+      - '127.0.0.1:${SMS_PORT:-8899}:8899'
     environment:
-      PORT: 3020
+      PORT: 8899
       SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
       SMS_WEBHOOK_SECRET: ${SMS_WEBHOOK_SECRET:-}
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+    # On by default; SMS_ENABLED=0 in .env keeps it down (the Asaas mock then never finds it and
+    # sends no SMS).
+    deploy:
+      replicas: ${SMS_ENABLED:-1}
     # The store is in memory: the messages live only while the container runs, so there is no volume.
     healthcheck:
       test:
         - CMD
         - bun
         - -e
-        - "await fetch('http://localhost:3020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "await fetch('http://localhost:8899/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 10s
       timeout: 3s
       retries: 3

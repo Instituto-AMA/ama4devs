@@ -504,7 +504,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
 
       /**
        * The payer notifications (e-mail to Mailpit, WhatsApp template to the WhatsApp
-       * mock): which channels are on, and what was sent for a charge.
+       * mock, SMS to the SMS mock): which channels are on, and what was sent for a charge.
        */
       .get('/notifications', async ({ query }) => {
         const where = query.paymentId
@@ -522,6 +522,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           channels: {
             email: Boolean(ctx.config.notify.mailpitUrl),
             whatsapp: Boolean(ctx.config.notify.whatsappUrl),
+            sms: Boolean(ctx.config.notify.smsUrl),
           },
           events: NOTIFIABLE_EVENTS.map((e) => ({ event: e, label: NOTIFICATION_LABEL[e] })),
           data: rows.map(({ html: _html, ...r }) => r),
@@ -536,7 +537,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
 
       /** What actually arrived at the channel from this server, read back from it. */
       .get('/notify/arrivals', async ({ query }) => {
-        const channel = query.channel === 'WHATSAPP' ? 'WHATSAPP' : 'EMAIL'
+        const channel = query.channel === 'WHATSAPP' ? 'WHATSAPP' : query.channel === 'SMS' ? 'SMS' : 'EMAIL'
         try {
           return { channel, data: await arrivals(ctx, channel), error: null }
         } catch (err) {
@@ -548,9 +549,11 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       .post(
         '/notify/test',
         async ({ body }) => {
-          const on = body.channel === 'EMAIL' ? ctx.config.notify.mailpitUrl : ctx.config.notify.whatsappUrl
+          const n = ctx.config.notify
+          const on = body.channel === 'EMAIL' ? n.mailpitUrl : body.channel === 'SMS' ? n.smsUrl : n.whatsappUrl
           if (!on) {
-            throw badRequest('notify_not_configured', `Canal ${body.channel === 'EMAIL' ? 'de e-mail' : 'de WhatsApp'} desligado.`)
+            const name = body.channel === 'EMAIL' ? 'de e-mail' : body.channel === 'SMS' ? 'de SMS' : 'de WhatsApp'
+            throw badRequest('notify_not_configured', `Canal ${name} desligado.`)
           }
           try {
             await sendTestNotification(ctx, body.channel, body.to)
@@ -561,7 +564,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         },
         {
           body: t.Object({
-            channel: t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP')]),
+            channel: t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP'), t.Literal('SMS')]),
             to: t.String({ minLength: 3 }),
           }),
         },
@@ -596,7 +599,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           body: t.Object({
             paymentId: t.String(),
             event: t.Union(NOTIFIABLE_EVENTS.map((e) => t.Literal(e))),
-            channels: t.Array(t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP')]), { minItems: 1 }),
+            channels: t.Array(t.Union([t.Literal('EMAIL'), t.Literal('WHATSAPP'), t.Literal('SMS')]), { minItems: 1 }),
           }),
         },
       )

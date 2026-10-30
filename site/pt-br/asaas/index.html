@@ -36,6 +36,7 @@
         <a href="../whatsapp/">Mock do WhatsApp</a>
         <a href="./" aria-current="page">Mock do Asaas</a>
         <a href="../generator/">Gerador</a>
+        <a href="../sms/">Mock de SMS</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Idioma">
@@ -125,21 +126,21 @@
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-              <p class="way-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado. Com o <a href="../whatsapp/">mock do WhatsApp</a> (porta 3010) e um Mailpit (porta 8025) no ar, ele acha os dois sozinho e cada cobrança já avisa o pagador.</p>
+              <p class="way-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado. Com o <a href="../whatsapp/">mock do WhatsApp</a> (porta 3010), o <a href="../sms/">mock de SMS</a> (porta 8899) e um Mailpit (porta 8025) no ar, ele acha os três sozinho e cada cobrança já avisa o pagador.</p>
             </section>
 
             <section class="way" id="run-compose" aria-labelledby="run-compose-title">
               <h3 id="run-compose-title">No seu docker-compose</h3>
-              <p class="way-why">Para subir junto com a sua aplicação, no compose dela. Nada para ligar: o Asaas acha o WhatsApp e o Mailpit pelo nome do serviço.</p>
+              <p class="way-why">Para subir junto com a sua aplicação, no compose dela. Nada para ligar: o Asaas acha o WhatsApp, o SMS e o Mailpit pelo nome do serviço.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.8.0
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.0
     ports:
       - '45445:45445'
     environment:
       ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` é um `$` literal no compose</span>
       CLOCK_MODE: VIRTUAL_FLOWING
-    depends_on: [whatsapp, mailpit]
+    depends_on: [whatsapp, mailpit, sms]
     volumes:
       - asaas-data:/data
 
@@ -153,9 +154,14 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
     ports:
       - '8025:8025'
 
+  sms:
+    image: ghcr.io/instituto-ama/sms-mock:0.2.0
+    ports:
+      - '8899:8899'
+
 volumes:
   asaas-data:</code></pre></div>
-              <p class="way-out">Da sua aplicação: <code>http://asaas:45445/v3</code>. Os avisos ao pagador em <code>localhost:8025</code> (e-mail) e <code>localhost:3010</code> (WhatsApp).</p>
+              <p class="way-out">Da sua aplicação: <code>http://asaas:45445/v3</code>. Os avisos ao pagador em <code>localhost:8025</code> (e-mail), <code>localhost:3010</code> (WhatsApp) e <code>localhost:8899</code> (SMS).</p>
             </section>
 
             <section class="way" id="run-build" aria-labelledby="run-build-title">
@@ -165,16 +171,16 @@ volumes:
 cd ama4devs
 docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
-              <p class="way-out">Painel e API em <code>localhost:45445</code>; o WhatsApp e o Mailpit, se estiverem no ar, ele acha sozinho</p>
+              <p class="way-out">Painel e API em <code>localhost:45445</code>; o WhatsApp, o SMS e o Mailpit, se estiverem no ar, ele acha sozinho</p>
             </section>
 
             <section class="way" id="run-all" aria-labelledby="run-all-title">
               <h3 id="run-all-title">Subir tudo junto</h3>
-              <p class="way-why">Junto com o mock do WhatsApp e o Mailpit, já conectados: cada cobrança avisa o pagador por e-mail e por WhatsApp.</p>
+              <p class="way-why">Junto com o mock do WhatsApp, o mock de SMS e o Mailpit, já conectados: cada cobrança avisa o pagador por e-mail, por WhatsApp e por SMS.</p>
               <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 make setup</code></pre></div>
-              <p class="way-out">Asaas em <code>localhost:45445</code>, WhatsApp em <code>localhost:3010</code>, e-mails em <code>localhost:8025</code></p>
+              <p class="way-out">Asaas em <code>localhost:45445</code>, WhatsApp em <code>localhost:3010</code>, SMS em <code>localhost:8899</code>, e-mails em <code>localhost:8025</code></p>
             </section>
           </div>
         </div>
@@ -195,7 +201,7 @@ make setup</code></pre></div>
                 <li>Cobranças em aberto viram <code>OVERDUE</code>; a multa uma vez, os juros por dia.</li>
                 <li>Boleto cai em D+1 útil, cartão em D+32, débito em D+3.</li>
                 <li>Webhooks disparam e retentam no cronograma do próprio Asaas.</li>
-                <li>Lembretes e avisos ao pagador saem por e-mail e WhatsApp.</li>
+                <li>Lembretes e avisos ao pagador saem por e-mail, WhatsApp e SMS.</li>
                 <li>Chaves de API com data de expiração expiram.</li>
               </ul>
               <div class="code"><pre><code>curl -X POST localhost:45445/_admin/clock/advance \
@@ -300,7 +306,7 @@ curl localhost:45445/v3/subscriptions/sub_…/payments -H 'access_token: $aact_h
 
             <article class="case" id="case-notifications">
               <h3>O que o pagador recebe</h3>
-              <p class="proves">Todo evento de cobrança avisa o pagador por e-mail (no Mailpit) e por um template de WhatsApp (no <a href="../whatsapp/">mock do WhatsApp</a>). Um parcelamento é avisado uma vez só. Suba o compose do repositório e abra as três telas lado a lado.</p>
+              <p class="proves">Todo evento de cobrança avisa o pagador por e-mail (no Mailpit), por um template de WhatsApp (no <a href="../whatsapp/">mock do WhatsApp</a>) e por SMS (no <a href="../sms/">mock de SMS</a>, com o remetente <code>ASAAS</code>). Um parcelamento é avisado uma vez só. Suba o compose do repositório e abra as telas lado a lado.</p>
               <figure class="shot">
                 <img src="../../img/asaas/charge-notifications.jpg" width="1502" height="714" alt="Uma cobrança com o link da fatura, os botões de pagamento e as notificações ao pagador: o e-mail enviado ao Mailpit e o template de WhatsApp enviado ao mock do WhatsApp." loading="lazy">
               </figure>

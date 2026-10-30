@@ -33,6 +33,7 @@
         <a href="../../whatsapp/">Mock do WhatsApp</a>
         <a href="../" aria-current="page">Mock do Asaas</a>
         <a href="../../generator/">Gerador</a>
+        <a href="../../sms/">Mock de SMS</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Idioma">
@@ -101,9 +102,10 @@
               <h2 id="notifications-title">Notificações ao pagador</h2>
               <p>O que o Asaas avisa a quem paga, entregue de verdade na sua máquina.</p>
               <ul>
-                <li>Todo evento de cobrança (criada, alterada, vencendo, vencida, recebida) manda ao pagador um <strong>e-mail no Mailpit</strong> e um <strong>template de WhatsApp</strong> pela Cloud API do <a href="../../whatsapp/">mock do WhatsApp</a>.</li>
+                <li>Todo evento de cobrança (criada, alterada, vencendo, vencida, recebida) manda ao pagador um <strong>e-mail no Mailpit</strong>, um <strong>template de WhatsApp</strong> pela Cloud API do <a href="../../whatsapp/">mock do WhatsApp</a> e um <strong>SMS</strong> no <a href="../../sms/">mock de SMS</a>, com o remetente <code>ASAAS</code>.</li>
+                <li>O SMS segue o interruptor <code>smsEnabledForCustomer</code> da notificação e só sai para quem tem celular cadastrado.</li>
                 <li>Um parcelamento é avisado uma vez: a criação da primeira parcela conta o plano inteiro (<em>R$ 3.000,00 em 5x de R$ 600,00</em>); lembretes e avisos de pagamento seguem por parcela.</li>
-                <li>Nada para ligar, do jeito que você rodar (bun, <code>docker run</code>, o seu compose, <code>make setup</code>): o Mailpit e o mock do WhatsApp são achados sozinhos, pelo nome do serviço no compose, nesta máquina ou no host do Docker, na subida e a cada 10 s, o mais próximo primeiro. O endereço em que o mock do WhatsApp responde de volta é achado do mesmo jeito: fica o primeiro que ele verifica.</li>
+                <li>Nada para ligar, do jeito que você rodar (bun, <code>docker run</code>, o seu compose, <code>make setup</code>): o Mailpit, o mock do WhatsApp e o mock de SMS são achados sozinhos, pelo nome do serviço no compose, nesta máquina ou no host do Docker, na subida e a cada 10 s, o mais próximo primeiro. O mock de SMS é procurado na porta <code>8899</code>, pelo serviço <code>sms</code> ou <code>sms-mock</code> do compose, e só é aceito quando responde <code>service: "sms"</code> no <code>GET /health</code>. O endereço em que o mock do WhatsApp responde de volta é achado do mesmo jeito: fica o primeiro que ele verifica.</li>
                 <li>O <a href="../../generator/">gerador</a> também é achado sozinho na porta <code>45450</code> (no boot e a cada 10 s, no serviço <code>generator</code> ou <code>generator-mock</code> do compose, nesta máquina ou no host do Docker): aceita quem responder <code>service: "generator"</code> no <code>GET /health</code>, liberando a aba <strong>Integrações › Gerador</strong> no painel para popular a conta selecionada com clientes reais e cobranças.</li>
                 <li>Tudo sobe configurado: no boot e a cada tick, o número remetente recebe o webhook deste servidor e os templates do pagador são criados no mock do WhatsApp, pelas chamadas da própria Meta.</li>
                 <li>Todo cliente nasce com as oito notificações padrão do Asaas (<code>GET /v3/customers/{id}/notifications</code>, alteradas com <code>PUT /v3/notifications/batch</code>), aqui com e-mail, SMS e WhatsApp ligados (o Asaas começa com o WhatsApp desligado). O aviso de vencimento sai N dias antes (10 por padrão) e no dia do vencimento; a cobrança vencida é avisada de novo a cada N dias (7 por padrão) enquanto não é paga; a cobrança de assinatura não é avisada na criação.</li>
@@ -322,11 +324,13 @@
                     <tr><td><code>INVOICE_BASE_URL</code></td><td><code>http://localhost:&lt;PORT&gt;</code></td><td>Para onde apontam <code>invoiceUrl</code> e <code>bankSlipUrl</code>, como o navegador alcança este servidor</td></tr>
                     <tr><td><code>MAILPIT_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O Mailpit dos e-mails ao pagador; vazio, desativa o e-mail</td></tr>
                     <tr><td><code>WHATSAPP_MOCK_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O mock do WhatsApp dos templates ao pagador; vazio, desativa o WhatsApp</td></tr>
+                    <tr><td><code>SMS_MOCK_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O mock de SMS das mensagens ao pagador; vazio, desativa o SMS</td></tr>
                     <tr><td><code>GENERATOR_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>O gerador para popular o mock; vazio, desativa o gerador</td></tr>
                     <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td><code>5511400000000</code></td><td>O número remetente no mock do WhatsApp</td></tr>
                     <tr><td><code>WHATSAPP_WABA_ID</code></td><td><code>100000000000001</code></td><td>A WABA cuja biblioteca guarda os templates do pagador</td></tr>
                     <tr><td><code>NOTIFY_CALLBACK_BASE_URL</code></td><td><em>(sem valor: achado sozinho)</em></td><td>Este servidor como o mock do WhatsApp o alcança</td></tr>
                     <tr><td><code>MAILPIT_UI_URL</code>, <code>WHATSAPP_UI_URL</code></td><td><code>http://localhost:8025</code>, <code>http://localhost:3010</code></td><td>As duas telas, como o navegador as abre a partir de Integrações</td></tr>
+                    <tr><td><code>SMS_UI_URL</code></td><td><code>http://localhost:8899</code></td><td>A tela do mock de SMS, onde as mensagens ao pagador são lidas. O painel do Asaas não tem aba de SMS</td></tr>
                     <tr><td><code>GENERATOR_UI_URL</code></td><td><code>http://localhost:45450</code></td><td>A tela do gerador, como o navegador a abre a partir de Integrações</td></tr>
                     <tr><td><code>NOTIFY_FROM_EMAIL</code></td><td><code>notificacoes@asaas.localhost</code></td><td>Remetente dos e-mails</td></tr>
                     <tr><td><code>CARD_CAPTURE_SCHEDULE</code></td><td><code>0@08:00,0@14:00,0@20:00,1@08:00,1@14:00,1@20:00</code></td><td>Quando a cobrança recorrente no cartão é tentada: dias depois do vencimento @ hora local. O painel troca em tempo de execução</td></tr>

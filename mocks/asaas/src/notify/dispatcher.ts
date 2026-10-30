@@ -1,6 +1,7 @@
 /**
  * Delivers the queued payer notifications: the e-mail to Mailpit's send API, the
- * template to the WhatsApp mock's Cloud API (`POST /v23.0/{phoneNumberId}/messages`).
+ * template to the WhatsApp mock's Cloud API (`POST /v23.0/{phoneNumberId}/messages`),
+ * the SMS to the SMS mock's native API (`POST /v1/messages`).
  *
  * Runs with every webhook dispatch (each tick and right after a request that
  * changed something). A failure keeps the row PENDING for the next pass, up to
@@ -32,7 +33,7 @@ async function post(url: string, body: unknown, headers: Record<string, string> 
 }
 
 async function send(ctx: AppContext, row: Row): Promise<void> {
-  const { mailpitUrl, whatsappUrl, whatsappPhoneNumberId, fromEmail } = ctx.config.notify
+  const { mailpitUrl, whatsappUrl, smsUrl, whatsappPhoneNumberId, fromEmail } = ctx.config.notify
   if (row.channel === 'EMAIL') {
     if (!mailpitUrl) throw new Error(channelOffReason(ctx.config.notify,'EMAIL'))
     await post(`${mailpitUrl}/api/v1/send`, {
@@ -43,6 +44,11 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
       ...(row.html ? { HTML: row.html } : {}),
       Tags: ['asaas', row.event],
     })
+    return
+  }
+  if (row.channel === 'SMS') {
+    if (!smsUrl) throw new Error(channelOffReason(ctx.config.notify, 'SMS'))
+    await post(`${smsUrl}/v1/messages`, { to: row.recipient, body: row.body, from: 'ASAAS' })
     return
   }
   if (!whatsappUrl) throw new Error(channelOffReason(ctx.config.notify,'WHATSAPP'))
@@ -71,7 +77,7 @@ async function send(ctx: AppContext, row: Row): Promise<void> {
  */
 export async function sendTestNotification(
   ctx: AppContext,
-  channel: 'EMAIL' | 'WHATSAPP',
+  channel: 'EMAIL' | 'WHATSAPP' | 'SMS',
   to: string,
 ): Promise<void> {
   const message = composeNotification('PAYMENT_CREATED', {
@@ -91,7 +97,7 @@ export async function sendTestNotification(
     channel,
     recipient: to,
     subject: channel === 'EMAIL' ? `[Teste] ${message.subject}` : null,
-    body: channel === 'EMAIL' ? message.text : message.template.params.join(' | '),
+    body: channel === 'EMAIL' ? message.text : channel === 'SMS' ? message.sms : message.template.params.join(' | '),
     html: channel === 'EMAIL' ? message.html : null,
     template: channel === 'WHATSAPP' ? message.template : null,
     forced: true,
@@ -106,8 +112,8 @@ export async function sendTestNotification(
 
 /** One pass over the pending notifications; returns how many were sent. */
 export async function dispatchNotifications(ctx: AppContext): Promise<number> {
-  const { mailpitUrl, whatsappUrl, maxAttempts } = ctx.config.notify
-  if (!mailpitUrl && !whatsappUrl) return 0
+  const { mailpitUrl, whatsappUrl, smsUrl, maxAttempts } = ctx.config.notify
+  if (!mailpitUrl && !whatsappUrl && !smsUrl) return 0
 
   const due = await ctx.db
     .select()

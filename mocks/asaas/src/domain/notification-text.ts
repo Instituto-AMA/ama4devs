@@ -69,7 +69,12 @@ export interface NotificationMessage {
   text: string
   html: string
   template: { name: string; language: string; params: string[] }
+  /** The SMS body: the lead and the link, at most SMS_MAX_LENGTH characters. */
+  sms: string
 }
+
+/** The longest SMS body the SMS mock takes. */
+export const SMS_MAX_LENGTH = 1000
 
 const brl = (cents: number) =>
   `R$ ${(cents / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
@@ -131,6 +136,7 @@ export function composeNotification(event: NotifiableEvent, i: NotificationInput
     subject,
     text,
     html,
+    sms: `${i.payer}: ${lead} ${cta}: ${i.invoiceUrl}`.slice(0, SMS_MAX_LENGTH),
     template: {
       name: TEMPLATE[event],
       language: 'pt_BR',
@@ -144,4 +150,10 @@ export function whatsappNumber(mobilePhone: string | null): string | null {
   const d = (mobilePhone ?? '').replace(/\D/g, '')
   if (d.length < 10) return null
   return d.startsWith('55') && d.length >= 12 ? d : `55${d}`
+}
+
+/** A Brazilian mobile number in E.164 for the SMS mock: `+55` and the digits. */
+export function smsNumber(mobilePhone: string | null): string | null {
+  const n = whatsappNumber(mobilePhone)
+  return n ? `+${n}` : null
 }

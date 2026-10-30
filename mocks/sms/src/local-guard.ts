@@ -124,3 +124,20 @@ export function guardLocal(request: Request, allowedHosts: string[]): Response |
 
   return null
 }
+
+/**
+ * Refuses a request a foreign page made: an Origin outside the allowlist (a
+ * WebSocket handshake always carries one), or no Origin and a cross-site
+ * fetch (an <img> or a link aimed at a GET that changes state). Only for the
+ * GET routes that read the live feed or send: `/ws` and `GET /sms/send`.
+ * @param request The request to judge.
+ * @param allowedHosts The hostnames the server answers to.
+ */
+export function guardForeignPage(request: Request, allowedHosts: string[]): Response | null {
+  const origin = request.headers.get('origin')
+  if (origin !== null) {
+    const originHostname = hostnameOf(origin, { httpOnly: true })
+    return !originHostname || !isAllowed(allowedHosts, originHostname) ? forbidden('forbidden_origin') : null
+  }
+  return request.headers.get('sec-fetch-site') === 'cross-site' ? forbidden('forbidden_origin') : null
+}

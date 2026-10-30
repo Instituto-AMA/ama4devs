@@ -61,7 +61,7 @@ export interface MessageStore {
   reset(): void
   /** Listens to the events of the store; the function returned stops it. */
   subscribe(fn: (event: StoreEvent) => void): () => void
-  /** Waits for the first message that answers the filter, or gives up empty. */
+  /** Waits for the first message that answers the filter (created or changed), or gives up empty. */
   waitFor(filter: ListFilter, timeoutMs: number): Promise<Message[]>
 }
 
@@ -254,7 +254,7 @@ export function createStore(deps: StoreDeps): MessageStore {
 
   /**
    * Waits for the first message that answers the filter: the list is read at
-   * once, the created messages are watched afterwards, and the wait gives up
+   * once, the created and the changed messages are watched afterwards, and the wait gives up
    * empty when the timer fires.
    * @param filter The filters the message must answer.
    * @param timeoutMs How long to wait; zero gives up at once.
@@ -282,7 +282,7 @@ export function createStore(deps: StoreDeps): MessageStore {
       }
 
       unsubscribe = subscribe((event) => {
-        if (event.type !== 'message.created') return
+        if (event.type !== 'message.created' && event.type !== 'message.updated') return
         const found = list(filter)
         if (found.length > 0) finish(found)
       })
@@ -380,7 +380,7 @@ function accepted(patch: Partial<Settings>): Partial<Settings> {
   const kept: Partial<Settings> = {}
 
   const delay = patch.deliveryDelayMs
-  if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) kept.deliveryDelayMs = delay
+  if (typeof delay === 'number' && Number.isInteger(delay) && delay >= 0 && delay <= 2_147_483_647) kept.deliveryDelayMs = delay
   if (typeof patch.autoDeliver === 'boolean') kept.autoDeliver = patch.autoDeliver
   if (typeof patch.webhookUrl === 'string') kept.webhookUrl = patch.webhookUrl.trim()
   if (typeof patch.webhookSecret === 'string') kept.webhookSecret = patch.webhookSecret.trim()

@@ -11,7 +11,7 @@ OUT="${1:-$ROOT/_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT/img"
 cp -R "$ROOT/site/." "$OUT/"
-for mock in whatsapp asaas; do
+for mock in whatsapp asaas sms; do
   mkdir -p "$OUT/img/$mock"
   cp -R "$ROOT/mocks/$mock/docs/img/." "$OUT/img/$mock/"
 done

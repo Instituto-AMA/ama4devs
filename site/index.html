@@ -69,6 +69,7 @@
         <a href="whatsapp/">WhatsApp mock</a>
         <a href="asaas/">Asaas mock</a>
         <a href="generator/">Generator</a>
+        <a href="sms/">SMS mock</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Language">
@@ -149,25 +150,28 @@ docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pr
               <p class="way-label">Mailpit, the payer e-mail inbox</p>
               <div class="code"><pre><code>docker run -d -p 8025:8025 axllent/mailpit:v1.31.4</code></pre></div>
               <p class="way-out">Inbox at <code>localhost:8025</code></p>
+              <p class="way-label">SMS, the payer SMS inbox</p>
+              <div class="code"><pre><code>docker run -d -p 8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+              <p class="way-out">Inbox at <code>localhost:8899</code></p>
               <p class="way-label">Asaas</p>
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on. Asaas finds WhatsApp and Mailpit by itself: every charge already tells the payer on both.</p>
+              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on. Asaas finds WhatsApp, Mailpit and the SMS mock by itself: every charge already tells the payer on all three.</p>
             </section>
 
             <section class="way" id="run-compose" aria-labelledby="run-compose-title">
               <h3 id="run-compose-title">In your docker-compose</h3>
-              <p class="way-why">To run next to your application, in its compose. Nothing to wire: Asaas finds WhatsApp and Mailpit by service name.</p>
+              <p class="way-why">To run next to your application, in its compose. Nothing to wire: Asaas finds WhatsApp, Mailpit and the SMS mock by service name.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.8.0
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.0
     ports:
       - '45445:45445'
     environment:
       ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` is a literal `$` in compose</span>
       CLOCK_MODE: VIRTUAL_FLOWING
-    depends_on: [whatsapp, mailpit]
+    depends_on: [whatsapp, mailpit, sms]
     volumes:
       - asaas-data:/data
 
@@ -186,10 +190,15 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
     ports:
       - '8025:8025'
 
+  sms:
+    image: ghcr.io/instituto-ama/sms-mock:0.2.0
+    ports:
+      - '8899:8899'
+
 volumes:
   asaas-data:
   whatsapp-data:</code></pre></div>
-              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. The payer e-mails at <code>localhost:8025</code>.</p>
+              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. The payer e-mails at <code>localhost:8025</code> and the payer SMS at <code>localhost:8899</code>.</p>
             </section>
 
             <section class="way" id="run-build" aria-labelledby="run-build-title">
@@ -203,12 +212,15 @@ docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
               <p class="way-label">Asaas</p>
               <div class="code"><pre><code>docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
-              <p class="way-out">With WhatsApp and Mailpit up, Asaas finds both by itself, as with the ready image.</p>
+              <p class="way-label">SMS</p>
+              <div class="code"><pre><code>docker build -t sms-mock mocks/sms
+docker run -d -p 8899:8899 sms-mock</code></pre></div>
+              <p class="way-out">With WhatsApp, Mailpit and the SMS mock up, Asaas finds them by itself, as with the ready image.</p>
             </section>
 
             <section class="way" id="run-all" aria-labelledby="run-all-title">
               <h3 id="run-all-title">Run everything</h3>
-              <p class="way-why">Both mocks and Mailpit, wired together. Every Asaas charge tells the payer twice: an e-mail in Mailpit and a WhatsApp template through the WhatsApp mock.</p>
+              <p class="way-why">Both mocks and Mailpit, wired together. Every Asaas charge tells the payer three ways: an e-mail in Mailpit, a WhatsApp template through the WhatsApp mock and an SMS in the SMS mock.</p>
               <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 make setup        <span class="c"># starts everything and writes the addresses into .env</span></code></pre></div>
@@ -219,6 +231,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
                     <tr><td>WhatsApp mock</td><td><code>localhost:3010</code></td><td>Chats, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
                     <tr><td>Asaas mock</td><td><code>localhost:45445</code></td><td>The simulator's panel and its clock; the API at <code>/v3</code></td></tr>
                     <tr><td>Mailpit</td><td><code>localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
+                    <tr><td>SMS mock</td><td><code>localhost:8899</code></td><td>The SMS sent to payers; the API at <code>/v1/messages</code></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -274,7 +287,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
                 <li>Webhooks delivered to <code>localhost</code>, with the real retry rules.</li>
                 <li>A clock you advance: charges go overdue, cards credit at D+32.</li>
                 <li>Saved cards charged on the due date, with Asaas's retries.</li>
-                <li>Payer notifications by e-mail and WhatsApp.</li>
+                <li>Payer notifications by e-mail, WhatsApp and SMS.</li>
               </ul>
               <div class="links">
                 <a class="key confirm small" href="asaas/quick-start/">Quick start</a>

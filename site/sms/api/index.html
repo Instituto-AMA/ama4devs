@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMS mock API reference: every route, the Twilio API and the magic numbers | ama4devs</title>
+  <meta name="description" content="Every route of the SMS mock: the native API, the Twilio-compatible API, the simple send route, the magic numbers that stage a failure on purpose and the control routes of the panel.">
+  <meta name="keywords" content="sms mock api reference, sms api endpoints, twilio mock api, sms gateway api, sms webhook api, magic numbers sms, otp sms api">
+  <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/sms/api/">
+  <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/api/">
+  <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/api/">
+  <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/sms/api/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="ama4devs">
+  <meta property="og:title" content="SMS mock API reference">
+  <meta property="og:description" content="The native, Twilio and simple APIs of the SMS mock, the magic numbers and the routes that drive the mock itself.">
+  <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/sms/api/">
+  <meta name="theme-color" content="#1b1b4b">
+  <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-tool="sms">
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <a class="wordmark" href="../../">ama4devs</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../whatsapp/">WhatsApp mock</a>
+        <a href="../asaas/">Asaas mock</a>
+        <a href="../generator/">Generator</a>
+        <a href="../" aria-current="page">SMS mock</a>
+        <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <span aria-current="true">EN</span>
+        <a href="../../pt-br/sms/api/" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="SMS mock">
+    <a href="../">Overview</a>
+    <a href="../quick-start/">Quick start</a>
+    <a href="./" aria-current="page">API</a>
+    <a href="../docs/">Docs</a>
+  </nav>
+
+  <main id="content">
+    <div class="doc">
+      <aside class="toc">
+        <nav aria-label="On this page">
+          <p>On this page</p>
+          <ol>
+            <li><a href="#conventions">Conventions</a></li>
+            <li><a href="#operations">The operations</a></li>
+            <li><a href="#magic">The magic numbers</a></li>
+            <li><a href="#mock">The mock's own routes</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <div>
+        <div class="doc-title">
+          <h1>API reference</h1>
+          <p class="lead">Every operation of the mock is live: the message is stored, the lifecycle runs and the webhooks leave the service. The native API speaks JSON, the Twilio API the form fields a Twilio SDK sends, and the simple API a query string.</p>
+        </div>
+
+        <div class="paper-shadow" style="margin-top: 36px">
+          <div class="sheet">
+            <section id="conventions" aria-labelledby="conventions-title">
+              <h2 id="conventions-title">Conventions</h2>
+              <ul>
+                <li><strong>Base URL</strong>: <code>http://localhost:8899</code>, the port the container publishes on the host.</li>
+                <li><strong>Authentication</strong>: none. The mock has no key: any <code>Authorization</code> header is accepted, Basic or Bearer, and the Twilio API ignores the credentials.</li>
+                <li><strong>Errors</strong>: three shapes, one per API. The native API answers <code>{"error":{"code","message","field"}}</code>, the Twilio API <code>{code,message,more_info,status}</code> and the simple API <code>{status:"error",code,message}</code>.</li>
+                <li><strong>Webhooks</strong>: a <code>status</code> event for every status change and an <code>inbound</code> event when the handset replies, posted as JSON or, for a message that came through the Twilio API, as a form. With <code>SMS_WEBHOOK_SECRET</code> set, the body is signed with <code>x-sms-signature: sha256=&lt;hmac&gt;</code>.</li>
+                <li><strong>Local guard</strong>: every route but <code>GET /health</code> asks for an admitted <code>Host</code>; the state-changing methods, the <code>/ws</code> handshake and <code>GET /sms/send</code> also ask for an admitted <code>Origin</code>.</li>
+              </ul>
+              <p>The code of every refusal is in the <a href="../docs/#api">docs</a>.</p>
+            </section>
+
+            <section id="operations" aria-labelledby="operations-title" data-api="../../data/sms-api.json">
+              <h2 id="operations-title">The operations</h2>
+              <p>Every operation the application calls, with the parameters it takes, the request example and every answer with its example, errors included. Open one to read it.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filter: messages, webhook, POST…" aria-label="Filter operations">
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>The list needs JavaScript. The same data is in <a href="../../data/sms-api.json">sms-api.json</a>.</p></noscript>
+              </div>
+            </section>
+
+            <section id="magic" aria-labelledby="magic-title">
+              <h2 id="magic-title">The magic numbers</h2>
+              <p>The mock reads the last four digits of the number and stages a failure with them, so the failure a test wants is the number it sends to. Every other number delivers normally.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Last four digits</th><th>What happens</th><th>Final status</th><th>Error code</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>0001</code></td><td>The handset is unreachable.</td><td><code>failed</code></td><td>30003</td></tr>
+                    <tr><td><code>0002</code></td><td>The handset is unknown.</td><td><code>undelivered</code></td><td>30005</td></tr>
+                    <tr><td><code>0003</code></td><td>The API refuses the number; the request answers HTTP 400 and nothing is stored.</td><td>&mdash;</td><td>21211</td></tr>
+                    <tr><td><code>0004</code></td><td>The message is sent and the handset never answers.</td><td><code>sent</code></td><td>&mdash;</td></tr>
+                    <tr><td><code>0005</code></td><td>The carrier filters the message.</td><td><code>failed</code></td><td>30007</td></tr>
+                    <tr><td><em>any other</em></td><td>The message walks the whole life.</td><td><code>delivered</code></td><td>&mdash;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="mock" aria-labelledby="mock-title" data-api="../../data/sms-mock.json" data-kind="routes">
+              <h2 id="mock-title">The mock's own routes</h2>
+              <p>Only for what an application has no endpoint for: the settings of the mock, the reply of the handset, the status by hand, the clean store between tests and the log of the webhook attempts. Open a route for what it takes and what it answers: every answer below, errors included, was captured from a run of the image.</p>
+              <div class="api-tools">
+                <input type="search" placeholder="Filter: settings, inbound, reset…" aria-label="Filter routes">
+              </div>
+              <p class="api-count" aria-live="polite"></p>
+              <div class="api-list">
+                <noscript><p>The list needs JavaScript. The same data is in <a href="../../data/sms-mock.json">sms-mock.json</a>.</p></noscript>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="bar">
+      <p class="made">ama4devs</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The SMS mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/sms">GitHub</a>. For language models: <a href="../../llms.txt">llms.txt</a>.</p>
+      <p>Fake numbers and fake messages for local development. The mock never reaches a carrier.</p>
+    </div>
+  </footer>
+  <script src="../../assets/site.js" defer></script>
+</body>
+</html>

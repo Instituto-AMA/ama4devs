@@ -36,6 +36,7 @@
         <a href="whatsapp/">Mock do WhatsApp</a>
         <a href="asaas/">Mock do Asaas</a>
         <a href="generator/">Gerador</a>
+        <a href="sms/">Mock de SMS</a>
         <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>
       </nav>
       <div class="lang" aria-label="Idioma">
@@ -120,21 +121,21 @@ docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pr
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-              <p class="way-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado. O Asaas acha o WhatsApp e o Mailpit sozinho: cada cobrança já avisa o pagador nos dois.</p>
+              <p class="way-out">Painel e API em <code>localhost:45445</code>, com o relógio virtual ligado. O Asaas acha o WhatsApp, o SMS e o Mailpit sozinho: cada cobrança já avisa o pagador nos três.</p>
             </section>
 
             <section class="way" id="run-compose" aria-labelledby="run-compose-title">
               <h3 id="run-compose-title">No seu docker-compose</h3>
-              <p class="way-why">Para subir junto com a sua aplicação, no compose dela. Nada para ligar: o Asaas acha o WhatsApp e o Mailpit pelo nome do serviço.</p>
+              <p class="way-why">Para subir junto com a sua aplicação, no compose dela. Nada para ligar: o Asaas acha o WhatsApp, o SMS e o Mailpit pelo nome do serviço.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.8.0
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.0
     ports:
       - '45445:45445'
     environment:
       ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` é um `$` literal no compose</span>
       CLOCK_MODE: VIRTUAL_FLOWING
-    depends_on: [whatsapp, mailpit]
+    depends_on: [whatsapp, mailpit, sms]
     volumes:
       - asaas-data:/data
 
@@ -153,10 +154,15 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
     ports:
       - '8025:8025'
 
+  sms:
+    image: ghcr.io/instituto-ama/sms-mock:0.2.0
+    ports:
+      - '8899:8899'
+
 volumes:
   asaas-data:
   whatsapp-data:</code></pre></div>
-              <p class="way-out">Da sua aplicação: <code>http://asaas:45445/v3</code> e <code>http://whatsapp:3010/v23.0</code>. Os e-mails ao pagador em <code>localhost:8025</code>.</p>
+              <p class="way-out">Da sua aplicação: <code>http://asaas:45445/v3</code> e <code>http://whatsapp:3010/v23.0</code>. Os avisos ao pagador em <code>localhost:8025</code> (e-mail), <code>localhost:3010</code> (WhatsApp) e <code>localhost:8899</code> (SMS).</p>
             </section>
 
             <section class="way" id="run-build" aria-labelledby="run-build-title">
@@ -170,12 +176,12 @@ docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
               <p class="way-label">Asaas</p>
               <div class="code"><pre><code>docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
-              <p class="way-out">Com o WhatsApp e o Mailpit no ar, o Asaas acha os dois sozinho, como na imagem pronta.</p>
+              <p class="way-out">Com o WhatsApp, o SMS e o Mailpit no ar, o Asaas acha os três sozinho, como na imagem pronta.</p>
             </section>
 
             <section class="way" id="run-all" aria-labelledby="run-all-title">
               <h3 id="run-all-title">Subir tudo junto</h3>
-              <p class="way-why">Os dois mocks e o Mailpit, já conectados. Toda cobrança do Asaas avisa o pagador duas vezes: um e-mail no Mailpit e um template de WhatsApp pelo mock do WhatsApp.</p>
+              <p class="way-why">Os mocks e o Mailpit, já conectados. Toda cobrança do Asaas avisa o pagador por e-mail (no Mailpit), por um template de WhatsApp (no mock do WhatsApp) e, para quem tem celular cadastrado, por SMS (no mock de SMS).</p>
               <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 make setup        <span class="c"># sobe tudo e grava os endereços no .env</span></code></pre></div>
@@ -185,6 +191,7 @@ make setup        <span class="c"># sobe tudo e grava os endereços no .env</spa
                   <tbody>
                     <tr><td>Mock do WhatsApp</td><td><code>localhost:3010</code></td><td>Conversas, templates, números, ligações; a API em <code>/v23.0</code></td></tr>
                     <tr><td>Mock do Asaas</td><td><code>localhost:45445</code></td><td>O painel do simulador e o relógio; a API em <code>/v3</code></td></tr>
+                    <tr><td>Mock do SMS</td><td><code>localhost:8899</code></td><td>As mensagens enviadas aos pagadores</td></tr>
                     <tr><td>Mailpit</td><td><code>localhost:8025</code></td><td>Os e-mails enviados aos pagadores</td></tr>
                   </tbody>
                 </table>
@@ -241,7 +248,7 @@ make setup        <span class="c"># sobe tudo e grava os endereços no .env</spa
                 <li>Webhooks entregues no <code>localhost</code>, com as regras reais de retentativa.</li>
                 <li>Um relógio que você avança: cobranças vencem, o cartão cai em D+32.</li>
                 <li>Cartão salvo cobrado no vencimento, com as retentativas do Asaas.</li>
-                <li>Notificações ao pagador por e-mail e WhatsApp.</li>
+                <li>Notificações ao pagador por e-mail, WhatsApp e SMS.</li>
               </ul>
               <div class="links">
                 <a class="key confirm small" href="asaas/quick-start/">Quick start</a>

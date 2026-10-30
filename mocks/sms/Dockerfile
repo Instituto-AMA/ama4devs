@@ -24,8 +24,8 @@ COPY public ./public
 
 USER bun
 
-EXPOSE 3020
+EXPOSE 8899
 HEALTHCHECK --interval=10s --timeout=3s --start-period=3s --retries=3 \
-  CMD bun -e "await fetch('http://localhost:'+(process.env.PORT??3020)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD bun -e "await fetch('http://localhost:'+(process.env.PORT??8899)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["bun", "src/server.ts"]

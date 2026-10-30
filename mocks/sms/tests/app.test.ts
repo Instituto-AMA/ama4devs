@@ -26,7 +26,7 @@ function makeApp(): App {
  * @param init The method, the headers and the body of the request.
  */
 async function call(app: App, path: string, init?: RequestInit): Promise<Response> {
-  const response = await app.fetch(new Request(`http://localhost:3020${path}`, init))
+  const response = await app.fetch(new Request(`http://localhost:8899${path}`, init))
   if (!response) throw new Error(`the app did not answer ${path}`)
   return response
 }
@@ -108,6 +108,36 @@ describe('the local guard', () => {
     expect(response.status).toBe(403)
     expect(await errorCodeOf(response)).toBe('forbidden_origin')
   })
+
+  test('refuses the WebSocket handshake of a foreign page', async () => {
+    const app = makeApp()
+    const response = await call(app, '/ws', { headers: { upgrade: 'websocket', origin: 'https://evil.example' } })
+    expect(response.status).toBe(403)
+    expect(await errorCodeOf(response)).toBe('forbidden_origin')
+  })
+
+  test('lets the handshake of the panel through the guard', async () => {
+    const app = makeApp()
+    const response = await call(app, '/ws', { headers: { upgrade: 'websocket', origin: 'http://localhost:8899' } })
+    expect(response.status).toBe(426) // no server in the test: past the guard, the upgrade itself is what fails
+  })
+
+  test('refuses a cross-site GET send and stores nothing', async () => {
+    const app = makeApp()
+    const response = await call(app, '/sms/send?to=%2B5511912345678&message=Hi', {
+      headers: { 'sec-fetch-site': 'cross-site' },
+    })
+    expect(response.status).toBe(403)
+    expect(app.store.list()).toHaveLength(0)
+  })
+
+  test('keeps the same-site GET send working', async () => {
+    const app = makeApp()
+    const response = await call(app, '/sms/send?to=%2B5511912345678&message=Hi', {
+      headers: { 'sec-fetch-site': 'same-site' },
+    })
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('the CORS', () => {
@@ -178,6 +208,16 @@ describe('the static files', () => {
     const core = await call(app, '/core/phone.js')
     expect(core.status).toBe(200)
     expect(core.headers.get('content-type')).toBe('text/javascript; charset=utf-8')
+  })
+
+  test('serves the parts of the operations catalog', async () => {
+    const app = makeApp()
+
+    for (const path of ['/core/operations.js', '/core/operations/native.js']) {
+      const response = await call(app, path)
+      expect(response.status).toBe(200)
+    }
+    expect((await call(app, '/core/operations/../app.js')).status).toBe(404)
   })
 
   test('does not serve a file outside the core', async () => {

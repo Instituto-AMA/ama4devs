@@ -5,6 +5,10 @@
 **Um simulador local de gateway de SMS para desenvolvimento e testes automatizados.** Oferece APIs de envio nativa REST, compatível com Twilio e simples, ciclo de vida realista de entrega de mensagens, webhooks de status e recebimento com assinatura HMAC, números mágicos determinísticos para simulação de falhas de entrega, contagem de segmentos em GSM-7 e UCS-2, extração automática de códigos OTP, suporte a long-polling para testes e um painel de caixa de entrada no celular atualizado em tempo real via WebSockets.
 
 <p align="center">
+  <img src="docs/img/chat-asaas.jpg" alt="O painel: o SMS que o mock do Asaas enviou ao pagador, entregue, com o identificador do remetente, a etiqueta de segmentos e o status da entrega." width="900">
+</p>
+
+<p align="center">
   <a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock"><img alt="Imagem" src="https://img.shields.io/badge/ghcr.io-instituto--ama%2Fsms--mock-4f46e5"></a>
   <img alt="Plataformas" src="https://img.shields.io/badge/plataformas-amd64%20%C2%B7%20arm64-4f46e5">
   <a href="LICENSE"><img alt="Licença" src="https://img.shields.io/badge/licen%C3%A7a-MIT-4f46e5"></a>
@@ -15,7 +19,7 @@
 Suba o container:
 
 ```bash
-docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest
+docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest
 ```
 
 Ou inicie com o Make na raiz do repositório:
@@ -24,12 +28,12 @@ Ou inicie com o Make na raiz do repositório:
 make up MOCKS=sms
 ```
 
-Abra o painel do aparelho em [http://localhost:3020](http://localhost:3020).
+Abra o painel do aparelho em [http://localhost:8899](http://localhost:8899). O container escuta na porta `8899`; no repositório, `SMS_PORT` no arquivo `.env` muda a porta no host.
 
 Envie um SMS usando a API nativa:
 
 ```bash
-curl -s -X POST http://localhost:3020/v1/messages \
+curl -s -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to": "+5511912340010", "body": "Seu código de verificação é 482913"}'
 ```
@@ -37,20 +41,70 @@ curl -s -X POST http://localhost:3020/v1/messages \
 Consulte a mensagem imediatamente, ou aguarde a chegada com long-polling:
 
 ```bash
-curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&wait=3000'
+curl -s 'http://localhost:8899/v1/messages?to=%2B5511912340010&wait=3000'
 ```
+
+## Sobe junto com o mock do Asaas
+
+Neste repositório, o `make up` da raiz (o perfil `asaas` do Compose) sobe o mock de SMS junto com o mock do Asaas, o gerador e o Mailpit. Para deixar o SMS de fora, use `SMS_ENABLED=0` no arquivo `.env`; para subir só ele, use `make up MOCKS=sms`.
+
+O mock do Asaas (versão `0.11.0`) encontra o mock de SMS sozinho: primeiro pelo nome de serviço `sms` do Compose, depois por esta máquina e, por último, pelo host do Docker, na porta `8899`. Ele envia para lá as notificações de SMS do pagador (`POST /v1/messages`, remetente `ASAAS`) nos mesmos eventos de cobrança dos e-mails e das mensagens de WhatsApp, e apenas para clientes com celular cadastrado. Não há nada a configurar.
+
+Uma execução verificada: uma cobrança para "Maria Souza" gerou o SMS
+
+```text
+ASAAS → +5511987654321
+Maria Souza: Conta Principal gerou uma cobrança de R$ 120,50 (Consulta), com vencimento em 10/11/2026. Ver fatura e pagar: …
+```
+
+e ele terminou `delivered` no painel de SMS.
 
 ## O Painel
 
-A interface web em `http://localhost:3020` simula a caixa de entrada de um celular de verdade:
+O painel web em `http://localhost:8899` simula a caixa de entrada de um celular de verdade:
 
-- **Conversas por Número:** Cada número de telefone de destino forma uma conversa. Mensagens enviadas pela sua aplicação aparecem à esquerda (recebidas pelo aparelho) em balões neutros.
-- **Respostas do Aparelho:** Digite no campo de resposta na parte inferior da conversa para responder como o usuário do celular. Isso registra uma mensagem recebida (`direction: 'inbound'`, `status: 'received'`) e dispara o webhook de recebimento configurado.
-- **Chips de Código OTP:** O analisador identifica códigos de verificação de 4 a 8 dígitos e grupos divididos no texto (ex.: `482913`, `123-456`), exibindo botões em chip para cópia com um clique acima do corpo da mensagem.
-- **Contador de Segmentos em Tempo Real:** Ao digitar nos campos de mensagem, um contador exibe em tempo real a codificação (`GSM-7` ou `UCS-2`), o total de caracteres, a quantidade de partes SMS tarifadas e os caracteres restantes no segmento atual.
-- **Abas do Inspetor:** Um painel lateral oferece abas com os Detalhes da Mensagem em JSON (`json`), Tentativas de Entrega de Webhook (`webhooks`) e Guia de Integração (`guide`).
-- **Controles Manuais de Status:** Ações na mensagem permitem alterar manualmente o status de entrega (`delivered`, `failed`, `undelivered`) ou apagar mensagens sob demanda.
-- **Atualizações via WebSocket:** Sincronização em tempo real via `ws://localhost:3020/ws` atualiza conversas, etiquetas de status e registros de webhook sem precisar recarregar a página.
+- **Uma Conversa por Número:** A barra lateral agrupa as mensagens pelo número de destino, com um seletor de remetente, um campo de busca e os filtros **Tudo**, **Sem resposta** e **Com falha**.
+- **As Mensagens da Sua Aplicação:** Chegam como balões à esquerda, com o identificador do remetente, o status da entrega (**Na fila**, **Enviada**, **Entregue**, **Não entregue**, **Falhou**) e a etiqueta de segmentos (`1 SMS · GSM-7`).
+- **Chips de Código OTP:** O analisador identifica códigos de verificação de 4 a 8 dígitos e grupos divididos no texto (ex.: `482913`, `123-456`), exibindo botões em chip para cópia com um clique abaixo do corpo da mensagem.
+- **Controles Manuais de Status:** Ao passar o mouse sobre a mensagem, aparecem **Entregar**, **Falhar**, **Não entregue** e **Apagar**.
+- **Respostas do Aparelho:** Digite no campo de resposta na parte inferior da conversa para responder como o usuário do celular. A resposta aparece à direita, registra uma mensagem recebida (`direction: 'inbound'`, `status: 'received'`) e dispara o webhook de recebimento configurado.
+- **Contador de Segmentos em Tempo Real:** Ao digitar no campo de resposta, o contador exibe em tempo real a codificação (`GSM-7` ou `UCS-2`), o tamanho em relação à capacidade do segmento e a quantidade de partes SMS tarifadas (`tamanho/capacidade · codificação · N SMS`).
+- **Gaveta de Detalhes:** O ícone de informações no cabeçalho (ou um clique no balão) abre a gaveta com os campos da mensagem, o JSON e o histórico de status.
+- **Nova Mensagem de Teste:** O ícone do cabeçalho abre uma janela que envia a mensagem pela API, como a sua aplicação faria.
+- **Dois Idiomas:** O cabeçalho alterna o painel entre português do Brasil e inglês.
+- **Estado Vazio:** Sem mensagens ainda, o painel oferece **Nova mensagem de teste**, **Carregar exemplos** e **Abrir painel de controle**.
+- **Atualizações via WebSocket:** Sincronização em tempo real via `ws://localhost:8899/ws` atualiza conversas, etiquetas de status e registros de webhook sem precisar recarregar a página.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/chat.jpg" alt="A conversa do painel: um SMS com chip de código OTP copiável, a etiqueta de segmentos, o status da entrega e a resposta do celular." /><br><sub><b>A conversa.</b> Uma mensagem com código OTP em chip copiável, a etiqueta de segmentos, o status da entrega e a resposta do celular à direita.</sub></td>
+<td width="50%"><img src="docs/img/chat-new.jpg" alt="A janela de nova mensagem de teste: o número de destino, o remetente e o corpo da mensagem." /><br><sub><b>Nova mensagem de teste.</b> Uma janela que envia a mensagem pela API, como a sua aplicação faria.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/tools-delivery.jpg" alt="A aba Entrega do painel de controle: entrega automática ou manual e o atraso em milissegundos." /><br><sub><b>Entrega.</b> Entrega automática ou manual, e o atraso em milissegundos até a mensagem chegar.</sub></td>
+<td width="50%"><img src="docs/img/tools-webhooks.jpg" alt="A aba Webhook do painel de controle: a URL do webhook, o segredo e o remetente padrão." /><br><sub><b>Webhook.</b> A URL, o segredo e o remetente padrão, com os formatos de payload e o cabeçalho de assinatura.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/tools-events.jpg" alt="A aba Eventos do painel de controle: a lista de tentativas de webhook com o corpo e o código de status." /><br><sub><b>Eventos.</b> Cada tentativa de webhook, com o corpo e o código de status da resposta.</sub></td>
+<td width="50%"><img src="docs/img/tools-magic.jpg" alt="A aba Números mágicos do painel de controle: a tabela de desfechos por sufixo do número de telefone." /><br><sub><b>Números mágicos.</b> Os últimos quatro dígitos do destino decidem o desfecho da mensagem.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/tools-api.jpg" alt="A aba API do painel de controle: uma operação do catálogo expandida, com um curl e a resposta do teste." /><br><sub><b>API.</b> Uma operação do catálogo expandida, com seus parâmetros, seu curl e a resposta de uma chamada real.</sub></td>
+<td width="50%"></td>
+</tr>
+</table>
+
+## O Painel de Controle
+
+O ícone do cabeçalho abre o painel de controle, uma tela cheia com as abas na lateral:
+
+- **Entrega:** Entrega automática ou manual, o atraso em milissegundos e **Começar do zero**, que apaga todas as conversas e todos os eventos de webhook do mock.
+- **Webhook:** A URL do webhook, o segredo, o remetente padrão, os formatos de payload, o cabeçalho `x-sms-signature` e um trecho de Node.js para verificar a assinatura.
+- **Eventos:** Cada tentativa de webhook, com o corpo e o código de status da resposta.
+- **Números mágicos:** A tabela inteira dos desfechos determinísticos, as capacidades de GSM-7 e UCS-2 e as regras do OTP.
+- **API:** As 20 operações do catálogo, expansíveis, com os parâmetros, os campos do corpo, um `curl`, todas as respostas documentadas e um botão **Testar** que envia a requisição de verdade e mostra a resposta.
+
+A [página da API no site da documentação](https://instituto-ama.github.io/ama4devs/pt-br/sms/api/) tem o mesmo catálogo, para leitura.
 
 ## APIs de Envio
 
@@ -61,7 +115,7 @@ O mock oferece três interfaces de envio que compartilham o mesmo armazenamento 
 Uma interface REST em JSON sob `/v1/messages`.
 
 ```bash
-curl -X POST http://localhost:3020/v1/messages \
+curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{
     "to": "+5511912340010",
@@ -107,7 +161,7 @@ Endpoints nativos disponíveis:
 Recebe requisições no padrão REST da Twilio sob `/2010-04-01/Accounts/{AccountSid}/Messages.json`. Dados codificados em formulário (`To`, `From`, `Body`, `StatusCallback` ou `MessagingServiceSid`) são processados e retornam a representação de recurso tradicional da Twilio.
 
 ```bash
-curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock00000000000000000000000000/Messages.json \
+curl -X POST http://localhost:8899/2010-04-01/Accounts/ACmock00000000000000000000000000/Messages.json \
   -u ACmock00000000000000000000000000:mock-auth-token \
   -d "To=+5511912340010" \
   -d "From=AMA4DEVS" \
@@ -125,7 +179,8 @@ const authToken = 'mock-auth-token';
 const client = twilio(accountSid, authToken);
 
 // Troca a URL base da Twilio para apontar para o mock local
-client.api.baseUrl = 'http://localhost:3020';
+client.api.baseUrl = 'http://localhost:8899';
+// Deixe TWILIO_REGION e TWILIO_EDGE vazias: com qualquer uma delas o SDK reescreve o hostname.
 
 const message = await client.messages.create({
   to: '+5511912340010',
@@ -148,10 +203,10 @@ Uma interface de rota única que aceita `GET` e `POST` em `/sms/send`:
 
 ```bash
 # Via parâmetros de busca GET:
-curl "http://localhost:3020/sms/send?to=%2B5511912340010&message=Aviso+rapido&sender=AMA4DEVS"
+curl "http://localhost:8899/sms/send?to=%2B5511912340010&message=Aviso+rapido&sender=AMA4DEVS"
 
 # Ou via POST com JSON ou formulário:
-curl -X POST http://localhost:3020/sms/send \
+curl -X POST http://localhost:8899/sms/send \
   -H 'Content-Type: application/json' \
   -d '{"to": "+5511912340010", "message": "Aviso rapido", "sender": "AMA4DEVS"}'
 ```
@@ -279,11 +334,11 @@ export function verifySmsWebhook(rawBody, signatureHeader, secret) {
 Testes automatizados podem dispensar pausas arbitrárias (`sleep`) consultando a listagem com `wait=<milissegundos>`:
 
 ```bash
-curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&wait=5000'
+curl -s 'http://localhost:8899/v1/messages?to=%2B5511912340010&wait=5000'
 ```
 
 - Se mensagens correspondentes já existirem no armazenamento, o endpoint responde imediatamente com HTTP 200.
-- Se nenhuma correspondência existir no momento, a conexão permanece aberta até que uma mensagem correspondente aos critérios (`to`, `from`, `number`, `status`, `direction`, `q`, `after`) seja criada, ou até o tempo limite de `wait` milissegundos se esgotar (limitado ao máximo de 30.000 ms).
+- Se nenhuma correspondência existir no momento, a conexão permanece aberta até que uma mensagem correspondente aos critérios (`to`, `from`, `number`, `status`, `direction`, `q`, `after`) seja criada ou mude até combinar com o filtro (ex.: `status=delivered`), ou até o tempo limite de `wait` milissegundos se esgotar (limitado ao máximo de 30.000 ms).
 - Se o tempo limite expirar sem ocorrências, uma lista vazia é retornada (`{"messages": [], "count": 0}`).
 
 ## Rotas de Controle
@@ -307,7 +362,7 @@ Configure o mock através de variáveis de ambiente:
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `PORT` | `3020` | Porta HTTP em que o servidor escuta. |
+| `PORT` | `8899` | Porta HTTP em que o servidor escuta. |
 | `MOCK_ALLOWED_HOSTS` | `""` | Lista separada por vírgulas de cabeçalhos `Host` adicionais aceitos pelo guard local. |
 | `SMS_WEBHOOK_URL` | `""` | URL padrão para entrega de webhooks de status e recebimento. |
 | `SMS_WEBHOOK_SECRET` | `""` | Segredo HMAC-SHA256 para assinatura do cabeçalho `x-sms-signature`. |
@@ -320,7 +375,7 @@ Configure o mock através de variáveis de ambiente:
 
 ## O Guard Local
 
-Para garantir a segurança durante o desenvolvimento local e a execução de testes, todas as rotas exceto `/health` validam os cabeçalhos `Host` e `Origin`:
+Para garantir a segurança durante o desenvolvimento local e a execução de testes, todas as rotas exceto `/health` validam o cabeçalho `Host`. Os métodos que mudam o estado (`POST`, `PUT`, `PATCH`, `DELETE`), o handshake de `/ws` e `GET /sms/send` também recusam uma `Origin` estrangeira ou uma requisição de navegador entre sites (`Sec-Fetch-Site: cross-site`):
 - Hosts aceitos por padrão: `localhost`, `127.0.0.1`, `::1`, `host.docker.internal`, `sms` e `sms-mock`.
 - Hosts adicionais (como aliases de serviço no Docker Compose) podem ser informados em `MOCK_ALLOWED_HOSTS`.
 - Requisições pré-voo de CORS (`OPTIONS`) e chamadas de origens permitidas refletem a origem e fornecem cabeçalhos padrão.

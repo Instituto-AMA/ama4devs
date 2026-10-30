@@ -1,61 +1,36 @@
 // @ts-check
 /**
  * The panel of the SMS mock: it draws the conversations, the thread, the
- * composer and the inspector out of the state, and wires every control of
- * `index.html` to the routes of the mock.
+ * composer and the drawer of the details out of the state, and wires every
+ * control of `index.html` to the routes of the mock.
  *
  * The script is a browser ES module: no build step, no bundler, no npm.
  * The helpers of the mock live in `./core/`, served by the mock itself.
+ * Every text a person reads comes from `t()`, the strings of the shell live
+ * in `./strings-shell.js` and the control panel lives in `./control.js`.
  */
 
 import { api, connect } from './api.js'
-import { conversations, createState, thread } from './state.js'
+import { conversations, createState, replyTo, senders, thread } from './state.js'
 import { analyze } from './core/segments.js'
 import { formatPhone, isAlphaSender, normalizePhone } from './core/phone.js'
 import { extractCodes } from './core/otp.js'
+import { applyTranslations, getLang, onLangChange, setLang, t } from './i18n.js'
+import { mountTools } from './control.js'
+import './strings-shell.js'
 
 /**
  * @typedef {import('./state.js').State} State
  * @typedef {import('./state.js').Conversation} Conversation
- * @typedef {import('../src/types.ts').Delivery} Delivery
  * @typedef {import('../src/types.ts').Message} Message
  */
-
-/** The pt-BR label of every status a message can be in. */
-const STATUS_LABELS = {
-  queued: 'Na fila',
-  sent: 'Enviada',
-  delivered: 'Entregue',
-  undelivered: 'Não entregue',
-  failed: 'Falhou',
-  received: 'Recebida',
-}
-
-/** The pt-BR label of the state of the socket. */
-const CONNECTION_LABELS = {
-  connecting: 'Conectando…',
-  open: 'Ao vivo',
-  closed: 'Reconectando…',
-}
-
-/** The themes the button cycles through, in order. */
-const THEMES = /** @type {const} */ (['system', 'light', 'dark'])
-
-/** Where the panel remembers the theme the user chose. */
-const THEME_KEY = 'sms-theme'
 
 /** How long a toast stays on the screen, and how long an error stays. */
 const TOAST_MS = 2600
 const TOAST_ERROR_MS = 4000
 
-/** The number of the magic numbers, and what each one stages. */
-const MAGIC_NUMBERS = [
-  ['…0001', 'falha na entrega'],
-  ['…0002', 'não entregue'],
-  ['…0003', 'recusado pela API'],
-  ['…0004', 'fica em "enviada"'],
-  ['…0005', 'filtrado pela operadora'],
-]
+/** The room the composer grows to, in pixels. */
+const COMPOSER_MAX_HEIGHT = 160
 
 // ───────── DOM Elements ─────────
 
@@ -70,56 +45,42 @@ function byId(id) {
   return element
 }
 
-/**
- * The first element of the page with this class, inside a root.
- * @param {ParentNode} root Where to look for it.
- * @param {string} selector The class of the element.
- * @returns {HTMLElement}
- */
-function byClass(root, selector) {
-  const element = root.querySelector(selector)
-  if (!element) throw new Error(`elemento ausente: ${selector}`)
-  return /** @type {HTMLElement} */ (element)
-}
-
-const layout = byClass(document, '.layout')
-const threadHeader = byId('thread-header')
-
 const el = {
-  conn: byId('conn'),
-  count: byId('count'),
+  app: byId('app'),
+  dot: byId('dot'),
+  connText: byId('conn-text'),
+  langButtons: Array.from(document.querySelectorAll('[data-lang]')),
+  senderFilter: /** @type {HTMLSelectElement} */ (byId('sender-filter')),
+  search: /** @type {HTMLInputElement} */ (byId('search')),
+  filters: Array.from(document.querySelectorAll('.filter[data-filter]')),
   list: byId('conversation-list'),
-  threadTitle: byClass(threadHeader, '.thread-title'),
-  threadSub: byClass(threadHeader, '.thread-sub'),
+  chatEmpty: byId('chat-empty'),
+  chatView: byId('chat-view'),
+  chatAvatar: byId('chat-avatar'),
+  chatTitle: byId('chat-title'),
+  chatSub: byId('chat-sub'),
+  btnBack: byId('btn-back'),
+  btnNew: byId('btn-new'),
+  btnTools: byId('btn-tools'),
+  btnDetails: byId('btn-details'),
+  emptyNew: byId('empty-new'),
+  emptyDemo: byId('empty-demo'),
+  emptyTools: byId('empty-tools'),
+  details: byId('details'),
+  detailsBody: byId('details-body'),
+  detailsClose: byId('details-close'),
   thread: byId('thread'),
   composer: /** @type {HTMLFormElement} */ (byId('composer')),
   composerInput: /** @type {HTMLTextAreaElement} */ (byId('composer-input')),
   composerMeta: byId('composer-meta'),
   composerSend: /** @type {HTMLButtonElement} */ (byId('composer-send')),
-  inspector: byId('inspector'),
-  inspectorBody: byId('inspector-body'),
-  tabs: /** @type {HTMLButtonElement[]} */ (Array.from(document.querySelectorAll('.tab'))),
-  search: /** @type {HTMLInputElement} */ (byId('search')),
-  btnNew: /** @type {HTMLButtonElement} */ (byId('btn-new')),
-  btnDemo: /** @type {HTMLButtonElement} */ (byId('btn-demo')),
-  btnInspector: /** @type {HTMLButtonElement} */ (byId('btn-inspector')),
-  btnSettings: /** @type {HTMLButtonElement} */ (byId('btn-settings')),
-  btnTheme: /** @type {HTMLButtonElement} */ (byId('btn-theme')),
-  btnBack: /** @type {HTMLButtonElement} */ (byId('btn-back')),
   dlgNew: /** @type {HTMLDialogElement} */ (byId('dlg-new')),
   newTo: /** @type {HTMLInputElement} */ (byId('new-to')),
   newFrom: /** @type {HTMLInputElement} */ (byId('new-from')),
   newBody: /** @type {HTMLTextAreaElement} */ (byId('new-body')),
   newMeta: byId('new-meta'),
   newSubmit: /** @type {HTMLButtonElement} */ (byId('new-submit')),
-  dlgSettings: /** @type {HTMLDialogElement} */ (byId('dlg-settings')),
-  setDelay: /** @type {HTMLInputElement} */ (byId('set-delay')),
-  setAuto: /** @type {HTMLInputElement} */ (byId('set-auto')),
-  setWebhookUrl: /** @type {HTMLInputElement} */ (byId('set-webhook-url')),
-  setWebhookSecret: /** @type {HTMLInputElement} */ (byId('set-webhook-secret')),
-  setDefaultFrom: /** @type {HTMLInputElement} */ (byId('set-default-from')),
-  setSubmit: /** @type {HTMLButtonElement} */ (byId('set-submit')),
-  btnReset: /** @type {HTMLButtonElement} */ (byId('btn-reset')),
+  toolsRoot: byId('tools'),
   toasts: byId('toasts'),
 }
 
@@ -204,14 +165,15 @@ function dayKey(date) {
 function dayLabel(iso) {
   const date = new Date(iso)
   const today = new Date()
-  if (sameDay(date, today)) return 'Hoje'
+  if (sameDay(date, today)) return t('day.today')
   const yesterday = new Date(today.getTime() - 86400000)
-  if (sameDay(date, yesterday)) return 'Ontem'
+  if (sameDay(date, yesterday)) return t('day.yesterday')
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`
 }
 
 /**
- * The label of the moment of a message: the hour of today or the date.
+ * The label of the moment of a message inside the thread: the hour of today
+ * or the date.
  * @param {string} iso The moment of the message.
  * @returns {string}
  */
@@ -219,6 +181,30 @@ function timeLabel(iso) {
   const date = new Date(iso)
   if (sameDay(date, new Date())) return `${pad(date.getHours())}:${pad(date.getMinutes())}`
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`
+}
+
+/**
+ * The label of the moment of a message in the list of conversations: the hour
+ * of today, "Ontem" for yesterday, the date otherwise.
+ * @param {string} iso The moment of the message.
+ * @returns {string}
+ */
+function listTimeLabel(iso) {
+  const date = new Date(iso)
+  const today = new Date()
+  if (sameDay(date, today)) return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const yesterday = new Date(today.getTime() - 86400000)
+  if (sameDay(date, yesterday)) return t('day.yesterday')
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`
+}
+
+/**
+ * The full moment of a message, in the language of the panel.
+ * @param {string} iso The moment of the message.
+ * @returns {string}
+ */
+function dateTime(iso) {
+  return new Date(iso).toLocaleString(getLang() === 'pt' ? 'pt-BR' : 'en-GB')
 }
 
 /**
@@ -247,27 +233,18 @@ function avatarText(number) {
 }
 
 /**
- * A JSON body as the panel shows it: indented, or as it came when it is not
- * JSON at all.
- * @param {string} text The body of the request.
- * @returns {string}
- */
-function prettyJson(text) {
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2)
-  } catch {
-    return String(text)
-  }
-}
-
-/**
- * The centered empty state of the panel.
+ * The centered empty text of a list.
  * @param {string} title The title of the state.
  * @param {string} hint The hint under the title.
  * @returns {HTMLElement}
  */
 function emptyBlock(title, hint) {
-  return h('div', { class: 'empty' }, h('h3', {}, title), h('p', {}, hint))
+  return h(
+    'div',
+    { class: 'empty' },
+    h('h3', { class: 'empty-title' }, title),
+    h('p', { class: 'empty-hint' }, hint),
+  )
 }
 
 /**
@@ -276,7 +253,8 @@ function emptyBlock(title, hint) {
 function refreshTimes() {
   for (const node of document.querySelectorAll('time[datetime]')) {
     const at = node.getAttribute('datetime')
-    if (at) node.textContent = timeLabel(at)
+    if (!at) continue
+    node.textContent = node.classList.contains('chat-item-time') ? listTimeLabel(at) : timeLabel(at)
   }
   for (const node of document.querySelectorAll('[data-day]')) {
     const at = node.getAttribute('data-day')
@@ -288,45 +266,17 @@ function refreshTimes() {
 
 const state = createState()
 
+/** Whether the chat pane is open on the narrow layout. */
+let chatOpen = false
+
+/** Whether the drawer of the details is open. */
+let detailsOpen = false
+
 /** The conversation the thread is showing, to know when it changes. */
 let lastConversation = null
 
-// ───────── Theme ─────────
-
-/**
- * Reads the theme the user chose, when the browser lets the panel remember it.
- * @returns {'system' | 'light' | 'dark'}
- */
-function readTheme() {
-  try {
-    const stored = localStorage.getItem(THEME_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
-  } catch {
-    // The browser keeps the theme to itself: the system one is the fallback.
-  }
-  return 'system'
-}
-
-/**
- * Writes the theme the user chose, when the browser lets the panel remember it.
- * @param {'system' | 'light' | 'dark'} theme The theme to remember.
- */
-function writeTheme(theme) {
-  try {
-    localStorage.setItem(THEME_KEY, theme)
-  } catch {
-    // Nothing to do: the theme still applies to this page.
-  }
-}
-
-/**
- * Applies the theme to the page: the system one takes the attribute off.
- * @param {'system' | 'light' | 'dark'} theme The theme to apply.
- */
-function applyTheme(theme) {
-  if (theme === 'system') delete document.documentElement.dataset.theme
-  else document.documentElement.dataset.theme = theme
-}
+/** The senders of the last drawing of the selector, to rebuild it once. */
+let lastSenders = ''
 
 // ───────── Toasts ─────────
 
@@ -336,7 +286,7 @@ function applyTheme(theme) {
  * @param {boolean} [isError] True when the toast reports a failure.
  */
 function toast(message, isError = false) {
-  const node = h('div', { class: isError ? 'toast toast--error' : 'toast' }, message)
+  const node = h('div', { class: isError ? 'toast error' : 'toast' }, message)
   el.toasts.append(node)
   setTimeout(() => node.remove(), isError ? TOAST_ERROR_MS : TOAST_MS)
 }
@@ -344,46 +294,101 @@ function toast(message, isError = false) {
 // ───────── Rendering ─────────
 
 /**
+ * A selector that finds the focused control again after a render, or null.
+ * @param {Element | null} node The focused element.
+ * @returns {string | null}
+ */
+function focusSelector(node) {
+  if (!(node instanceof HTMLElement)) return null
+  const bubble = node.closest('.bubble')
+  if (bubble instanceof HTMLElement && bubble.dataset.id) {
+    const base = `.bubble[data-id="${CSS.escape(bubble.dataset.id)}"]`
+    if (node.dataset.action) return `${base} [data-action="${CSS.escape(node.dataset.action)}"]`
+    if (node.dataset.code) return `${base} [data-code="${CSS.escape(node.dataset.code)}"]`
+    return base
+  }
+  if (node.classList.contains('chat-item') && node.dataset.number) {
+    return `.chat-item[data-number="${CSS.escape(node.dataset.number)}"]`
+  }
+  return null
+}
+
+/**
  * Draws the whole panel out of the state.
  * @param {State} view The state to draw.
  */
 function render(view) {
-  const list = conversations(view)
+  const refocus = focusSelector(document.activeElement)
 
-  // A conversation nobody picked yet: the panel opens the newest one.
-  if (view.selected === null && list.length > 0) {
-    state.set({ selected: list[0].number })
-    return
-  }
-
-  applyTheme(view.theme)
-
-  el.conn.dataset.state = view.connection
-  el.conn.textContent = CONNECTION_LABELS[view.connection] ?? CONNECTION_LABELS.connecting
-
-  renderConversations(view, list)
+  renderConnection(view)
+  renderSenders(view)
+  renderFilters(view)
+  renderConversations(view)
+  renderChat(view)
   renderThread(view)
   renderComposer(view)
-  renderInspector(view)
+  renderDetails(view)
 
-  if (view.selected === null) layout.classList.remove('is-thread')
+  if (refocus && (document.activeElement === null || document.activeElement === document.body)) {
+    const again = document.querySelector(refocus)
+    if (again instanceof HTMLElement) again.focus({ preventScroll: true })
+  }
+}
+
+/**
+ * Draws the state of the live socket on the header.
+ * @param {State} view The state to draw.
+ */
+function renderConnection(view) {
+  const open = view.connection === 'open'
+  const closed = view.connection === 'closed'
+  el.dot.className = open ? 'dot on' : closed ? 'dot off' : 'dot'
+  el.connText.textContent = t(open ? 'conn.open' : closed ? 'conn.closed' : 'conn.connecting')
+}
+
+/**
+ * Draws the selector of the senders: every sender of the store, plus the
+ * option that keeps all of them.
+ * @param {State} view The state to draw.
+ */
+function renderSenders(view) {
+  const list = senders(view)
+  const key = `${getLang()}|${list.join(' ')}`
+  if (key !== lastSenders) {
+    lastSenders = key
+    const fragment = document.createDocumentFragment()
+    fragment.append(h('option', { value: '' }, t('shell.allSenders')))
+    for (const sender of list) fragment.append(h('option', { value: sender }, formatPhone(sender)))
+    el.senderFilter.replaceChildren(fragment)
+  }
+  const sender = view.sender ?? null
+  el.senderFilter.value = sender === null ? '' : sender
+}
+
+/**
+ * Draws the chips of the filters: the one of the state is pressed.
+ * @param {State} view The state to draw.
+ */
+function renderFilters(view) {
+  const filter = view.filter ?? 'all'
+  for (const button of el.filters) {
+    button.setAttribute('aria-pressed', button.dataset.filter === filter ? 'true' : 'false')
+  }
 }
 
 /**
  * Draws the list of conversations.
  * @param {State} view The state to draw.
- * @param {Conversation[]} list The conversations of the sidebar.
  */
-function renderConversations(view, list) {
-  el.count.textContent = String(list.length)
-
+function renderConversations(view) {
+  const list = conversations(view)
   const scrollTop = el.list.scrollTop
   const fragment = document.createDocumentFragment()
 
   if (list.length === 0) {
-    fragment.append(emptyBlock('Nenhum SMS ainda', 'Envie pela API ou toque em Exemplos.'))
+    fragment.append(emptyBlock(t('list.empty'), t('list.emptyHint')))
   } else {
-    for (const conversation of list) fragment.append(conversationRow(view, conversation))
+    for (const conversation of list) fragment.append(conversationItem(view, conversation))
   }
 
   el.list.replaceChildren(fragment)
@@ -396,42 +401,70 @@ function renderConversations(view, list) {
  * @param {Conversation} conversation The conversation of the row.
  * @returns {HTMLElement}
  */
-function conversationRow(view, conversation) {
+function conversationItem(view, conversation) {
   const { number, last, unread } = conversation
-  const classes = ['conv']
+  const classes = ['chat-item']
   if (number === view.selected) classes.push('is-active')
-  if (unread > 0) classes.push('has-unread')
 
-  const button = h('button', { class: classes.join(' '), type: 'button' })
+  const button = h('button', { class: classes.join(' '), type: 'button', 'data-number': number })
 
   button.append(
-    h('span', { class: 'conv-avatar', style: `--hue:${hueOf(number)}` }, avatarText(number)),
+    h('span', { class: 'avatar', style: `--hue:${hueOf(number)}` }, avatarText(number)),
     h(
       'span',
-      { class: 'conv-main' },
-      h('span', { class: 'conv-title' }, formatPhone(number)),
+      { class: 'chat-item-main' },
       h(
         'span',
-        { class: 'conv-snippet' },
-        last.direction === 'inbound' ? `Você: ${last.body}` : last.body,
+        { class: 'chat-item-top' },
+        h('span', { class: 'chat-item-name' }, formatPhone(number)),
+        h('time', { class: 'chat-item-time', datetime: last.createdAt }, listTimeLabel(last.createdAt)),
+      ),
+      h(
+        'span',
+        { class: 'chat-item-bottom' },
+        h(
+          'span',
+          { class: 'chat-item-last' },
+          last.direction === 'inbound' ? `${t('list.you')}${last.body}` : last.body,
+        ),
+        unread > 0 ? h('span', { class: 'unread-badge' }, String(unread)) : null,
       ),
     ),
   )
 
-  const meta = h(
-    'span',
-    { class: 'conv-meta' },
-    h('time', { class: 'conv-time', datetime: last.createdAt }, timeLabel(last.createdAt)),
-  )
-  if (unread > 0) meta.append(h('span', { class: 'conv-badge' }, String(unread)))
-  button.append(meta)
-
   button.addEventListener('click', () => {
+    chatOpen = true
     state.set({ selected: number, selectedMessageId: null })
-    layout.classList.add('is-thread')
   })
 
   return button
+}
+
+/**
+ * Draws the chat: the empty state when no conversation is on screen, the
+ * conversation itself otherwise.
+ * @param {State} view The state to draw.
+ */
+function renderChat(view) {
+  const selected = view.selected
+  const onScreen = selected !== null
+
+  el.chatEmpty.hidden = onScreen
+  el.chatView.hidden = !onScreen
+  el.app.classList.toggle('is-chat', chatOpen)
+
+  if (!onScreen) {
+    el.chatTitle.textContent = ''
+    el.chatSub.textContent = ''
+    el.chatAvatar.textContent = ''
+    return
+  }
+
+  const messages = thread(view, selected)
+  el.chatTitle.textContent = formatPhone(selected)
+  el.chatSub.textContent = t(messages.length === 1 ? 'chat.subOne' : 'chat.sub', { count: messages.length })
+  el.chatAvatar.textContent = avatarText(selected)
+  el.chatAvatar.style.setProperty('--hue', String(hueOf(selected)))
 }
 
 /**
@@ -439,38 +472,23 @@ function conversationRow(view, conversation) {
  * @param {State} view The state to draw.
  */
 function renderThread(view) {
-  const messages = view.selected === null ? [] : thread(view, view.selected)
-
-  if (view.selected === null) {
-    el.threadTitle.textContent = 'Selecione uma conversa'
-    el.threadSub.textContent = ''
-  } else {
-    el.threadTitle.textContent = formatPhone(view.selected)
-    el.threadSub.textContent = `${messages.length} ${
-      messages.length === 1 ? 'mensagem' : 'mensagens'
-    } · celular simulado`
-  }
+  const selected = view.selected
+  const messages = selected === null ? [] : thread(view, selected)
 
   const scrollTop = el.thread.scrollTop
   const atBottom = el.thread.scrollHeight - el.thread.scrollTop - el.thread.clientHeight < 40
-  const changed = lastConversation !== view.selected
+  const changed = lastConversation !== selected
 
   const fragment = document.createDocumentFragment()
   if (messages.length === 0) {
-    fragment.append(
-      view.selected === null
-        ? emptyBlock('Selecione uma conversa', 'Escolha uma conversa na lista para ver as mensagens.')
-        : emptyBlock('Nenhuma mensagem', 'Envie um SMS para começar a conversa.'),
-    )
+    fragment.append(emptyBlock(t('thread.empty'), t('thread.emptyHint')))
   } else {
     let lastDay = ''
     for (const message of messages) {
       const day = dayKey(new Date(message.createdAt))
       if (day !== lastDay) {
         lastDay = day
-        fragment.append(
-          h('div', { class: 'day-sep', 'data-day': message.createdAt }, dayLabel(message.createdAt)),
-        )
+        fragment.append(h('div', { class: 'day', 'data-day': message.createdAt }, dayLabel(message.createdAt)))
       }
       fragment.append(bubble(view, message))
     }
@@ -481,11 +499,13 @@ function renderThread(view) {
   if (atBottom || changed) el.thread.scrollTop = el.thread.scrollHeight
   else el.thread.scrollTop = scrollTop
 
-  lastConversation = view.selected
+  lastConversation = selected
+  if (changed) detailsOpen = false
 }
 
 /**
- * Draws one message of the thread.
+ * Draws one message of the thread: the app wrote it (the handset received it)
+ * or the handset wrote it (the app received it).
  * @param {State} view The state to draw.
  * @param {Message} message The message to draw.
  * @returns {HTMLElement}
@@ -495,41 +515,34 @@ function bubble(view, message) {
   const selected = view.selectedMessageId === message.id
 
   const node = h('div', {
-    class: `bubble ${outbound ? 'bubble--in' : 'bubble--out'}`,
+    class: `bubble ${outbound ? 'in' : 'out'}`,
     'data-id': message.id,
     role: 'button',
     tabindex: '0',
     'aria-current': selected ? 'true' : 'false',
   })
 
-  if (selected) {
-    node.style.outline = '2px solid var(--accent)'
-    node.style.outlineOffset = '2px'
-  }
+  node.append(h('span', { class: 'bubble-from' }, formatPhone(message.from)))
+  node.append(h('span', { class: 'bubble-text' }, message.body))
 
-  node.append(h('span', { class: 'bubble-from' }, message.from))
-  node.append(h('span', { class: 'bubble-body' }, message.body))
-
-  if (message.codes.length > 0) {
-    const chips = h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px' })
-    for (const code of message.codes) chips.append(otpChip(code))
-    node.append(chips)
-  }
+  const codes = message.codes.length > 0 ? message.codes : extractCodes(message.body)
+  for (const code of codes) node.append(otpChip(code))
 
   const meta = h('div', { class: 'bubble-meta' })
   meta.append(h('time', { datetime: message.createdAt }, timeLabel(message.createdAt)))
   if (message.segments > 0) {
-    meta.append(h('span', { class: 'seg-badge' }, `${message.segments} SMS · ${message.encoding}`))
+    meta.append(
+      h('span', { class: 'seg-badge' }, t('bubble.segments', { count: message.segments, encoding: message.encoding })),
+    )
   }
 
-  const status = outbound ? (STATUS_LABELS[message.status] ?? message.status) : 'Enviada pelo celular'
-  const withError =
-    (message.status === 'failed' || message.status === 'undelivered') && message.errorCode !== null
+  const status = outbound ? t(`status.${message.status}`) : t('bubble.fromPhone')
+  const withError = (message.status === 'failed' || message.status === 'undelivered') && message.errorCode !== null
   meta.append(
     h(
       'span',
       { class: 'status', 'data-status': message.status },
-      withError ? `${status} · erro ${message.errorCode}` : status,
+      withError ? `${status} · ${t('bubble.error', { code: message.errorCode })}` : status,
     ),
   )
   node.append(meta)
@@ -538,6 +551,7 @@ function bubble(view, message) {
 
   const select = (event) => {
     event.stopPropagation()
+    detailsOpen = true
     state.set({ selectedMessageId: message.id })
   }
 
@@ -570,12 +584,12 @@ function messageActions(message) {
   }
 
   if (message.status === 'queued' || message.status === 'sent') {
-    add('deliver', 'Entregar', () => setStatus(message.id, 'delivered'))
-    add('fail', 'Falhar', () => setStatus(message.id, 'failed', 30003))
-    add('undeliver', 'Não entregue', () => setStatus(message.id, 'undelivered', 30005))
+    add('deliver', t('action.deliver'), () => setStatus(message.id, 'delivered'))
+    add('fail', t('action.fail'), () => setStatus(message.id, 'failed', 30003))
+    add('undeliver', t('action.undeliver'), () => setStatus(message.id, 'undelivered', 30005))
   }
 
-  add('delete', 'Apagar', () => removeMessage(message.id))
+  add('delete', t('action.delete'), () => removeMessage(message.id))
 
   return actions
 }
@@ -586,7 +600,7 @@ function messageActions(message) {
  * @returns {HTMLElement}
  */
 function otpChip(code) {
-  const chip = h('button', { class: 'chip chip--otp', type: 'button', 'data-code': code }, code)
+  const chip = h('button', { class: 'chip chip-otp', type: 'button', 'data-code': code }, code)
   chip.addEventListener('click', (event) => {
     event.stopPropagation()
     copyCode(code)
@@ -601,13 +615,13 @@ function otpChip(code) {
 function copyCode(code) {
   try {
     const clipboard = navigator.clipboard
-    if (!clipboard) throw new Error('sem área de transferência')
+    if (!clipboard) throw new Error('no clipboard in the browser')
     void clipboard.writeText(code).then(
-      () => toast('Código copiado'),
-      () => toast('Não foi possível copiar o código', true),
+      () => toast(t('toast.copied')),
+      () => toast(t('toast.copyFailed'), true),
     )
   } catch {
-    toast('Não foi possível copiar o código', true)
+    toast(t('toast.copyFailed'), true)
   }
 }
 
@@ -622,10 +636,11 @@ function setStatus(id, status, errorCode) {
 }
 
 /**
- * Deletes a message.
+ * Deletes a message, after the user confirms it.
  * @param {string} id The id of the message.
  */
 function removeMessage(id) {
+  if (!window.confirm(t('confirm.delete'))) return
   api.remove(id).catch((error) => toast(String(error.message), true))
 }
 
@@ -636,8 +651,7 @@ function removeMessage(id) {
 function renderComposer(view) {
   const enabled = view.selected !== null
   el.composerInput.disabled = !enabled
-  el.composerSend.disabled = !enabled
-  el.composerInput.placeholder = enabled ? 'Responder como o celular…' : 'Selecione uma conversa'
+  el.composerSend.disabled = !enabled || el.composerInput.value.trim() === ''
   updateCounter(el.composerMeta, el.composerInput.value)
 }
 
@@ -650,12 +664,19 @@ function renderComposer(view) {
 function updateCounter(target, text) {
   if (text === '') {
     target.textContent = ''
+    target.classList.remove('warn')
     delete target.dataset.segments
     return
   }
   const info = analyze(text)
-  target.textContent = `${info.length}/${info.perSegment} · ${info.encoding} · ${info.segments} SMS`
+  target.textContent = t('composer.counter', {
+    length: info.length,
+    perSegment: info.perSegment,
+    encoding: info.encoding,
+    segments: info.segments,
+  })
   target.dataset.segments = String(info.segments)
+  target.classList.toggle('warn', info.segments > 1)
 }
 
 /**
@@ -664,83 +685,78 @@ function updateCounter(target, text) {
  */
 function autoGrow(textarea) {
   textarea.style.height = 'auto'
-  textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
+  textarea.style.height = `${Math.min(textarea.scrollHeight, COMPOSER_MAX_HEIGHT)}px`
 }
 
 /**
- * Draws the inspector: the tab on top and the body under it.
+ * Draws the drawer of the details: the message the user picked, or the newest
+ * of the thread when nobody picked one.
  * @param {State} view The state to draw.
  */
-function renderInspector(view) {
-  for (const tab of el.tabs) {
-    tab.setAttribute('aria-selected', tab.dataset.tab === view.tab ? 'true' : 'false')
+function renderDetails(view) {
+  const open = detailsOpen && view.selected !== null
+  el.details.hidden = !open
+  if (!open) {
+    el.detailsBody.replaceChildren()
+    return
   }
 
-  const fragment = document.createDocumentFragment()
-  if (view.tab === 'webhooks') fragment.append(webhooksTab(view))
-  else if (view.tab === 'guide') fragment.append(guideTab(view))
-  else fragment.append(jsonTab(view))
-
-  el.inspectorBody.replaceChildren(fragment)
-}
-
-/**
- * The tab of the inspector that shows the message and its history.
- * @param {State} view The state to draw.
- * @returns {DocumentFragment}
- */
-function jsonTab(view) {
-  const fragment = document.createDocumentFragment()
-  const messages = view.selected === null ? [] : thread(view, view.selected)
+  const messages = thread(view, view.selected ?? '')
   const message = findMessage(messages, view.selectedMessageId)
+  const fragment = document.createDocumentFragment()
 
   if (!message) {
-    fragment.append(emptyBlock('Nenhuma mensagem', 'Selecione uma conversa para ver o JSON da mensagem.'))
-    return fragment
+    fragment.append(h('div', { class: 'empty' }, h('p', { class: 'empty-hint' }, t('details.empty'))))
+    el.detailsBody.replaceChildren(fragment)
+    return
   }
 
-  const kv = h('div', { class: 'kv' })
   const rows = [
-    ['ID', message.id],
-    ['Status', STATUS_LABELS[message.status] ?? message.status],
-    ['API', message.api],
-    ['Codificação', message.encoding],
-    ['Segmentos', String(message.segments)],
-    ['De', message.from],
-    ['Para', message.to],
+    [t('details.id'), message.id],
+    [t('details.status'), t(`status.${message.status}`)],
+    [t('details.api'), message.api],
+    [t('details.encoding'), message.encoding],
+    [t('details.segments'), String(message.segments)],
+    [t('details.from'), formatPhone(message.from)],
+    [t('details.to'), formatPhone(message.to)],
     [
-      'Erro',
+      t('details.error'),
       message.errorCode === null
         ? '—'
         : `${message.errorCode}${message.errorMessage ? ` · ${message.errorMessage}` : ''}`,
     ],
-    ['Criada', new Date(message.createdAt).toLocaleString('pt-BR')],
-    ['Enviada', message.sentAt ? new Date(message.sentAt).toLocaleString('pt-BR') : '—'],
-    ['Entregue', message.deliveredAt ? new Date(message.deliveredAt).toLocaleString('pt-BR') : '—'],
+    [t('details.created'), dateTime(message.createdAt)],
+    [t('details.sent'), message.sentAt ? dateTime(message.sentAt) : '—'],
+    [t('details.delivered'), message.deliveredAt ? dateTime(message.deliveredAt) : '—'],
   ]
 
   for (const [key, value] of rows) {
-    kv.append(h('span', { class: 'kv-key' }, key))
-    kv.append(h('span', { class: 'kv-val' }, value))
+    fragment.append(
+      h('div', { class: 'kv-row' }, h('span', { class: 'kv-key' }, key), h('span', { class: 'kv-val' }, value)),
+    )
   }
 
-  fragment.append(kv)
   fragment.append(h('pre', { class: 'json' }, JSON.stringify(message, null, 2)))
-  fragment.append(
-    h(
-      'div',
-      { class: 'guide-block' },
-      h('h3', {}, 'Histórico de status'),
-      h('pre', { class: 'json' }, JSON.stringify(message.history, null, 2)),
-    ),
-  )
 
-  return fragment
+  const history = h('div', { class: 'history' })
+  for (const entry of message.history) {
+    history.append(
+      h(
+        'div',
+        { class: 'history-item' },
+        h('span', { class: 'status', 'data-status': entry.status }, t(`status.${entry.status}`)),
+        h('time', { datetime: entry.at }, timeLabel(entry.at)),
+      ),
+    )
+  }
+  fragment.append(history)
+
+  el.detailsBody.replaceChildren(fragment)
 }
 
 /**
- * The message the inspector shows: the one the user picked, or the newest of
- * the thread.
+ * The message the drawer shows: the one the user picked, or the newest of the
+ * thread.
  * @param {Message[]} messages The messages of the thread.
  * @param {string | null} selectedMessageId The message the user picked.
  * @returns {Message | undefined}
@@ -753,233 +769,72 @@ function findMessage(messages, selectedMessageId) {
   return messages[messages.length - 1]
 }
 
-/**
- * The tab of the inspector that shows the webhook deliveries.
- * @param {State} view The state to draw.
- * @returns {DocumentFragment}
- */
-function webhooksTab(view) {
-  const fragment = document.createDocumentFragment()
-
-  if (view.deliveries.length === 0) {
-    fragment.append(emptyBlock('Nenhum webhook', 'Configure uma URL em Configurações.'))
-    return fragment
-  }
-
-  const toolbar = h('div', { class: 'dialog-actions' })
-  const clear = h('button', { class: 'btn', type: 'button', 'data-action': 'clear-deliveries' }, 'Limpar')
-  clear.addEventListener('click', () => {
-    api.clearDeliveries().catch((error) => toast(String(error.message), true))
-  })
-  toolbar.append(clear)
-  fragment.append(toolbar)
-
-  for (const delivery of view.deliveries) fragment.append(deliveryCard(delivery))
-
-  return fragment
-}
-
-/**
- * Draws one webhook delivery.
- * @param {Delivery} delivery The delivery to draw.
- * @returns {HTMLElement}
- */
-function deliveryCard(delivery) {
-  const card = h('div', { class: `delivery ${delivery.ok ? 'delivery--ok' : 'delivery--err'}` })
-
-  const kv = h('div', { class: 'kv' })
-  const rows = [
-    ['Evento', delivery.event === 'inbound' ? 'Entrada' : 'Status'],
-    ['Resposta', delivery.statusCode === null ? (delivery.error ?? 'sem resposta') : String(delivery.statusCode)],
-    ['URL', delivery.url],
-    ['Assinatura', delivery.signed ? 'HMAC-SHA256' : 'sem assinatura'],
-  ]
-
-  for (const [key, value] of rows) {
-    kv.append(h('span', { class: 'kv-key' }, key))
-    kv.append(h('span', { class: 'kv-val' }, value))
-  }
-
-  kv.append(h('span', { class: 'kv-key' }, 'Quando'))
-  kv.append(h('time', { class: 'kv-val', datetime: delivery.at }, timeLabel(delivery.at)))
-
-  card.append(kv)
-  if (delivery.error) card.append(h('p', {}, delivery.error))
-  card.append(h('pre', { class: 'json' }, prettyJson(delivery.requestBody)))
-
-  return card
-}
-
-/**
- * The tab of the inspector that shows how to use the mock.
- * @param {State} view The state to draw.
- * @returns {DocumentFragment}
- */
-function guideTab(view) {
-  const fragment = document.createDocumentFragment()
-  const origin = location.origin
-
-  fragment.append(
-    h(
-      'div',
-      { class: 'guide-block' },
-      h('h3', {}, 'Enviar pela API'),
-      h(
-        'pre',
-        {},
-        `curl -X POST ${origin}/v1/messages \\\n  -H 'content-type: application/json' \\\n  -d '{"to":"+5511912345678","body":"Seu código é 482913"}'`,
-      ),
-    ),
-  )
-
-  fragment.append(
-    h(
-      'div',
-      { class: 'guide-block' },
-      h('h3', {}, 'Compatível com Twilio'),
-      h('p', {}, `Aponte o SDK para ${origin}/2010-04-01 e envie para /Accounts/{AccountSid}/Messages.json.`),
-      h(
-        'pre',
-        {},
-        `curl -X POST ${origin}/2010-04-01/Accounts/AC123/Messages.json \\\n  -u 'AC123:seu-token' \\\n  -d 'To=%2B5511912345678&From=AMA4DEVS&Body=Ola'`,
-      ),
-    ),
-  )
-
-  const magic = h('div', { class: 'guide-block' }, h('h3', {}, 'Números mágicos'))
-  const magicList = h('div', { class: 'magic-list' })
-  for (const [number, description] of MAGIC_NUMBERS) {
-    magicList.append(h('span', { class: 'magic-num' }, number))
-    magicList.append(h('span', { class: 'magic-desc' }, description))
-  }
-  magic.append(magicList)
-  fragment.append(magic)
-
-  const otp = h('div', { class: 'guide-block' }, h('h3', {}, 'Códigos OTP'))
-  const codes = codesOf(view)
-  if (codes.length === 0) {
-    otp.append(h('p', {}, 'O mock lê os códigos de 4 a 8 dígitos do corpo da mensagem.'))
-  } else {
-    const chips = h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px' })
-    for (const code of codes) chips.append(otpChip(code))
-    otp.append(chips)
-  }
-  fragment.append(otp)
-
-  fragment.append(
-    h(
-      'div',
-      { class: 'guide-block' },
-      h('h3', {}, 'Testes'),
-      h('pre', {}, `curl "${origin}/v1/messages?to=%2B5511912345678&wait=5000"`),
-      h('p', {}, 'A resposta espera até 5 segundos por uma mensagem nova.'),
-    ),
-  )
-
-  return fragment
-}
-
-/**
- * The OTP codes the mock found in the messages of the panel.
- * @param {State} view The state to read.
- * @returns {string[]}
- */
-function codesOf(view) {
-  const messages = view.selected === null ? view.messages : thread(view, view.selected)
-  /** @type {string[]} */
-  const codes = []
-  for (const message of messages) {
-    for (const code of extractCodes(message.body)) {
-      if (!codes.includes(code)) codes.push(code)
-    }
-  }
-  return codes
-}
-
 // ───────── Wiring ─────────
 
+/** The control panel on top of the app. */
+const tools = mountTools({ root: el.toolsRoot, state, api, toast })
+
 /**
- * Sends the message of the dialog of the new SMS.
+ * Mirrors the language of the panel on the buttons of the switch.
  */
-async function sendNewMessage() {
-  const raw = el.newTo.value.trim()
-  const number = normalizePhone(raw)
-  if (number === null) {
-    toast('Número inválido: use +55 11 91234-5678', true)
-    return
-  }
-
-  const body = el.newBody.value
-  if (body.trim() === '') {
-    toast('Escreva a mensagem antes de enviar', true)
-    return
-  }
-
-  try {
-    const message = await api.send({ to: number, body, from: el.newFrom.value.trim() })
-    el.dlgNew.close()
-    const conversation = message?.to ?? number
-    state.set({ selected: conversation, selectedMessageId: null })
-    layout.classList.add('is-thread')
-    toast('SMS enviado')
-  } catch (error) {
-    toast(String(error.message), true)
+function syncLangButtons() {
+  const lang = getLang()
+  for (const button of el.langButtons) {
+    button.setAttribute('aria-pressed', button.dataset.lang === lang ? 'true' : 'false')
   }
 }
 
-/**
- * Saves the settings of the mock.
- */
-async function saveSettings() {
-  const patch = {
-    deliveryDelayMs: Number(el.setDelay.value) || 0,
-    autoDeliver: el.setAuto.checked,
-    webhookUrl: el.setWebhookUrl.value.trim(),
-    webhookSecret: el.setWebhookSecret.value,
-    defaultFrom: el.setDefaultFrom.value.trim() || 'AMA4DEVS',
-  }
-
-  try {
-    await api.putSettings(patch)
-    el.dlgSettings.close()
-    toast('Configurações salvas')
-  } catch (error) {
-    toast(String(error.message), true)
-  }
+for (const button of el.langButtons) {
+  button.addEventListener('click', () => {
+    const next = button.dataset.lang
+    if (next === 'pt' || next === 'en') setLang(next)
+    syncLangButtons()
+  })
 }
 
-el.btnTheme.addEventListener('click', () => {
-  const current = state.get().theme
-  const next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length] ?? 'system'
-  writeTheme(next)
-  state.set({ theme: next })
-})
-
-el.btnBack.addEventListener('click', () => {
-  layout.classList.remove('is-thread')
-})
-
-el.btnInspector.addEventListener('click', () => {
-  el.inspector.classList.toggle('is-open')
-})
-
-el.btnDemo.addEventListener('click', () => {
-  api.demo().then(
-    () => toast('Exemplos criados'),
-    (error) => toast(String(error.message), true),
-  )
+el.senderFilter.addEventListener('change', () => {
+  const value = el.senderFilter.value
+  state.set({ sender: value === '' ? null : value })
 })
 
 el.search.addEventListener('input', () => {
   state.set({ search: el.search.value })
 })
 
-for (const tab of el.tabs) {
-  tab.addEventListener('click', () => {
-    const name = tab.dataset.tab
-    if (name === 'json' || name === 'webhooks' || name === 'guide') state.set({ tab: name })
+for (const button of el.filters) {
+  button.addEventListener('click', () => {
+    const filter = button.dataset.filter
+    if (filter === 'all' || filter === 'noreply' || filter === 'failed') state.set({ filter })
   })
 }
+
+el.btnNew.addEventListener('click', () => openNewDialog())
+el.emptyNew.addEventListener('click', () => openNewDialog())
+
+el.emptyDemo.addEventListener('click', () => {
+  api.demo().then(
+    () => toast(t('toast.demo')),
+    (error) => toast(String(error.message), true),
+  )
+})
+
+el.btnTools.addEventListener('click', () => tools.open())
+el.emptyTools.addEventListener('click', () => tools.open())
+
+el.btnBack.addEventListener('click', () => {
+  chatOpen = false
+  el.app.classList.remove('is-chat')
+})
+
+el.btnDetails.addEventListener('click', () => {
+  detailsOpen = !detailsOpen
+  render(state.get())
+})
+
+el.detailsClose.addEventListener('click', () => {
+  detailsOpen = false
+  render(state.get())
+})
 
 // Composer: the handset replies to the app.
 
@@ -989,11 +844,12 @@ el.composer.addEventListener('submit', (event) => {
   const body = el.composerInput.value.trim()
   if (selected === null || body === '') return
   api
-    .inbound({ from: selected, body })
+    .inbound({ from: selected, to: replyTo(state.get(), selected) ?? undefined, body })
     .then(
       () => {
         el.composerInput.value = ''
         updateCounter(el.composerMeta, '')
+        el.composerSend.disabled = true
         autoGrow(el.composerInput)
         el.composerInput.focus()
       },
@@ -1009,15 +865,19 @@ el.composerInput.addEventListener('keydown', (event) => {
 
 el.composerInput.addEventListener('input', () => {
   updateCounter(el.composerMeta, el.composerInput.value)
+  el.composerSend.disabled = el.composerInput.value.trim() === ''
   autoGrow(el.composerInput)
 })
 
 // Dialog of the new SMS.
 
-el.btnNew.addEventListener('click', () => {
+/**
+ * Opens the dialog of the new message.
+ */
+function openNewDialog() {
   el.dlgNew.showModal()
   el.newTo.focus()
-})
+}
 
 el.newBody.addEventListener('input', () => {
   updateCounter(el.newMeta, el.newBody.value)
@@ -1034,60 +894,39 @@ el.dlgNew.addEventListener('submit', (event) => {
   void sendNewMessage()
 })
 
-// Dialog of the settings.
-
-el.btnSettings.addEventListener('click', () => {
-  const settings = state.get().settings
-  if (settings) {
-    el.setDelay.value = String(settings.deliveryDelayMs)
-    el.setAuto.checked = settings.autoDeliver
-    el.setWebhookUrl.value = settings.webhookUrl
-    el.setWebhookSecret.value = settings.webhookSecret
-    el.setDefaultFrom.value = settings.defaultFrom
-  }
-  el.dlgSettings.showModal()
-})
-
-el.setSubmit.addEventListener('click', () => {
-  void saveSettings()
-})
-
-el.dlgSettings.addEventListener('submit', (event) => {
-  const submitter = event.submitter
-  if (submitter?.getAttribute('value') === 'cancel') return
-  event.preventDefault()
-  void saveSettings()
-})
-
-// The reset asks twice: the first click arms it, the second one empties the
-// store of the mock.
-let resetArmed = false
-let resetTimer = 0
-
-el.btnReset.addEventListener('click', () => {
-  if (!resetArmed) {
-    resetArmed = true
-    el.btnReset.textContent = 'Confirmar?'
-    resetTimer = window.setTimeout(() => {
-      resetArmed = false
-      el.btnReset.textContent = 'Apagar tudo'
-    }, 3000)
+/**
+ * Sends the message of the dialog of the new SMS.
+ */
+async function sendNewMessage() {
+  const raw = el.newTo.value.trim()
+  const number = normalizePhone(raw)
+  if (number === null) {
+    toast(t('toast.invalidNumber'), true)
     return
   }
 
-  resetArmed = false
-  window.clearTimeout(resetTimer)
-  el.btnReset.textContent = 'Apagar tudo'
-  api.reset().then(
-    () => toast('Caixa apagada'),
-    (error) => toast(String(error.message), true),
-  )
-})
+  const body = el.newBody.value
+  if (body.trim() === '') {
+    toast(t('toast.emptyBody'), true)
+    return
+  }
 
-// Keyboard: the slash looks for a message, the escape closes the inspector.
+  try {
+    const message = await api.send({ to: number, body, from: el.newFrom.value.trim() })
+    el.dlgNew.close()
+    const conversation = message?.to ?? number
+    chatOpen = true
+    state.set({ selected: conversation, selectedMessageId: null })
+    toast(t('toast.sent'))
+  } catch (error) {
+    toast(String(error.message), true)
+  }
+}
+
+// Keyboard: the slash looks for a conversation, the escape closes the drawer.
 
 document.addEventListener('keydown', (event) => {
-  if (el.dlgNew.open || el.dlgSettings.open) return
+  if (el.dlgNew.open || !el.toolsRoot.hidden) return
 
   const target = event.target
   const typing =
@@ -1101,7 +940,10 @@ document.addEventListener('keydown', (event) => {
     return
   }
 
-  if (event.key === 'Escape') el.inspector.classList.remove('is-open')
+  if (event.key === 'Escape' && detailsOpen) {
+    detailsOpen = false
+    render(state.get())
+  }
 })
 
 // The labels of time go stale: the panel refreshes them every minute.
@@ -1109,10 +951,20 @@ setInterval(refreshTimes, 60000)
 
 // ───────── Boot ─────────
 
-state.set({ theme: readTheme() })
+document.documentElement.lang = getLang() === 'pt' ? 'pt-BR' : 'en'
+applyTranslations(document)
+syncLangButtons()
+
 state.subscribe((view) => render(view))
 connect({
   onEvent: (event) => state.apply(event),
   onState: (status) => state.set({ connection: status }),
 })
+
+onLangChange(() => {
+  syncLangButtons()
+  render(state.get())
+  tools.refresh()
+})
+
 render(state.get())

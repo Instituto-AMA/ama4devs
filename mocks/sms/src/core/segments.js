@@ -12,7 +12,7 @@ const GSM_BASIC =
   "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘ\u001bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
 
 /** The GSM 03.38 extension table: the nine characters that cost two septets each. */
-const GSM_EXTENSION = '^ { } \\ [ ] ~ | €'
+const GSM_EXTENSION = '^{}\\[]~|€'
 
 const BASIC_CHARS = new Set(GSM_BASIC)
 const EXTENSION_CHARS = new Set(GSM_EXTENSION)

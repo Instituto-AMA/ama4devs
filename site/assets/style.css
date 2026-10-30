@@ -2,7 +2,7 @@
 
    The world: each page is a deep printer-body ground; what the mocks do prints on
    cool thermal paper with torn edges; controls are card-machine keypad keys.
-   A page picks its ground with <body data-tool="whatsapp|asaas|generator"> (none = home). */
+   A page picks its ground with <body data-tool="whatsapp|asaas|generator|sms"> (none = home). */
 
 :root {
   /* Grounds: one per page. */
@@ -63,6 +63,14 @@ body[data-tool='generator'] {
   --ground-line: #7a3a2a;
   --on-ground: #faece8;
   --on-ground-soft: #d8aba0;
+}
+
+body[data-tool='sms'] {
+  --ground: #1b1b4b;
+  --ground-raise: #26266a;
+  --ground-line: #3d3d94;
+  --on-ground: #ececfb;
+  --on-ground-soft: #b3b3e6;
 }
 
 @media (prefers-color-scheme: dark) {

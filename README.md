@@ -6,8 +6,9 @@ as Docker images on GHCR:
 | Mock | What it simulates | Image |
 |---|---|---|
 | [WhatsApp mock](mocks/whatsapp/) | **WhatsApp Cloud API** (Meta Graph API v23.0, WhatsApp Business Platform): messages, message templates, media, voice calls (Calling API with WebRTC), phone numbers and WABAs, webhooks, and a WhatsApp Web like panel | `docker pull ghcr.io/instituto-ama/whatsapp-mock:latest` |
-| [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail and WhatsApp notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
+| [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail, WhatsApp and SMS notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
 | [Generator](mocks/generator/) | **Fake Brazilian data** for tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, the same for the same seed; populates the Asaas mock with customers and charges in one call. Its UI also runs in the browser at [instituto-ama.github.io/ama4devs/generator/app](https://instituto-ama.github.io/ama4devs/generator/app/) | `docker pull ghcr.io/instituto-ama/generator-mock:latest` |
+| [SMS mock](mocks/sms/) | **SMS gateway** (native API, Twilio-compatible, simple GET/POST): messages, status and inbound webhooks, deterministic magic numbers, segment counting, OTP extraction, and a phone inbox panel | `docker pull ghcr.io/instituto-ama/sms-mock:latest` |
 
 Em português: **simulador local do WhatsApp (API oficial da Meta) e do Asaas**
 (Pix, boleto, cartão, parcelamento, assinatura e webhooks), para desenvolver e
@@ -43,6 +44,7 @@ Once running, access the web inspection panels:
 - **Asaas Simulator Panel:** [http://localhost:45445](http://localhost:45445)
 - **WhatsApp Web Panel:** [http://localhost:3010](http://localhost:3010)
 - **Generator:** [http://localhost:45450](http://localhost:45450) (starts with the Asaas mock; `GENERATOR_ENABLED=0` in `.env` keeps it down). The Asaas mock finds it by itself and shows **Integrações › Gerador**, which fills the selected account with customers and charges
+- **SMS Panel:** [http://localhost:8899](http://localhost:8899) (live phone inbox to inspect incoming messages, extract OTP codes, reply as the handset, and simulate delivery outcomes; starts with the Asaas mock, which sends the payer SMS to it — `SMS_ENABLED=0` in `.env` keeps it down)
 
 ## The Two Flows
 
@@ -96,6 +98,7 @@ without cloning this repository:
 | Asaas | `ghcr.io/instituto-ama/asaas-mock` |
 | WhatsApp | `ghcr.io/instituto-ama/whatsapp-mock` |
 | Generator | `ghcr.io/instituto-ama/generator-mock` |
+| SMS | `ghcr.io/instituto-ama/sms-mock` |
 
 One image per version, with two tags:
 
@@ -125,7 +128,7 @@ The Asaas mock provides an in-depth simulation of the Asaas payment platform.
 
 - **API Base Path:** `http://localhost:45445/v3`
 - **Dashboard Panel:** `http://localhost:45445` (accounts, balances, API keys, customers, charges, subscriptions, installment plans and ledger entries; create customers and charges of the three kinds, receive in cash).
-- **Payer Notifications:** every charge event e-mails the payer (to Mailpit, UI on `http://localhost:8025`, started with the `asaas` profile) and sends a WhatsApp template (to the WhatsApp mock, whose `templates/asaas_*.json` hold them). The charge dialog of the panel lists them and forces one on demand.
+- **Payer Notifications:** every charge event e-mails the payer (to Mailpit, UI on `http://localhost:8025`, started with the `asaas` profile), sends a WhatsApp template (to the WhatsApp mock, whose `templates/asaas_*.json` hold them) and sends an SMS (to the SMS mock, UI on `http://localhost:8899`, also started with the `asaas` profile; the Asaas mock finds it by itself and sends with the sender `ASAAS`). The SMS follows the customer's `smsEnabledForCustomer` flag and needs a mobile phone. The charge dialog of the panel lists the e-mail and the WhatsApp template and forces one on demand.
 - **Invoice Page:** every charge's `invoiceUrl` (`http://localhost:45445/i/<id>`) opens the payer's page, where the charge is paid by Pix, boleto or a test card through the same path as a real payment. `INVOICE_BASE_URL` sets its address when the host port differs.
 - **Virtual Clock:** Controlled by `ASAAS_CLOCK_MODE` (`REAL`, `VIRTUAL_FLOWING`, or `VIRTUAL_FROZEN`).
   - Advance time: `POST /_admin/clock/advance` with `{"days": 32}` to trigger D+32 credit card settlements or overdue calculations in milliseconds.
@@ -188,6 +191,18 @@ fills the Asaas mock. See [mocks/generator/README.md](mocks/generator/README.md)
   to populate the selected account. `GENERATOR_URL=` (empty) on the Asaas mock turns it off and hides the tab.
 - **UI:** `http://localhost:45450`, and the same page on GitHub Pages, generating in the browser.
 
+## The SMS Mock
+
+A lightweight SMS gateway simulator with no dependencies (Bun, port 8899) for local development,
+automated tests and CI. See [mocks/sms/README.md](mocks/sms/README.md).
+
+- **APIs:** Native `POST /v1/messages` (`to`, `body`, `from`, `callbackUrl`) and `GET /v1/messages` (with `wait` long-polling for tests); Twilio-compatible `POST /2010-04-01/Accounts/{sid}/Messages.json`; and simple `GET|POST /sms/send`.
+- **Message Lifecycle & Magic Numbers:** Follows `queued` → `sent` → `delivered` (after `SMS_DELIVERY_DELAY_MS`, default 1500 ms). Magic numbers by last four digits simulate deterministic outcomes: `0001` fails (30003), `0002` is undelivered (30005), `0003` rejected at API call (HTTP 400), `0004` remains stuck in `sent`, and `0005` filtered (failed, 30007).
+- **Segments & OTP:** Counts GSM-7 (160/153) and UCS-2 (70/67) segments, and automatically extracts OTP verification codes.
+- **Webhooks:** Dispatches status and inbound webhooks (JSON or Twilio-style form encoding) signed with `x-sms-signature: sha256=<hmac>` when `SMS_WEBHOOK_SECRET` is set, with loopback rewriting support.
+- **Control Routes:** Mounted under `/_mock/sms/` (`settings`, `inbound`, `messages/:id/status`, `reset`, `webhooks/deliveries`, `demo`).
+- **UI:** [http://localhost:8899](http://localhost:8899) — a real-time phone inbox panel over WebSocket (`/ws`) allowing you to inspect messages, view OTP chips, reply as the handset, and manually change message statuses.
+
 ## The WhatsApp Mock
 
 The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
@@ -221,7 +236,7 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 
 ## Security Notes
 
-- **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445` and `127.0.0.1:3010`). They must never be exposed on `0.0.0.0` or public networks.
+- **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445`, `127.0.0.1:3010` and `127.0.0.1:8899`). They must never be exposed on `0.0.0.0` or public networks.
 - **Local Route Guard:** Every mock implements a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
 - **Fake Keys:** All default API keys in `.env.example` and tests are non-functional mock placeholders (e.g. `$aact_hmlg_local_master`). Never commit real credentials to this repository.
 

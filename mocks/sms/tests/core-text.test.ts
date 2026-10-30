@@ -128,3 +128,13 @@ describe('extractCodes', () => {
     expect(extractCodes('')).toEqual([])
   })
 })
+
+describe('analyze: spaces', () => {
+  test('a space costs one septet', () => {
+    expect(analyze('a b')).toMatchObject({ encoding: 'GSM-7', length: 3, segments: 1 })
+  })
+
+  test('160 septets with spaces stay one segment', () => {
+    expect(analyze('a '.repeat(80))).toMatchObject({ encoding: 'GSM-7', length: 160, segments: 1, remaining: 0 })
+  })
+})

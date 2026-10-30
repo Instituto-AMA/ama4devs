@@ -37,7 +37,7 @@ for m in $MOCKS; do
     asaas) log "  asaas     http://localhost:${asaas_port:-45445}" ;;
     whatsapp) log "  whatsapp  http://localhost:${whatsapp_port:-3010}" ;;
     generator) log "  generator http://localhost:${generator_port:-45450}" ;;
-    sms) log "  sms       http://localhost:${sms_port:-3020}" ;;
+    sms) log "  sms       http://localhost:${sms_port:-8899}" ;;
   esac
 done
 fake_key='$aact_hmlg_local_master'

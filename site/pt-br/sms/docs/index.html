@@ -47,6 +47,7 @@
   <nav class="tabs" aria-label="Mock do SMS">
     <a href="../">Visão geral</a>
     <a href="../quick-start/">Início rápido</a>
+    <a href="../api/">API</a>
     <a href="./" aria-current="page">Docs</a>
   </nav>
 
@@ -63,6 +64,7 @@
             <li><a href="#inbound">Respostas recebidas</a></li>
             <li><a href="#testing">Testes</a></li>
             <li><a href="#segments-otp">Segmentos e OTP</a></li>
+            <li><a href="#panel">O painel</a></li>
             <li><a href="#control">Rotas de controle</a></li>
             <li><a href="#config">Variáveis de ambiente</a></li>
             <li><a href="#guard">Proteção local</a></li>
@@ -82,9 +84,9 @@
             <section id="api" aria-labelledby="api-title">
               <h2 id="api-title">APIs de envio</h2>
               <p>O mock expõe três formas de enviar uma mensagem. Todas compartilham o mesmo armazenamento, o mesmo ciclo de vida e as mesmas regras de validação: mudar de API muda o formato da requisição e da resposta, nunca o comportamento da mensagem.</p>
-              <p>A imagem é <code>ghcr.io/instituto-ama/sms-mock</code> e a porta do container é a <code>3020</code> (<code>SMS_PORT</code> no host):</p>
-              <div class="code"><pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
-              <p>No repositório, <code>make up MOCKS=sms</code> sobe o mesmo serviço pelo Compose. O painel fica em <code>http://localhost:3020</code>.</p>
+              <p>A imagem é <code>ghcr.io/instituto-ama/sms-mock</code> e a porta do container é a <code>8899</code> (<code>SMS_PORT</code> no host):</p>
+              <div class="code"><pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+              <p>No repositório, <code>make up MOCKS=sms</code> sobe o mesmo serviço pelo Compose, e o <code>make up</code> da raiz o traz junto com o mock do Asaas. O painel fica em <code>http://localhost:8899</code>.</p>
 
               <h3>API nativa</h3>
               <p><code>POST /v1/messages</code> recebe JSON e devolve a mensagem criada com <strong>201</strong>:</p>
@@ -588,7 +590,7 @@ Content-Type: application/json
 
             <section id="inbound" aria-labelledby="inbound-title">
               <h2 id="inbound-title">Respostas recebidas</h2>
-              <p>No mock, o aparelho é o painel: as mensagens que o aplicativo envia chegam na tela como recebidas, e o que se escreve no painel sai como resposta do aparelho. Pela perspectiva da API, isso são duas direções:</p>
+              <p>No mock, o aparelho é o painel: os SMS que o aplicativo envia aparecem na conversa à esquerda, com o remetente, o chip do código de OTP para copiar, o selo de segmentos e o status (na fila, enviada, entregue, não entregue, falhou). A gaveta de detalhes — o ícone de informação ou um clique na mensagem — mostra os campos, o JSON e o histórico de status; o que se escreve no rodapé sai como resposta do aparelho. Pela perspectiva da API, isso são duas direções:</p>
               <ul>
                 <li><strong>outbound</strong>: o aplicativo manda, o aparelho recebe. É o que as APIs de envio criam.</li>
                 <li><strong>inbound</strong>: o aparelho responde, o aplicativo recebe. O estado é <code>received</code> e a API de origem é <code>mock</code>.</li>
@@ -618,17 +620,17 @@ Content-Type: application/json
               <p>A espera é de no máximo 30000 ms. Se já existe uma mensagem que combina com o filtro, a resposta é imediata. Para esperar apenas o que vier depois de um ponto conhecido, use <code>after</code> com o id da última mensagem vista.</p>
 
               <h3>Receita de CI</h3>
-              <p>Um teste de ponta a ponta, com o mock rodando em <code>http://localhost:3020</code>:</p>
+              <p>Um teste de ponta a ponta, com o mock rodando em <code>http://localhost:8899</code>:</p>
               <div class="code"><pre><code># 1. limpa o estado entre os testes
-curl -s -X POST http://localhost:3020/_mock/sms/reset
+curl -s -X POST http://localhost:8899/_mock/sms/reset
 
 # 2. envia a mensagem
-curl -s -X POST http://localhost:3020/v1/messages \
+curl -s -X POST http://localhost:8899/v1/messages \
   -H 'content-type: application/json' \
   -d '{"to":"+5511912345678","body":"Seu codigo e 482913."}'
 
 # 3. espera a mensagem chegar (long poll de 5 s)
-curl -s 'http://localhost:3020/v1/messages?to=%2B5511912345678&amp;wait=5000'</code></pre></div>
+curl -s 'http://localhost:8899/v1/messages?to=%2B5511912345678&amp;wait=5000'</code></pre></div>
               <p>Para conferir o resultado, o campo <code>codes</code> da mensagem traz o código extraído do texto (<code>["482913"]</code>), e o filtro <code>q</code> encontra a mensagem pelo código, pelo corpo ou pelo número.</p>
               <p>Para começar com conteúdo na tela, <code>POST /_mock/sms/demo</code> semeia uma caixa de entrada de exemplo: um OTP, um aviso de entrega, uma promoção longa em UCS-2, uma mensagem para o número que sempre falha e uma resposta do aparelho.</p>
             </section>
@@ -666,6 +668,56 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912345678&amp;wait=5000'</c
                 <li>Dois grupos de 3 ou 4 dígitos separados por hífen ou espaço, que viram um código só: <code>123-456</code> vira <code>123456</code>.</li>
               </ul>
               <p>Os códigos repetidos aparecem uma vez só e na ordem em que o texto traz. Eles ficam no campo <code>codes</code> da mensagem e são encontrados pelo filtro <code>q</code>.</p>
+            </section>
+
+            <section id="panel" aria-labelledby="panel-title">
+              <h2 id="panel-title">O painel</h2>
+              <p>Abra <code>http://localhost:8899</code>: o painel é o celular do teste. Ele abre em português; a chave <strong>PT|EN</strong> no cabeçalho troca o idioma, e os nomes abaixo aparecem nos dois.</p>
+
+              <h3>A caixa de entrada</h3>
+              <ul>
+                <li><strong>O cabeçalho:</strong> a marca do SMS, o estado ao vivo, a chave de idioma, um ícone para uma nova mensagem de teste e um ícone para o painel de controle.</li>
+                <li><strong>A barra lateral:</strong> um seletor de remetente, a busca, os filtros <em>Tudo</em>, <em>Sem resposta</em> e <em>Com falha</em>, e uma conversa por número de telefone.</li>
+                <li><strong>A conversa:</strong> os SMS que a aplicação mandou são as bolhas da esquerda, com o remetente, o chip que copia o código de verificação, o selo de segmentos (<code>1 SMS · UCS-2</code>) e o status (na fila, enviada, entregue, não entregue, falhou). Ao passar o mouse, cada mensagem pode ser entregue (<em>Entregar</em>), falhada (<em>Falhar</em>), marcada como não entregue (<em>Não entregue</em>) ou apagada (<em>Apagar</em>) na mão.</li>
+                <li><strong>O campo de resposta:</strong> o que você digita ali é o que o celular envia: chega como a bolha da direita e dispara o webhook de entrada.</li>
+                <li><strong>A gaveta de detalhes:</strong> o ícone de informação, ou um clique numa bolha, abre os campos da mensagem, o JSON dela e o histórico de status.</li>
+                <li><strong>A tela vazia:</strong> <em>Nova mensagem de teste</em>, <em>Carregar exemplos</em> e <em>Abrir painel de controle</em>.</li>
+              </ul>
+
+              <h3>O painel de controle</h3>
+              <p>O ícone do cabeçalho abre o painel de controle, com uma aba por assunto:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Aba</th>
+                      <th>O que faz</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>Entrega</code></td>
+                      <td>Entrega automática ou manual, o atraso até a entrega em milissegundos e o botão que recomeça do zero.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Webhook</code></td>
+                      <td>A URL para onde os eventos vão, o segredo que os assina, o remetente padrão, o formato dos corpos de status e de entrada, o cabeçalho <code>x-sms-signature</code> e um trecho em Node para conferir a assinatura.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Eventos</code></td>
+                      <td>Cada tentativa de webhook, com o corpo, o código de resposta e a hora.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Números mágicos</code></td>
+                      <td>Os finais que provocam uma falha, com as regras dos segmentos e do OTP.</td>
+                    </tr>
+                    <tr>
+                      <td><code>API</code></td>
+                      <td>O catálogo da <a href="../api/">API</a>: 20 operações, com parâmetros, campos do corpo, um <code>curl</code>, cada resposta documentada e um botão <em>Testar</em> que envia a requisição de verdade e mostra a resposta.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </section>
 
             <section id="control" aria-labelledby="control-title">
@@ -720,7 +772,7 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912345678&amp;wait=5000'</c
                     <tr>
                       <td><code>GET</code></td>
                       <td><code>/health</code></td>
-                      <td>A única rota sem proteção: <code>{"status":"ok","service":"sms","version":"0.1.0"}</code></td>
+                      <td>A única rota sem proteção: <code>{"status":"ok","service":"sms","version":"0.2.0"}</code></td>
                     </tr>
                     <tr>
                       <td><code>GET</code></td>
@@ -747,6 +799,16 @@ Content-Type: application/json
   "deliveryDelayMs": 0,
   "autoDeliver": false
 }</code></pre></div>
+
+              <h3>O painel de controle</h3>
+              <p>O ícone de ajustes do painel abre o painel de controle, em tela cheia, com as abas na lateral. Cada aba é um grupo das rotas acima, com o formulário em vez do <code>curl</code>:</p>
+              <ul>
+                <li><strong>Entrega</strong>: automática ou manual, o atraso até a entrega em milissegundos e o botão de começar do zero, que apaga todas as conversas e todos os eventos de webhook do mock.</li>
+                <li><strong>Webhook</strong>: o endereço, o segredo e o remetente padrão, com o formato do payload de cada evento e o header <code>x-sms-signature</code>, mais um trecho em Node para conferir a assinatura.</li>
+                <li><strong>Eventos</strong>: cada tentativa de webhook, da mais nova para a mais antiga, com o corpo enviado, o código de resposta e a marca de assinado.</li>
+                <li><strong>Números mágicos</strong>: o desfecho de cada final de número, os limites de segmento no GSM-7 e no UCS-2 e o tamanho do código de OTP.</li>
+                <li><strong>API</strong>: o catálogo inteiro da <a href="../api/">API</a> — 20 operações, com os parâmetros, os campos, um <code>curl</code> e todas as respostas documentadas — e um botão <strong>Testar</strong> que manda a requisição de verdade e mostra a resposta do mock.</li>
+              </ul>
             </section>
 
             <section id="config" aria-labelledby="config-title">
@@ -759,7 +821,7 @@ Content-Type: application/json
                   <tbody>
                     <tr>
                       <td><code>PORT</code></td>
-                      <td><code>3020</code></td>
+                      <td><code>8899</code></td>
                       <td>Porta do servidor HTTP do mock</td>
                     </tr>
                     <tr>
@@ -810,7 +872,21 @@ Content-Type: application/json
                   </tbody>
                 </table>
               </div>
-              <p>Depois de iniciado, as mesmas configurações podem ser mudadas em tempo de execução por <code>PUT /_mock/sms/settings</code> ou pelo painel.</p>
+              <p>Depois de iniciado, as mesmas configurações podem ser mudadas em tempo de execução por <code>PUT /_mock/sms/settings</code> ou pelo painel de controle, nas abas Entrega e Webhook.</p>
+
+              <h3 id="asaas-integration">Com o mock do Asaas</h3>
+              <p>Neste repositório o mock de SMS sobe junto com o do Asaas: o <code>make up</code> da raiz (o perfil <code>asaas</code> do Compose) traz o mock do Asaas, o gerador, o Mailpit e o mock de SMS, cada um na sua porta. Duas variáveis do <code>.env</code> mudam isso:</p>
+              <ul>
+                <li><code>SMS_ENABLED=0</code>: mantém o mock de SMS desligado. O mock do Asaas então não encontra nenhum e não manda SMS ao pagador.</li>
+                <li><code>SMS_PORT</code>: a porta do host; o contêiner sempre escuta na <code>8899</code>.</li>
+              </ul>
+              <p>Do lado do Asaas, o mock de SMS é encontrado sozinho:</p>
+              <ul>
+                <li><code>SMS_MOCK_URL</code>: o endereço do mock de SMS. Vazio, o SMS do pagador é desligado.</li>
+                <li><code>SMS_UI_URL</code>: o endereço do painel do mock de SMS como o navegador o abre (<code>http://localhost:8899</code> por padrão); o mock do Asaas o informa em <code>GET /_admin/notify/status</code> (<code>sms.uiUrl</code>).</li>
+                <li>Sem <code>SMS_MOCK_URL</code>, o mock do Asaas procura o de SMS onde ele costuma responder: o serviço <code>sms</code> do Compose, o serviço <code>sms-mock</code>, esta máquina e o host do Docker — sempre na porta <code>8899</code>.</li>
+              </ul>
+              <p>Encontrado, ele manda para o mock de SMS os avisos de SMS do pagador (<code>POST /v1/messages</code>, com o remetente <code>ASAAS</code>), nos mesmos eventos de cobrança que avisam o e-mail e o WhatsApp, e só para quem tem celular cadastrado.</p>
             </section>
 
             <section id="guard" aria-labelledby="guard-title">
@@ -819,6 +895,7 @@ Content-Type: application/json
               <ul>
                 <li><strong>Host</strong>: todas as rotas, exceto <code>/health</code>, validam o cabeçalho <code>Host</code> contra a lista permitida: <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, <code>host.docker.internal</code>, <code>sms</code>, <code>sms-mock</code> e os hosts extras de <code>MOCK_ALLOWED_HOSTS</code>. Isso bloqueia <em>DNS rebinding</em>, em que uma página resolve um nome para 127.0.0.1 mas continua mandando o nome no cabeçalho.</li>
                 <li><strong>Origem</strong>: as requisições que mudam o estado (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) validam também o cabeçalho <code>Origin</code>, quando ele vem. Uma origem de página externa é recusada; a origem opaca <code>null</code> (um iframe sandbox, uma página <code>file:</code> ou <code>data:</code>) também conta como estrangeira.</li>
+                <li><strong>Feed e envio por GET</strong>: o handshake de <code>/ws</code> e <code>GET /sms/send</code> também recusam uma <code>Origin</code> estrangeira ou uma requisição de navegador entre sites (<code>Sec-Fetch-Site: cross-site</code>); assim, uma página que você visita não lê o feed ao vivo nem dispara um envio.</li>
                 <li><strong>CORS</strong>: quando a origem é permitida, ela é refletida em <code>access-control-allow-origin</code>, com <code>vary: Origin</code>. O <code>OPTIONS</code> de pré-flight responde <strong>204</strong> com <code>access-control-allow-methods: GET,POST,PUT,DELETE,OPTIONS</code> e os cabeçalhos pedidos de volta (ou <code>authorization,content-type</code>, quando o navegador não nomeia nenhum). Uma origem estrangeira no pré-flight leva <strong>403</strong>.</li>
               </ul>
               <p>As recusas são <code>403</code> com o código <code>forbidden_host</code> ou <code>forbidden_origin</code>.</p>

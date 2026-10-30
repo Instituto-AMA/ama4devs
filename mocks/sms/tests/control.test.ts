@@ -11,7 +11,7 @@ import type { Ctx, Delivery, Message, Settings } from '../src/types.ts'
  * @param body The JSON body of the request, when it has one.
  */
 async function call(ctx: Ctx, method: string, path: string, body?: unknown): Promise<Response> {
-  const request = new Request(`http://localhost:3020${path}`, {
+  const request = new Request(`http://localhost:8899${path}`, {
     method,
     ...(body === undefined
       ? {}
@@ -35,10 +35,10 @@ describe('the control routes', () => {
     const harness = makeHarness()
     const route = controlRoutes(harness.ctx)
 
-    const native = new Request('http://localhost:3020/v1/messages')
+    const native = new Request('http://localhost:8899/v1/messages')
     expect(await route(native, new URL(native.url))).toBeNull()
 
-    const unknown = new Request('http://localhost:3020/_mock/sms/nothing')
+    const unknown = new Request('http://localhost:8899/_mock/sms/nothing')
     expect(await route(unknown, new URL(unknown.url))).toBeNull()
   })
 })
@@ -101,6 +101,18 @@ describe('the settings', () => {
     const error = await bodyOf<{ error: { code: string; message: string } }>(flag)
     expect(error.error.code).toBe('invalid_settings')
     expect(error.error.message).toContain('autoDeliver')
+  })
+
+  test('refuse a delay a timer cannot hold', async () => {
+    const harness = makeHarness()
+    const before = harness.ctx.settings.get().deliveryDelayMs
+
+    const response = await call(harness.ctx, 'PUT', '/_mock/sms/settings', { deliveryDelayMs: 3_000_000_000 })
+
+    expect(response.status).toBe(400)
+    const error = await bodyOf<{ error: { code: string } }>(response)
+    expect(error.error.code).toBe('invalid_settings')
+    expect(harness.ctx.settings.get().deliveryDelayMs).toBe(before)
   })
 
   test('tell the watchers of the settings', async () => {

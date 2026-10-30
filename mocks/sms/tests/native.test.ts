@@ -5,7 +5,7 @@ import type { Message, Route } from '../src/types.ts'
 import { makeHarness } from './helpers.ts'
 
 /** The base URL the tests build their requests from. */
-const BASE = 'http://localhost:3020'
+const BASE = 'http://localhost:8899'
 
 /** The error the native API answers with. */
 interface ErrorBody {
@@ -271,6 +271,23 @@ describe('simple API', () => {
     const stored = ctx.store.list()
     expect(stored[0]?.body).toBe('From the body')
     expect(stored[0]?.from).toBe('AMA4DEVS')
+  })
+
+  test('refuses a POST whose JSON body cannot be parsed', async () => {
+    const { ctx } = makeHarness({ autoDeliver: false })
+    const route = simpleRoutes(ctx)
+
+    const response = await answer(
+      route,
+      new Request(`${BASE}/sms/send`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{bad',
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(((await response.json()) as SimpleBody).code).toBe('invalid_json')
   })
 
   test('refuses an invalid send', async () => {

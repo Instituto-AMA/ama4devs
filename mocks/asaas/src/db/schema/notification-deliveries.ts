@@ -21,7 +21,7 @@ export const notificationDeliveries = sqliteTable(
     paymentId: text('payment_id'),
     /** PAYMENT_CREATED, PAYMENT_UPDATED, PAYMENT_OVERDUE, PAYMENT_RECEIVED. */
     event: text('event').notNull(),
-    channel: text('channel', { enum: ['EMAIL', 'WHATSAPP'] }).notNull(),
+    channel: text('channel', { enum: ['EMAIL', 'WHATSAPP', 'SMS'] }).notNull(),
     /** An e-mail address or a phone number (digits, with country code). */
     recipient: text('recipient').notNull(),
     subject: text('subject'),

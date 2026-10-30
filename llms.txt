@@ -1,14 +1,15 @@
 # ama4devs
 
-> Local mock servers of the APIs a product depends on, published as Docker images on GHCR, for local development, automated tests and CI without real accounts, credentials or costs. Today: the WhatsApp Cloud API (Meta Graph API v23.0, WhatsApp Business Platform) and the Asaas API v3 (Brazilian payment gateway: Pix, boleto, credit card, installments, subscriptions, webhooks, with a virtual clock), plus a generator of valid fake Brazilian data (people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys, charges) that also populates the Asaas mock in one call. Planned, not built yet: more payment providers and banks (Stripe, Rede/Itaú, Pagar.me, C6 Bank, Banco Inter). Em português: simuladores locais do WhatsApp e do Asaas, e um gerador de dados fake.
+> Local mock servers of the APIs a product depends on, published as Docker images on GHCR, for local development, automated tests and CI without real accounts, credentials or costs. Today: the WhatsApp Cloud API (Meta Graph API v23.0, WhatsApp Business Platform), the Asaas API v3 (Brazilian payment gateway: Pix, boleto, credit card, installments, subscriptions, webhooks, with a virtual clock), an SMS gateway mock (native, Twilio-compatible, simple GET/POST, message lifecycle, magic numbers, OTP extraction, webhooks and phone inbox panel), plus a generator of valid fake Brazilian data (people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys, charges) that also populates the Asaas mock in one call. Planned, not built yet: more payment providers and banks (Stripe, Rede/Itaú, Pagar.me, C6 Bank, Banco Inter). Em português: simuladores locais do WhatsApp, do Asaas e de SMS, e um gerador de dados fake.
 
 Use it when an application integrates with WhatsApp (sending messages and templates, receiving webhooks, media, voice calls) or with Asaas (charges, Pix, boleto, card, installments, subscriptions, webhooks) and needs a faithful local API to point at. The Asaas mock's virtual clock (`POST /_admin/clock/advance`, needs `CLOCK_MODE=VIRTUAL_FLOWING` or `VIRTUAL_FROZEN`) skips days so overdue charges, D+32 card credit and subscription cycles happen in seconds. A subscription's saved card is charged on each due date with Asaas's retries (08:00, 14:00, 20:00 and three more the next day, a PAYMENT_CREDIT_CARD_CAPTURE_REFUSED webhook each, then OVERDUE); `PUT /_admin/credit-cards/:token {"approvalsLeft": 3}` makes a saved card pay three charges and decline the fourth.
 
 - WhatsApp mock image: `ghcr.io/instituto-ama/whatsapp-mock` (port 3010, API at `/v23.0/...`, panel at `/`)
 - Asaas mock image: `ghcr.io/instituto-ama/asaas-mock` (port 45445, API at `/v3`, panel at `/`)
 - Generator image: `ghcr.io/instituto-ama/generator-mock` (port 45450, API at `/v1/<kind>?count=&seed=`, UI at `/`; the same UI runs in the browser at https://instituto-ama.github.io/ama4devs/generator/app/). `POST /_mock/asaas/populate` creates customers and charges in the Asaas mock; `ASAAS_SEED_ON_BOOT` does it once on boot. The Asaas mock and the generator find each other by themselves (compose service name, localhost, the Docker host); the Asaas panel then shows Integrações › Gerador to populate the selected account. `GENERATOR_ENABLED=0` keeps it out of the repository's compose; `GENERATOR_URL=` (empty) turns it off in the Asaas mock
-- Both mocks together: `make setup`, or `docker compose --profile asaas --profile whatsapp up -d` in the repository root, with Mailpit for the payer e-mails
-- The Asaas mock finds Mailpit and the WhatsApp mock by itself, however it runs (bun, `docker run`, any compose): by compose service name (`mailpit`, `whatsapp`, `whatsapp-mock`), on `localhost` and on the Docker host, every 10 s, the closest first; no variable to set (`MAILPIT_URL`, `WHATSAPP_MOCK_URL` pin a place, empty turns a channel off). The WhatsApp mock runs alone.
+- SMS mock image: `ghcr.io/instituto-ama/sms-mock` (port 8899, native API at `/v1/messages`, Twilio-compatible at `/2010-04-01/...`, simple at `/sms/send`, panel at `/`). In-memory SMS gateway with message lifecycle (queued -> sent -> delivered), deterministic magic numbers (0001 failed, 0002 undelivered, 0003 rejected, 0004 stuck sent, 0005 filtered), GSM-7/UCS-2 segment counting, OTP extraction, status and inbound webhooks with HMAC signatures, long-poll `wait` for tests, and a live phone-inbox panel over WebSocket (`/ws`). Control routes under `/_mock/sms/*`
+- Both mocks together: `make setup`, or `docker compose --profile asaas --profile whatsapp up -d` in the repository root, with Mailpit for the payer e-mails. The SMS mock rides the `asaas` profile, so it comes up with the Asaas mock (`SMS_ENABLED=0` in `.env` keeps it down)
+- The Asaas mock finds Mailpit, the WhatsApp mock and the SMS mock by itself, however it runs (bun, `docker run`, any compose): by compose service name (`mailpit`, `whatsapp`, `whatsapp-mock`, `sms`, `sms-mock`), on `localhost` and on the Docker host, every 10 s, the closest first; no variable to set (`MAILPIT_URL`, `WHATSAPP_MOCK_URL`, `SMS_MOCK_URL` pin a place, empty turns a channel off). The WhatsApp mock runs alone.
 
 ## Documentation site
 
@@ -16,6 +17,7 @@ Use it when an application integrates with WhatsApp (sending messages and templa
 - WhatsApp mock: [overview and use cases](https://instituto-ama.github.io/ama4devs/whatsapp/), [quick start](https://instituto-ama.github.io/ama4devs/whatsapp/quick-start/), [API reference](https://instituto-ama.github.io/ama4devs/whatsapp/api/), [docs](https://instituto-ama.github.io/ama4devs/whatsapp/docs/)
 - Asaas mock: [overview and use cases](https://instituto-ama.github.io/ama4devs/asaas/), [quick start](https://instituto-ama.github.io/ama4devs/asaas/quick-start/), [API reference](https://instituto-ama.github.io/ama4devs/asaas/api/), [docs](https://instituto-ama.github.io/ama4devs/asaas/docs/)
 - Generator: [overview](https://instituto-ama.github.io/ama4devs/generator/), [quick start](https://instituto-ama.github.io/ama4devs/generator/quick-start/), [docs](https://instituto-ama.github.io/ama4devs/generator/docs/), [the app](https://instituto-ama.github.io/ama4devs/generator/app/)
+- SMS mock: [overview](https://instituto-ama.github.io/ama4devs/sms/), [quick start](https://instituto-ama.github.io/ama4devs/sms/quick-start/), [docs](https://instituto-ama.github.io/ama4devs/sms/docs/)
 - API data: [whatsapp-api.json](https://instituto-ama.github.io/ama4devs/data/whatsapp-api.json), [asaas-api.json](https://instituto-ama.github.io/ama4devs/data/asaas-api.json) (each operation with whether the mock has real behavior), and their `-details.json` (parameters, body fields, request examples, responses)
 
 ## WhatsApp Cloud API mock
@@ -32,6 +34,10 @@ Use it when an application integrates with WhatsApp (sending messages and templa
 ## Fake data generator
 
 - [README](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/generator/README.md): the kinds, the API, determinism by seed, the Asaas population
+
+## SMS gateway mock
+
+- [README](https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/sms/README.md): what it simulates, native and Twilio-compatible APIs, lifecycle, magic numbers, webhooks
 
 ## Repository
 

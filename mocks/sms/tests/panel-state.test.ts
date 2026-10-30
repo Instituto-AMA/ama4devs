@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import type { Delivery, Message, Settings } from '../src/types.ts'
-import { counterparty, conversations, createState, thread } from '../public/state.js'
+import {
+  counterparty,
+  conversations,
+  createState,
+  replyTo,
+  senders,
+  thread,
+} from '../public/state.js'
 
 /** The settings the mock starts with. */
 const settings: Settings = {
@@ -49,7 +56,7 @@ function makeDelivery(overrides: Partial<Delivery> = {}): Delivery {
     id: overrides.id ?? 'DL00000000000000000000000000000001',
     messageId: overrides.messageId ?? 'SM00000000000000000000000000000001',
     event: overrides.event ?? 'status',
-    url: overrides.url ?? 'http://localhost:3020/hook',
+    url: overrides.url ?? 'http://localhost:8899/hook',
     ok: overrides.ok ?? true,
     statusCode: overrides.statusCode ?? 200,
     error: overrides.error ?? null,
@@ -73,6 +80,8 @@ describe('the panel state', () => {
       selected: null,
       selectedMessageId: null,
       search: '',
+      filter: 'all',
+      sender: null,
       tab: 'json',
       theme: 'system',
     })
@@ -176,6 +185,19 @@ describe('the panel state', () => {
     expect(state.get().deliveries).toEqual([])
     expect(state.get().selected).toBeNull()
     expect(state.get().selectedMessageId).toBeNull()
+  })
+
+  test('keeps the search and the filters of the sidebar on a reset', () => {
+    const state = createState()
+    state.apply({ type: 'message.created', message: makeMessage({ id: 'SM1' }) })
+    state.set({ search: 'ola', filter: 'noreply', sender: 'AMA4DEVS' })
+
+    state.apply({ type: 'reset' })
+
+    expect(state.get().messages).toEqual([])
+    expect(state.get().search).toBe('ola')
+    expect(state.get().filter).toBe('noreply')
+    expect(state.get().sender).toBe('AMA4DEVS')
   })
 
   test('keeps the deliveries newest first and never more than two hundred', () => {
@@ -333,5 +355,248 @@ describe('the selectors of the panel', () => {
 
     expect(thread(state.get(), '+5511912340000').map((one) => one.id)).toEqual(['SM1', 'SM2'])
     expect(thread(state.get(), '+5511888888888').map((one) => one.id)).toEqual(['SM3'])
+  })
+})
+
+describe('the filters of the sidebar', () => {
+  /**
+   * Four conversations: one the handset never answered, one it answered, one
+   * with an undelivered message it answered and one with a failed message it
+   * never answered.
+   * @returns {ReturnType<typeof createState>}
+   */
+  function stateOfFour(): ReturnType<typeof createState> {
+    const state = createState()
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM1',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511912340000',
+        status: 'delivered',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM2',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511888888888',
+        status: 'delivered',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM3',
+        direction: 'inbound',
+        from: '+5511888888888',
+        to: 'ALFA',
+        status: 'received',
+        createdAt: '2026-01-01T11:00:00.000Z',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM4',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511777777777',
+        status: 'undelivered',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM5',
+        direction: 'inbound',
+        from: '+5511777777777',
+        to: 'ALFA',
+        status: 'received',
+        createdAt: '2026-01-01T11:00:00.000Z',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM6',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511666666666',
+        status: 'failed',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      }),
+    })
+    return state
+  }
+
+  test('the senders are the distinct senders of the outbound messages, sorted', () => {
+    const state = createState()
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({ id: 'SM1', direction: 'outbound', from: 'ZULU' }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({ id: 'SM2', direction: 'outbound', from: 'ALFA', to: '+5511888888888' }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({ id: 'SM3', direction: 'outbound', from: 'ALFA', to: '+5511777777777' }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM4',
+        direction: 'inbound',
+        from: '+5511666666666',
+        to: 'ALFA',
+        status: 'received',
+      }),
+    })
+
+    expect(senders(state.get())).toEqual(['ALFA', 'ZULU'])
+  })
+
+  test('the chip all keeps every conversation', () => {
+    const state = stateOfFour()
+
+    state.set({ filter: 'all' })
+
+    expect(conversations(state.get()).map((one) => one.number).sort()).toEqual([
+      '+5511666666666',
+      '+5511777777777',
+      '+5511888888888',
+      '+5511912340000',
+    ])
+  })
+
+  test('the chip noreply keeps the conversations the handset never answered', () => {
+    const state = stateOfFour()
+
+    state.set({ filter: 'noreply' })
+
+    expect(conversations(state.get()).map((one) => one.number).sort()).toEqual([
+      '+5511666666666',
+      '+5511912340000',
+    ])
+  })
+
+  test('the chip failed keeps the conversations with a message that did not reach', () => {
+    const state = stateOfFour()
+
+    state.set({ filter: 'failed' })
+
+    expect(conversations(state.get()).map((one) => one.number).sort()).toEqual([
+      '+5511666666666',
+      '+5511777777777',
+    ])
+  })
+
+  test('the sender keeps the conversations it wrote to', () => {
+    const state = createState()
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({ id: 'SM1', direction: 'outbound', from: 'ALFA', to: '+5511912340000' }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({ id: 'SM2', direction: 'outbound', from: 'BRAVO', to: '+5511888888888' }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM3',
+        direction: 'inbound',
+        from: '+5511777777777',
+        to: 'ALFA',
+        status: 'received',
+      }),
+    })
+
+    state.set({ sender: 'ALFA' })
+    expect(conversations(state.get()).map((one) => one.number)).toEqual(['+5511912340000'])
+
+    state.set({ sender: 'BRAVO' })
+    expect(conversations(state.get()).map((one) => one.number)).toEqual(['+5511888888888'])
+
+    state.set({ sender: '+5511777777777' })
+    expect(conversations(state.get())).toEqual([])
+
+    state.set({ sender: null })
+    expect(conversations(state.get())).toHaveLength(3)
+  })
+
+  test('the chip, the sender and the search narrow the conversations together', () => {
+    const state = createState()
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM1',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511912340000',
+        body: 'oferta do dia',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM2',
+        direction: 'outbound',
+        from: 'BRAVO',
+        to: '+5511888888888',
+        body: 'oferta do dia',
+      }),
+    })
+    state.apply({
+      type: 'message.created',
+      message: makeMessage({
+        id: 'SM3',
+        direction: 'outbound',
+        from: 'ALFA',
+        to: '+5511777777777',
+        body: 'outro assunto',
+      }),
+    })
+
+    state.set({ filter: 'noreply', sender: 'ALFA' })
+    expect(conversations(state.get()).map((one) => one.number).sort()).toEqual([
+      '+5511777777777',
+      '+5511912340000',
+    ])
+
+    state.set({ search: 'oferta' })
+    expect(conversations(state.get()).map((one) => one.number)).toEqual(['+5511912340000'])
+  })
+})
+
+describe('replyTo', () => {
+  test('answers the sender of the newest outbound message', () => {
+    const state = createState()
+    state.apply({
+      type: 'snapshot',
+      messages: [makeMessage({ id: 'SM1', from: '+5511988887777', to: '+5511912345678' })],
+      settings,
+      deliveries: [],
+      version: '0.1.0',
+    })
+
+    expect(replyTo(state.get(), '+5511912345678')).toBe('+5511988887777')
+    expect(replyTo(state.get(), '+5511900000000')).toBeNull()
+  })
+})
+
+describe('senders', () => {
+  test('the chosen sender stays offered after the store loses it', () => {
+    const state = createState()
+    state.set({ sender: 'ASAAS' })
+    expect(senders(state.get())).toEqual(['ASAAS'])
   })
 })

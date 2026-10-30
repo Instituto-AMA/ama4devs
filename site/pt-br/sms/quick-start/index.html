@@ -48,6 +48,7 @@
   <nav class="tabs" aria-label="Mock de SMS">
     <a href="../">Visão geral</a>
     <a href="./" aria-current="page">Início rápido</a>
+    <a href="../api/">API</a>
     <a href="../docs/">Docs</a>
   </nav>
 
@@ -62,8 +63,9 @@
             <li><a href="#send">Envie</a></li>
             <li><a href="#read">Leia de volta</a></li>
             <li><a href="#reply">Responda como o aparelho</a></li>
-            <li><a href="#failure">Provoque uma falha</a></li>
+            <li><a href="#fail">Provoque uma falha</a></li>
             <li><a href="#twilio">Aponte um cliente Twilio</a></li>
+            <li><a href="#off">Desligue</a></li>
           </ol>
         </nav>
       </aside>
@@ -79,65 +81,73 @@
             <ol class="steps">
               <li id="run">
                 <h3>Suba</h3>
-                <p>Execute o container oficial do mock de SMS. A porta é <code>3020</code> e o serviço fica pronto na hora, sem banco de dados e sem tocar em nenhuma operadora.</p>
-                <div class="code"><pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+                <p>Execute o container oficial do mock de SMS. A porta é <code>8899</code> e o serviço fica pronto na hora, sem banco de dados e sem tocar em nenhuma operadora.</p>
+                <div class="code"><pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
                 <p>No repositório, <code>make up MOCKS=sms</code> sobe o mock pelo compose, ao lado dos outros serviços.</p>
                 <p>Verifique o estado do serviço no endpoint de saúde:</p>
-                <div class="code"><pre><code>curl http://localhost:3020/health
+                <div class="code"><pre><code>curl http://localhost:8899/health
 {
   "status": "ok",
   "service": "sms",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }</code></pre></div>
               </li>
 
               <li id="panel">
                 <h3>Abra o painel</h3>
-                <p>O painel fica em <a href="http://localhost:3020">http://localhost:3020</a>. Ele é o aparelho: cada número é uma conversa, o que a sua aplicação envia aparece como o aparelho recebeu, e o que você escreve no rodapé da conversa é a resposta do aparelho — com o webhook de entrada disparado.</p>
+                <p>O painel fica em <a href="http://localhost:8899">http://localhost:8899</a>. Ele é o aparelho: cada número é uma conversa, o que a sua aplicação envia aparece à esquerda, com o remetente, o chip do código de OTP para copiar, o selo de segmentos e o status, e o que você escreve no rodapé da conversa é a resposta do aparelho — com o webhook de entrada disparado. O ícone de ajustes abre o painel de controle: entrega, webhook, eventos, números mágicos e a API inteira.</p>
+                <figure class="shot">
+                  <img src="../../../img/sms/chat.jpg" width="1568" height="763" alt="A conversa do painel do mock de SMS: à esquerda o SMS do BANCO com o código de verificação 482913 em um chip para copiar, e à direita a resposta escrita como o celular." loading="lazy">
+                  <figcaption>O que a sua aplicação envia aparece à esquerda; o que você escreve no rodapé é a resposta do aparelho, à direita.</figcaption>
+                </figure>
+                <p>No repositório, o <code>make up</code> da raiz sobe o mock de SMS junto com o do Asaas: os dois ficam no ar ao mesmo tempo, cada mock na sua porta, e o mock do Asaas manda para o de SMS os SMS do pagador.</p>
                 <p>Para começar com conteúdo, peça a caixa de exemplo — um OTP, um aviso de entrega, uma promoção longa em UCS-2, uma mensagem que falha e uma resposta:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/demo</code></pre></div>
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/demo</code></pre></div>
               </li>
 
               <li id="send">
                 <h3>Envie</h3>
                 <p>A API nativa recebe JSON e devolve <code>201</code> com a mensagem enfileirada. O remetente padrão é <code>AMA4DEVS</code> e o código de verificação presente no texto é extraído para <code>codes</code>.</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to": "+5511912340010", "body": "Seu código de verificação é 482913"}'</code></pre></div>
                 <p>Se preferir o envio de uma linha só, a interface simples aceita <code>GET</code> ou <code>POST</code> em <code>/sms/send</code>:</p>
-                <div class="code"><pre><code>curl "http://localhost:3020/sms/send?to=%2B5511912340010&amp;message=Alerta+rapido&amp;sender=AMA4DEVS"</code></pre></div>
+                <div class="code"><pre><code>curl "http://localhost:8899/sms/send?to=%2B5511912340010&amp;message=Alerta+rapido&amp;sender=AMA4DEVS"</code></pre></div>
               </li>
 
               <li id="read">
                 <h3>Leia de volta</h3>
-                <p>A listagem aceita filtros e um long poll em <code>wait</code>: se já existe uma mensagem que combine com o filtro, a resposta vem na hora; se não, a requisição espera a próxima, até <code>5000</code> ms (o teto do mock é 30000 ms) e devolve a lista vazia no fim da espera. É assim que o seu teste espera a mensagem sem <code>sleep</code>.</p>
-                <div class="code"><pre><code>curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+                <p>A listagem aceita filtros e um long poll em <code>wait</code>: se já existe uma mensagem que combine com o filtro, a resposta vem na hora; se não, a requisição espera a próxima, até <code>5000</code> ms (o teto do mock é 30000 ms) e devolve a lista vazia no fim da espera. Acrescente <code>status=delivered</code> para esperar a entrega. É assim que o seu teste espera a mensagem sem <code>sleep</code>.</p>
+                <div class="code"><pre><code>curl 'http://localhost:8899/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
               </li>
 
               <li id="reply">
                 <h3>Responda como o aparelho</h3>
                 <p>O painel faz isso com o teclado; por API, é a rota de controle <code>/_mock/sms/inbound</code>. A resposta entra como mensagem recebida e dispara o webhook de entrada.</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/inbound \
   -H 'Content-Type: application/json' \
   -d '{"from": "+5511912340010", "body": "Recebi, obrigado!"}'</code></pre></div>
               </li>
 
-              <li id="failure">
+              <li id="fail">
                 <h3>Provoque uma falha</h3>
                 <p>Os quatro últimos dígitos do destino decidem o desfecho. Um número terminado em <code>0001</code> chega a <code>sent</code> e falha com o código 30003; um terminado em <code>0003</code> é rejeitado na hora, com <code>400</code>.</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to": "+5511912340001", "body": "Teste de falha na entrega"}'</code></pre></div>
-                <p>O mesmo desfecho na mão: com o <code>id</code> que a resposta trouxe, mude o status quando quiser.</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/messages/SEU_ID/status \
+                <p>O mesmo desfecho na mão: crie uma mensagem e mude o status dela.</p>
+                <div class="code"><pre><code>ID=$(curl -s -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
-  -d '{"status": "delivered", "errorCode": null}'</code></pre></div>
+  -d '{"to": "+5511912340010", "body": "Teste manual"}' | grep -o '"id": *"[^"]*"' | head -1 | cut -d'"' -f4)
+curl -X POST "http://localhost:8899/_mock/sms/messages/$ID/status" \
+  -H 'Content-Type: application/json' \
+  -d '{"status": "failed", "errorCode": 30003}'</code></pre></div>
               </li>
 
               <li id="twilio">
                 <h3>Aponte um cliente Twilio</h3>
                 <p>O caminho, os corpos de formulário e os códigos de erro são os do Twilio. Qualquer credencial é aceita, porque o mock não valida token:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock00000000000000000000000000/Messages.json \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/2010-04-01/Accounts/ACmock00000000000000000000000000/Messages.json \
   -u ACmock00000000000000000000000000:mock-auth-token \
   -d "To=+5511912340010" \
   -d "From=AMA4DEVS" \
@@ -146,13 +156,18 @@
                 <div class="code"><pre><code>import twilio from 'twilio';
 
 const client = twilio('ACmock00000000000000000000000000', 'mock-auth-token');
-client.api.baseUrl = 'http://localhost:3020';
+client.api.baseUrl = 'http://localhost:8899';
 
 const message = await client.messages.create({
   to: '+5511912340010',
   from: 'AMA4DEVS',
   body: 'Seu codigo e 482913',
 });</code></pre></div>
+              </li>
+
+              <li id="off">
+                <h3>Desligue</h3>
+                <p>O mock de SMS guarda mensagens, conversas e o log de webhooks só na memória. Pare o contêiner com <code>Ctrl+C</code> ou <code>docker stop</code>: ao subir de novo, ele começa limpo.</p>
               </li>
             </ol>
           </div>

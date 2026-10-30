@@ -200,11 +200,11 @@ export interface TestCard {
   custom?: boolean
 }
 
-/** One payer notification (`/_admin/notifications`): an e-mail or a WhatsApp template. */
+/** One payer notification (`/_admin/notifications`): an e-mail, a WhatsApp template or an SMS. */
 export interface PayerNotification {
   id: string
   event: string
-  channel: 'EMAIL' | 'WHATSAPP'
+  channel: 'EMAIL' | 'WHATSAPP' | 'SMS'
   recipient: string
   subject: string | null
   body: string
@@ -218,7 +218,7 @@ export interface PayerNotification {
 }
 
 export interface NotificationList {
-  channels: { email: boolean; whatsapp: boolean }
+  channels: { email: boolean; whatsapp: boolean; sms: boolean }
   events: Array<{ event: string; label: string }>
   data: PayerNotification[]
 }

@@ -1,10 +1,11 @@
 /**
- * What the payer was told about a charge: the e-mails (delivered to Mailpit) and the
- * WhatsApp templates (delivered to the WhatsApp mock), and "Enviar agora" to force one.
+ * What the payer was told about a charge: the e-mails (delivered to Mailpit), the
+ * WhatsApp templates (delivered to the WhatsApp mock) and the SMS (delivered to the SMS
+ * mock), and "Enviar agora" to force one.
  *
  * Simulator-only (`/_admin/notifications`): Asaas sends these by itself and shows no
  * such list. A channel whose service is not found (or turned off by an empty
- * MAILPIT_URL or WHATSAPP_MOCK_URL) is shown off and cannot be forced.
+ * MAILPIT_URL, WHATSAPP_MOCK_URL or SMS_MOCK_URL) is shown off and cannot be forced.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type NotificationList } from '../api.ts'
@@ -29,7 +30,7 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
     void load().catch((e) => setError(errorText(e)))
   }, [props.paymentId, props.refreshKey])
 
-  const force = async (channel: 'EMAIL' | 'WHATSAPP') => {
+  const force = async (channel: 'EMAIL' | 'WHATSAPP' | 'SMS') => {
     setBusy(true)
     setError(null)
     try {
@@ -47,7 +48,7 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
   }
 
   if (!list) return null
-  const { email, whatsapp } = list.channels
+  const { email, whatsapp, sms } = list.channels
 
   return (
     <div class="notify">
@@ -55,16 +56,17 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
         <h3 class="section-title">Notificações ao pagador</h3>
         <Badge tone={email ? 'success' : 'neutral'}>e-mail {email ? '→ Mailpit' : 'desligado'}</Badge>
         <Badge tone={whatsapp ? 'success' : 'neutral'}>WhatsApp {whatsapp ? '→ mock' : 'desligado'}</Badge>
+        <Badge tone={sms ? 'success' : 'neutral'}>SMS {sms ? '→ mock' : 'desligado'}</Badge>
       </div>
-      {!email && !whatsapp && (
+      {!email && !whatsapp && !sms && (
         <p class="hint">
-          Suba o Mailpit e o WhatsApp mock ao lado: o simulador acha os dois sozinho, em até 10 s, e o
-          pagador passa a receber e-mail e WhatsApp a cada evento da cobrança.
+          Suba o Mailpit, o WhatsApp mock e o mock de SMS ao lado: o simulador acha os três sozinho, em até
+          10 s, e o pagador passa a receber e-mail, WhatsApp e SMS a cada evento da cobrança.
         </p>
       )}
       {error && <Banner tone="danger">{error}</Banner>}
 
-      {(email || whatsapp) && (
+      {(email || whatsapp || sms) && (
         <div class="row">
           <Picker
             ariaLabel="Notificação"
@@ -77,6 +79,9 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
           </Button>
           <Button size="sm" disabled={busy || !whatsapp} onClick={() => void force('WHATSAPP')}>
             Enviar WhatsApp agora
+          </Button>
+          <Button size="sm" disabled={busy || !sms} onClick={() => void force('SMS')}>
+            Enviar SMS agora
           </Button>
         </div>
       )}
@@ -91,7 +96,7 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
             return (
               <li key={n.id} class="notify-item">
                 <div class="row">
-                  <Badge tone="neutral">{n.channel === 'EMAIL' ? 'e-mail' : 'WhatsApp'}</Badge>
+                  <Badge tone="neutral">{n.channel === 'EMAIL' ? 'e-mail' : n.channel === 'SMS' ? 'SMS' : 'WhatsApp'}</Badge>
                   <b>{label}</b>
                   <Badge tone={s.tone}>{s.label}</Badge>
                   {n.forced && <Badge tone="primary">forçada</Badge>}
@@ -100,7 +105,7 @@ export function PayerNotifications(props: { paymentId: string; refreshKey?: unkn
                   </span>
                 </div>
                 <div class="hint notify-body">
-                  {n.channel === 'EMAIL' ? n.subject : `template ${n.template?.name}: ${n.body}`}
+                  {n.channel === 'EMAIL' ? n.subject : n.channel === 'SMS' ? n.body : `template ${n.template?.name}: ${n.body}`}
                 </div>
                 {n.lastError && <div class="notify-error">{n.lastError}</div>}
               </li>

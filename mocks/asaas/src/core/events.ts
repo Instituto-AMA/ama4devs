@@ -124,8 +124,8 @@ export function createEmitter(deps: EmitDeps) {
     // channels are configured. Same transaction: the notification exists iff the fact does.
     const notification =
       event.resourceType === 'payment' ? NOTIFICATION_FOR_WEBHOOK[event.event] : undefined
-    const { mailpitUrl, whatsappUrl } = deps.config.notify
-    if (notification && (mailpitUrl || whatsappUrl)) {
+    const { mailpitUrl, whatsappUrl, smsUrl } = deps.config.notify
+    if (notification && (mailpitUrl || whatsappUrl || smsUrl)) {
       await enqueuePaymentNotifications(tx, deps, {
         accountId: event.accountId,
         event: notification,

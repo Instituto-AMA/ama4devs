@@ -123,4 +123,44 @@
   <url>
     <loc>https://instituto-ama.github.io/ama4devs/generator/app/</loc>
   </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/sms/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/sms/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/sms/quick-start/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/quick-start/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/quick-start/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/sms/quick-start/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/quick-start/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/quick-start/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/sms/api/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/api/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/api/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/sms/api/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/api/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/api/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/sms/docs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/docs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/docs/"/>
+  </url>
+  <url>
+    <loc>https://instituto-ama.github.io/ama4devs/pt-br/sms/docs/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/sms/docs/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/pt-br/sms/docs/"/>
+  </url>
 </urlset>

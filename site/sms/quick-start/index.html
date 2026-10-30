@@ -45,6 +45,8 @@
   <nav class="tabs" aria-label="SMS mock">
     <a href="../">Overview</a>
     <a href="./" aria-current="page">Quick start</a>
+    <a href="../api/">API</a>
+    <a href="../docs/">Docs</a>
   </nav>
 
   <main id="content">
@@ -76,27 +78,31 @@
             <ol class="steps">
               <li id="run">
                 <h3>Run it</h3>
-                <p>Run the SMS mock container in Docker. In this repository, running <code>make up MOCKS=sms</code> starts it automatically.</p>
-                <div class="code"><pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
-                <p>The mock listens on port <code>3020</code>. Verify that the server is ready:</p>
-                <div class="code"><pre><code>curl http://localhost:3020/health</code></pre></div>
+                <p>Run the SMS mock container in Docker. In this repository, the root <code>make up</code> brings it up together with the Asaas mock, the generator and Mailpit; <code>make up MOCKS=sms</code> starts only the SMS mock.</p>
+                <div class="code"><pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+                <p>The mock listens on port <code>8899</code>. Verify that the server is ready:</p>
+                <div class="code"><pre><code>curl http://localhost:8899/health</code></pre></div>
                 <div class="code"><pre><code>{
   "status": "ok",
   "service": "sms",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }</code></pre></div>
               </li>
 
               <li id="panel">
                 <h3>Open the panel</h3>
-                <p>Open <a href="http://localhost:3020">http://localhost:3020</a> in your browser. The web UI functions like a mobile phone inbox, connected in real time over WebSocket (<code>/ws</code>). You can inspect conversations, view message metadata and delivery status histories, compose replies, and test settings. To seed sample threads, click <strong>Exemplos</strong> or trigger the demo endpoint:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/demo</code></pre></div>
+                <p>Open <a href="http://localhost:8899">http://localhost:8899</a> in your browser. The panel is the handset: the SMS your application sends arrive as the bubbles on the left, with the sender id, the chip that copies the verification code, the segment count and the status (queued, sent, delivered, undelivered, failed). What you type in the composer is what the handset sends: it arrives as the bubble on the right and fires the inbound webhook. The details drawer &mdash; the info icon, or a click on a bubble &mdash; shows the fields of the message, its JSON and its status history. The panel opens in Brazilian Portuguese; the <strong>PT|EN</strong> switch in the header changes the language.</p>
+                <figure class="shot">
+                  <img src="../../img/sms/chat.jpg" width="1568" height="763" alt="The panel with the conversation of +55 11 91234-0010: the SMS the application sent with the code chip 482913, and the reply the handset sent." loading="lazy">
+                </figure>
+                <p>The empty state offers <strong>Nova mensagem de teste</strong> (new test message: it goes through the API, the way your application would send it), <strong>Carregar exemplos</strong> (load the samples) and <strong>Abrir painel de controle</strong> (open the control panel, with the delivery, webhook, event, magic-number and API tabs). To seed the sample conversations from the command line:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/demo</code></pre></div>
               </li>
 
               <li id="send">
                 <h3>Send an SMS</h3>
                 <p>Send an outbound SMS using the native REST API to <code>+5511912340010</code>. The mock parses the message body, detects GSM-7 or UCS-2 encoding, calculates segments, extracts OTP codes, and places the message in <code>queued</code> status:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{
     "to": "+5511912340010",
@@ -104,7 +110,7 @@
     "from": "AUTH"
   }'</code></pre></div>
                 <div class="code"><pre><code>{
-  "id": "msg_01JB0000000000000000000001",
+  "id": "SM9f2c4e1b7a3d48c5b06e1d2f93a7c8b4",
   "direction": "outbound",
   "from": "AUTH",
   "to": "+5511912340010",
@@ -135,12 +141,12 @@
 
               <li id="read">
                 <h3>Read it back</h3>
-                <p>Query messages for a given phone number. In automated tests, pass <code>wait=5000</code> to wait up to 5 seconds for the message to arrive and deliver, resolving as soon as a match exists without polling:</p>
-                <div class="code"><pre><code>curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+                <p>Query messages for a given phone number. In automated tests, pass <code>wait=5000</code> to wait up to 5 seconds for a match: it answers at once when one exists; add <code>status=delivered</code> to wait for the delivery:</p>
+                <div class="code"><pre><code>curl 'http://localhost:8899/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
                 <div class="code"><pre><code>{
   "messages": [
     {
-      "id": "msg_01JB0000000000000000000001",
+      "id": "SM9f2c4e1b7a3d48c5b06e1d2f93a7c8b4",
       "direction": "outbound",
       "from": "AUTH",
       "to": "+5511912340010",
@@ -182,14 +188,14 @@
               <li id="reply">
                 <h3>Reply as handset</h3>
                 <p>Simulate the handset user replying to your outbound SMS. Inbound messages have <code>direction: "inbound"</code> and <code>status: "received"</code>, update the conversation thread in the panel in real time, and dispatch an inbound webhook if configured:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/inbound \
   -H 'Content-Type: application/json' \
   -d '{
     "from": "+5511912340010",
     "body": "CONFIRMAR"
   }'</code></pre></div>
                 <div class="code"><pre><code>{
-  "id": "msg_01JB0000000000000000000002",
+  "id": "SM1d7e5a0c93b248f6a8e4c2b7f06d31a9",
   "direction": "inbound",
   "from": "+5511912340010",
   "to": "AMA4DEVS",
@@ -218,7 +224,7 @@
               <li id="fail">
                 <h3>Trigger a failure</h3>
                 <p>Test error handling deterministically by sending to numbers with specific endings. Sending to a number ending in <code>0001</code> produces a delivery failure with error code <code>30003</code>:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{
     "to": "+5511912340001",
@@ -236,14 +242,14 @@
 
               <li id="twilio">
                 <h3>Point Twilio client</h3>
-                <p>Integrate with existing Twilio applications without changing SDK calls. Point your Twilio client to <code>http://localhost:3020</code> or submit standard form requests:</p>
-                <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock/Messages.json \
+                <p>Integrate with existing Twilio applications without changing SDK calls. Point your Twilio client to <code>http://localhost:8899</code> or submit standard form requests:</p>
+                <div class="code"><pre><code>curl -X POST http://localhost:8899/2010-04-01/Accounts/ACmock/Messages.json \
   -u ACmock:mocktoken \
   -d "To=+5511912340010" \
   -d "From=AMA4DEVS" \
   -d "Body=Testing Twilio compatibility"</code></pre></div>
                 <div class="code"><pre><code>{
-  "sid": "SM01JB0000000000000000000003",
+  "sid": "SM6b0a8f3e2c7d41958e1f4a2d9c3b7e05",
   "account_sid": "ACmock",
   "api_version": "2010-04-01",
   "body": "Testing Twilio compatibility",
@@ -261,9 +267,9 @@
   "price_unit": "USD",
   "status": "queued",
   "messaging_service_sid": null,
-  "uri": "/2010-04-01/Accounts/ACmock/Messages/SM01JB0000000000000000000003.json",
+  "uri": "/2010-04-01/Accounts/ACmock/Messages/SM6b0a8f3e2c7d41958e1f4a2d9c3b7e05.json",
   "subresource_uris": {
-    "media": "/2010-04-01/Accounts/ACmock/Messages/SM01JB0000000000000000000003/Media.json"
+    "media": "/2010-04-01/Accounts/ACmock/Messages/SM6b0a8f3e2c7d41958e1f4a2d9c3b7e05/Media.json"
   }
 }</code></pre></div>
               </li>

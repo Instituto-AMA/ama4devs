@@ -143,7 +143,7 @@ describe('payer notifications', () => {
     expect(whatsapp.received[0]?.payload.template.name).toBe('asaas_cobranca_vencida')
 
     const list = await admin(`/notifications?paymentId=${p.id}`)
-    expect(list.body.channels).toEqual({ email: true, whatsapp: true })
+    expect(list.body.channels).toEqual({ email: true, whatsapp: true, sms: false })
     expect(list.body.data.find((r: any) => r.event === 'PAYMENT_OVERDUE')?.forced).toBe(true)
   })
 

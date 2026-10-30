@@ -281,6 +281,9 @@ async function demoRoute(ctx: Ctx, request: Request): Promise<Response> {
   return json({ messages }, 201)
 }
 
+/** The longest delay a timer holds: beyond it the runtime fires at once. */
+const MAX_DELAY_MS = 2_147_483_647
+
 /**
  * The patch of a settings change: a delay from zero up, a boolean or a
  * string; a value of the wrong type refuses the whole change.
@@ -291,11 +294,11 @@ function settingsPatch(fields: Record<string, unknown>): SettingsPatch {
 
   const delay = fields.deliveryDelayMs
   if (delay !== undefined) {
-    if (typeof delay !== 'number' || !Number.isFinite(delay) || delay < 0) {
+    if (typeof delay !== 'number' || !Number.isInteger(delay) || delay < 0 || delay > MAX_DELAY_MS) {
       return {
         ok: false,
         field: 'deliveryDelayMs',
-        message: 'deliveryDelayMs must be a number of milliseconds greater than or equal to 0.',
+        message: 'deliveryDelayMs must be an integer number of milliseconds from 0 to 2147483647.',
       }
     }
     patch.deliveryDelayMs = delay

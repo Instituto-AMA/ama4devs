@@ -28,7 +28,7 @@ export interface Config {
 const DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '::1', 'host.docker.internal', 'sms', 'sms-mock']
 
 /** The port of the service, as the compose file and the docs say. */
-const DEFAULT_PORT = 3020
+const DEFAULT_PORT = 8899
 
 /**
  * The configuration of the server, read from the environment.
@@ -40,7 +40,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     port: positiveInt(env.PORT, DEFAULT_PORT),
     version: String(pkg.version),
     settings: {
-      deliveryDelayMs: nonNegativeInt(env.SMS_DELIVERY_DELAY_MS, 1500),
+      deliveryDelayMs: Math.min(nonNegativeInt(env.SMS_DELIVERY_DELAY_MS, 1500), 2_147_483_647),
       autoDeliver: env.SMS_AUTO_DELIVER?.trim() !== '0',
       webhookUrl: env.SMS_WEBHOOK_URL?.trim() ?? '',
       webhookSecret: env.SMS_WEBHOOK_SECRET?.trim() ?? '',

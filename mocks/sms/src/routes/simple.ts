@@ -21,8 +21,11 @@ export function simpleRoutes(ctx: Ctx): Route {
       return json({ status: 'error', code: 'method_not_allowed', message: 'Method not allowed.' }, 405)
     }
 
-    const body = request.method === 'POST' ? await readFields(request) : null
-    const fields: Record<string, unknown> = { ...queryFields(url), ...(body ?? {}) }
+    const body = request.method === 'POST' ? await readFields(request) : {}
+    if (body === null) {
+      return json({ status: 'error', code: 'invalid_json', message: 'The request body is not valid JSON.' }, 400)
+    }
+    const fields: Record<string, unknown> = { ...queryFields(url), ...body }
 
     const result = sendMessage(ctx, 'simple', {
       to: fields['to'],

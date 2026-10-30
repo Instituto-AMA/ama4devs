@@ -1,6 +1,6 @@
 {
   "name": "sms-mock",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SMS gateway simulator for development and tests: native, Twilio-compatible and simple send APIs, message lifecycle, status and inbound webhooks, magic numbers for failures, segment counting, OTP code extraction and a live phone-inbox panel. Simulador local de SMS.",
   "keywords": [
     "sms",

@@ -33,7 +33,7 @@
     "description": "Local SMS gateway simulator: message lifecycle, magic failure numbers, OTP extraction, Twilio-compatible API, signed webhooks, and a live phone-inbox panel.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Docker (linux/amd64, linux/arm64)",
-    "softwareVersion": "0.1.0",
+    "softwareVersion": "0.2.0",
     "url": "https://instituto-ama.github.io/ama4devs/sms/",
     "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock",
     "license": "https://opensource.org/licenses/MIT",
@@ -65,6 +65,8 @@
   <nav class="tabs" aria-label="SMS mock">
     <a href="./" aria-current="page">Overview</a>
     <a href="quick-start/">Quick start</a>
+    <a href="api/">API</a>
+    <a href="docs/">Docs</a>
   </nav>
 
   <main id="content">
@@ -73,14 +75,63 @@
         <h1>Local SMS gateway with a live handset inbox.</h1>
         <p class="lead">Send SMS via a clean REST API, simple endpoints, or your existing Twilio SDK. Watch messages advance through <code>queued</code>, <code>sent</code>, and <code>delivered</code> with realistic timing, extract OTP verification codes automatically, trigger delivery failures with magic numbers, and test signed webhooks without real carrier credentials or fees. Zero dependencies, in-memory, and paired with a real-time web panel.</p>
         <div class="cmd">
-          <pre><code>docker run --rm -p 127.0.0.1:3020:3020 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
+          <pre><code>docker run --rm -p 127.0.0.1:8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre>
         </div>
         <div class="actions">
-          <a class="key confirm" href="http://localhost:3020">Open the panel</a>
+          <a class="key confirm" href="http://localhost:8899">Open the panel</a>
           <a class="key" href="quick-start/">Quick start</a>
         </div>
       </div>
+      <figure class="shot">
+        <img src="../img/sms/chat-asaas.jpg" width="1568" height="763" alt="The panel of the SMS mock: the conversation with +55 11 98765-4321, where the SMS the Asaas mock sent to the payer sits delivered, with the sender ASAAS." loading="lazy">
+      </figure>
     </div>
+
+    <section class="band" id="port" aria-labelledby="port-title">
+      <div class="wrap">
+        <h2 id="port-title">Which port it runs on.</h2>
+        <p class="intro">The SMS mock answers on <strong>port 8899</strong>: the panel, the API and the live feed share it. Bound to <code>127.0.0.1</code>, so only your machine reaches it.</p>
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>What</th><th>Address</th><th>How to change it</th></tr></thead>
+                <tbody>
+                  <tr><td>Panel, API and <code>/ws</code></td><td><code>http://localhost:8899</code></td><td><code>SMS_PORT</code> in <code>.env</code> moves the host port; the container always listens on 8899</td></tr>
+                  <tr><td>Health check</td><td><code>http://localhost:8899/health</code></td><td>same port</td></tr>
+                  <tr><td>With <code>docker run</code></td><td><code>-p 127.0.0.1:8899:8899</code></td><td>another host port: <code>-p 127.0.0.1:8898:8899</code></td></tr>
+                  <tr><td>With <code>make up MOCKS=sms</code></td><td><code>127.0.0.1:${SMS_PORT:-8899}</code></td><td><code>SMS_PORT=8898</code> in <code>.env</code></td></tr>
+                  <tr><td>Without Docker</td><td><code>bun src/server.ts</code> in <code>mocks/sms</code></td><td><code>PORT=8898</code> in the environment</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>The other mocks keep their own ports, so they can run side by side: WhatsApp <code>3010</code>, Asaas <code>45445</code>, generator <code>45450</code>, Mailpit <code>8025</code>. When another service already holds 8899, publish the SMS mock on a free host port and point your app at it.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="asaas" aria-labelledby="asaas-title">
+      <div class="wrap">
+        <h2 id="asaas-title">It starts with the Asaas mock.</h2>
+        <p class="intro">In this repository the root <code>make up</code> brings the SMS mock up together with the Asaas mock, the generator and Mailpit. There is nothing to configure: the Asaas mock finds the SMS mock by itself and sends the payer SMS to it.</p>
+        <div class="paper-shadow" style="margin-top: 40px">
+          <div class="sheet narrow">
+            <h3>How it comes up</h3>
+            <div class="code"><pre><code>make up                 <span class="c"># the asaas profile: SMS mock, Asaas mock, generator, Mailpit</span>
+make up MOCKS=sms       <span class="c"># only the SMS mock</span></code></pre></div>
+            <p>Put <code>SMS_ENABLED=0</code> in <code>.env</code> to keep the SMS mock down; the Asaas mock then finds nobody to send to.</p>
+            <h3>How the Asaas mock finds it</h3>
+            <p>The Asaas mock (version 0.11.0) looks for the SMS mock where it usually answers: the compose service name <code>sms</code> (then <code>sms-mock</code>), this machine, and the Docker host &mdash; always on port <code>8899</code>. It posts the payer SMS to <code>POST /v1/messages</code> with the sender <code>ASAAS</code>, for the same charge events as its e-mails and its WhatsApp messages, and only for the customers that have a mobile phone.</p>
+            <h3>A run, verified</h3>
+            <p>A charge for &ldquo;Maria Souza&rdquo; produced this SMS in the panel, and it ended <code>delivered</code>:</p>
+            <div class="code"><pre><code>ASAAS → +5511987654321
+Maria Souza: Conta Principal gerou uma cobrança de R$ 120,50 (Consulta), com vencimento em 10/11/2026. Ver fatura e pagar: …
+status: delivered</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="band" id="what-it-provides" aria-labelledby="capabilities-title">
       <div class="wrap">
@@ -131,7 +182,7 @@
                   <tr>
                     <td><code>Live panel</code></td>
                     <td>Interactive phone-inbox web UI over WebSocket (<code>/ws</code>)</td>
-                    <td>Conversation threads, message inspection, delivery logs, settings dialog, and reply composer</td>
+                    <td>Conversation threads, an OTP chip that copies the code, a details drawer with the JSON and the status history, the reply composer, and a control panel with the delivery, webhook, event, magic-number and API tabs</td>
                   </tr>
                 </tbody>
               </table>
@@ -151,43 +202,75 @@
             <article class="case" id="case-otp-flow">
               <h3>Test an OTP login flow</h3>
               <p class="proves">When testing authentication or passwordless login, your test suite can send a verification SMS and read back the generated code via the long-polling query endpoint without polling loops or arbitrary wait timers. The extracted code is also available in the <code>codes</code> array.</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to":"+5511912340010","body":"Your verification code is 481920"}'
 
-curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+curl 'http://localhost:8899/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+              <figure class="shot">
+                <img src="../img/sms/chat.jpg" width="1568" height="763" alt="The panel with the conversation of +55 11 91234-0010: the SMS the application sent with the code chip 482913, and the reply the handset sent." loading="lazy">
+              </figure>
             </article>
 
             <article class="case" id="case-delivery-failures">
               <h3>Test delivery failures</h3>
               <p class="proves">Trigger carrier errors and delivery status changes deterministically using the last 4 digits of the recipient number. Test how your application responds to undelivered SMS, blacklisted numbers, or immediate API rejections without changing server code.</p>
               <div class="code"><pre><code># 0001: fails delivery with error 30003
-curl -X POST http://localhost:3020/v1/messages \
+curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to":"+5511912340001","body":"Test failure"}'
 
 # 0003: rejected immediately by the API with HTTP 400
-curl -X POST http://localhost:3020/v1/messages \
+curl -X POST http://localhost:8899/v1/messages \
   -H 'Content-Type: application/json' \
   -d '{"to":"+5511912340003","body":"Test rejection"}'</code></pre></div>
+              <figure class="shot">
+                <img src="../img/sms/tools-magic.jpg" width="1568" height="763" alt="The magic numbers tab of the control panel: the table of the endings that stage a failure, with the rules of the segments and of the OTP." loading="lazy">
+              </figure>
+            </article>
+
+            <article class="case" id="case-manual-delivery">
+              <h3>Step the delivery by hand</h3>
+              <p class="proves">Proves your application when the handset takes its time: with the delivery in manual mode the message waits in the queue, and every bubble of the panel can be moved by hand to delivered, failed or undelivered.</p>
+              <div class="code"><pre><code>curl -X PUT http://localhost:8899/_mock/sms/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"autoDeliver":false}'
+<span class="c"># the message stays queued until you move it</span></code></pre></div>
+              <figure class="shot">
+                <img src="../img/sms/tools-delivery.jpg" width="1568" height="763" alt="The delivery tab of the control panel: automatic or manual, the delay until delivery in milliseconds, and the button that starts from zero." loading="lazy">
+              </figure>
             </article>
 
             <article class="case" id="case-test-webhooks">
               <h3>Test webhooks</h3>
               <p class="proves">Verify that your application handles delivery receipts and inbound messages correctly. Provide a <code>callbackUrl</code> per message or configure <code>SMS_WEBHOOK_URL</code>. Webhooks include the <code>x-sms-signature</code> header when <code>SMS_WEBHOOK_SECRET</code> is configured. You can also simulate an inbound reply from a handset:</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/inbound \
   -H 'Content-Type: application/json' \
   -d '{"from":"+5511912340010","body":"SIM"}'</code></pre></div>
+              <figure class="shot">
+                <img src="../img/sms/tools-webhooks.jpg" width="1568" height="763" alt="The webhook tab of the control panel: the URL the events go to, the secret that signs them, the default sender and the shape of the status and inbound payloads." loading="lazy">
+              </figure>
+              <figure class="shot">
+                <img src="../img/sms/tools-events.jpg" width="1568" height="763" alt="The events tab of the control panel: every webhook attempt, with its body, the answer code and the signature." loading="lazy">
+              </figure>
             </article>
 
             <article class="case" id="case-twilio-sdk">
               <h3>Point a Twilio SDK at the mock</h3>
-              <p class="proves">Reuse your existing Twilio integration by overriding the API base URL to <code>http://localhost:3020</code>. The mock accepts Twilio form-encoded requests, authenticates mock credentials, and delivers status callbacks formatted to Twilio standards.</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/2010-04-01/Accounts/ACmock/Messages.json \
+              <p class="proves">Reuse your existing Twilio integration by overriding the API base URL to <code>http://localhost:8899</code>. The mock accepts Twilio form-encoded requests, authenticates mock credentials, and delivers status callbacks formatted to Twilio standards.</p>
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/2010-04-01/Accounts/ACmock/Messages.json \
   -u ACmock:mocktoken \
   -d "To=+5511912340010" \
   -d "From=AMA4DEVS" \
   -d "Body=Testing Twilio compatibility"</code></pre></div>
+            </article>
+
+            <article class="case" id="case-api">
+              <h3>The API, inside the panel</h3>
+              <p class="proves">Proves your client against the real contract: the control panel carries the whole catalog of <a href="api/">the API</a> &mdash; 20 operations, with the parameters, the body fields, a <code>curl</code> and every documented answer &mdash; and a <strong>Testar</strong> button that sends the request for real and shows the answer.</p>
+              <figure class="shot">
+                <img src="../img/sms/tools-api.jpg" width="1568" height="763" alt="The API tab of the control panel: an operation of the catalog with its curl, its answers and the result of the test button." loading="lazy">
+              </figure>
             </article>
           </div>
         </div>
@@ -197,7 +280,7 @@ curl -X POST http://localhost:3020/v1/messages \
     <section class="band" id="api" aria-labelledby="api-title">
       <div class="wrap">
         <h2 id="api-title">The API in one table.</h2>
-        <p class="intro">A lightweight HTTP server with zero runtime dependencies. Includes native JSON endpoints, Twilio compatibility, simple send routes, and internal control tools.</p>
+        <p class="intro">A lightweight HTTP server with zero runtime dependencies. Includes native JSON endpoints, Twilio compatibility, simple send routes, and internal control tools. The full reference of <a href="api/">the API</a>, with every parameter and every documented answer, is on its own page.</p>
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
             <div class="table-wrap">
@@ -211,7 +294,7 @@ curl -X POST http://localhost:3020/v1/messages \
                 <tbody>
                   <tr>
                     <td><code>GET /health</code></td>
-                    <td><code>{"status":"ok","service":"sms","version":"0.1.0"}</code></td>
+                    <td><code>{"status":"ok","service":"sms","version":"0.2.0"}</code></td>
                   </tr>
                   <tr>
                     <td><code>GET /</code></td>

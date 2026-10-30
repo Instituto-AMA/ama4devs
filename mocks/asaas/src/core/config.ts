@@ -177,14 +177,16 @@ export interface Config {
   seedExtraAccounts: SeedExtraAccount[]
 
   /**
-   * The payer notifications (e-mail and WhatsApp template per charge event). Each
+   * The payer notifications (e-mail, WhatsApp template and SMS per charge event). Each
    * channel is on while its address is known, set or found (`discover`): e-mail
-   * goes to Mailpit's send API, the template to the WhatsApp mock's Cloud API. Off,
+   * goes to Mailpit's send API, the template to the WhatsApp mock's Cloud API, the
+   * SMS to the SMS mock's native API. Off,
    * nothing is queued.
    */
   notify: {
     mailpitUrl: string | undefined
     whatsappUrl: string | undefined
+    smsUrl?: string | undefined
     /** The sender number the WhatsApp mock shows the templates from. */
     whatsappPhoneNumberId: string
     /** The WABA whose library holds the payer templates (the WhatsApp mock's default account). */
@@ -200,9 +202,10 @@ export interface Config {
     /** Where the browser opens Mailpit's mailbox and the WhatsApp console (Integrações). */
     mailpitUiUrl: string
     whatsappUiUrl: string
+    smsUiUrl?: string
     /**
      * What this server looks for by itself (src/notify/discovery.ts): the places
-     * Mailpit, the WhatsApp mock and the generator may answer on, and whether the
+     * Mailpit, the WhatsApp mock, the SMS mock and the generator may answer on, and whether the
      * address the WhatsApp mock calls back on is found too. Left out, nothing is
      * looked for: the process entry fills it from the environment
      * (`notifyDiscoveryFromEnv`), the tests leave it unset.
@@ -291,6 +294,7 @@ export function loadConfig(): Config {
     notify: {
       mailpitUrl: optionalStr('MAILPIT_URL')?.replace(/\/+$/, ''),
       whatsappUrl: optionalStr('WHATSAPP_MOCK_URL')?.replace(/\/+$/, ''),
+      smsUrl: optionalStr('SMS_MOCK_URL')?.replace(/\/+$/, ''),
       whatsappPhoneNumberId: str('WHATSAPP_PHONE_NUMBER_ID', '5511400000000'),
       whatsappWabaId: str('WHATSAPP_WABA_ID', '100000000000001'),
       fromEmail: str('NOTIFY_FROM_EMAIL', 'notificacoes@asaas.localhost'),
@@ -298,6 +302,7 @@ export function loadConfig(): Config {
       callbackBaseUrl: str('NOTIFY_CALLBACK_BASE_URL', `http://localhost:${port}`).replace(/\/+$/, ''),
       mailpitUiUrl: str('MAILPIT_UI_URL', 'http://localhost:8025').replace(/\/+$/, ''),
       whatsappUiUrl: str('WHATSAPP_UI_URL', 'http://localhost:3010').replace(/\/+$/, ''),
+      smsUiUrl: str('SMS_UI_URL', 'http://localhost:8899').replace(/\/+$/, ''),
     },
 
     generator: {
@@ -369,6 +374,8 @@ export interface NotifyDiscovery {
   mailpit: string[]
   /** The base URLs the WhatsApp mock may answer on, in order; empty when WHATSAPP_MOCK_URL says where. */
   whatsapp: string[]
+  /** The base URLs the SMS mock may answer on, in order; empty when SMS_MOCK_URL says where. */
+  sms?: string[]
   /** The base URLs the generator may answer on, in order; empty when GENERATOR_URL says where. */
   generator: string[]
   /** Whether the address the WhatsApp mock calls back on is found (NOTIFY_CALLBACK_BASE_URL unset). */
@@ -403,6 +410,7 @@ export function notifyDiscoveryFromEnv(env: Record<string, string | undefined> =
   return {
     mailpit: env.MAILPIT_URL === undefined ? places(['mailpit'], 8025) : [],
     whatsapp: env.WHATSAPP_MOCK_URL === undefined ? places(['whatsapp', 'whatsapp-mock'], 3010) : [],
+    sms: env.SMS_MOCK_URL === undefined ? places(['sms', 'sms-mock'], 8899) : [],
     generator: env.GENERATOR_URL === undefined ? places(['generator', 'generator-mock'], 45450) : [],
     callback: env.NOTIFY_CALLBACK_BASE_URL === undefined,
   }

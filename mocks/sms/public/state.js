@@ -16,6 +16,10 @@
  */
 
 /**
+ * @typedef {'all' | 'noreply' | 'failed'} Filter The chip of the sidebar.
+ */
+
+/**
  * @typedef {object} State
  * @property {'connecting' | 'open' | 'closed'} connection How the socket stands.
  * @property {string} version The version of the mock.
@@ -25,6 +29,8 @@
  * @property {string | null} selected The number of the conversation on screen.
  * @property {string | null} selectedMessageId The message open in the inspector.
  * @property {string} search What the user is looking for.
+ * @property {Filter} filter The chip the user pressed in the sidebar.
+ * @property {string | null} sender The sender the user chose, null for every one.
  * @property {'json' | 'webhooks' | 'guide'} tab The tab of the inspector.
  * @property {'light' | 'dark' | 'system'} theme The theme of the panel.
  */
@@ -71,6 +77,8 @@ export function createState() {
     selected: null,
     selectedMessageId: null,
     search: '',
+    filter: 'all',
+    sender: null,
     tab: 'json',
     theme: 'system',
   }
@@ -147,6 +155,7 @@ export function createState() {
         }
 
         case 'reset': {
+          // The search and the filters of the sidebar survive the reset.
           replace({ messages: [], deliveries: [], selected: null, selectedMessageId: null })
           break
         }
@@ -181,7 +190,7 @@ export function createState() {
 
 /**
  * The conversations of the panel: one per counterparty, the newest activity
- * first, narrowed by the search the user typed.
+ * first, narrowed by the search, the chip and the sender the user chose.
  * @param {State} state
  * @returns {Conversation[]}
  */
@@ -205,11 +214,34 @@ export function conversations(state) {
     if (search && !matchesSearch(messages, number, search)) continue
     const last = messages[messages.length - 1]
     if (!last) continue
-    list.push({ number, last, count: messages.length, unread: unreadOf(messages) })
+    const unread = unreadOf(messages)
+    if (!matchesFilter(messages, unread, state.filter)) continue
+    if (state.sender !== null && !hasSender(messages, state.sender)) continue
+    list.push({ number, last, count: messages.length, unread })
   }
 
   list.sort((one, other) => newestFirst(one.last, other.last))
   return list
+}
+
+/**
+ * The senders the sidebar offers: the distinct senders of the outbound
+ * messages plus the one the person chose, sorted by name.
+ * @param {State} state
+ * @returns {string[]}
+ */
+export function senders(state) {
+  /** @type {Set<string>} */
+  const names = new Set()
+
+  for (const message of state.messages) {
+    if (message.direction !== 'outbound') continue
+    names.add(message.from)
+  }
+  // The sender the person chose stays offered, so the selector always shows the filter in force.
+  if (state.sender !== null) names.add(state.sender)
+
+  return [...names].sort()
 }
 
 /**
@@ -264,6 +296,33 @@ function matchesSearch(messages, number, search) {
 }
 
 /**
+ * Whether the conversation passes the chip of the sidebar: `noreply` keeps the
+ * ones the handset never answered, `failed` the ones with a message that did
+ * not reach it.
+ * @param {Message[]} messages The messages of the conversation, oldest first.
+ * @param {number} unread How many messages wait for a reply.
+ * @param {Filter} filter The chip the user pressed.
+ * @returns {boolean}
+ */
+function matchesFilter(messages, unread, filter) {
+  if (filter === 'noreply') return unread > 0
+  if (filter === 'failed') {
+    return messages.some((message) => message.status === 'failed' || message.status === 'undelivered')
+  }
+  return true
+}
+
+/**
+ * Whether the conversation has an outbound message the given sender sent.
+ * @param {Message[]} messages The messages of the conversation, oldest first.
+ * @param {string} sender The sender the user chose.
+ * @returns {boolean}
+ */
+function hasSender(messages, sender) {
+  return messages.some((message) => message.direction === 'outbound' && message.from === sender)
+}
+
+/**
  * How many messages wait for a reply: the outbound ones sent after the last
  * inbound message of the conversation.
  * @param {Message[]} messages The messages of the conversation, oldest first.
@@ -282,4 +341,16 @@ function unreadOf(messages) {
     if (message && message.direction === 'outbound') count += 1
   }
   return Math.min(count, 99)
+}
+
+/**
+ * The number a reply of the handset goes to: the sender of the newest outbound
+ * message of the conversation, or null when the app never wrote to it.
+ * @param {State} state
+ * @param {string} number The number of the conversation.
+ * @returns {string | null}
+ */
+export function replyTo(state, number) {
+  const outbound = thread(state, number).filter((message) => message.direction === 'outbound')
+  return outbound.at(-1)?.from ?? null
 }

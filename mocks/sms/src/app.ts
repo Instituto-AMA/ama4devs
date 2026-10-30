@@ -5,7 +5,7 @@
  */
 import type { Config } from './config.ts'
 import { json } from './http.ts'
-import { guardLocal } from './local-guard.ts'
+import { guardForeignPage, guardLocal } from './local-guard.ts'
 import { createLifecycle } from './lifecycle.ts'
 import { controlRoutes } from './routes/control.ts'
 import { nativeRoutes } from './routes/native.ts'
@@ -49,8 +49,8 @@ const CONTENT_TYPES: Record<string, string> = {
 /** The files of the public directory: `/app.js`, `/style.css`, `/favicon.svg`. */
 const PUBLIC_FILE = /^\/([a-z0-9-]+)\.(js|css|svg|html)$/
 
-/** The core modules: `/core/phone.js`, `/core/segments.js`, `/core/otp.js`. */
-const CORE_FILE = /^\/core\/([a-z0-9-]+)\.js$/
+/** The core modules: `/core/phone.js`, `/core/segments.js`, `/core/otp.js`, `/core/operations.js` and the parts of the catalog under `/core/operations/`. */
+const CORE_FILE = /^\/core\/((?:operations\/)?[a-z0-9-]+)\.js$/
 
 /** The methods a preflight asks for. */
 const ALLOWED_METHODS = 'GET,POST,PUT,DELETE,OPTIONS'
@@ -142,6 +142,12 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     // Every other route carries no key: it belongs to this machine.
     const refusal = guardLocal(request, config.allowedHosts)
     if (refusal) return refusal
+
+    // The feed and the GET send are reads/writes a foreign page could trigger without CORS: they must come from home.
+    if (pathname === '/ws' || pathname.replace(/\/+$/, '') === '/sms/send') {
+      const foreign = guardForeignPage(request, config.allowedHosts)
+      if (foreign) return foreign
+    }
 
     const origin = request.headers.get('origin')
     const allowedOrigin =

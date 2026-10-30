@@ -387,3 +387,21 @@ describe('createSettings', () => {
     expect(settings.get().defaultFrom).toBe('AMA4DEVS')
   })
 })
+
+describe('waitFor on a change', () => {
+  test('waitFor wakes when a message changes into the filter', async () => {
+    let n = 0
+    const store = createStore({ now: () => new Date(0), newId: () => `SM${++n}`, maxMessages: 10 })
+    const message = store.add({
+      direction: 'outbound',
+      from: 'A',
+      to: '+5511912345678',
+      body: 'x',
+      api: 'native',
+      status: 'queued',
+    })
+    const waiting = store.waitFor({ status: 'delivered' }, 1000)
+    store.update(message.id, { status: 'delivered' })
+    expect((await waiting).map((one) => one.id)).toEqual([message.id])
+  })
+})

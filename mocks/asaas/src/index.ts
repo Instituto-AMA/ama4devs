@@ -26,12 +26,12 @@ app.listen(config.port)
 // for now and every LOOK_EVERY_MS, and a WhatsApp mock found gets the sender number
 // and its templates at once (src/notify/channels.ts); the ticks put them back if it
 // restarts.
-let seen: { mailpit?: string; whatsapp?: string } | null = null
+let seen: { mailpit?: string; whatsapp?: string; sms?: string } | null = null
 async function followChannels(): Promise<void> {
   await lookForChannels(ctx)
   const notify = config.notify
   const before = seen
-  seen = { mailpit: notify.mailpitUrl, whatsapp: notify.whatsappUrl }
+  seen = { mailpit: notify.mailpitUrl, whatsapp: notify.whatsappUrl, sms: notify.smsUrl }
   const again = (places: string[] | undefined) =>
     places?.length ? `; procurado de novo a cada ${LOOK_EVERY_MS / 1000} s` : ''
   if (!before || before.mailpit !== notify.mailpitUrl) {
@@ -39,6 +39,13 @@ async function followChannels(): Promise<void> {
       notify.mailpitUrl
         ? `E-mail: Mailpit em ${notify.mailpitUrl}`
         : `E-mail: ${channelOffReason(notify, 'EMAIL')}${again(notify.discover?.mailpit)}`,
+    )
+  }
+  if (!before || before.sms !== notify.smsUrl) {
+    console.log(
+      notify.smsUrl
+        ? `SMS: mock em ${notify.smsUrl}`
+        : `SMS: ${channelOffReason(notify, 'SMS')}${again(notify.discover?.sms)}`,
     )
   }
   if (before && before.whatsapp === notify.whatsappUrl) return

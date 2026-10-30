@@ -23,6 +23,7 @@ import {
 } from '../db/schema/index.ts'
 import {
   composeNotification,
+  smsNumber,
   whatsappNumber,
   type InstallmentFacts,
   type NotifiableEvent,
@@ -30,7 +31,7 @@ import {
 import { channelOffReason } from './channels.ts'
 import { ensureCustomerNotifications } from './settings.ts'
 
-export type Channel = 'EMAIL' | 'WHATSAPP'
+export type Channel = 'EMAIL' | 'WHATSAPP' | 'SMS'
 
 export interface NotifyDeps {
   clock: Clock
@@ -65,7 +66,7 @@ export async function enqueuePaymentNotifications(
     forced?: Channel[]
   },
 ): Promise<number> {
-  const { mailpitUrl, whatsappUrl } = deps.config.notify
+  const { mailpitUrl, whatsappUrl, smsUrl } = deps.config.notify
   const [customer] = await tx
     .select()
     .from(customers)
@@ -84,6 +85,9 @@ export async function enqueuePaymentNotifications(
         'notify_not_configured',
         `Envio de WhatsApp desligado: ${channelOffReason(deps.config.notify, 'WHATSAPP')}.`,
       )
+    }
+    if (channels.includes('SMS') && !smsUrl) {
+      throw badRequest('notify_not_configured', `Envio de SMS desligado: ${channelOffReason(deps.config.notify, 'SMS')}.`)
     }
   }
 
@@ -124,9 +128,11 @@ export async function enqueuePaymentNotifications(
     if (!setting?.enabled) return 0
     const email = setting.emailEnabledForCustomer
     const whatsapp = setting.whatsappEnabledForCustomer
+    const sms = setting.smsEnabledForCustomer
     channels = []
     if (email && mailpitUrl) channels.push('EMAIL')
     if (whatsapp && whatsappUrl) channels.push('WHATSAPP')
+    if (sms && smsUrl) channels.push('SMS')
   }
   if (channels.length === 0) return 0
 
@@ -149,6 +155,7 @@ export async function enqueuePaymentNotifications(
   const recipients: Record<Channel, string | null> = {
     EMAIL: customer.email,
     WHATSAPP: whatsappNumber(customer.mobilePhone),
+    SMS: smsNumber(customer.mobilePhone),
   }
 
   let queued = 0
@@ -172,7 +179,7 @@ export async function enqueuePaymentNotifications(
       channel,
       recipient,
       subject: channel === 'EMAIL' ? message.subject : null,
-      body: channel === 'EMAIL' ? message.text : message.template.params.join(' | '),
+      body: channel === 'EMAIL' ? message.text : channel === 'SMS' ? message.sms : message.template.params.join(' | '),
       html: channel === 'EMAIL' ? message.html : null,
       template: channel === 'WHATSAPP' ? message.template : null,
       forced: Boolean(args.forced),

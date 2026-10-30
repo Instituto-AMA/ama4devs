@@ -1,5 +1,5 @@
 /**
- * The two payer channels as running services: the WhatsApp mock and Mailpit.
+ * The payer channels as running services: the WhatsApp mock, the SMS mock and Mailpit.
  *
  * Nothing here needs a person. Both are found by themselves (discovery.ts), and on
  * boot and on every tick the sender number gets this server's webhook in the
@@ -10,7 +10,7 @@
  * where, that address is found the same way: each place this server may be reached
  * on is offered in turn, and the first one the WhatsApp mock verifies is kept. The
  * WhatsApp mock keeps it in memory, so a restart of it is repaired on the next
- * tick. Mailpit needs no setup. Someone may change either one by hand afterwards;
+ * tick. Mailpit and the SMS mock need no setup. Someone may change either one by hand afterwards;
  * the registration only fills in what is missing.
  *
  * Also what Integrações shows: whether each channel answers, and what actually
@@ -51,12 +51,17 @@ export function whatsappHeaders(url: string): Record<string, string> {
 }
 
 /** Why a channel is off, for the logs, the notification rows and Integrações. */
-export function channelOffReason(notify: Config['notify'], channel: 'EMAIL' | 'WHATSAPP'): string {
+export function channelOffReason(notify: Config['notify'], channel: 'EMAIL' | 'WHATSAPP' | 'SMS'): string {
   const discover = notify.discover
   if (channel === 'EMAIL') {
     return discover?.mailpit.length
       ? `nenhum Mailpit respondendo (procurado em ${discover.mailpit.join(', ')})`
       : 'MAILPIT_URL vazio: e-mail desligado'
+  }
+  if (channel === 'SMS') {
+    return discover?.sms?.length
+      ? `nenhum mock de SMS respondendo (procurado em ${discover.sms.join(', ')})`
+      : 'SMS_MOCK_URL vazio: SMS desligado'
   }
   return discover?.whatsapp.length
     ? `nenhum mock de WhatsApp respondendo (procurado em ${discover.whatsapp.join(', ')})`
@@ -240,6 +245,7 @@ export interface ChannelStatus {
 export async function channelStatus(ctx: AppContext): Promise<{
   email: ChannelStatus & { from: string }
   whatsapp: ChannelStatus & { sender: string; registered: boolean; callbackUrl: string }
+  sms: ChannelStatus
 }> {
   const n = ctx.config.notify
   const probe = async (url: string | undefined, path: string, off: string, headers: Record<string, string> = {}) => {
@@ -251,7 +257,7 @@ export async function channelStatus(ctx: AppContext): Promise<{
       return { reachable: false, error: errorText(err) }
     }
   }
-  const [mail, wa, sender] = await Promise.all([
+  const [mail, wa, sms, sender] = await Promise.all([
     probe(n.mailpitUrl, '/api/v1/info', channelOffReason(ctx.config.notify,'EMAIL')),
     probe(
       n.whatsappUrl,
@@ -259,6 +265,7 @@ export async function channelStatus(ctx: AppContext): Promise<{
       channelOffReason(ctx.config.notify,'WHATSAPP'),
       n.whatsappUrl ? whatsappHeaders(n.whatsappUrl) : {},
     ),
+    probe(n.smsUrl, '/health', channelOffReason(ctx.config.notify, 'SMS')),
     ensureWhatsappSender(ctx),
   ])
   return {
@@ -271,6 +278,7 @@ export async function channelStatus(ctx: AppContext): Promise<{
       registered: sender.registered,
       callbackUrl: whatsappCallbackUrl(ctx),
     },
+    sms: { on: Boolean(n.smsUrl), ...sms, uiUrl: n.smsUiUrl ?? 'http://localhost:8899' },
   }
 }
 
@@ -283,7 +291,7 @@ export interface Arrival {
 }
 
 /** What actually arrived at the channel from this server, newest first. */
-export async function arrivals(ctx: AppContext, channel: 'EMAIL' | 'WHATSAPP'): Promise<Arrival[]> {
+export async function arrivals(ctx: AppContext, channel: 'EMAIL' | 'WHATSAPP' | 'SMS'): Promise<Arrival[]> {
   const n = ctx.config.notify
   if (channel === 'EMAIL') {
     if (!n.mailpitUrl) return []
@@ -294,6 +302,17 @@ export async function arrivals(ctx: AppContext, channel: 'EMAIL' | 'WHATSAPP'): 
       title: String(m.Subject ?? ''),
       text: String(m.Snippet ?? ''),
       at: String(m.Created ?? ''),
+    }))
+  }
+  if (channel === 'SMS') {
+    if (!n.smsUrl) return []
+    const res = await get(`${n.smsUrl}/v1/messages?direction=outbound&limit=50`)
+    return (res.messages ?? []).map((m: any) => ({
+      id: String(m.id),
+      to: String(m.to ?? ''),
+      title: 'SMS',
+      text: String(m.body ?? ''),
+      at: String(m.createdAt ?? ''),
     }))
   }
   if (!n.whatsappUrl) return []

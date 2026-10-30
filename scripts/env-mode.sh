@@ -28,7 +28,7 @@ asaas_api_key="$(env_get "$ROOT_DIR/.env" ASAAS_API_KEY)"
 asaas_port="${asaas_port:-45445}"
 whatsapp_port="${whatsapp_port:-3010}"
 generator_port="${generator_port:-45450}"
-sms_port="${sms_port:-3020}"
+sms_port="${sms_port:-8899}"
 asaas_api_key="${asaas_api_key:-\$aact_hmlg_local_master}"
 sandbox_key="${ASAAS_SANDBOX_API_KEY:-$(env_get "$ROOT_DIR/.env.sandbox" ASAAS_SANDBOX_API_KEY)}"
 

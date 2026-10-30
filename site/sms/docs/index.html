@@ -45,6 +45,7 @@
   <nav class="tabs" aria-label="SMS mock">
     <a href="../">Overview</a>
     <a href="../quick-start/">Quick start</a>
+    <a href="../api/">API</a>
     <a href="./" aria-current="page">Docs</a>
   </nav>
 
@@ -61,6 +62,7 @@
             <li><a href="#inbound">Inbound replies</a></li>
             <li><a href="#testing">Testing</a></li>
             <li><a href="#segments-otp">Segments &amp; OTP</a></li>
+            <li><a href="#panel">The panel</a></li>
             <li><a href="#control">Control routes</a></li>
             <li><a href="#config">Configuration</a></li>
             <li><a href="#guard">Local guard</a></li>
@@ -83,7 +85,7 @@
 
               <h3>Native — <code>POST /v1/messages</code></h3>
               <p>A JSON body with <code>to</code> and <code>body</code>, and optionally <code>from</code> and <code>callbackUrl</code>. The number is normalized to E.164 and the sender falls back to the default sender of the settings.</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/v1/messages \
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/v1/messages \
   -H 'content-type: application/json' \
   -d '{"to":"+5511912340010","body":"Your code is 482913","from":"AMA4DEVS"}'</code></pre></div>
               <p>The answer is <code>201</code> with the message as it was stored, still <code>queued</code>:</p>
@@ -162,7 +164,7 @@
 
               <h3>Twilio-compatible — <code>POST /2010-04-01/Accounts/{AccountSid}/Messages.json</code></h3>
               <p>The paths and the answers a Twilio SDK expects, with the form fields <code>To</code>, <code>From</code>, <code>Body</code> and <code>StatusCallback</code> (a <code>MessagingServiceSid</code> with no <code>From</code> uses the default sender). Authorization is ignored: the mock has no key.</p>
-              <div class="code"><pre><code>curl -X POST 'http://localhost:3020/2010-04-01/Accounts/ACdemo/Messages.json' \
+              <div class="code"><pre><code>curl -X POST 'http://localhost:8899/2010-04-01/Accounts/ACdemo/Messages.json' \
   -d 'To=+5511912340010' \
   -d 'From=AMA4DEVS' \
   -d 'Body=Your code is 482913'</code></pre></div>
@@ -195,7 +197,7 @@
 
               <h3>Simple — <code>GET|POST /sms/send</code></h3>
               <p>The shortest way to send a message: <code>to</code>, <code>message</code> (aliases <code>text</code> and <code>body</code>), <code>sender</code> (alias <code>from</code>) and <code>callbackUrl</code>, in the query of a <code>GET</code> or in the form body of a <code>POST</code>.</p>
-              <div class="code"><pre><code>curl 'http://localhost:3020/sms/send?to=%2B5511912340010&amp;message=Your+code+is+482913'</code></pre></div>
+              <div class="code"><pre><code>curl 'http://localhost:8899/sms/send?to=%2B5511912340010&amp;message=Your+code+is+482913'</code></pre></div>
               <div class="code"><pre><code>{ "status": "ok", "id": "SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0", "to": "+5511912340010", "segments": 1 }</code></pre></div>
 
               <h3>Errors</h3>
@@ -352,7 +354,7 @@
             <section id="inbound" aria-labelledby="inbound-title">
               <h2 id="inbound-title">Inbound replies</h2>
               <p>The panel is the handset. What the application sends is what the handset receives; what the handset writes is what the application receives. The reply is stored as an inbound message and fires the inbound webhook.</p>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/inbound \
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/inbound \
   -H 'content-type: application/json' \
   -d '{"from":"+5511912340010","to":"AMA4DEVS","body":"Received, thank you!"}'</code></pre></div>
               <p>The answer is <code>201</code> with the message: <code>direction</code> is <code>inbound</code>, <code>status</code> is <code>received</code> and <code>api</code> is <code>mock</code>. The <code>to</code> is optional and falls back to the default sender; the refusals are the same as the ones of the send API (<code>invalid_from</code>, <code>invalid_to</code>, <code>empty_body</code>, <code>body_too_long</code>).</p>
@@ -363,20 +365,20 @@
 
               <h3>Long polling</h3>
               <p><code>GET /v1/messages</code> with <code>wait</code> holds the request until a message answers the filters: it answers at once when one already does, and with an empty list when the wait ends. The longest wait is 30000 ms.</p>
-              <div class="code"><pre><code>curl 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+              <div class="code"><pre><code>curl 'http://localhost:8899/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
               <p>The <code>after</code> parameter is the cursor of a polling loop: it lists only the messages created after the one with that id, so a test never reads the same message twice.</p>
 
               <h3>A clean store between tests</h3>
               <p><code>POST /_mock/sms/reset</code> answers <code>204</code> and drops every message and every webhook attempt, so each test starts from an empty store.</p>
 
               <h3>A test in CI</h3>
-              <div class="code"><pre><code>curl -s -X POST http://localhost:3020/_mock/sms/reset
+              <div class="code"><pre><code>curl -s -X POST http://localhost:8899/_mock/sms/reset
 
-curl -s -X POST http://localhost:3020/v1/messages \
+curl -s -X POST http://localhost:8899/v1/messages \
   -H 'content-type: application/json' \
   -d '{"to":"+5511912340010","body":"Your code is 482913"}'
 
-curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
+curl -s 'http://localhost:8899/v1/messages?to=%2B5511912340010&amp;wait=5000'</code></pre></div>
               <p>The answer of the long poll carries the message: <code>status</code> is <code>delivered</code> once the delay has passed, <code>codes</code> holds <code>482913</code> and <code>segments</code> is the number of SMS parts the body costs.</p>
             </section>
 
@@ -419,6 +421,56 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</c
                 <li>Two groups of three or four digits the reader joins: <code>123-456</code> or <code>123 456</code> give <code>123456</code>.</li>
                 <li>The same code is listed once, and the codes keep the order of the text.</li>
               </ul>
+            </section>
+
+            <section id="panel" aria-labelledby="panel-title">
+              <h2 id="panel-title">The panel</h2>
+              <p>Open <code>http://localhost:8899</code>: the panel is the handset of the test. It opens in Brazilian Portuguese; the <strong>PT|EN</strong> switch in the header changes the language, and the names below are given in both.</p>
+
+              <h3>The inbox</h3>
+              <ul>
+                <li><strong>The header:</strong> the SMS mark, the live status, the language switch, an icon for a new test message and an icon for the control panel.</li>
+                <li><strong>The sidebar:</strong> a sender selector, a search field, the filters <em>All</em> / <em>Tudo</em>, <em>No reply</em> / <em>Sem resposta</em> and <em>Failed</em> / <em>Com falha</em>, and one conversation per phone number.</li>
+                <li><strong>The thread:</strong> the SMS the application sent are the bubbles on the left, with the sender id, the chip that copies the verification code, the segment badge (<code>1 SMS · UCS-2</code>) and the status (queued, sent, delivered, undelivered, failed). On hover, each message can be delivered (<em>Entregar</em>), failed (<em>Falhar</em>), left undelivered (<em>Não entregue</em>) or deleted (<em>Apagar</em>) by hand.</li>
+                <li><strong>The composer:</strong> what is typed there is what the handset sends: it arrives as the bubble on the right and fires the inbound webhook.</li>
+                <li><strong>The details drawer:</strong> the info icon, or a click on a bubble, opens the fields of the message, its JSON and its status history.</li>
+                <li><strong>The empty state:</strong> <em>New test message</em> / <em>Nova mensagem de teste</em>, <em>Load samples</em> / <em>Carregar exemplos</em> and <em>Open the control panel</em> / <em>Abrir painel de controle</em>.</li>
+              </ul>
+
+              <h3>The control panel</h3>
+              <p>The icon in the header opens the control panel, with a tab per subject:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tab</th>
+                      <th>What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>Delivery</code> / <em>Entrega</em></td>
+                      <td>Automatic or manual delivery, the delay until delivery in milliseconds, and the button that starts from zero.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Webhook</code></td>
+                      <td>The URL the events go to, the secret that signs them, the default sender, the shape of the status and inbound payloads, the <code>x-sms-signature</code> header and a verification snippet in Node.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Events</code> / <em>Eventos</em></td>
+                      <td>Every webhook attempt, with its body, its answer code and the time.</td>
+                    </tr>
+                    <tr>
+                      <td><code>Magic numbers</code> / <em>Números mágicos</em></td>
+                      <td>The endings that stage a failure, with the rules of the segments and of the OTP.</td>
+                    </tr>
+                    <tr>
+                      <td><code>API</code></td>
+                      <td>The catalog of <a href="../api/">the API</a>: 20 operations, with the parameters, the body fields, a <code>curl</code>, every documented answer and a <em>Testar</em> button that sends the request for real and shows the answer.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </section>
 
             <section id="control" aria-labelledby="control-title">
@@ -469,19 +521,19 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</c
               </div>
 
               <h3>The settings at runtime</h3>
-              <div class="code"><pre><code>curl -X PUT http://localhost:3020/_mock/sms/settings \
+              <div class="code"><pre><code>curl -X PUT http://localhost:8899/_mock/sms/settings \
   -H 'content-type: application/json' \
   -d '{"deliveryDelayMs":0,"autoDeliver":false,"webhookUrl":"http://localhost:4000/webhooks/sms"}'</code></pre></div>
               <p>The answer is the whole settings, and the change is told to the panel at once.</p>
 
               <h3>A status by hand</h3>
-              <div class="code"><pre><code>curl -X POST http://localhost:3020/_mock/sms/messages/SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0/status \
+              <div class="code"><pre><code>curl -X POST http://localhost:8899/_mock/sms/messages/SM3f8c1a94b2e4d7f8a0b6c5d4e3f2a1b0/status \
   -H 'content-type: application/json' \
   -d '{"status":"delivered"}'</code></pre></div>
               <p>The status is one of <code>sent</code>, <code>delivered</code>, <code>undelivered</code> or <code>failed</code>, and an <code>errorCode</code> may be sent with it. The answer is the changed message; an unknown id answers 404 and an inbound message answers 409 (<code>not_outbound</code>).</p>
 
               <h3>Health and the live panel</h3>
-              <p><code>GET /health</code> answers <code>{ "status": "ok", "service": "sms", "version": "0.1.0" }</code> and is the only route the guard does not watch. The panel listens on the WebSocket <code>/ws</code>: the first frame is a snapshot (the messages, the settings, the webhook attempts and the version) and the frames after it are the live events (<code>message.created</code>, <code>message.updated</code>, <code>message.deleted</code>, <code>reset</code>, <code>settings.updated</code>, <code>delivery</code>, <code>deliveries.cleared</code>).</p>
+              <p><code>GET /health</code> answers <code>{ "status": "ok", "service": "sms", "version": "0.2.0" }</code> and is the only route the guard does not watch. The panel listens on the WebSocket <code>/ws</code>: the first frame is a snapshot (the messages, the settings, the webhook attempts and the version) and the frames after it are the live events (<code>message.created</code>, <code>message.updated</code>, <code>message.deleted</code>, <code>reset</code>, <code>settings.updated</code>, <code>delivery</code>, <code>deliveries.cleared</code>).</p>
             </section>
 
             <section id="config" aria-labelledby="config-title">
@@ -499,7 +551,7 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</c
                   <tbody>
                     <tr>
                       <td><code>PORT</code></td>
-                      <td><code>3020</code></td>
+                      <td><code>8899</code></td>
                       <td>Port the HTTP server listens on.</td>
                     </tr>
                     <tr>
@@ -550,7 +602,11 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</c
                   </tbody>
                 </table>
               </div>
-              <p>The repository's compose file publishes the service on the host port <code>SMS_PORT</code> (3020), the port the container itself listens on is <code>PORT</code>.</p>
+              <p>The repository's compose file publishes the service on the host port <code>SMS_PORT</code> (8899), the port the container itself listens on is <code>PORT</code>.</p>
+
+              <h3 id="asaas-integration">With the Asaas mock</h3>
+              <p>In this repository the SMS mock starts with the Asaas mock: the root <code>make up</code> (the <code>asaas</code> profile) brings up the SMS mock, the Asaas mock, the generator and Mailpit, and <code>SMS_ENABLED=0</code> in <code>.env</code> keeps the SMS mock down. <code>make up MOCKS=sms</code> starts only the SMS mock.</p>
+              <p>The Asaas mock finds the SMS mock by itself: with <code>SMS_MOCK_URL</code> unset it tries the compose service name <code>sms</code> (then <code>sms-mock</code>), this machine and the Docker host, always on port <code>8899</code>. It posts the payer SMS to <code>POST /v1/messages</code> with the sender <code>ASAAS</code>, for the same charge events as its e-mails and its WhatsApp messages, and only for the customers that have a mobile phone. Set <code>SMS_MOCK_URL</code> to point it elsewhere, or set it empty to turn the payer SMS off. <code>SMS_UI_URL</code> is the address of the SMS panel as the browser reaches it (<code>http://localhost:8899</code> by default); the Asaas mock reports it in <code>GET /_admin/notify/status</code> (<code>sms.uiUrl</code>).</p>
             </section>
 
             <section id="guard" aria-labelledby="guard-title">
@@ -559,6 +615,7 @@ curl -s 'http://localhost:3020/v1/messages?to=%2B5511912340010&amp;wait=5000'</c
               <ul>
                 <li><strong>Host check:</strong> every request must carry a <code>Host</code> header the guard admits.</li>
                 <li><strong>Origin check:</strong> on the state-changing methods (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) the <code>Origin</code>, when the request carries one, must be admitted too.</li>
+                <li><strong>Feed and GET send:</strong> the <code>/ws</code> handshake and <code>GET /sms/send</code> also refuse a foreign <code>Origin</code>, or a cross-site browser request (<code>Sec-Fetch-Site: cross-site</code>), so a page you visit cannot read the live feed or trigger a send.</li>
               </ul>
               <p>The admitted hosts are <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, <code>host.docker.internal</code>, <code>sms</code> and <code>sms-mock</code>; <code>MOCK_ALLOWED_HOSTS</code> adds more, comma separated. A refused request answers HTTP 403 with <code>{ "error": { "code": "forbidden_host" } }</code> or <code>{ "error": { "code": "forbidden_origin" } }</code>.</p>
               <h3>CORS</h3>

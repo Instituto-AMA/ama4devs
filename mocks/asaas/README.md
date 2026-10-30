@@ -101,8 +101,10 @@ What Asaas tells the person who pays, delivered for real on your machine:
 <td>
 
 - Every charge event (created, updated, due soon, overdue, received) sends the
-  payer an **e-mail to Mailpit** and a **WhatsApp template** through the
-  [WhatsApp mock](../whatsapp/)'s Cloud API.
+  payer an **e-mail to Mailpit**, a **WhatsApp template** through the
+  [WhatsApp mock](../whatsapp/)'s Cloud API, and an **SMS** to the
+  [SMS mock](../sms/) (sender `ASAAS`), which it finds by itself at
+  `sms:8899` (or `sms-mock:8899`).
 - **An installment plan is told once**: the first installment's creation tells
   the whole plan (*R$ 3.000,00 em 5x de R$ 600,00*); reminders and payment
   notices stay per installment.
@@ -119,8 +121,9 @@ What Asaas tells the person who pays, delivered for real on your machine:
   due-date warning goes out N days before (10 by default) and on the due day; an
   overdue charge is told again every N days (7 by default) while unpaid; a
   subscription's charge is not told on creation.
-- The customer's `notificationDisabled` and each setting are honored, a failing
-  channel never blocks the charge, and the panel resends on demand.
+- The customer's `notificationDisabled` and each setting are honored (the SMS
+  needs a mobile phone on the customer), a failing channel never blocks the
+  charge, and the panel resends on demand.
 
 </td>
 </tr>
@@ -204,17 +207,20 @@ curl localhost:45445/v3/customers \
   -d '{"name":"Jane Doe","cpfCnpj":"24971563792","email":"jane@example.com","mobilePhone":"11987654321"}'
 ```
 
-To get the payer notifications, run the [WhatsApp mock](../whatsapp/) and
-Mailpit next to it. Nothing to set: this server finds them by itself, however
-it runs (bun, `docker run`, your compose, the root
+To get the payer notifications, run the [WhatsApp mock](../whatsapp/), Mailpit
+and the [SMS mock](../sms/) next to it. Nothing to set: this server finds them
+by itself, however it runs (bun, `docker run`, your compose, the root
 [`docker-compose.yml`](../../docker-compose.yml)). It looks for them by the
-compose service name (`mailpit:8025`, `whatsapp:3010` or `whatsapp-mock:3010`),
-on this machine (`localhost`) and on the Docker host (`host.docker.internal`,
-the gateway on Linux), on boot and every 10 s, and the closest one wins. The
-address the WhatsApp mock calls back on (delivery statuses, the payer's replies)
-is found the same way: each one this server may be reached on is offered, and
-the first the WhatsApp mock verifies is kept. A variable below pins a place;
-set empty, it turns that channel off. The [generator mock](../generator/)
+compose service name (`mailpit:8025`, `whatsapp:3010` or `whatsapp-mock:3010`,
+`sms:8899` or `sms-mock:8899`), on this machine (`localhost`) and on the Docker
+host (`host.docker.internal`, the gateway on Linux), on boot and every 10 s, and
+the closest one wins. The address the WhatsApp mock calls back on (delivery
+statuses, the payer's replies) is found the same way: each one this server may
+be reached on is offered, and the first the WhatsApp mock verifies is kept. A
+variable below pins a place; set empty, it turns that channel off. The SMS mock
+is found the same way (port 8899, the one that answers `GET /health` with
+`service: "sms"`), and the payer SMS goes to it. The
+[generator mock](../generator/)
 is found the same way (port 45450); while reachable, **Integrações › Gerador**
 lets you open it or populate the selected account.
 
@@ -230,6 +236,8 @@ lets you open it or populate the selected account.
 | `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Where `invoiceUrl` and `bankSlipUrl` point, as the browser reaches this server |
 | `MAILPIT_URL` | *(unset: found by itself)* | Mailpit for the payer e-mails; set empty, e-mail is off |
 | `WHATSAPP_MOCK_URL` | *(unset: found by itself)* | The WhatsApp mock for the payer templates; set empty, WhatsApp is off |
+| `SMS_MOCK_URL` | *(unset: found by itself)* | The SMS mock for the payer SMS; set empty, SMS is off |
+| `SMS_UI_URL` | `http://localhost:8899` | The SMS mock's panel as the browser reaches it (reported in `/_admin/notify/status`) |
 | `GENERATOR_URL` | *(unset: found by itself)* | The generator mock for fake Brazilian data and account population; set empty, generator is off |
 | `GENERATOR_UI_URL` | `http://localhost:45450` | The generator screen, as the browser opens it from Integrations |
 | `WHATSAPP_PHONE_NUMBER_ID` | `5511400000000` | The sender number in the WhatsApp mock |
