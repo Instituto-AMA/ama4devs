@@ -134,7 +134,7 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
               <p class="way-why">Para subir junto com a sua aplicação, no compose dela. Nada para ligar: o Asaas acha o WhatsApp, o SMS e o Mailpit pelo nome do serviço.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.0
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.4
     ports:
       - '45445:45445'
     environment:

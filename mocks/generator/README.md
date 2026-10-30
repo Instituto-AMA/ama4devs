@@ -1,4 +1,4 @@
-<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/generator/">Documentation site</a></p>
+<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/portuguese/generator/">Português</a> · <a href="https://instituto-ama.github.io/ama4devs/generator/">Documentation site</a></p>
 
 <p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
 
@@ -11,7 +11,7 @@ Generates valid documents (CPF, CNPJ, CNH, PIS, RG), realistic individuals and c
 <p align="center">
   <a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock"><img alt="Image" src="https://img.shields.io/badge/ghcr.io-instituto--ama%2Fgenerator--mock-7a3a2a"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%C2%B7%20arm64-7a3a2a">
-  <a href="../../LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-7a3a2a"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-7a3a2a"></a>
 </p>
 
 ## Quick Start

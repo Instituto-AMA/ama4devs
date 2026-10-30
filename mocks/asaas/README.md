@@ -1,4 +1,4 @@
-<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/asaas/">Documentation site</a></p>
+<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/portuguese/asaas/">Português</a> · <a href="https://instituto-ama.github.io/ama4devs/asaas/">Documentation site</a></p>
 
 <p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
 
@@ -146,21 +146,24 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 </table>
 
 - **Customers**: create, edit, remove and restore; open one to see everything
-  billed to it.
+  billed to it. The new-customer form has a button that fills every field with
+  test data (name, a valid CPF, contact, address), besides the CPF-only one.
 - **Charges**, **Subscriptions**, **Installment plans**, and **New charge** with
   the three kinds Asaas offers (single, installments by total or per
   installment, subscription), any billing type, interest, fine, discount and
-  split. **Simulate sale** opens the same form.
+  split. **Simulate sale** opens the same form. A button fills the form with a
+  random billing type, value, due date and description, and creates a test
+  customer first when none is selected.
 - **A charge**: its invoice link, simulate the payment, confirm a cash receipt,
   receive, overdue, refund, delete, restore, and its notifications.
 - **Integrations**, per account: API keys (generate, rotate, expire on the
   virtual clock), webhooks (with the event checklist, through the real
   `/v3/webhooks`), request logs (every `/v3` call, with what went in and what
   came back, errors included), webhook logs with your endpoint's answer (and the
-  events no webhook took), the e-mail and WhatsApp channels, and the generator (Gerador).
+  events no webhook took), the e-mail, WhatsApp and SMS channels, and the generator.
 - **Test cards**: the table the engine reads; accept any well-formed card or
   only the listed ones; add a card with the outcome it forces.
-- **Notas fiscais** (NFS-e): schedule a note for a charge, issue it, cancel it,
+- **Invoices** (NFS-e, *notas fiscais*): schedule a note for a charge, issue it, cancel it,
   and register the account's fiscal information. The city hall answers on the
   next tick (`SYNCHRONIZED` → `AUTHORIZED`, or `ERROR` without fiscal
   information), or now with the simulator's buttons; an authorized note's
@@ -178,7 +181,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 ```yaml
 services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.2   # pin a version, or :latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.4   # pin a version, or :latest
     ports:
       - '45445:45445'
     environment:

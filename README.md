@@ -1,9 +1,11 @@
+<p align="center"><b>English</b> · <a href="https://instituto-ama.github.io/ama4devs/portuguese/">Português</a> · <a href="https://instituto-ama.github.io/ama4devs/">Documentation site</a></p>
+
 <p align="center"><img src="site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="900"></p>
 
-# ama4devs: WhatsApp Cloud API mock and Asaas API mock
+# ama4devs: local mocks of the APIs your application depends on
 
-Local mock servers of two third-party APIs, for development, automated tests and CI,
-as Docker images on GHCR:
+Local mock servers of Asaas, the WhatsApp Cloud API and an SMS gateway, plus a generator of
+fake Brazilian data, for development, automated tests and CI, as Docker images on GHCR:
 
 | Mock | What it simulates | Image |
 |---|---|---|
@@ -13,7 +15,8 @@ as Docker images on GHCR:
 | [SMS mock](mocks/sms/) | **SMS gateway** (native API, Twilio-compatible, simple GET/POST): messages, status and inbound webhooks, deterministic magic numbers, segment counting, OTP extraction, and a phone inbox panel | `docker pull ghcr.io/instituto-ama/sms-mock:latest` |
 
 **Documentation site:** [instituto-ama.github.io/ama4devs](https://instituto-ama.github.io/ama4devs/)
-([in Portuguese](https://instituto-ama.github.io/ama4devs/portuguese/)).
+(English; [Português](https://instituto-ama.github.io/ama4devs/portuguese/)). Each mock has an
+overview with use cases, a quick start, its API and its docs, in both languages.
 
 This repository provides reproducible local mock containers with high behavioral fidelity. Developers and CI pipelines can run end-to-end payment flows and messaging integrations without creating vendor accounts, without managing external credentials, and with full support for delivering webhooks directly to `localhost`.
 
@@ -24,6 +27,9 @@ Start all mocks and create your local `.env`:
 ```bash
 make setup
 ```
+
+`MOCKS` picks which ones (default `asaas whatsapp generator sms`), e.g. `make up MOCKS=sms`.
+The `asaas` profile also brings Mailpit, the generator and the SMS mock.
 
 To configure another application to point to the running mocks, pass `TARGET_ENV`:
 
@@ -41,6 +47,7 @@ Once running, access the web inspection panels:
 
 - **Asaas Simulator Panel:** [http://localhost:45445](http://localhost:45445)
 - **WhatsApp Web Panel:** [http://localhost:3010](http://localhost:3010)
+- **Mailpit:** [http://localhost:8025](http://localhost:8025) (the mailbox of the payer e-mails the Asaas mock sends)
 - **Generator:** [http://localhost:45450](http://localhost:45450) (starts with the Asaas mock; `GENERATOR_ENABLED=0` in `.env` keeps it down). The Asaas mock finds it by itself and shows **Integrations › Generator**, which fills the selected account with customers and charges
 - **SMS Panel:** [http://localhost:8899](http://localhost:8899) (live phone inbox to inspect incoming messages, extract OTP codes, reply as the handset, and simulate delivery outcomes; starts with the Asaas mock, which sends the payer SMS to it — `SMS_ENABLED=0` in `.env` keeps it down)
 
@@ -83,8 +90,18 @@ The repository supports two development workflows:
 | `publish` | Build `linux/amd64` + `linux/arm64` and push to GHCR: `make publish MOCKS=asaas` (needs `docker login ghcr.io`) |
 | `env-mock` | Write the mock env keys into `TARGET_ENV` (or print them) |
 | `env-sandbox` | Write the sandbox env keys into `TARGET_ENV` (or print them) |
-| `test` | Run the tests of both mocks, one after the other |
+| `test` | Run the tests of the mocks, one after the other |
 | `clean` | Remove containers and volumes (`FORCE=1` skips the prompt) |
+| `video` | Render the film and ask where to save it (default: the Desktop) |
+| `video-voice` | Regenerate the narration and listen to it |
+| `video-listen` | Listen to the generated narration and report what it heard |
+| `video-key` | Set up the voice key (ElevenLabs first, OpenRouter second): `make video-key engine=elevenlabs` |
+| `video-say` | Speak one line: `make video-say text="..." duration=4.5 id=invoice` |
+| `video-try` | Try the voice with the v4 options, saved to the Desktop: `make video-try text="..." name=my-test` |
+| `video-shots` | Capture the screens of the running mock for the film (needs the mocks up) |
+| `video-studio` | Preview the film with the scrubber at http://localhost:3000 |
+
+The films are rendered from code with Remotion; see [video/README.md](video/README.md).
 
 ## Published Images
 
@@ -125,7 +142,7 @@ How it is published:
 The Asaas mock provides an in-depth simulation of the Asaas payment platform.
 
 - **API Base Path:** `http://localhost:45445/v3`
-- **Dashboard Panel:** `http://localhost:45445` (accounts, balances, API keys, customers, charges, subscriptions, installment plans and ledger entries; create customers and charges of the three kinds, receive in cash).
+- **Dashboard Panel:** `http://localhost:45445` (accounts, balances, API keys, customers, charges, subscriptions, installment plans and ledger entries; create customers and charges of the three kinds, receive in cash). The **New customer** and **New charge** forms each have a button that fills every field with test data (and a customer, when the charge has none), for a one-click start.
 - **Payer Notifications:** every charge event e-mails the payer (to Mailpit, UI on `http://localhost:8025`, started with the `asaas` profile), sends a WhatsApp template (to the WhatsApp mock, whose `templates/asaas_*.json` hold them) and sends an SMS (to the SMS mock, UI on `http://localhost:8899`, also started with the `asaas` profile; the Asaas mock finds it by itself and sends with the sender `ASAAS`). The SMS follows the customer's `smsEnabledForCustomer` flag and needs a mobile phone. The charge dialog of the panel lists the e-mail and the WhatsApp template and forces one on demand.
 - **Invoice Page:** every charge's `invoiceUrl` (`http://localhost:45445/i/<id>`) opens the payer's page, where the charge is paid by Pix, bank slip or a test card through the same path as a real payment. `INVOICE_BASE_URL` sets its address when the host port differs.
 - **Virtual Clock:** Controlled by `ASAAS_CLOCK_MODE` (`REAL`, `VIRTUAL_FLOWING`, or `VIRTUAL_FROZEN`).
@@ -224,6 +241,17 @@ The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
 - **HMAC Signatures:**
   - When `WHATSAPP_WEBHOOK_SECRET` is set, outgoing webhook deliveries include the `x-hub-signature-256` header calculated as `sha256=HMAC_SHA256(body, secret)`.
 
+## Repository Layout
+
+| Path | What it is |
+|---|---|
+| `mocks/` | The four mocks (`asaas`, `whatsapp`, `generator`, `sms`), each with its own `Dockerfile`, `GET /health`, port, tests and README; the contract is in [mocks/README.md](mocks/README.md) |
+| `site/` | The documentation site (GitHub Pages), plain HTML: English at the root, Portuguese under `site/portuguese/` |
+| `video/` | The films, rendered from code with Remotion ([video/README.md](video/README.md)) |
+| `profiles/` | Env key profiles for `make setup PROFILE=...` ([profiles/README.md](profiles/README.md)) |
+| `scripts/` | Shell helpers behind the Makefile, the publish workflow and the site build |
+| `AGENTS.md` | The rules for agents working in this repository |
+
 ## Integration with Ama-Hub
 
 Ama-Hub integrates these mocks directly into its development lifecycle:
@@ -234,8 +262,8 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 
 ## Security Notes
 
-- **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445`, `127.0.0.1:3010` and `127.0.0.1:8899`). They must never be exposed on `0.0.0.0` or public networks.
-- **Local Route Guard:** Every mock implements a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
+- **Bound to Loopback:** All host ports are bound exclusively to `127.0.0.1` (`127.0.0.1:45445`, `127.0.0.1:3010`, `127.0.0.1:45450`, `127.0.0.1:8899` and Mailpit's `127.0.0.1:8025`). They must never be exposed on `0.0.0.0` or public networks.
+- **Local Route Guard:** Every mock implements a strict local guard. The Asaas mock guards `/`, `/_admin/*` and `/_mock/*`; the generator guards `/` and `/_mock/*`; the WhatsApp mock guards every route it serves, including the `/ws` upgrade; the SMS mock guards every route but `/health`. Each rejects requests with untrusted `Host` headers (DNS rebinding) and, on writes, untrusted `Origin` headers (cross-site request attacks); the opaque `null` origin is refused as well. Besides the loopback names (`localhost`, `127.0.0.1`, `::1`) and `host.docker.internal`, the guard admits every hostname in `MOCK_ALLOWED_HOSTS` — the Compose service names (`asaas`, `whatsapp`) are the ones to use, so a mock reached by service name is not rejected.
 - **Fake Keys:** All default API keys in `.env.example` and tests are non-functional mock placeholders (e.g. `$aact_hmlg_local_master`). Never commit real credentials to this repository.
 
 ## Licenses
@@ -243,3 +271,4 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 - `mocks/asaas`: MIT License (`mocks/asaas/LICENSE`).
 - `mocks/whatsapp`: Apache License 2.0 (`mocks/whatsapp/LICENSE`).
 - `mocks/generator`: MIT License (`mocks/generator/LICENSE`).
+- `mocks/sms`: MIT License (`mocks/sms/LICENSE`).
