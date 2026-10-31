@@ -905,8 +905,8 @@ tr.directd-empty td {
 .key.is-busy::after {
   content: '...';
   display: inline-block;
-  width: 0;
-  overflow: hidden;
+  width: 1.4em;
+  text-align: left;
   vertical-align: bottom;
   animation: directd-dots 900ms steps(4, jump-none) infinite;
 }
@@ -961,7 +961,8 @@ tbody tr.is-new td {
   to { opacity: 0.25; }
 }
 @keyframes directd-dots {
-  to { width: 1.4em; }
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -981,9 +982,6 @@ tbody tr.is-new td {
   .directd-chip.is-pending::before,
   .key.is-busy::after {
     animation: none;
-  }
-  .key.is-busy::after {
-    width: 1.4em;
   }
 }
 

@@ -304,6 +304,7 @@ Content-Type: application/json
             <section id="directd" aria-labelledby="directd-title">
               <h2 id="directd-title">Consulta de crédito Direct Data</h2>
               <p>O gerador também responde às rotas de crédito da <strong>Direct Data API v3</strong> que o Hub usa, nos próprios caminhos do provedor, fiel à documentação do provedor. Um conjunto de CPFs de teste força cada resultado, do mesmo jeito que os cartões de teste do Asaas forçam os seus.</p>
+              <p class="note"><strong>Dados simulados.</strong> Tudo o que a consulta de crédito responde é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. Sem vínculo com a Direct Data, a Quod ou a Boa Vista.</p>
 
               <h3>As rotas e os parâmetros</h3>
               <div class="table-wrap">
@@ -661,6 +662,10 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
                 <li><code>Callback=habilitar</code> apenas registra a flag: o mock nunca envia nada para lugar nenhum.</li>
                 <li><code>GERARCOMPROVANTE=Habilitar</code> apenas registra a flag: nenhum PDF é produzido e <code>urlComprovante</code> continua <code>null</code>.</li>
                 <li><code>GET /api/Historico?ConsultaUid=</code> (a forma <code>{ info, retorno }</code>) não é simulada.</li>
+                <li>O 429 é forçado só pelo seu CPF de teste: o mock não conta requisições por segundo, e <code>retryAfterSeconds</code> é sempre <code>30</code> (sem bloqueio progressivo).</li>
+                <li><code>Async=habilitar</code> num CPF que falha responde a falha na hora, sem <code>201</code>; o CPF lento espera só na chamada síncrona — a consulta assíncrona dele é criada na hora.</li>
+                <li>A leitura assíncrona responde <code>202</code> na primeira leitura e o envelope final da segunda em diante (ou na hora, depois de liberada); um <code>ConsultaUid</code> desconhecido responde <code>404</code> com o nome <code>Obter Retorno Consulta Async</code>.</li>
+                <li>Os nomes dos parâmetros valem em qualquer caixa (<code>cpf</code>, <code>async</code>, <code>token</code>).</li>
               </ul>
 
               <h3>O gerador nunca chama o provedor</h3>

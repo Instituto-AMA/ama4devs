@@ -3,19 +3,25 @@ import {
   DEFAULT_TEST_CPFS,
   DIRECTD_TOKEN,
   FAILURES,
-  MESSAGES,
   OUTCOMES,
-  RESULT,
   ROUTE_ASYNC_READ,
   ROUTE_BOA_VISTA,
   ROUTE_SCORE,
   SLOW_DELAY_MS,
   UNLISTED_POLICIES,
   answerFor,
+  asyncCreated,
+  asyncProcessing,
+  asyncSettled,
+  consultParams,
   envelope,
   normalizeCpf,
+  resolveCpf,
 } from './core/credit.js'
+import type { Outcome, TestCpf, UnlistedPolicy } from './core/credit.js'
 import { isValidCpf } from './core/documents.js'
+
+export type { Outcome, UnlistedPolicy }
 
 /**
  * The Direct Data routes of the generator: the provider's own paths, the
@@ -26,38 +32,8 @@ import { isValidCpf } from './core/documents.js'
  * adds the server around it and never calls out to anyone.
  */
 
-/** The outcome a test CPF forces; the core names them. */
-export type Outcome =
-  | 'lowRisk'
-  | 'mediumRisk'
-  | 'highRisk'
-  | 'restrictions'
-  | 'deceased'
-  | 'irregular'
-  | 'warnings'
-  | 'badDocument'
-  | 'notFound'
-  | 'timeout'
-  | 'noBalance'
-  | 'unauthorized'
-  | 'rateLimited'
-  | 'unavailable'
-  | 'internalError'
-  | 'slow'
-  | 'neverSettles'
-
-/** What the mock answers a CPF that is not in the test table. */
-export type UnlistedPolicy = 'lowRisk' | 'derived' | 'notFound'
-
 /** The state of the token of a request: the state, never the value. */
 export type TokenState = 'valid' | 'invalid' | 'missing'
-
-/** A row of the test CPF table. */
-interface TestCpfRow {
-  cpf: string
-  outcome: Outcome
-  profile?: any
-}
 
 /** A request the mock answered, the way the log keeps it. */
 export interface LoggedRequest {
@@ -87,6 +63,8 @@ export interface AsyncQuery {
   createdAt: string
   reads: number
   released: boolean
+  /** Whether a read already answered the final body. */
+  delivered: boolean
   charged: boolean
   final: { status: number; body: unknown }
 }
@@ -130,7 +108,7 @@ export function createDirectd(
   const envUnlisted = options.unlisted
 
   let unlisted: UnlistedPolicy = envUnlisted
-  let testCpfs: TestCpfRow[] = DEFAULT_TEST_CPFS.map((row) => ({ ...row }))
+  let testCpfs: TestCpf[] = DEFAULT_TEST_CPFS.map((row) => ({ ...row }))
 
   /** The log, newest first. */
   const requests: LoggedRequest[] = []
@@ -255,8 +233,13 @@ export function createDirectd(
         )
       }
 
-      const row: TestCpfRow = { cpf, outcome: outcome as Outcome }
-      if (body.profile && typeof body.profile === 'object') row.profile = body.profile
+      const invalid = body.profile === undefined ? null : profileError(body.profile)
+      if (invalid) {
+        return json({ error: { code: 'invalid_profile', message: invalid } }, 400)
+      }
+
+      const row: TestCpf = { cpf, outcome: outcome as Outcome }
+      if (body.profile !== undefined) row.profile = body.profile
 
       const index = testCpfs.findIndex((entry) => entry.cpf === cpf)
       if (index >= 0) testCpfs[index] = row
@@ -340,61 +323,45 @@ export function createDirectd(
     startedAt: Date,
     cpf: string,
   ): Promise<Answer> {
-    const uid = newId()
-    const core = answerFor(route, consultParams(params), {
-      testCpfs,
-      unlisted,
-      now: now(),
-      uid,
-      ip,
-      startedAt,
-    })
+    const query = consultParams(params)
+    const wantsAsync = flagOf(params, 'Async') === 'habilitar'
 
-    const body = core.body
-    const meta = metaOf(body)
-    const resultado = meta ? (meta.resultado ?? null) : null
-    const consultaUid = meta ? (meta.consultaUid ?? null) : null
-    const outcome = (core.outcome ?? null) as Outcome | null
-
-    // The slow CPF is the only wait of the mock.
-    if (outcome === 'slow') {
+    // The slow CPF is the only wait of the mock; an async consultation is
+    // created at once, so only the synchronous call waits.
+    if (!wantsAsync && resolveCpf(cpf, { testCpfs, unlisted }).outcome === 'slow') {
       await sleep(SLOW_DELAY_MS)
     }
 
-    const wantsAsync = flagOf(params, 'Async') === 'habilitar'
+    const uid = newId()
+    const core = answerFor(route, query, { testCpfs, unlisted, now: now(), uid, ip, startedAt })
+    const meta = metaOf(core.body)
+    const consultaUid: string | null = meta?.consultaUid ?? null
+    const outcome = core.outcome as Outcome
 
     if (wantsAsync && core.status === 200 && consultaUid) {
       queries.set(consultaUid, {
         uid: consultaUid,
         route,
         cpf,
-        outcome: outcome ?? 'lowRisk',
+        outcome,
         createdAt: now().toISOString(),
         reads: 0,
         released: false,
+        delivered: false,
         charged: false,
-        final: { status: core.status, body: withAssincrono(body) },
+        final: { status: core.status, body: core.body },
       })
 
-      const created = withConsultaUid(
-        envelope(
-          {
-            route,
-            uid,
-            cpf: cpf || null,
-            result: RESULT.success,
-            message: MESSAGES.asyncCreated,
-            ip,
-            async: true,
-            callback: flagOf(params, 'Callback') === 'habilitar',
-            receipt: flagOf(params, 'GERARCOMPROVANTE') === 'habilitar',
-            now: now(),
-            startedAt,
-          },
-          null,
-        ),
-        consultaUid,
-      )
+      const created = asyncCreated({
+        route,
+        uid: consultaUid,
+        cpf,
+        ip,
+        callback: Boolean(meta?.enviarCallback),
+        receipt: Boolean(meta?.gerarComprovante),
+        now: now(),
+        startedAt,
+      })
 
       return {
         status: 201,
@@ -402,7 +369,7 @@ export function createDirectd(
         headers: {},
         route,
         outcome,
-        resultado: RESULT.success.text,
+        resultado: created.metaDados.resultado as string,
         consultaUid,
         async: true,
         chargeRoute: route,
@@ -411,11 +378,11 @@ export function createDirectd(
 
     return {
       status: core.status,
-      body,
-      headers: core.headers ?? {},
+      body: core.body,
+      headers: core.headers,
       route,
       outcome,
-      resultado,
+      resultado: meta?.resultado ?? null,
       consultaUid,
       async: wantsAsync,
       chargeRoute: route,
@@ -440,24 +407,9 @@ export function createDirectd(
 
     if (!query) {
       const failure = FAILURES.notFound
-      const body = withConsultaUid(
-        envelope(
-          {
-            route,
-            uid: requested || null,
-            cpf: null,
-            result: failure.result,
-            message: failure.message,
-            ip,
-            async: false,
-            callback: false,
-            receipt: false,
-            now: now(),
-            startedAt,
-          },
-          null,
-        ),
-        requested || null,
+      const body = envelope(
+        { route, uid: requested || null, cpf: null, result: failure.result, message: failure.message, ip, now: now(), startedAt },
+        null,
       )
 
       return {
@@ -466,7 +418,7 @@ export function createDirectd(
         headers: {},
         route,
         outcome: 'notFound',
-        resultado: metaOf(body)?.resultado ?? null,
+        resultado: failure.result.text,
         consultaUid: requested || null,
         async: true,
         chargeRoute: route,
@@ -474,28 +426,19 @@ export function createDirectd(
     }
 
     query.reads += 1
-    const ready = query.outcome === 'neverSettles' ? query.released : query.reads > 1
+    const finalMeta = metaOf(query.final.body)
 
-    if (!ready) {
-      const body = withConsultaUid(
-        envelope(
-          {
-            route: query.route,
-            uid: query.uid,
-            cpf: query.cpf || null,
-            result: RESULT.processing,
-            message: MESSAGES.processing,
-            ip,
-            async: true,
-            callback: false,
-            receipt: false,
-            now: now(),
-            startedAt,
-          },
-          null,
-        ),
-        query.uid,
-      )
+    if (!asyncSettled(query.outcome, query.reads, query.released)) {
+      const body = asyncProcessing({
+        route: query.route,
+        uid: query.uid,
+        cpf: query.cpf || null,
+        ip,
+        callback: Boolean(finalMeta?.enviarCallback),
+        receipt: Boolean(finalMeta?.gerarComprovante),
+        now: now(),
+        startedAt,
+      })
 
       return {
         status: 202,
@@ -503,30 +446,26 @@ export function createDirectd(
         headers: {},
         route,
         outcome: query.outcome,
-        resultado: RESULT.processing.text,
+        resultado: body.metaDados.resultado as string,
         consultaUid: query.uid,
         async: true,
         chargeRoute: query.route,
       }
     }
 
-    const body = query.final.body
-    const meta = metaOf(body)
-    const resultado = meta?.resultado ?? null
-
+    const resultado: string | null = finalMeta?.resultado ?? null
+    query.delivered = true
     // The consultation is charged when it answers, once.
-    if (resultado !== null && CHARGED_RESULTS.some((value) => value === resultado)) {
-      query.charged = true
-    }
+    if (resultado !== null && CHARGED_RESULTS.includes(resultado)) query.charged = true
 
     return {
       status: query.final.status,
-      body,
+      body: query.final.body,
       headers: {},
       route,
       outcome: query.outcome,
       resultado,
-      consultaUid: meta?.consultaUid ?? query.uid,
+      consultaUid: query.uid,
       async: true,
       chargeRoute: query.route,
     }
@@ -662,18 +601,66 @@ function flagOf(params: URLSearchParams, name: string): string | undefined {
   return value === undefined ? undefined : value.trim().toLowerCase()
 }
 
+/** The kind of each field a test CPF row may override in its profile. */
+const PROFILE_FIELDS: Record<string, 'count' | 'text' | 'flag' | 'amount'> = {
+  name: 'text',
+  score: 'count',
+  faixaScore: 'text',
+  capacidadePagamento: 'text',
+  perfil: 'text',
+  classificacaoABC: 'text',
+  probabilidade: 'text',
+  debts: 'amount',
+  creditors: 'count',
+  protests: 'amount',
+  restrictions: 'count',
+  deceased: 'flag',
+  cpfSituacao: 'text',
+  rendaFaixa: 'text',
+}
+
+/** Money the way the provider writes it: `4.230,50`. */
+const MONEY = /^\d{1,3}(\.\d{3})*,\d{2}$/
+
 /**
- * The parameters the core reads: everything the caller sent, the token
- * excepted.
- * @param params The query string.
+ * Why a profile override would break the documented answer, or null when it
+ * is fine: a known field of the right kind each, so the score stays a number
+ * and every Boa Vista leaf stays a string.
+ * @param profile The `profile` of the request body.
  */
-function consultParams(params: URLSearchParams): Record<string, string> {
-  const result: Record<string, string> = {}
-  for (const [key, value] of params) {
-    if (key.toUpperCase() === 'TOKEN') continue
-    result[key] = value
+function profileError(profile: unknown): string | null {
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+    return 'The profile must be an object.'
   }
-  return result
+
+  for (const [key, value] of Object.entries(profile)) {
+    const kind = PROFILE_FIELDS[key]
+    if (!kind) return `Unknown profile field: ${key}.`
+    if (kind === 'amount') {
+      if (!value || typeof value !== 'object') return `${key} must be { count, total }.`
+      const { count, total, ...rest } = value as Record<string, unknown>
+      if (Object.keys(rest).length > 0) return `${key} must be { count, total }.`
+      if (count !== undefined && !isCount(count)) return `${key}.count must be a whole number.`
+      if (total !== undefined && !(typeof total === 'string' && MONEY.test(total))) {
+        return `${key}.total must be money like 4.230,50.`
+      }
+    } else if (kind === 'count' && !isCount(value)) {
+      return `${key} must be a whole number.`
+    } else if (kind === 'text' && typeof value !== 'string') {
+      return `${key} must be a string.`
+    } else if (kind === 'flag' && typeof value !== 'boolean') {
+      return `${key} must be true or false.`
+    }
+  }
+  return null
+}
+
+/**
+ * Whether a value is a whole number from zero up.
+ * @param value The value.
+ */
+function isCount(value: unknown): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
 
 /**
@@ -686,30 +673,6 @@ function metaOf(body: unknown): Record<string, any> | null {
   const meta = (body as Record<string, any>).metaDados
   if (!meta || typeof meta !== 'object') return null
   return meta as Record<string, any>
-}
-
-/**
- * The body of an answer that says it ran in the background.
- * @param body The body of the answer.
- */
-function withAssincrono(body: unknown): unknown {
-  const meta = metaOf(body)
-  if (!meta) return body
-
-  return { ...(body as Record<string, any>), metaDados: { ...meta, assincrono: true } }
-}
-
-/**
- * The body of an answer that carries the id of its consultation. The id of the
- * consultation the core answered is the truth: the envelope only repeats it.
- * @param body The body of the answer.
- * @param uid The id of the consultation.
- */
-function withConsultaUid(body: unknown, uid: string | null): unknown {
-  const meta = metaOf(body)
-  if (!meta) return body
-
-  return { ...(body as Record<string, any>), metaDados: { ...meta, consultaUid: uid } }
 }
 
 /**

@@ -293,6 +293,7 @@
             <section id="directd" aria-labelledby="directd-title">
               <h2 id="directd-title">Direct Data credit check</h2>
               <p>The generator answers the <strong>Direct Data API v3</strong> credit routes the Hub uses, at the provider's own paths, faithful to the provider's documentation. The generator never calls the provider: every answer is computed locally, and the only token it accepts is the public <code>00000000-0000-4000-8000-00000000d1d1</code> — no real token ever lives in this repository.</p>
+              <p class="note"><strong>Simulated data.</strong> Everything the credit check answers is generated automatically for tests: the score, the band, the restrictions and the situation of the CPF are not real and must never be used as a source of truth about any person. Not affiliated with Direct Data, Quod or Boa Vista.</p>
 
               <h3>Routes and parameters</h3>
               <p>Three routes, every parameter in the query string, the way the provider takes them:</p>
@@ -774,6 +775,10 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
                 <li><code>Callback=habilitar</code> only records the flag: the mock never posts anywhere.</li>
                 <li><code>GERARCOMPROVANTE=Habilitar</code> only records the flag: no PDF is produced and <code>urlComprovante</code> stays <code>null</code>.</li>
                 <li><code>GET /api/Historico?ConsultaUid=</code> (the <code>{ info, retorno }</code> form) is not simulated.</li>
+                <li>The 429 is forced by its test CPF only: the mock counts no requests per second, and <code>retryAfterSeconds</code> is always <code>30</code> (no progressive block).</li>
+                <li><code>Async=habilitar</code> on a CPF that fails answers the failure at once, with no <code>201</code>; the slow CPF waits only on a synchronous call — its async consultation is created at once.</li>
+                <li>The async read answers <code>202</code> on the first read and the final envelope from the second on (or at once after a release); an unknown <code>ConsultaUid</code> answers <code>404</code> named <code>Obter Retorno Consulta Async</code>.</li>
+                <li>The parameter names are read whatever their case (<code>cpf</code>, <code>async</code>, <code>token</code>).</li>
               </ul>
 
               <h3>The generator never calls the provider</h3>

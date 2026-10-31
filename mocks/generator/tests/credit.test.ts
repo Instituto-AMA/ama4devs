@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   DEFAULT_TEST_CPFS, MESSAGES, OUTCOMES, RESULT, ROUTE_BOA_VISTA, ROUTE_SCORE,
-  answerFor, boaVistaReturn, envelope, formatDirectdDate, profileOf, quodReturn, rateLimitBody, resolveCpf,
+  answerFor, asyncCreated, asyncProcessing, asyncSettled, boaVistaReturn, consultParams, envelope, formatDirectdDate,
+  profileOf, quodReturn, rateLimitBody, resolveCpf,
 } from '../src/core/credit.js'
 
 const SPEC_DIR = join(import.meta.dir, '../spec/directd')
@@ -257,6 +258,38 @@ describe('resolveCpf', () => {
     const resolved = resolveCpf('11111111112')
     expect(resolved.outcome).toBe('badDocument')
     expect(resolved.profile).toBeNull()
+  })
+})
+
+describe('the async consultation', () => {
+  test('the 201 is the documented example: Sucesso, the async message, no retorno', () => {
+    const body = asyncCreated({ route: ROUTE_SCORE, uid: 'direct-x', cpf: '11100000143', now: NOW })
+    expect(Object.keys(body.metaDados)).toEqual(Object.keys(scoreSpec.metaDados))
+    expect(body.metaDados.resultadoId).toBe(1)
+    expect(body.metaDados.mensagem).toBe(MESSAGES.asyncCreated)
+    expect(body.metaDados.assincrono).toBe(true)
+    expect(body.retorno).toBeNull()
+  })
+
+  test('the 202 carries the processing result', () => {
+    const body = asyncProcessing({ route: ROUTE_SCORE, uid: 'direct-x', cpf: '11100000143', now: NOW })
+    expect(body.metaDados.resultado).toBe(RESULT.processing.text)
+    expect(body.retorno).toBeNull()
+  })
+
+  test('a read settles from the second on, or once released; neverSettles only once released', () => {
+    expect(asyncSettled('lowRisk', 1, false)).toBe(false)
+    expect(asyncSettled('lowRisk', 2, false)).toBe(true)
+    expect(asyncSettled('lowRisk', 1, true)).toBe(true)
+    expect(asyncSettled('neverSettles', 9, false)).toBe(false)
+    expect(asyncSettled('neverSettles', 1, true)).toBe(true)
+  })
+})
+
+describe('consultParams', () => {
+  test('names the parameters as documented whatever their case, without the token', () => {
+    const params = consultParams(new URLSearchParams('cpf=11100000143&ASYNC=habilitar&token=t&gerarcomprovante=Habilitar&x=1'))
+    expect(params).toEqual({ CPF: '11100000143', Async: 'habilitar', GERARCOMPROVANTE: 'Habilitar' })
   })
 })
 

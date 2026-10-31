@@ -381,7 +381,14 @@ export function resolveCpf(raw, { testCpfs = DEFAULT_TEST_CPFS, unlisted = 'lowR
 
   const row = testCpfs.find((item) => normalizeCpf(item.cpf) === cpf)
   if (row) {
-    const profile = { ...profileOf(row.outcome), ...row.profile }
+    const preset = profileOf(row.outcome)
+    // The amount blocks merge key by key: a row may override the count alone.
+    const profile = {
+      ...preset,
+      ...row.profile,
+      debts: { ...preset.debts, ...row.profile?.debts },
+      protests: { ...preset.protests, ...row.profile?.protests },
+    }
     return { cpf, outcome: row.outcome, profile, listed: true }
   }
   if (unlisted === 'notFound') return { cpf, outcome: 'notFound', profile: null, listed: false }
@@ -685,12 +692,64 @@ export function rateLimitBody(seconds) {
   }
 }
 
+/** @typedef {{ route: string, uid: string, cpf: string | null, ip?: string, callback?: boolean, receipt?: boolean, now?: Date, startedAt?: Date }} AsyncMeta */
+
+/**
+ * The documented `201` of `Async=habilitar`: the consultation exists, its
+ * `retorno` does not yet.
+ * @param {AsyncMeta} meta
+ */
+export function asyncCreated({ route, uid, cpf, ip, callback, receipt, now, startedAt }) {
+  return envelope({ route, uid, cpf, result: RESULT.success, message: MESSAGES.asyncCreated, ip, async: true, callback, receipt, now, startedAt }, null)
+}
+
+/**
+ * The `202` of the async read while the consultation runs (the simulator's own
+ * `resultadoId`/`resultado`).
+ * @param {AsyncMeta} meta
+ */
+export function asyncProcessing({ route, uid, cpf, ip, callback, receipt, now, startedAt }) {
+  return envelope({ route, uid, cpf, result: RESULT.processing, message: MESSAGES.processing, ip, async: true, callback, receipt, now, startedAt }, null)
+}
+
+/**
+ * Whether the read of an async consultation answers its final body: once it
+ * was released, or from the second read on — never on its own for
+ * `neverSettles`.
+ * @param {Outcome} outcome
+ * @param {number} reads The reads so far, this one included.
+ * @param {boolean} released
+ */
+export function asyncSettled(outcome, reads, released) {
+  return released || (outcome !== 'neverSettles' && reads > 1)
+}
+
 /**
  * True when a query flag asks for the feature; the value compares case-insensitively.
  * @param {unknown} value
  */
 function isHabilitar(value) {
   return String(value ?? '').trim().toLowerCase() === 'habilitar'
+}
+
+/** The query parameters a consultation reads, by their documented names. */
+const PARAM_NAMES = ['CPF', 'CNPJ', 'Async', 'Callback', 'GERARCOMPROVANTE']
+
+/**
+ * The parameters of a query string under their documented names, whatever the
+ * case the caller wrote them in (`cpf`, `async`); the token and any unknown
+ * name are left out.
+ * @param {Iterable<[string, string]>} entries
+ * @returns {Record<string, string>}
+ */
+export function consultParams(entries) {
+  /** @type {Record<string, string>} */
+  const params = {}
+  for (const [key, value] of entries) {
+    const name = PARAM_NAMES.find((item) => item.toLowerCase() === key.toLowerCase())
+    if (name && !(name in params)) params[name] = value
+  }
+  return params
 }
 
 /**

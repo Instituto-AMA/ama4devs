@@ -17,8 +17,12 @@ import {
   ROUTE_BOA_VISTA,
   ROUTE_SCORE,
   answerFor,
+  asyncCreated,
+  asyncProcessing,
+  asyncSettled,
   formatCpf,
   generate,
+  isValidCpf,
   onlyDigits,
 } from './core/index.js'
 
@@ -90,6 +94,13 @@ let mode = 'pages'
 /** The test CPF table the browser computes with. */
 /** @type {any[]} */
 let testCpfs = DEFAULT_TEST_CPFS.map((row) => ({ ...row }))
+
+/**
+ * The async consultations of the tab on Pages, by `consultaUid`: the browser
+ * keeps them the way the container does, so the reads answer 202, then 200.
+ * @type {Map<string, { route: string, cpf: string, outcome: any, reads: number, final: { status: number, body: any } }>}
+ */
+const pagesQueries = new Map()
 
 /** What a CPF that is not in the table answers. */
 /** @type {'lowRisk' | 'derived' | 'notFound'} */
@@ -217,8 +228,32 @@ async function consult() {
     },
   )
 
-  renderConsult(answer.status, answer.body)
+  const uid = answer.body?.metaDados?.consultaUid
+  if (wantsAsync && answer.status === 200 && uid) {
+    // Like the container: the consultation is created (201) and read afterwards.
+    pagesQueries.set(uid, { route, cpf, outcome: answer.outcome, reads: 0, final: { status: answer.status, body: answer.body } })
+    renderConsult(201, asyncCreated({ route, uid, cpf, ip: '127.0.0.1', now, startedAt: now }))
+  } else {
+    renderConsult(answer.status, answer.body)
+  }
   renderCurl(route, cpf, wantsAsync)
+}
+
+/**
+ * Reads an async consultation of the tab: 202 on the first read, the final
+ * answer from the second on. Pages has no release, so `neverSettles` stays 202.
+ * @param {string} uid
+ */
+function readPagesQuery(uid) {
+  const query = pagesQueries.get(uid)
+  if (!query) return
+  query.reads += 1
+  if (asyncSettled(query.outcome, query.reads, false)) {
+    renderConsult(query.final.status, query.final.body)
+    return
+  }
+  const now = new Date()
+  renderConsult(202, asyncProcessing({ route: query.route, uid, cpf: query.cpf, ip: '127.0.0.1', now, startedAt: now }))
 }
 
 /**
@@ -363,7 +398,6 @@ function renderConsultActions(status, body) {
   copy.addEventListener('click', () => copyToClipboard(String(uid), 'consultaUid copiado'))
   actionsBox.appendChild(copy)
 
-  // Only the container answers 201: the browser computes the final answer at once.
   if (status !== 201 && status !== 202) return
 
   const button = document.createElement('button')
@@ -380,6 +414,11 @@ function renderConsultActions(status, body) {
  * @param {HTMLButtonElement} button
  */
 async function readAsyncResult(uid, button) {
+  if (mode !== 'container') {
+    readPagesQuery(uid)
+    return
+  }
+
   const params = new URLSearchParams()
   params.set('ConsultaUid', uid)
   params.set('TOKEN', DIRECTD_TOKEN)
@@ -469,6 +508,15 @@ async function addTestCpf() {
       return
     }
   } else {
+    // The same refusals the container answers.
+    if (cpf.length !== 11) {
+      showToast('Falha ao adicionar: o CPF precisa de 11 dígitos.')
+      return
+    }
+    if (outcome !== 'badDocument' && !isValidCpf(cpf)) {
+      showToast('Falha ao adicionar: os dígitos verificadores do CPF não conferem.')
+      return
+    }
     const row = { cpf, outcome }
     const index = testCpfs.findIndex((entry) => onlyDigits(entry.cpf) === cpf)
     if (index >= 0) testCpfs[index] = row
@@ -690,10 +738,7 @@ function renderQueries(queries) {
  * @param {any} query
  */
 function stateOfQuery(query) {
-  const reads = Number(query.reads ?? 0)
-  const neverSettles = query.outcome === 'neverSettles'
-  const delivered = neverSettles ? Boolean(query.released) && reads > 0 : reads > 1
-  if (delivered) return 'entregue'
+  if (query.delivered) return 'entregue'
   return query.released ? 'liberada' : 'processando'
 }
 

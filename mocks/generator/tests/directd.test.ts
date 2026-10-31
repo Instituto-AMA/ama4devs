@@ -90,6 +90,17 @@ describe('the Direct Data routes', () => {
     expect(body.retorno).toBeTruthy()
   })
 
+  test('reads the parameter names whatever their case', async () => {
+    const h = harness()
+
+    const response = await call(h, `/api/Score?cpf=11100000143&async=habilitar&token=${DIRECTD_TOKEN}`)
+
+    expect(response.status).toBe(201)
+    const body = await bodyOf(response)
+    expect(body.metaDados.chave).toBe('CPF=11100000143;')
+    expect(body.metaDados.assincrono).toBe(true)
+  })
+
   test('refuses a route it does not know', async () => {
     const h = harness()
 
@@ -222,6 +233,25 @@ describe('the async consultation', () => {
     expect(ready.status).toBe(200)
   })
 
+  test('a released query answers its final body at the next read', async () => {
+    const h = harness()
+
+    await call(h, `/api/Score?CPF=11100000143&Async=habilitar&TOKEN=${DIRECTD_TOKEN}`)
+    await control(h, '/_mock/directd/queries/direct-id-1/release', 'POST')
+
+    const before = await bodyOf(await call(h, '/_mock/directd/state'))
+    expect(before.asyncQueries[0].delivered).toBe(false)
+
+    const ready = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=direct-id-1&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(ready.status).toBe(200)
+
+    const after = await bodyOf(await call(h, '/_mock/directd/state'))
+    expect(after.asyncQueries[0].delivered).toBe(true)
+  })
+
   test('does not know a query that does not exist', async () => {
     const h = harness()
 
@@ -245,6 +275,15 @@ describe('the slow CPF', () => {
 
     expect(response.status).toBe(200)
     expect(h.sleeps).toEqual([25000])
+  })
+
+  test('an async consultation of the slow CPF is created at once', async () => {
+    const h = harness()
+
+    const response = await call(h, `/api/Score?CPF=11101444401&Async=habilitar&TOKEN=${DIRECTD_TOKEN}`)
+
+    expect(response.status).toBe(201)
+    expect(h.sleeps).toEqual([])
   })
 
   test('does not wait for the others', async () => {
@@ -348,6 +387,37 @@ describe('the test CPFs', () => {
     const table = await bodyOf(await call(h, '/_mock/directd/test-cpfs'))
     expect(table.unlisted).toBe('lowRisk')
     expect(table.testCpfs).toHaveLength(17)
+  })
+
+  test('a row may override one count of its preset', async () => {
+    const h = harness()
+
+    const created = await control(h, '/_mock/directd/test-cpfs', 'POST', {
+      cpf: '52998224725',
+      outcome: 'restrictions',
+      profile: { debts: { count: 2 } },
+    })
+    expect(created.status).toBe(201)
+
+    const consult = await call(h, `/api/BoaVistaAcertaMaisPositivoPF?CPF=52998224725&TOKEN=${DIRECTD_TOKEN}`)
+    const debts = (await bodyOf(consult)).retorno.pendenciasFinanceiras
+    expect(debts.quantidadeOcorrencia).toBe('2')
+    expect(debts.valorTotal).toBe('4.230,50')
+    expect(debts.ocorrencias).toHaveLength(2)
+  })
+
+  test('refuses a profile that would break the documented answer', async () => {
+    const h = harness()
+
+    for (const profile of [{ score: '850' }, { debts: 3 }, { debts: { total: '12.5' } }, { nope: 1 }]) {
+      const response = await control(h, '/_mock/directd/test-cpfs', 'POST', {
+        cpf: '52998224725',
+        outcome: 'lowRisk',
+        profile,
+      })
+      expect(response.status).toBe(400)
+      expect((await bodyOf(response)).error.code).toBe('invalid_profile')
+    }
   })
 
   test('refuses an outcome it does not know', async () => {

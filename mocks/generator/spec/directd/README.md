@@ -58,3 +58,11 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated: the Hub polls
   `ObterRetornoConsultaAsync`.
+- When the async read turns `200`: the first read answers `202`, the second and the next ones the final
+  envelope; `POST /_mock/directd/queries/{uid}/release` settles a query at once (the only way for
+  `neverSettles`). An unknown `ConsultaUid` answers `404` with `consultaNome` `Obter Retorno Consulta Async`.
+- `Async=habilitar` on a CPF whose outcome fails answers that failure synchronously, with no `201`.
+- The `429` comes from its test CPF only: no requests are counted per second, `retryAfterSeconds` is always
+  `30`, and the progressive block (30 s → 60 s → … → 300 s) is not simulated.
+- Parameter names are matched whatever their case (`cpf`, `async`, `token`), the way the provider's
+  documentation itself mixes them (`CPF`, `Async`, `ConsultaUid`, `TOKEN`).

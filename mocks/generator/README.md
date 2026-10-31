@@ -349,6 +349,10 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143'
 - `Callback=habilitar` only records the flag: the mock never posts anywhere.
 - `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced and `urlComprovante` stays `null`.
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated.
+- The 429 is forced by its test CPF only: the mock counts no requests per second, and `retryAfterSeconds` is always `30` (no progressive block).
+- `Async=habilitar` on a CPF that fails answers the failure at once, with no `201`; the slow CPF waits only on a synchronous call — its async consultation is created at once.
+- The async read answers `202` on the first read and the final envelope from the second on (or at once after a release); an unknown `ConsultaUid` answers `404` named `Obter Retorno Consulta Async`.
+- The parameter names are read whatever their case (`cpf`, `async`, `token`).
 
 ## Environment Variables
 
