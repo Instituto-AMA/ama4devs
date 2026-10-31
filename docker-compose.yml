@@ -81,6 +81,8 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-$$aact_hmlg_local_master}
       ASAAS_PANEL_URL: http://localhost:${ASAAS_PORT:-45445}
       ASAAS_SEED_ON_BOOT: ${GENERATOR_ASAAS_SEED_ON_BOOT:-}
+      # The Direct Data credit check: what a CPF outside the test table answers (lowRisk, derived or notFound).
+      DIRECTD_UNLISTED: ${DIRECTD_UNLISTED:-lowRisk}
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
     extra_hosts:
       - 'host.docker.internal:host-gateway'
