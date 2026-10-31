@@ -1,4 +1,4 @@
-# The Direct Data contract the mock follows
+# The Direct Data contract the generator follows
 
 The provider publishes no OpenAPI for these routes. The files here are its public documentation, kept
 byte for byte (Portuguese included) so the mock can be checked against it. Read on 2026-10-31.
@@ -52,7 +52,7 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - `consultaUid` and `chave` on a failure: `null` when the call is refused before a consultation exists
   (400, 401, 403), set when the consultation itself failed (404, 408, 500, 503).
 - The text of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every
-  descriptive field: plausible values, documented per scenario in the mock's README.
+  descriptive field: plausible values, documented per scenario in the generator's README.
 - `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and never posts anywhere — it
   makes no outbound call.
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.
