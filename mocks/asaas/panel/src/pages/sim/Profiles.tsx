@@ -405,6 +405,13 @@ function ResetModal(props: {
             </>
           )}
         </p>
+        {result.removed.includes('logs') && (
+          <p class="hint">
+            Logs de requisições voltam a aparecer sozinhos: cada chamada que a sua aplicação fizer
+            a partir de agora cria um log novo. O que aparecer na aba são chamadas novas, não os
+            registros que acabaram de ser apagados.
+          </p>
+        )}
         {c && (
           <p>
             Cancelado pela API: {plural(c.payments, 'cobrança', 'cobranças')},{' '}
