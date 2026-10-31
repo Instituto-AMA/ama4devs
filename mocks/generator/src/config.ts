@@ -1,4 +1,5 @@
 import pkg from '../package.json' with { type: 'json' }
+import type { UnlistedPolicy } from './directd.ts'
 import { asaasPlaces } from './discovery.ts'
 
 /**
@@ -15,6 +16,8 @@ export interface Config {
   asaasApiKey: string
   asaasPanelUrl: string
   seedOnBoot: string
+  /** What the Direct Data mock answers a CPF that is not in its test table. */
+  directdUnlisted: UnlistedPolicy
   allowedHosts: string[]
   publicDir: string
   coreDir: string
@@ -55,6 +58,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     asaasApiKey: env.ASAAS_API_KEY?.trim() || DEFAULT_ASAAS_API_KEY,
     asaasPanelUrl: trimTrailingSlash(env.ASAAS_PANEL_URL?.trim() || 'http://localhost:45445'),
     seedOnBoot: env.ASAAS_SEED_ON_BOOT?.trim() ?? '',
+    directdUnlisted: directdUnlistedOf(env.DIRECTD_UNLISTED),
     allowedHosts: allowedHostsOf(env.MOCK_ALLOWED_HOSTS),
     publicDir: new URL('../public', import.meta.url).pathname,
     coreDir: new URL('./core', import.meta.url).pathname,
@@ -68,6 +72,17 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
 function portOf(value: string | undefined): number {
   const port = Number(value)
   return Number.isInteger(port) && port > 0 ? port : DEFAULT_PORT
+}
+
+/**
+ * The policy of the CPFs that are not in the test table of the Direct Data
+ * mock: `lowRisk` unless the environment asks for another one.
+ * @param value The raw DIRECTD_UNLISTED value.
+ */
+function directdUnlistedOf(value: string | undefined): UnlistedPolicy {
+  const name = String(value ?? '').trim()
+  if (name === 'derived' || name === 'notFound') return name
+  return 'lowRisk'
 }
 
 /**
