@@ -167,6 +167,8 @@
       <h2>Crédito por CPF · Direct Data</h2>
       <p>Simula a API v3 da Direct Data nos caminhos reais (<code>/api/Score</code>, <code>/api/BoaVistaAcertaMaisPositivoPF</code>). O Hub consulta aqui em vez do provedor.</p>
 
+      <p class="directd-disclaimer" role="note"><strong>Dados simulados.</strong> Tudo nesta folha é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa.</p>
+
       <div class="directd-token">
         <span>TOKEN</span>
         <code id="directd-token-value">00000000-0000-4000-8000-00000000d1d1</code>
@@ -207,8 +209,11 @@
           </div>
         </form>
 
-        <div id="directd-result" style="display: none;">
-          <div id="directd-status-chip" class="directd-chip"></div>
+        <div id="directd-result" class="directd-slip" aria-live="polite" hidden>
+          <div class="directd-slip-head">
+            <div id="directd-status-chip" class="directd-chip"></div>
+            <span class="directd-stamp">Dados simulados</span>
+          </div>
           <div id="directd-summary" class="directd-summary"></div>
           <div id="directd-actions" class="result-actions"></div>
           <pre class="json-pre"><code id="directd-json"></code></pre>

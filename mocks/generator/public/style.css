@@ -254,6 +254,11 @@ main {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* A select with long options must not widen its grid column past the phone. */
+  min-width: 0;
+}
+.field select {
+  max-width: 100%;
 }
 
 .field label {
@@ -658,6 +663,39 @@ td.copyable:hover {
   margin: 0 0 14px;
 }
 
+.directd-disclaimer {
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  border: 1px dashed var(--print-red);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--print-red) 5%, var(--paper));
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.sheet .directd-disclaimer strong {
+  color: var(--print-red);
+}
+
+/* The answer is a slip the printer feeds out: each consultation prints a new one. */
+.directd-slip {
+  position: relative;
+  margin-top: 22px;
+  padding: 18px 18px 4px;
+  background: #ffffff;
+  border: 1px solid var(--paper-rule);
+  border-radius: 8px;
+  box-shadow: 0 10px 18px -14px #00000055;
+}
+
+.directd-slip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .directd-chip {
   display: inline-flex;
   align-items: center;
@@ -668,19 +706,47 @@ td.copyable:hover {
   background: color-mix(in srgb, var(--key-confirm) 15%, #ffffff);
   color: var(--key-confirm-deep);
   border: 1px solid var(--key-confirm);
-  margin-bottom: 14px;
 }
 .directd-chip.is-error {
   background: color-mix(in srgb, var(--print-red) 12%, #ffffff);
   color: var(--print-red);
   border-color: var(--print-red);
 }
+.directd-chip.is-pending {
+  background: color-mix(in srgb, var(--key-correct) 22%, #ffffff);
+  color: var(--ink);
+  border-color: var(--key-correct-deep);
+}
+/* A consultation still running blinks like the printer's busy light. */
+.directd-chip.is-pending::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--key-correct-deep);
+  animation: directd-blink 1s steps(2, jump-none) infinite;
+}
+
+.directd-stamp {
+  font: 800 13px/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--print-red);
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 6px 9px 5px;
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
 
 .directd-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px 16px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin-bottom: 18px;
+}
+.directd-summary:empty {
+  display: none;
 }
 .directd-summary-item {
   border-left: 3px solid var(--paper-rule);
@@ -697,7 +763,58 @@ td.copyable:hover {
   display: block;
   font: 700 15px/1.3 var(--mono);
   color: var(--ink);
-  margin-top: 4px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+/* The score is what the Hub decides on: the print head sets it large. */
+.directd-summary-item:first-child strong {
+  font: 800 34px/1 var(--display);
+  letter-spacing: 0.02em;
+}
+
+.directd-uid {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.directd-uid code {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.directd-state,
+.directd-code {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: var(--paper-band);
+  color: var(--ink);
+}
+.directd-state.is-processando {
+  background: color-mix(in srgb, var(--key-correct) 30%, #ffffff);
+}
+.directd-state.is-entregue,
+.directd-code {
+  background: color-mix(in srgb, var(--key-confirm) 14%, #ffffff);
+  color: var(--key-confirm-deep);
+}
+.directd-code.is-error {
+  background: color-mix(in srgb, var(--print-red) 12%, #ffffff);
+  color: var(--print-red);
+}
+.directd-charged {
+  font-weight: 700;
+  color: var(--key-confirm-deep);
+}
+
+tr.directd-empty td {
+  white-space: normal;
+  color: var(--fade);
+  font-family: var(--sans);
+  font-style: italic;
+  padding: 14px 12px;
 }
 
 .directd-note {
@@ -776,6 +893,107 @@ td.copyable:hover {
   max-height: 240px;
   margin: 8px 0 0;
   font-size: 11.5px;
+}
+
+/* ───────── Direct Data Motion ───────── */
+
+/* The key held down while the container answers; the dots are the print head working. */
+.key.is-busy {
+  cursor: progress;
+  opacity: 1;
+}
+.key.is-busy::after {
+  content: '...';
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: directd-dots 900ms steps(4, jump-none) infinite;
+}
+
+/* Printing: the slip feeds out line by line, in the printer's steps, then the stamp lands. */
+.directd-slip.is-printing {
+  animation: directd-feed 420ms steps(10, end) both;
+}
+.directd-slip.is-printing .directd-chip {
+  animation: directd-ink 160ms 80ms steps(3, end) both;
+}
+.directd-slip.is-printing .directd-summary-item {
+  animation: directd-ink 180ms steps(3, end) both;
+  animation-delay: calc(160ms + var(--line, 0) * 50ms);
+}
+.directd-slip.is-printing .directd-stamp {
+  animation: directd-stamp 260ms 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A request that just reached the log arrives highlighted, then settles into the paper. */
+tbody tr.is-new td {
+  animation: directd-arrive 1400ms ease-out;
+}
+
+/* A counter that moved rolls up to its new value. */
+.directd-counter dd.total.is-bumped {
+  animation: directd-bump 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes directd-feed {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes directd-ink {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes directd-stamp {
+  from { opacity: 0; transform: rotate(-9deg) scale(1.6); }
+  to { opacity: 0.85; transform: rotate(-3deg) scale(1); }
+}
+@keyframes directd-arrive {
+  from { background: color-mix(in srgb, var(--key-correct) 40%, #ffffff); }
+  to { background: transparent; }
+}
+@keyframes directd-bump {
+  from { transform: translateY(8px); color: var(--key-confirm); opacity: 0.2; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes directd-blink {
+  from { opacity: 1; }
+  to { opacity: 0.25; }
+}
+@keyframes directd-dots {
+  to { width: 1.4em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No travel: the slip, the stamp and the counters appear in place; the colors still say what changed. */
+  .directd-slip.is-printing,
+  .directd-slip.is-printing .directd-chip,
+  .directd-slip.is-printing .directd-summary-item {
+    animation: directd-ink 120ms ease-out both;
+  }
+  .directd-slip.is-printing .directd-stamp {
+    animation: none;
+  }
+  .directd-counter dd.total.is-bumped {
+    animation: none;
+    color: var(--key-confirm-deep);
+  }
+  .directd-chip.is-pending::before,
+  .key.is-busy::after {
+    animation: none;
+  }
+  .key.is-busy::after {
+    width: 1.4em;
+  }
+}
+
+@media (max-width: 560px) {
+  .directd-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .directd-summary-item:first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ───────── Toast / Feedback ───────── */

@@ -187,12 +187,16 @@ async function consult() {
     params.set('TOKEN', DIRECTD_TOKEN)
     if (wantsAsync) params.set('Async', 'habilitar')
 
+    // The key stays pressed while the container answers (the slow CPFs take seconds).
+    setBusy(btnConsult, true, 'Consultando')
     try {
       const res = await fetch(`./api/${route}?${params.toString()}`)
       const body = await res.json()
       renderConsult(res.status, body)
     } catch (err) {
       showConsultError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(btnConsult, false)
     }
     await refreshState()
     return
@@ -237,15 +241,23 @@ function renderCurl(route, cpf, wantsAsync) {
  * @param {any} body
  */
 function renderConsult(status, body) {
-  resultArea.style.display = 'block'
-  const ok = status >= 200 && status < 300
-  statusChip.className = ok ? 'directd-chip' : 'directd-chip is-error'
+  statusChip.className = `directd-chip ${chipStateOf(status)}`
   const resultado = body?.metaDados?.resultado ?? body?.message ?? ''
   statusChip.textContent = resultado ? `${status} · ${resultado}` : String(status)
   jsonBox.textContent = JSON.stringify(body, null, 2)
   renderSummary(body)
   renderConsultActions(status, body)
   pagesNote.style.display = mode === 'pages' ? 'block' : 'none'
+  printSlip()
+}
+
+/**
+ * The look of the chip: 200 settled, 201/202 still running, anything else refused.
+ * @param {number} status
+ */
+function chipStateOf(status) {
+  if (status === 201 || status === 202) return 'is-pending'
+  return status >= 200 && status < 300 ? '' : 'is-error'
 }
 
 /**
@@ -253,12 +265,41 @@ function renderConsult(status, body) {
  * @param {string} message
  */
 function showConsultError(message) {
-  resultArea.style.display = 'block'
   statusChip.className = 'directd-chip is-error'
   statusChip.textContent = `Erro · ${message}`
   summaryBox.innerHTML = ''
   actionsBox.innerHTML = ''
   jsonBox.textContent = ''
+  printSlip()
+}
+
+/**
+ * Feeds the result slip out of the printer again, so every answer reads as a new receipt.
+ */
+function printSlip() {
+  resultArea.hidden = false
+  resultArea.classList.remove('is-printing')
+  // Reading the layout restarts the animation on the same element.
+  void resultArea.offsetWidth
+  resultArea.classList.add('is-printing')
+}
+
+/**
+ * Holds a key pressed while its request runs.
+ * @param {HTMLButtonElement} button
+ * @param {boolean} busy
+ * @param {string} [label]
+ */
+function setBusy(button, busy, label) {
+  if (busy) {
+    button.dataset.label = button.textContent ?? ''
+    button.textContent = label ?? button.textContent
+  } else if (button.dataset.label !== undefined) {
+    button.textContent = button.dataset.label
+    delete button.dataset.label
+  }
+  button.disabled = busy
+  button.classList.toggle('is-busy', busy)
 }
 
 /**
@@ -290,8 +331,8 @@ function renderSummary(body) {
 
   summaryBox.innerHTML = items
     .map(
-      ([label, value]) => `
-        <div class="directd-summary-item">
+      ([label, value], index) => `
+        <div class="directd-summary-item" style="--line: ${index}">
           <span>${esc(label)}</span>
           <strong>${esc(value === undefined || value === null || value === '' ? '—' : value)}</strong>
         </div>
@@ -311,36 +352,47 @@ function renderConsultActions(status, body) {
   if (!uid) return
 
   const label = document.createElement('span')
-  label.className = 'small'
-  label.textContent = `consultaUid: ${uid}`
+  label.className = 'directd-uid'
+  label.innerHTML = `<span>consultaUid</span> <code>${esc(uid)}</code>`
   actionsBox.appendChild(label)
+
+  const copy = document.createElement('button')
+  copy.type = 'button'
+  copy.className = 'key small'
+  copy.textContent = 'Copiar'
+  copy.addEventListener('click', () => copyToClipboard(String(uid), 'consultaUid copiado'))
+  actionsBox.appendChild(copy)
 
   // Only the container answers 201: the browser computes the final answer at once.
   if (status !== 201 && status !== 202) return
 
   const button = document.createElement('button')
   button.type = 'button'
-  button.className = 'key small'
+  button.className = 'key confirm small'
   button.textContent = 'Ler resultado'
-  button.addEventListener('click', () => readAsyncResult(String(uid)))
+  button.addEventListener('click', () => readAsyncResult(String(uid), button))
   actionsBox.appendChild(button)
 }
 
 /**
  * Reads the result of an async consultation.
  * @param {string} uid
+ * @param {HTMLButtonElement} button
  */
-async function readAsyncResult(uid) {
+async function readAsyncResult(uid, button) {
   const params = new URLSearchParams()
   params.set('ConsultaUid', uid)
   params.set('TOKEN', DIRECTD_TOKEN)
 
+  setBusy(button, true, 'Lendo')
   try {
     const res = await fetch(`./api/${ROUTE_ASYNC_READ}?${params.toString()}`)
     const body = await res.json()
     renderConsult(res.status, body)
   } catch (err) {
     showConsultError(err instanceof Error ? err.message : String(err))
+  } finally {
+    setBusy(button, false)
   }
   await refreshState()
 }
@@ -532,10 +584,36 @@ async function refreshState() {
 }
 
 /**
+ * What each live panel last drew, so the 2 s refresh redraws only what changed
+ * (a redraw would close the JSON a developer opened in the log).
+ * @type {{ counters: string | null, queries: string | null, requests: string | null }}
+ */
+const drawn = { counters: null, queries: null, requests: null }
+
+/** The totals the counters last showed, to mark the one that moved. */
+const lastTotals = { charged: -1, notCharged: -1 }
+
+/** The newest request id already on screen; rows above it arrive marked. */
+let newestSeenRequest = -1
+
+/**
+ * Whether a panel's data changed since it was last drawn; remembers it when it did.
+ * @param {keyof typeof drawn} panel
+ * @param {unknown} data
+ */
+function changed(panel, data) {
+  const signature = JSON.stringify(data)
+  if (drawn[panel] === signature) return false
+  drawn[panel] = signature
+  return true
+}
+
+/**
  * The counters: what was charged and what was not.
  * @param {any} counters
  */
 function renderCounters(counters) {
+  if (!changed('counters', counters)) return
   const charged = counters?.charged ?? { total: 0, byRoute: {} }
   const notCharged = counters?.notCharged ?? { total: 0, byStatus: {} }
   const scoreCount = charged.byRoute?.[ROUTE_SCORE] ?? 0
@@ -544,12 +622,21 @@ function renderCounters(counters) {
 
   const statuses = Object.entries(notCharged.byStatus ?? {}).sort(([a], [b]) => a.localeCompare(b))
 
+  const chargedTotal = Number(charged.total ?? 0)
+  const notChargedTotal = Number(notCharged.total ?? 0)
+  // The first draw marks nothing: only a total that moves under the developer's eyes.
+  const bump = (/** @type {number} */ before, /** @type {number} */ now) => (before >= 0 && before !== now ? ' is-bumped' : '')
+  const chargedBump = bump(lastTotals.charged, chargedTotal)
+  const notChargedBump = bump(lastTotals.notCharged, notChargedTotal)
+  lastTotals.charged = chargedTotal
+  lastTotals.notCharged = notChargedTotal
+
   countersBox.innerHTML = `
-    <div class="directd-counter">
+    <div class="directd-counter is-charged">
       <h4>Cobradas</h4>
       <dl>
         <dt>Total</dt>
-        <dd class="total">${esc(charged.total ?? 0)}</dd>
+        <dd class="total${chargedBump}">${esc(chargedTotal)}</dd>
         <dt>Score</dt>
         <dd>${esc(scoreCount)} · ${esc(money(COST_BY_ROUTE[ROUTE_SCORE]))} cada</dd>
         <dt>Boa Vista</dt>
@@ -562,7 +649,7 @@ function renderCounters(counters) {
       <h4>Não cobradas</h4>
       <dl>
         <dt>Total</dt>
-        <dd class="total">${esc(notCharged.total ?? 0)}</dd>
+        <dd class="total${notChargedBump}">${esc(notChargedTotal)}</dd>
         ${statuses.map(([status, count]) => `<dt>${esc(status)}</dt><dd>${esc(count)}</dd>`).join('')}
       </dl>
     </div>
@@ -574,7 +661,10 @@ function renderCounters(counters) {
  * @param {any[]} queries
  */
 function renderQueries(queries) {
-  queriesBody.innerHTML = ''
+  if (!changed('queries', queries)) return
+  queriesBody.innerHTML = queries.length
+    ? ''
+    : '<tr class="directd-empty"><td colspan="6">Nenhuma consulta assíncrona. Marque “Assíncrono” e consulte.</td></tr>'
 
   for (const query of queries) {
     const tr = document.createElement('tr')
@@ -588,7 +678,7 @@ function renderQueries(queries) {
       <td>${esc(productLabel(query.route))}</td>
       <td>${esc(query.cpf ? formatCpf(query.cpf) : '—')}</td>
       <td>${esc(query.reads ?? 0)}</td>
-      <td>${esc(state)}</td>
+      <td><span class="directd-state is-${esc(state)}">${esc(state)}</span></td>
       <td>${release}</td>
     `
     queriesBody.appendChild(tr)
@@ -622,19 +712,37 @@ function productLabel(route) {
  * @param {any[]} requests
  */
 function renderRequests(requests) {
-  requestsBody.innerHTML = ''
+  if (!changed('requests', requests)) return
+
+  // The JSON a developer opened stays open across redraws.
+  const open = new Set(
+    Array.from(requestsBody.querySelectorAll('details[open]'), (el) => el.getAttribute('data-id')),
+  )
+  const firstDraw = newestSeenRequest < 0
+  const seen = newestSeenRequest
+
+  requestsBody.innerHTML = requests.length
+    ? ''
+    : '<tr class="directd-empty"><td colspan="7">Nenhuma requisição ainda. Cada consulta aparece aqui, a mais nova no topo.</td></tr>'
+
+  // An empty first draw still counts as seen, so the first request arrives marked.
+  newestSeenRequest = Math.max(newestSeenRequest, 0)
 
   for (const entry of requests) {
+    const id = Number(entry.id ?? 0)
+    newestSeenRequest = Math.max(newestSeenRequest, id)
     const tr = document.createElement('tr')
+    if (!firstDraw && id > seen) tr.className = 'is-new'
+    const ok = Number(entry.status) >= 200 && Number(entry.status) < 300
     tr.innerHTML = `
       <td>${esc(timeOf(entry.at))}</td>
       <td>${esc(entry.route)}</td>
       <td>${esc(entry.cpf ? formatCpf(entry.cpf) : '—')}</td>
-      <td>${esc(entry.status)}</td>
+      <td><span class="directd-code${ok ? '' : ' is-error'}">${esc(entry.status)}</span></td>
       <td>${esc(entry.resultado ?? '—')}</td>
-      <td>${entry.charged ? 'sim' : 'não'}</td>
+      <td>${entry.charged ? '<span class="directd-charged">sim</span>' : 'não'}</td>
       <td>
-        <details class="directd-log">
+        <details class="directd-log" data-id="${esc(id)}"${open.has(String(id)) ? ' open' : ''}>
           <summary>JSON</summary>
           <pre class="json-pre"><code>${esc(JSON.stringify(entry.response, null, 2))}</code></pre>
         </details>
@@ -730,6 +838,11 @@ async function init() {
   })
 
   btnReset.addEventListener('click', resetState)
+
+  // Enter in the CPF field consults, like the key.
+  cpfInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !btnConsult.disabled) consult()
+  })
 
   mode = await detectMode()
 
