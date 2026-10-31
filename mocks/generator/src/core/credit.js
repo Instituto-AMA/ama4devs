@@ -17,7 +17,10 @@ export const ROUTE_SCORE = 'Score'
 export const ROUTE_BOA_VISTA = 'BoaVistaAcertaMaisPositivoPF'
 export const ROUTE_ASYNC_READ = 'Historico/ObterRetornoConsultaAsync'
 
-/** The display name of each route, as the provider writes it. */
+/**
+ * The display name of each route, as the provider writes it.
+ * @type {Record<string, string>}
+ */
 export const CONSULTA_NAMES = {
   Score: 'Score de Crédito - QUOD',
   BoaVistaAcertaMaisPositivoPF: 'Boa Vista - Acerta Mais Positivo Pessoa Física',
@@ -29,7 +32,9 @@ export const CONSULTA_NAMES = {
 /** @typedef {{ name: string, score: number, faixaScore: string, capacidadePagamento: string, perfil: string, classificacaoABC: string, probabilidade: string, debts: { count: number, total: string }, creditors: number, protests: { count: number, total: string }, restrictions: number, deceased: boolean, cpfSituacao: string, rendaFaixa: string }} CreditProfile */
 /** @typedef {{ cpf: string, outcome: Outcome, profile?: Partial<CreditProfile> }} TestCpf */
 /** @typedef {{ id: Outcome, kind: 'success'|'failure'|'behavior', status: number, summary: { en: string, pt: string } }} OutcomeInfo */
-/** @typedef {{ status: number, body: { metaDados: Record<string, unknown>, retorno: unknown }, headers: Record<string, string>, outcome: Outcome, charged: boolean }} CreditAnswer */
+/** @typedef {{ status: number, result: { id: number, text: string }, message: string, beforeConsultation: boolean, retryAfterSeconds?: number }} Failure */
+/** @typedef {{ status: number, error: string, message: string, retryAfterSeconds: number }} RateLimitBody */
+/** @typedef {{ status: number, body: Record<string, any>, headers: Record<string, string>, outcome: Outcome, charged: boolean }} CreditAnswer */
 
 /**
  * Every outcome the simulation knows, in the order of the test CPF table.
@@ -113,6 +118,7 @@ export const MESSAGES = {
 /**
  * How each failing outcome answers. `beforeConsultation` → `consultaUid` and
  * `chave` are null, because the call was refused before a consultation existed.
+ * @type {Record<'badDocument'|'notFound'|'timeout'|'noBalance'|'unauthorized'|'rateLimited'|'unavailable'|'internalError', Failure>}
  */
 export const FAILURES = {
   badDocument: { status: 400, result: RESULT.badRequest, message: 'CPF inválido.', beforeConsultation: true },
@@ -193,6 +199,7 @@ const PROBABILITY_BY_ABC = {
 }
 
 /** The payment capacity range of the derived profile, in cents, per ABC class. */
+/** @type {Record<string, [number, number]>} */
 const CAPACITY_CENTS_BY_ABC = {
   A: [200000, 300000],
   B: [120000, 180000],
@@ -229,7 +236,7 @@ function presetCopy(profile) {
  * @returns {CreditProfile}
  */
 export function profileOf(outcome) {
-  return presetCopy(PRESETS[outcome] ?? PRESETS.lowRisk)
+  return presetCopy(PRESETS[outcome] ?? /** @type {CreditProfile} */ (PRESETS.lowRisk))
 }
 
 /**
@@ -313,7 +320,7 @@ export function derivedProfile(cpf) {
   const rng = createRng(`directd:${cpf}`)
   const score = rng.int(300, 950)
   const band = classificationFor(score)
-  const [minCapacity, maxCapacity] = CAPACITY_CENTS_BY_ABC[/** @type {keyof typeof CAPACITY_CENTS_BY_ABC} */ (band.abc)]
+  const [minCapacity, maxCapacity] = CAPACITY_CENTS_BY_ABC[band.abc] ?? [0, 0]
   const restrictive = score < 400
   const debtCount = restrictive ? rng.int(1, 3) : 0
   const debtCents = restrictive ? rng.int(50000, 500000) : 0
@@ -354,7 +361,7 @@ export function normalizeCpf(raw) {
  */
 export function formatDirectdDate(date) {
   const shifted = new Date(date.getTime() - 3 * 3600000)
-  const pad = (n) => String(n).padStart(2, '0')
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0')
   return `${pad(shifted.getUTCDate())}/${pad(shifted.getUTCMonth() + 1)}/${shifted.getUTCFullYear()} ` +
     `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}`
 }
@@ -404,6 +411,7 @@ export function quodReturn(cpf, profile, now) {
 }
 
 /** The `restricoes` block: one occurrence per restriction, empty when clean. */
+/** @param {CreditProfile} profile */
 function restricoesBlock(profile) {
   return {
     quantidadeOcorrencias: String(profile.restrictions),
@@ -417,10 +425,11 @@ function restricoesBlock(profile) {
 }
 
 /** The `pendenciasFinanceiras` block: the total split across the occurrences. */
+/** @param {CreditProfile} profile */
 function pendenciasBlock(profile) {
   const count = profile.debts.count
   const parts = splitCents(moneyCents(profile.debts.total), count)
-  const informante = (i) => CREDITORS[i % CREDITORS.length]
+  const informante = (/** @type {number} */ i) => CREDITORS[i % CREDITORS.length] ?? ''
   return {
     quantidadeOcorrencia: String(count),
     valorTotal: profile.debts.total,
@@ -428,7 +437,7 @@ function pendenciasBlock(profile) {
     dataPrimeiro: count > 0 ? DEBT_DATES.inclusion : '',
     totalCredores: String(profile.creditors),
     valorMaior: count > 0 ? formatMoney(Math.max(...parts)) : '',
-    valorPrimeiro: count > 0 ? formatMoney(parts[0]) : '',
+    valorPrimeiro: count > 0 ? formatMoney(parts[0] ?? 0) : '',
     periodoInicial: count > 0 ? DEBT_DATES.inclusion : '',
     periodoFinal: count > 0 ? DEBT_DATES.due : '',
     dataMaior: count > 0 ? DEBT_DATES.due : '',
@@ -440,7 +449,7 @@ function pendenciasBlock(profile) {
       tipoDevedor: 'F',
       credor: informante(i),
       moeda: 'R$',
-      valor: formatMoney(parts[i]),
+      valor: formatMoney(parts[i] ?? 0),
       contrato: '',
       origem: '',
       subjudice: 'NAO',
@@ -451,6 +460,7 @@ function pendenciasBlock(profile) {
 }
 
 /** The `protestos` block, shaped like the debts one. */
+/** @param {CreditProfile} profile */
 function protestosBlock(profile) {
   const count = profile.protests.count
   const parts = splitCents(moneyCents(profile.protests.total), count)
@@ -459,15 +469,15 @@ function protestosBlock(profile) {
     valorTotal: profile.protests.total,
     ultimoProtesto: count > 0 ? PROTEST_DATE : '',
     dataPrimeiro: count > 0 ? PROTEST_DATE : '',
-    valorPrimeiro: count > 0 ? formatMoney(parts[0]) : '',
+    valorPrimeiro: count > 0 ? formatMoney(parts[0] ?? 0) : '',
     dataUltimo: count > 0 ? PROTEST_DATE : '',
-    valorUltimo: count > 0 ? formatMoney(parts[parts.length - 1]) : '',
+    valorUltimo: count > 0 ? formatMoney(parts[parts.length - 1] ?? 0) : '',
     dataMaior: count > 0 ? PROTEST_DATE : '',
     valorMaior: count > 0 ? formatMoney(Math.max(...parts)) : '',
     ocorrencias: occurrenceList(count, (i) => ({
       data: PROTEST_DATE,
       moeda: 'R$',
-      valor: formatMoney(parts[i]),
+      valor: formatMoney(parts[i] ?? 0),
       valorCustas: '',
       quantidade: '1',
       cartorio: 'CARTORIO EXEMPLO',
@@ -482,6 +492,7 @@ function protestosBlock(profile) {
 }
 
 /** The single `scores` occurrence, filling every documented key of the example. */
+/** @param {CreditProfile} profile */
 function scoresBlock(profile) {
   return {
     quantidadeOcorrencias: '1',
@@ -674,7 +685,10 @@ export function rateLimitBody(seconds) {
   }
 }
 
-/** True when a query flag asks for the feature; the value compares case-insensitively. */
+/**
+ * True when a query flag asks for the feature; the value compares case-insensitively.
+ * @param {unknown} value
+ */
 function isHabilitar(value) {
   return String(value ?? '').trim().toLowerCase() === 'habilitar'
 }
@@ -718,13 +732,13 @@ export function answerFor(route, params = {}, { testCpfs = DEFAULT_TEST_CPFS, un
   }
 
   const { outcome, profile } = resolveCpf(cpf, { testCpfs, unlisted })
-  const failure = FAILURES[outcome]
+  const failure = /** @type {Partial<Record<Outcome, Failure>>} */ (FAILURES)[outcome]
 
   if (failure && outcome === 'rateLimited') {
     return {
       status: failure.status,
-      body: /** @type {CreditAnswer['body']} */ (rateLimitBody(failure.retryAfterSeconds)),
-      headers: { 'Retry-After': String(failure.retryAfterSeconds) },
+      body: rateLimitBody(failure.retryAfterSeconds ?? 30),
+      headers: { 'Retry-After': String(failure.retryAfterSeconds ?? 30) },
       outcome,
       charged: false,
     }

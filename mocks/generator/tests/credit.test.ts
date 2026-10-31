@@ -13,7 +13,7 @@ const boaMcp = JSON.parse(readFileSync(join(SPEC_DIR, 'boavista-acerta-mais-posi
 
 const NOW = new Date(Date.UTC(2026, 9, 31, 12, 0, 0))
 const CALL = { now: NOW, uid: '9f8b1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d', ip: '10.0.0.1', startedAt: NOW }
-const SUCCESS_OUTCOMES = ['lowRisk', 'mediumRisk', 'highRisk', 'restrictions', 'deceased', 'irregular', 'warnings']
+const SUCCESS_OUTCOMES = ['lowRisk', 'mediumRisk', 'highRisk', 'restrictions', 'deceased', 'irregular', 'warnings'] as const
 
 /** The paths of the phones and the addresses, the two keys outside the spec. */
 const PHONE_ADDRESS_PATHS = [
@@ -107,15 +107,15 @@ describe('boaVistaReturn', () => {
     expect(retorno.protestos.ocorrencias).toHaveLength(1)
     expect(retorno.protestos.valorTotal).toBe('800,00')
     expect(retorno.restricoes.ocorrencias).toHaveLength(2)
-    expect(retorno.restricoes.ocorrencias[0].titulo).toBe('RESTRICAO FINANCEIRA')
-    const clean = boaVistaReturn(DEFAULT_TEST_CPFS[0].cpf, profileOf('lowRisk'), NOW)
+    expect(retorno.restricoes.ocorrencias[0]!.titulo).toBe('RESTRICAO FINANCEIRA')
+    const clean = boaVistaReturn(DEFAULT_TEST_CPFS[0]!.cpf, profileOf('lowRisk'), NOW)
     expect(clean.pendenciasFinanceiras.quantidadeOcorrencia).toBe('0')
     expect(clean.pendenciasFinanceiras.valorTotal).toBe('0,00')
     expect(clean.restricoes.ocorrencias).toEqual([])
   })
 
   test('the top-level key order is the spec order with the phones and the addresses inserted', () => {
-    const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0].cpf, profileOf('lowRisk'), NOW)
+    const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0]!.cpf, profileOf('lowRisk'), NOW)
     const specKeys = Object.keys(boaSpec.retorno)
     const at = specKeys.indexOf('qtdDependentesBolsaFamilia')
     const expected = [...specKeys.slice(0, at + 1), 'telefones', 'enderecos', ...specKeys.slice(at + 1)]
@@ -123,7 +123,7 @@ describe('boaVistaReturn', () => {
   })
 
   test('every MCP field of the return is a top-level key', () => {
-    const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0].cpf, profileOf('lowRisk'), NOW)
+    const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0]!.cpf, profileOf('lowRisk'), NOW)
     for (const field of boaMcp.camposRetorno) expect(field.nome in retorno).toBe(true)
   })
 
