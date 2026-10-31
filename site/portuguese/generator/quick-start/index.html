@@ -63,6 +63,7 @@
             <li><a href="#seed">Determinismo e semente</a></li>
             <li><a href="#validate">Validação</a></li>
             <li><a href="#asaas">Popule o Asaas</a></li>
+            <li><a href="#directd">Consulte o crédito de um CPF</a></li>
             <li><a href="#ui">Interface web</a></li>
             <li><a href="#off">Desligar</a></li>
           </ol>
@@ -89,7 +90,7 @@
                 <div class="code"><pre><code>{
   "status": "ok",
   "service": "generator",
-  "version": "0.2.0"
+  "version": "0.3.0"
 }</code></pre></div>
               </li>
 
@@ -298,6 +299,24 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
 }</code></pre></div>
                 <p>A semente no boot fica desligada a menos que definida. Para semear automaticamente na inicialização, defina <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> no seu <code>.env</code>:</p>
                 <div class="code"><pre><code>GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5</code></pre></div>
+              </li>
+
+              <li id="directd">
+                <h3>Consulte o crédito de um CPF como o Hub faz</h3>
+                <p>O gerador também responde às rotas de crédito da <strong>Direct Data API v3</strong> nos caminhos reais do provedor. O token é público e fixo (<code>00000000-0000-4000-8000-00000000d1d1</code>) e o gerador nunca chama o provedor: cada resposta é calculada localmente.</p>
+                <p>Consulte o score de um CPF de teste:</p>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl -s -i 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
+                <p>A resposta é <code>HTTP/1.1 200 OK</code>: o envelope <code>metaDados</code> e o <code>retorno</code> do score, no padrão do provedor.</p>
+                <p>O relatório Boa Vista, no mesmo caminho:</p>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl -s -i 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100333460&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
+                <p>A resposta é <code>HTTP/1.1 200 OK</code>: o relatório completo do CPF, com situação, faixa de renda, pendências financeiras, protesto e restrições.</p>
+                <p>Para uma consulta assíncrona, crie a consulta e leia o resultado pelo <code>ConsultaUid</code>:</p>
+                <div class="code" data-local-only="só no seu container"><pre><code>CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1&amp;Async=habilitar' \
+  | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)
+
+curl -s -i "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
+                <p>A criação responde <code>HTTP/1.1 201 Created</code> com o <code>consultaUid</code>; a primeira leitura responde <code>HTTP/1.1 202 Accepted</code> (ainda processando) e a seguinte <code>HTTP/1.1 200 OK</code>, com o envelope completo.</p>
+                <p>Cada CPF de teste força um resultado — risco baixo, médio ou alto, restrições, pessoa falecida, CPF suspenso, 404, timeout, 429 e outros. A tabela completa está na <a href="../docs/#directd">seção de crédito Direct Data da documentação</a>, e a mesma consulta pode ser feita na aba <strong>Crédito por CPF · Direct Data</strong> do painel do gerador.</p>
               </li>
 
               <li id="ui">
