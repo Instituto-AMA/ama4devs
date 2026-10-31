@@ -638,14 +638,14 @@ export function returnFor(route, cpf, profile, now) {
  * zero.
  * @param {{ route: string, uid?: string | null, cpf?: string | null, result: { id: number, text: string }, message: string, ip?: string, async?: boolean, callback?: boolean, receipt?: boolean, now?: Date, startedAt?: Date }} options
  * @param {unknown} retorno
- * @returns {Record<string, unknown>}
+ * @returns {{ metaDados: Record<string, unknown>, retorno: unknown }}
  */
 export function envelope({ route, uid, cpf, result, message, ip = '', async = false, callback = false, receipt = false, now = new Date(), startedAt = now }, retorno) {
-  return {
+  const metaDados = {
     consultaNome: CONSULTA_NAMES[route] ?? route,
     consultaUid: uid ?? null,
     chave: cpf ? `CPF=${cpf};` : null,
-    usuario: 'simulador',
+    usuario: 'usuario@ama4devs.local',
     mensagem: message,
     ip,
     resultadoId: result.id,
@@ -658,6 +658,7 @@ export function envelope({ route, uid, cpf, result, message, ip = '', async = fa
     data: formatDirectdDate(now),
     tempoExecucaoMs: Math.max(0, now.getTime() - startedAt.getTime()),
   }
+  return { metaDados, retorno: retorno ?? null }
 }
 
 /**
@@ -700,7 +701,7 @@ export function answerFor(route, params = {}, { testCpfs = DEFAULT_TEST_CPFS, un
   if (route === ROUTE_SCORE && normalizeCpf(params.CNPJ) !== '' && cpf === '') {
     return {
       status: 400,
-      body: { metaDados: envelope({ route, uid: null, cpf: null, result: RESULT.badRequest, message: MESSAGES.cnpj, ip, now, startedAt }, null), retorno: null },
+      body: envelope({ route, uid: null, cpf: null, result: RESULT.badRequest, message: MESSAGES.cnpj, ip, now, startedAt }, null),
       headers: {},
       outcome: 'badDocument',
       charged: false,
@@ -709,7 +710,7 @@ export function answerFor(route, params = {}, { testCpfs = DEFAULT_TEST_CPFS, un
   if (cpf === '') {
     return {
       status: 400,
-      body: { metaDados: envelope({ route, uid: null, cpf: null, result: RESULT.badRequest, message: MESSAGES.missingCpf, ip, now, startedAt }, null), retorno: null },
+      body: envelope({ route, uid: null, cpf: null, result: RESULT.badRequest, message: MESSAGES.missingCpf, ip, now, startedAt }, null),
       headers: {},
       outcome: 'badDocument',
       charged: false,
@@ -732,10 +733,7 @@ export function answerFor(route, params = {}, { testCpfs = DEFAULT_TEST_CPFS, un
     const before = failure.beforeConsultation
     return {
       status: failure.status,
-      body: {
-        metaDados: envelope({ route, uid: before ? null : consultaUid, cpf: before ? null : cpf, result: failure.result, message: failure.message, ip, async: asyncFlag, callback: callbackFlag, receipt: receiptFlag, now, startedAt }, null),
-        retorno: null,
-      },
+      body: envelope({ route, uid: before ? null : consultaUid, cpf: before ? null : cpf, result: failure.result, message: failure.message, ip, async: asyncFlag, callback: callbackFlag, receipt: receiptFlag, now, startedAt }, null),
       headers: {},
       outcome,
       charged: false,
@@ -744,15 +742,15 @@ export function answerFor(route, params = {}, { testCpfs = DEFAULT_TEST_CPFS, un
 
   const withWarnings = outcome === 'warnings'
   const retorno = returnFor(route, cpf, /** @type {CreditProfile} */ (profile), now)
-  const metaDados = envelope(
+  const body = envelope(
     { route, uid: consultaUid, cpf, result: withWarnings ? RESULT.successWithWarnings : RESULT.success, message: withWarnings ? MESSAGES.warnings : MESSAGES.success, ip, async: asyncFlag, callback: callbackFlag, receipt: receiptFlag, now, startedAt },
     retorno,
   )
   return {
     status: 200,
-    body: { metaDados, retorno },
+    body,
     headers: {},
     outcome,
-    charged: CHARGED_RESULTS.includes(String(metaDados.resultado)),
+    charged: CHARGED_RESULTS.includes(String(body.metaDados.resultado)),
   }
 }

@@ -150,7 +150,7 @@ describe('quodReturn', () => {
 
 describe('envelope', () => {
   test('the keys follow the documented order and the chave carries the CPF', () => {
-    const metaDados = envelope({ route: ROUTE_SCORE, uid: CALL.uid, cpf: '11100000143', result: RESULT.success, message: MESSAGES.success, ip: CALL.ip, now: NOW, startedAt: NOW }, null)
+    const { metaDados } = envelope({ route: ROUTE_SCORE, uid: `direct-${CALL.uid}`, cpf: '11100000143', result: RESULT.success, message: MESSAGES.success, ip: CALL.ip, now: NOW, startedAt: NOW }, null)
     expect(Object.keys(metaDados)).toEqual(Object.keys(scoreSpec.metaDados))
     expect(metaDados.chave).toBe('CPF=11100000143;')
     expect(metaDados.consultaUid).toBe(`direct-${CALL.uid}`)
