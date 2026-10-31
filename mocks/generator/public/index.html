@@ -188,13 +188,19 @@
               </div>
             </div>
 
-            <div class="field">
-              <label for="directd-product">Produto</label>
-              <select id="directd-product">
-                <option value="Score">Score (Quod)</option>
-                <option value="BoaVistaAcertaMaisPositivoPF">Boa Vista Acerta Mais</option>
-              </select>
-            </div>
+            <fieldset class="directd-choice">
+              <legend>Produto</legend>
+              <div class="directd-segment" id="directd-product">
+                <label class="directd-option">
+                  <input type="radio" name="directd-product" value="Score" checked>
+                  <span class="directd-option-face"><strong>Score</strong><small>Quod</small></span>
+                </label>
+                <label class="directd-option">
+                  <input type="radio" name="directd-product" value="BoaVistaAcertaMaisPositivoPF">
+                  <span class="directd-option-face"><strong>Boa Vista</strong><small>Acerta Mais</small></span>
+                </label>
+              </div>
+            </fieldset>
 
             <div class="field">
               <label class="field-checkbox">
@@ -231,27 +237,21 @@
       <div class="directd-block">
         <h3 class="directd-subtitle">CPFs de teste</h3>
 
-        <div class="directd-policy">
-          <label for="directd-policy">CPFs fora da lista</label>
-          <select id="directd-policy">
-            <option value="lowRisk">Baixo risco</option>
-            <option value="derived">Perfil derivado do CPF</option>
-            <option value="notFound">Não encontrado (404)</option>
-          </select>
-        </div>
+        <fieldset class="directd-choice directd-policy">
+          <legend>CPFs fora da lista</legend>
+          <div class="directd-segment is-wide" id="directd-policy"></div>
+        </fieldset>
 
         <form id="directd-add-form" onsubmit="return false;">
-          <div class="form-grid">
-            <div class="field">
-              <label for="directd-new-cpf">CPF</label>
-              <input type="text" id="directd-new-cpf" placeholder="000.000.000-00" autocomplete="off" spellcheck="false">
-            </div>
-
-            <div class="field">
-              <label for="directd-new-outcome">Resultado</label>
-              <select id="directd-new-outcome"></select>
-            </div>
+          <div class="field directd-new-cpf">
+            <label for="directd-new-cpf">CPF</label>
+            <input type="text" id="directd-new-cpf" placeholder="000.000.000-00" autocomplete="off" spellcheck="false">
           </div>
+
+          <fieldset class="directd-choice">
+            <legend>Resultado</legend>
+            <div class="directd-outcomes" id="directd-new-outcome"></div>
+          </fieldset>
 
           <div class="form-actions">
             <button type="button" class="key" id="btn-directd-add">Adicionar</button>
@@ -265,7 +265,6 @@
               <tr>
                 <th>CPF</th>
                 <th>Resultado</th>
-                <th>Status</th>
                 <th></th>
               </tr>
             </thead>

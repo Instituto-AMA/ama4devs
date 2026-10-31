@@ -108,10 +108,90 @@ let unlistedPolicy = 'lowRisk'
 
 /** The policies of the CPFs that are not in the table, as the sheet names them. */
 const POLICIES = [
-  { id: 'lowRisk', label: 'Baixo risco' },
-  { id: 'derived', label: 'Perfil derivado do CPF' },
-  { id: 'notFound', label: 'Não encontrado (404)' },
+  { id: 'lowRisk', label: 'Baixo risco', hint: 'Responde 200, score 850' },
+  { id: 'derived', label: 'Perfil derivado', hint: 'Cada CPF tem um perfil fixo, calculado dele' },
+  { id: 'notFound', label: 'Não encontrado', hint: 'Responde 404' },
 ]
+
+/** The short name of each outcome on the sheet; the detail comes from the core's summary. */
+const OUTCOME_TITLES = {
+  lowRisk: 'Baixo risco',
+  mediumRisk: 'Risco médio',
+  highRisk: 'Alto risco',
+  restrictions: 'Com restrições',
+  deceased: 'Óbito',
+  irregular: 'CPF suspenso',
+  warnings: 'Com ressalvas',
+  badDocument: 'CPF inválido',
+  notFound: 'Não encontrado',
+  timeout: 'Tempo esgotado',
+  noBalance: 'Sem saldo',
+  unauthorized: 'Não autorizado',
+  rateLimited: 'Limite de requisições',
+  unavailable: 'Em manutenção',
+  internalError: 'Erro interno',
+  slow: 'Resposta lenta',
+  neverSettles: 'Async travada',
+}
+
+/** The groups of the outcome picker, in the order the core lists the kinds. */
+const OUTCOME_GROUPS = [
+  { kind: 'success', label: 'Respostas 200' },
+  { kind: 'failure', label: 'Falhas' },
+  { kind: 'behavior', label: 'Comportamento' },
+]
+
+/**
+ * How the sheet shows an outcome: its status, a short name and what it answers.
+ * @param {string} id
+ */
+function outcomeView(id) {
+  const outcome = OUTCOMES.find((entry) => entry.id === id)
+  const title = /** @type {Record<string, string>} */ (OUTCOME_TITLES)[id] ?? id
+  if (!outcome) return { status: '—', tone: 'is-behavior', title, detail: '' }
+  // The summary starts with the status the code chip already shows ("200, …", "200 com ressalvas, …").
+  const detail = outcome.summary.pt.replace(/^\d{3}( com ressalvas)?,\s*/, '')
+  const tone = outcome.kind === 'failure' ? 'is-failure' : outcome.kind === 'behavior' ? 'is-behavior' : 'is-success'
+  return { status: String(outcome.status), tone, title, detail }
+}
+
+/**
+ * One tile of the outcome picker: a radio dressed as a ticket stub.
+ * @param {string} id
+ */
+function outcomeOption(id) {
+  const view = outcomeView(id)
+  return `
+    <label class="directd-ticket ${view.tone}">
+      <input type="radio" name="directd-new-outcome" value="${esc(id)}">
+      <span class="directd-ticket-face">
+        <span class="directd-ticket-code">${esc(view.status)}</span>
+        <strong>${esc(view.title)}</strong>
+        <small>${esc(view.detail)}</small>
+      </span>
+    </label>
+  `
+}
+
+/**
+ * The value of the checked radio of a group.
+ * @param {string} name
+ */
+function checkedValue(name) {
+  const input = /** @type {HTMLInputElement | null} */ (document.querySelector(`input[name="${name}"]:checked`))
+  return input?.value ?? ''
+}
+
+/**
+ * Checks the radio of a group that carries a value.
+ * @param {string} name
+ * @param {string} value
+ */
+function checkValue(name, value) {
+  for (const input of /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll(`input[name="${name}"]`))) {
+    input.checked = input.value === value
+  }
+}
 
 /** The estimated cost of one consultation, per product. */
 const COST_BY_ROUTE = {
@@ -126,7 +206,6 @@ const btnCopyToken = /** @type {HTMLButtonElement} */ (document.getElementById('
 
 const cpfInput = /** @type {HTMLInputElement} */ (document.getElementById('directd-cpf'))
 const btnGenerateCpf = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-generate-cpf'))
-const productSelect = /** @type {HTMLSelectElement} */ (document.getElementById('directd-product'))
 const asyncCheck = /** @type {HTMLInputElement} */ (document.getElementById('directd-async'))
 const btnConsult = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-consult'))
 
@@ -139,9 +218,9 @@ const pagesNote = /** @type {HTMLElement} */ (document.getElementById('directd-p
 const curlLine = /** @type {HTMLElement} */ (document.getElementById('directd-curl'))
 const btnCopyCurl = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-copy-curl'))
 
-const policySelect = /** @type {HTMLSelectElement} */ (document.getElementById('directd-policy'))
+const policyGroup = /** @type {HTMLElement} */ (document.getElementById('directd-policy'))
 const newCpfInput = /** @type {HTMLInputElement} */ (document.getElementById('directd-new-cpf'))
-const newOutcomeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('directd-new-outcome'))
+const outcomeGroup = /** @type {HTMLElement} */ (document.getElementById('directd-new-outcome'))
 const btnAdd = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-add'))
 const btnRestore = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-restore'))
 const testCpfsBody = /** @type {HTMLElement} */ (document.getElementById('directd-test-cpfs'))
@@ -184,7 +263,7 @@ async function detectMode() {
  */
 async function consult() {
   const cpf = onlyDigits(cpfInput.value)
-  const route = productSelect.value
+  const route = checkedValue('directd-product')
   const wantsAsync = asyncCheck.checked
 
   if (!cpf) {
@@ -452,7 +531,7 @@ async function loadTestCpfs() {
     const data = await res.json()
     testCpfs = Array.isArray(data.testCpfs) ? data.testCpfs : []
     if (typeof data.unlisted === 'string') unlistedPolicy = data.unlisted
-    policySelect.value = unlistedPolicy
+    checkValue('directd-policy', unlistedPolicy)
     renderTestCpfs(testCpfs)
   } catch (err) {
     showToast(`Falha ao carregar os CPFs de teste: ${err instanceof Error ? err.message : String(err)}`)
@@ -467,15 +546,19 @@ function renderTestCpfs(rows) {
   testCpfsBody.innerHTML = ''
 
   for (const row of rows) {
-    const outcome = OUTCOMES.find((entry) => entry.id === row.outcome)
+    const view = outcomeView(row.outcome)
     const tr = document.createElement('tr')
     tr.innerHTML = `
       <td>
         <code>${esc(formatCpf(row.cpf))}</code>
         <button type="button" class="key small" data-copy-cpf="${esc(row.cpf)}">Copiar</button>
       </td>
-      <td>${esc(outcome?.summary.pt ?? row.outcome)}</td>
-      <td>${esc(outcome?.status ?? '—')}</td>
+      <td>
+        <span class="directd-outcome-line">
+          <span class="directd-outcome-code ${view.tone}">${esc(view.status)}</span>
+          <span><strong>${esc(view.title)}</strong> <small>${esc(view.detail)}</small></span>
+        </span>
+      </td>
       <td><button type="button" class="key small" data-remove-cpf="${esc(row.cpf)}">Remover</button></td>
     `
     testCpfsBody.appendChild(tr)
@@ -487,7 +570,7 @@ function renderTestCpfs(rows) {
  */
 async function addTestCpf() {
   const cpf = onlyDigits(newCpfInput.value)
-  const outcome = newOutcomeSelect.value
+  const outcome = checkedValue('directd-new-outcome')
 
   if (!cpf) {
     showToast('Informe o CPF.')
@@ -570,6 +653,8 @@ async function setPolicy(value) {
       if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`)
     } catch (err) {
       showToast(`Falha ao mudar a política: ${err instanceof Error ? err.message : String(err)}`)
+      // The picker goes back to what the container still answers.
+      checkValue('directd-policy', unlistedPolicy)
       return
     }
   } else {
@@ -595,7 +680,7 @@ async function restoreDefaults() {
   } else {
     testCpfs = DEFAULT_TEST_CPFS.map((row) => ({ ...row }))
     unlistedPolicy = 'lowRisk'
-    policySelect.value = unlistedPolicy
+    checkValue('directd-policy', unlistedPolicy)
   }
 
   await loadTestCpfs()
@@ -841,12 +926,25 @@ async function resetState() {
 async function init() {
   tokenValue.textContent = DIRECTD_TOKEN
 
-  newOutcomeSelect.innerHTML = OUTCOMES.map(
-    (entry) => `<option value="${esc(entry.id)}">${esc(entry.summary.pt)}</option>`,
+  outcomeGroup.innerHTML = OUTCOME_GROUPS.map(
+    (group) => `
+      <div class="directd-outcome-group">
+        <p class="directd-outcome-group-name">${esc(group.label)}</p>
+        <div class="directd-outcome-grid">
+          ${OUTCOMES.filter((entry) => entry.kind === group.kind).map((entry) => outcomeOption(entry.id)).join('')}
+        </div>
+      </div>
+    `,
   ).join('')
+  checkValue('directd-new-outcome', OUTCOMES[0]?.id ?? '')
 
-  policySelect.innerHTML = POLICIES.map(
-    (entry) => `<option value="${esc(entry.id)}">${esc(entry.label)}</option>`,
+  policyGroup.innerHTML = POLICIES.map(
+    (entry) => `
+      <label class="directd-option">
+        <input type="radio" name="directd-policy" value="${esc(entry.id)}"${entry.id === unlistedPolicy ? ' checked' : ''}>
+        <span class="directd-option-face"><strong>${esc(entry.label)}</strong><small>${esc(entry.hint)}</small></span>
+      </label>
+    `,
   ).join('')
 
   btnCopyToken.addEventListener('click', () => copyToClipboard(DIRECTD_TOKEN, 'Token copiado'))
@@ -861,7 +959,7 @@ async function init() {
   btnConsult.addEventListener('click', consult)
   btnAdd.addEventListener('click', addTestCpf)
   btnRestore.addEventListener('click', restoreDefaults)
-  policySelect.addEventListener('change', () => setPolicy(policySelect.value))
+  policyGroup.addEventListener('change', () => setPolicy(checkedValue('directd-policy')))
 
   testCpfsBody.addEventListener('click', (event) => {
     const target = /** @type {HTMLElement} */ (event.target)

@@ -825,26 +825,182 @@ tr.directd-empty td {
   margin: 0 0 8px;
 }
 
-.directd-policy {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+/* Choices shown on the paper instead of in a native select: radios dressed as keys and stubs. */
+.directd-choice {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
-.directd-policy label {
+.directd-choice legend {
+  padding: 0;
+  margin-bottom: 8px;
   font: 700 12px/1 var(--sans);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-soft);
 }
-.directd-policy select {
-  font: 500 14px/1.4 var(--mono);
-  padding: 9px 12px;
-  border: 1px solid var(--paper-rule);
-  border-radius: 6px;
-  background: #ffffff;
+.directd-policy {
+  margin-bottom: 22px;
+}
+
+.directd-option input,
+.directd-ticket input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.directd-segment {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.directd-segment.is-wide {
+  max-width: 720px;
+}
+
+.directd-option {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+.directd-option-face {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 100%;
+  padding: 10px 14px 9px;
+  border-radius: 10px;
+  background: var(--key-face);
+  box-shadow: 0 4px 0 #b9bab3, 0 8px 16px -10px #00000055;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2), background-color 120ms ease;
+}
+.directd-option-face strong {
+  font: 700 14px/1.2 var(--sans);
   color: var(--ink);
+}
+.directd-option-face small {
+  font: 400 12px/1.35 var(--sans);
+  color: var(--ink-soft);
+}
+.directd-option:hover .directd-option-face {
+  filter: brightness(1.03);
+}
+/* The chosen key stays pressed in, inked like the active tab. */
+.directd-option input:checked + .directd-option-face {
+  background: var(--ink);
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #000000, 0 3px 8px -4px #00000066;
+}
+.directd-option input:checked + .directd-option-face strong {
+  color: var(--paper);
+}
+.directd-option input:checked + .directd-option-face small {
+  color: color-mix(in srgb, var(--paper) 72%, var(--ink));
+}
+.directd-option input:focus-visible + .directd-option-face,
+.directd-ticket input:focus-visible + .directd-ticket-face {
+  outline: 3px solid var(--key-correct);
+  outline-offset: 2px;
+}
+
+#directd-add-form .directd-new-cpf {
+  max-width: 320px;
+  margin-bottom: 18px;
+}
+
+.directd-outcomes {
+  display: grid;
+  gap: 16px;
+}
+/* `.sheet p` would otherwise win the margin and the color. */
+.sheet .directd-outcome-group-name {
+  font: 600 13px/1.2 var(--sans);
+  margin: 0 0 8px;
+  color: var(--fade);
+}
+.directd-outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: 8px;
+}
+
+/* An outcome is a ticket stub: the status in print-head digits, its name, what it answers. */
+.directd-ticket {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  --tone: var(--key-confirm-deep);
+}
+.directd-ticket.is-failure {
+  --tone: var(--print-red);
+}
+.directd-ticket.is-behavior {
+  --tone: var(--fade);
+}
+.directd-ticket-face {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: baseline;
+  align-content: start;
+  height: 100%;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid var(--paper-rule);
+  border-radius: 8px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.directd-ticket-code {
+  grid-row: 1 / 3;
+  font: 800 22px/1 var(--display);
+  color: var(--tone);
+}
+.directd-ticket-face strong {
+  font: 700 13.5px/1.25 var(--sans);
+  color: var(--ink);
+}
+.directd-ticket-face small {
+  font: 400 12px/1.35 var(--sans);
+  color: var(--ink-soft);
+}
+.directd-ticket:hover .directd-ticket-face {
+  border-color: var(--ink-soft);
+}
+.directd-ticket input:checked + .directd-ticket-face {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 8%, #ffffff);
+  box-shadow: inset 0 0 0 1px var(--tone);
+}
+
+/* The same outcome, read in the table: code, name and detail on one line. */
+.directd-outcome-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--sans);
+}
+.directd-outcome-line strong {
+  font-size: 13.5px;
+}
+.directd-outcome-line small {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.directd-outcome-code {
+  min-width: 3ch;
+  font: 800 16px/1 var(--display);
+  color: var(--key-confirm-deep);
+}
+.directd-outcome-code.is-failure {
+  color: var(--print-red);
+}
+.directd-outcome-code.is-behavior {
+  color: var(--fade);
 }
 
 .directd-counters {
@@ -986,6 +1142,18 @@ tbody tr.is-new td {
 }
 
 @media (max-width: 560px) {
+  .directd-segment.is-wide {
+    grid-auto-flow: row;
+  }
+  /* Two stubs per row: the status goes on top so the words keep the width. */
+  .directd-ticket-face {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    row-gap: 4px;
+  }
+  .directd-ticket-code {
+    grid-row: auto;
+  }
   .directd-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
