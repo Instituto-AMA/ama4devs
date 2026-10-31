@@ -181,7 +181,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 ```yaml
 services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.4   # pin a version, or :latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.5   # pin a version, or :latest
     ports:
       - '45445:45445'
     environment:
