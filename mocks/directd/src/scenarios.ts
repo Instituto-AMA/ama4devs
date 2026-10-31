@@ -38,6 +38,7 @@ export type Scenario =
   | 'internalError'
   | 'slow'
   | 'neverSettles'
+  | 'warnings'
 
 /** The CPFs of the scenarios, all with valid check digits. */
 export const SCENARIO_CPFS: Record<Scenario, string> = {
@@ -57,6 +58,7 @@ export const SCENARIO_CPFS: Record<Scenario, string> = {
   internalError: '11101333324',
   slow: '11101444401',
   neverSettles: '11101555572',
+  warnings: '11101666641',
 }
 
 const BY_CPF = new Map<string, Scenario>(
