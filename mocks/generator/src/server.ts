@@ -13,7 +13,9 @@ await findAsaas(config)
 
 Bun.serve({
   port: config.port,
-  fetch: app.fetch,
+  // The slow outcome holds a request for 25 seconds: the connection waits.
+  idleTimeout: 60,
+  fetch: (request, server) => app.fetch(request, server.requestIP(request)?.address),
 })
 
 console.log(`generator: listening on http://localhost:${config.port}`)
