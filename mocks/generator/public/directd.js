@@ -12,6 +12,7 @@
 import {
   DEFAULT_TEST_CPFS,
   DIRECTD_TOKEN,
+  FAILURES,
   OUTCOMES,
   ROUTE_ASYNC_READ,
   ROUTE_BOA_VISTA,
@@ -134,11 +135,11 @@ const OUTCOME_TITLES = {
   neverSettles: 'Async travada',
 }
 
-/** The groups of the outcome picker, in the order the core lists the kinds. */
+/** The rows of the outcome picker, in the order the core lists the kinds. */
 const OUTCOME_GROUPS = [
-  { kind: 'success', label: 'Respostas 200' },
+  { kind: 'success', label: '200' },
   { kind: 'failure', label: 'Falhas' },
-  { kind: 'behavior', label: 'Comportamento' },
+  { kind: 'behavior', label: 'Outros' },
 ]
 
 /**
@@ -156,21 +157,41 @@ function outcomeView(id) {
 }
 
 /**
- * One tile of the outcome picker: a radio dressed as a ticket stub.
+ * One chip of the outcome picker: the name only, the code in front of a failure
+ * (the 200 row already says its code once).
  * @param {string} id
  */
-function outcomeOption(id) {
+function outcomeChip(id) {
   const view = outcomeView(id)
+  const code = view.tone === 'is-failure' ? `<b>${esc(view.status)}</b>` : ''
   return `
-    <label class="directd-ticket ${view.tone}">
+    <label class="directd-chip-option ${view.tone}">
       <input type="radio" name="directd-new-outcome" value="${esc(id)}">
-      <span class="directd-ticket-face">
-        <span class="directd-ticket-code">${esc(view.status)}</span>
-        <strong>${esc(view.title)}</strong>
-        <small>${esc(view.detail)}</small>
-      </span>
+      <span>${code}${esc(view.title)}</span>
     </label>
   `
+}
+
+/**
+ * The stub under the chips: what the chosen outcome answers, printed again on every change.
+ * @param {string} id
+ */
+function renderOutcomeStub(id) {
+  const view = outcomeView(id)
+  // A failure answers before any consultation: nothing is charged and `retorno` stays null.
+  const failure = id in FAILURES
+  outcomeStub.className = `directd-outcome-stub ${view.tone}`
+  outcomeStub.innerHTML = `
+    <span class="directd-outcome-stub-code">${esc(view.status)}</span>
+    <div>
+      <strong>${esc(view.title)}</strong>
+      <p>${esc(view.detail)}</p>
+      <p class="directd-outcome-stub-meta">${failure ? 'não cobrada · retorno null' : 'cobrada · retorno preenchido'}</p>
+    </div>
+  `
+  // Reading the layout restarts the print on the same element.
+  void outcomeStub.offsetWidth
+  outcomeStub.classList.add('is-printing')
 }
 
 /**
@@ -221,6 +242,7 @@ const btnCopyCurl = /** @type {HTMLButtonElement} */ (document.getElementById('b
 const policyGroup = /** @type {HTMLElement} */ (document.getElementById('directd-policy'))
 const newCpfInput = /** @type {HTMLInputElement} */ (document.getElementById('directd-new-cpf'))
 const outcomeGroup = /** @type {HTMLElement} */ (document.getElementById('directd-new-outcome'))
+const outcomeStub = /** @type {HTMLElement} */ (document.getElementById('directd-outcome-stub'))
 const btnAdd = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-add'))
 const btnRestore = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-restore'))
 const testCpfsBody = /** @type {HTMLElement} */ (document.getElementById('directd-test-cpfs'))
@@ -928,15 +950,18 @@ async function init() {
 
   outcomeGroup.innerHTML = OUTCOME_GROUPS.map(
     (group) => `
-      <div class="directd-outcome-group">
-        <p class="directd-outcome-group-name">${esc(group.label)}</p>
-        <div class="directd-outcome-grid">
-          ${OUTCOMES.filter((entry) => entry.kind === group.kind).map((entry) => outcomeOption(entry.id)).join('')}
+      <div class="directd-outcome-row">
+        <span class="directd-outcome-row-name">${esc(group.label)}</span>
+        <div class="directd-chips">
+          ${OUTCOMES.filter((entry) => entry.kind === group.kind).map((entry) => outcomeChip(entry.id)).join('')}
         </div>
       </div>
     `,
   ).join('')
-  checkValue('directd-new-outcome', OUTCOMES[0]?.id ?? '')
+  const firstOutcome = OUTCOMES[0]?.id ?? ''
+  checkValue('directd-new-outcome', firstOutcome)
+  renderOutcomeStub(firstOutcome)
+  outcomeGroup.addEventListener('change', () => renderOutcomeStub(checkedValue('directd-new-outcome')))
 
   policyGroup.innerHTML = POLICIES.map(
     (entry) => `

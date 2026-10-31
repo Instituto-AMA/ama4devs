@@ -845,7 +845,7 @@ tr.directd-empty td {
 }
 
 .directd-option input,
-.directd-ticket input {
+.directd-chip-option input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -901,7 +901,7 @@ tr.directd-empty td {
   color: color-mix(in srgb, var(--paper) 72%, var(--ink));
 }
 .directd-option input:focus-visible + .directd-option-face,
-.directd-ticket input:focus-visible + .directd-ticket-face {
+.directd-chip-option input:focus-visible + span {
   outline: 3px solid var(--key-correct);
   outline-offset: 2px;
 }
@@ -911,70 +911,110 @@ tr.directd-empty td {
   margin-bottom: 18px;
 }
 
+/* The outcomes as chips, one row per kind: the name only, the detail said once in the stub below. */
 .directd-outcomes {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
-/* `.sheet p` would otherwise win the margin and the color. */
-.sheet .directd-outcome-group-name {
+.directd-outcome-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px 14px;
+  align-items: baseline;
+}
+.directd-outcome-row-name {
   font: 600 13px/1.2 var(--sans);
-  margin: 0 0 8px;
   color: var(--fade);
 }
-.directd-outcome-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
-  gap: 8px;
+.directd-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* An outcome is a ticket stub: the status in print-head digits, its name, what it answers. */
-.directd-ticket {
+.directd-chip-option {
   position: relative;
-  display: block;
   cursor: pointer;
   --tone: var(--key-confirm-deep);
 }
-.directd-ticket.is-failure {
+.directd-chip-option.is-failure {
   --tone: var(--print-red);
 }
-.directd-ticket.is-behavior {
+.directd-chip-option.is-behavior {
   --tone: var(--fade);
 }
-.directd-ticket-face {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto 1fr;
-  column-gap: 10px;
-  row-gap: 2px;
+.directd-chip-option span {
+  display: inline-flex;
   align-items: baseline;
-  align-content: start;
-  height: 100%;
-  padding: 10px 12px;
-  background: #ffffff;
+  gap: 6px;
+  padding: 7px 13px 6px;
+  border-radius: 999px;
   border: 1px solid var(--paper-rule);
-  border-radius: 8px;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  background: #ffffff;
+  font: 600 13px/1.2 var(--sans);
+  color: var(--ink);
+  transition: transform 90ms steps(2), background-color 120ms ease, border-color 120ms ease;
 }
-.directd-ticket-code {
-  grid-row: 1 / 3;
-  font: 800 22px/1 var(--display);
+.directd-chip-option b {
+  font: 700 11.5px/1 var(--mono);
   color: var(--tone);
 }
-.directd-ticket-face strong {
-  font: 700 13.5px/1.25 var(--sans);
-  color: var(--ink);
-}
-.directd-ticket-face small {
-  font: 400 12px/1.35 var(--sans);
-  color: var(--ink-soft);
-}
-.directd-ticket:hover .directd-ticket-face {
+.directd-chip-option:hover span {
   border-color: var(--ink-soft);
 }
-.directd-ticket input:checked + .directd-ticket-face {
-  border-color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 8%, #ffffff);
-  box-shadow: inset 0 0 0 1px var(--tone);
+.directd-chip-option:active span {
+  transform: translateY(1px);
+}
+/* The chosen chip is inked, like the active tab and the pressed key. */
+.directd-chip-option input:checked + span {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.directd-chip-option input:checked + span b {
+  color: color-mix(in srgb, var(--tone) 50%, #ffffff);
+}
+
+/* What the chosen outcome answers, on a torn stub that prints again on each change. */
+.directd-outcome-stub {
+  --tone: var(--key-confirm-deep);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 16px;
+  align-items: baseline;
+  max-width: 560px;
+  margin-top: 16px;
+  padding: 16px 18px 24px;
+  background: #ffffff;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 10px 51% repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 10px 51% repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat;
+}
+.directd-outcome-stub.is-failure {
+  --tone: var(--print-red);
+}
+.directd-outcome-stub.is-behavior {
+  --tone: var(--fade);
+}
+.directd-outcome-stub-code {
+  font: 800 30px/1 var(--display);
+  color: var(--tone);
+}
+.directd-outcome-stub strong {
+  font: 700 15px/1.3 var(--sans);
+  color: var(--ink);
+}
+.sheet .directd-outcome-stub p {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.sheet .directd-outcome-stub .directd-outcome-stub-meta {
+  margin-top: 8px;
+  font: 600 12px/1.3 var(--mono);
+  color: var(--fade);
 }
 
 /* The same outcome, read in the table: code, name and detail on one line. */
@@ -1078,6 +1118,12 @@ tr.directd-empty td {
   animation: directd-ink 180ms steps(3, end) both;
   animation-delay: calc(160ms + var(--line, 0) * 50ms);
 }
+.directd-outcome-stub.is-printing {
+  animation: directd-feed 280ms steps(7, end) both;
+}
+.directd-outcome-stub.is-printing .directd-outcome-stub-code {
+  animation: directd-ink 150ms 120ms steps(3, end) both;
+}
 .directd-slip.is-printing .directd-stamp {
   animation: directd-stamp 260ms 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -1124,6 +1170,8 @@ tbody tr.is-new td {
 @media (prefers-reduced-motion: reduce) {
   /* No travel: the slip, the stamp and the counters appear in place; the colors still say what changed. */
   .directd-slip.is-printing,
+  .directd-outcome-stub.is-printing,
+  .directd-outcome-stub.is-printing .directd-outcome-stub-code,
   .directd-slip.is-printing .directd-chip,
   .directd-slip.is-printing .directd-summary-item {
     animation: directd-ink 120ms ease-out both;
@@ -1145,14 +1193,9 @@ tbody tr.is-new td {
   .directd-segment.is-wide {
     grid-auto-flow: row;
   }
-  /* Two stubs per row: the status goes on top so the words keep the width. */
-  .directd-ticket-face {
+  /* The kind goes above its chips so the chips keep the width. */
+  .directd-outcome-row {
     grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    row-gap: 4px;
-  }
-  .directd-ticket-code {
-    grid-row: auto;
   }
   .directd-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
