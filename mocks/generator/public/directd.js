@@ -578,13 +578,18 @@ function renderQueries(queries) {
 
   for (const query of queries) {
     const tr = document.createElement('tr')
+    const state = stateOfQuery(query)
+    // Only a query still processing has anything to release.
+    const release = state === 'processando'
+      ? `<button type="button" class="key small" data-release="${esc(query.uid)}">Liberar</button>`
+      : ''
     tr.innerHTML = `
       <td><code>${esc(query.uid)}</code></td>
       <td>${esc(productLabel(query.route))}</td>
       <td>${esc(query.cpf ? formatCpf(query.cpf) : '—')}</td>
       <td>${esc(query.reads ?? 0)}</td>
-      <td>${esc(stateOfQuery(query))}</td>
-      <td><button type="button" class="key small" data-release="${esc(query.uid)}">Liberar</button></td>
+      <td>${esc(state)}</td>
+      <td>${release}</td>
     `
     queriesBody.appendChild(tr)
   }
