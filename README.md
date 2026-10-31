@@ -11,7 +11,7 @@ fake Brazilian data, for development, automated tests and CI, as Docker images o
 |---|---|---|
 | [WhatsApp mock](mocks/whatsapp/) | **WhatsApp Cloud API** (Meta Graph API v23.0, WhatsApp Business Platform): messages, message templates, media, voice calls (Calling API with WebRTC), phone numbers and WABAs, webhooks, and a WhatsApp Web like panel | `docker pull ghcr.io/instituto-ama/whatsapp-mock:latest` |
 | [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail, WhatsApp and SMS notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
-| [Generator](mocks/generator/) | **Fake Brazilian data** for tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, the same for the same seed; populates the Asaas mock with customers and charges in one call. Its UI also runs in the browser at [instituto-ama.github.io/ama4devs/generator/app](https://instituto-ama.github.io/ama4devs/generator/app/) | `docker pull ghcr.io/instituto-ama/generator-mock:latest` |
+| [Generator](mocks/generator/) | **Fake Brazilian data** for tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, the same for the same seed; populates the Asaas mock with customers and charges in one call; simulates the Direct Data credit check at the provider's own paths, with test CPFs and a public token. Its UI also runs in the browser at [instituto-ama.github.io/ama4devs/generator/app](https://instituto-ama.github.io/ama4devs/generator/app/) | `docker pull ghcr.io/instituto-ama/generator-mock:latest` |
 | [SMS mock](mocks/sms/) | **SMS gateway** (native API, Twilio-compatible, simple GET/POST): messages, status and inbound webhooks, deterministic magic numbers, segment counting, OTP extraction, and a phone inbox panel | `docker pull ghcr.io/instituto-ama/sms-mock:latest` |
 
 **Documentation site:** [instituto-ama.github.io/ama4devs](https://instituto-ama.github.io/ama4devs/)
@@ -201,6 +201,10 @@ fills the Asaas mock. See [mocks/generator/README.md](mocks/generator/README.md)
   creates customers and charges through the Asaas API and confirms part of them;
   `GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5` in `.env` does it once on boot,
   while the Asaas mock has no customer.
+- **Direct Data credit check:** `GET /api/Score?CPF=…&TOKEN=…`, `GET /api/BoaVistaAcertaMaisPositivoPF?…` and
+  `GET /api/Historico/ObterRetornoConsultaAsync?ConsultaUid=…` answer the provider's own routes, synchronous and
+  asynchronous, with the public token `00000000-0000-4000-8000-00000000d1d1` and 17 test CPFs (`11100000143` low
+  risk, `11100111212` medium risk, …). The table is configurable like the Asaas test cards, under `/_mock/directd/*`.
 - **Joins the Asaas mock by itself:** each finds the other on boot and every 10 s (compose service name, this
   machine, the Docker host), like Mailpit and the WhatsApp mock. The Asaas panel then has **Integrations › Generator**
   to populate the selected account. `GENERATOR_URL=` (empty) on the Asaas mock turns it off and hides the tab.
