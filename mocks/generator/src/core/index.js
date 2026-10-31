@@ -19,6 +19,7 @@ export * from './address.js'
 export * from './people.js'
 export * from './companies.js'
 export * from './finance.js'
+export * from './credit.js'
 
 /**
  * @typedef {object} Kind
