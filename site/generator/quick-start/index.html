@@ -61,6 +61,7 @@
             <li><a href="#seed">Reproducible seeds</a></li>
             <li><a href="#validate">Validate documents</a></li>
             <li><a href="#asaas">Populate Asaas</a></li>
+            <li><a href="#directd">Check a CPF's credit</a></li>
             <li><a href="#ui">Interactive UI</a></li>
             <li><a href="#off">Turn it off</a></li>
           </ol>
@@ -262,6 +263,25 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
 }</code></pre></div>
                 <p>To populate automatically when the stack starts up, configure <code>GENERATOR_ASAAS_SEED_ON_BOOT</code> in your <code>.env</code> file (stays off unless set):</p>
                 <div class="code"><pre><code>GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5</code></pre></div>
+              </li>
+
+              <li id="directd">
+                <h3>Check a CPF's credit like the Hub does</h3>
+                <p>The container also answers the <strong>Direct Data API v3</strong> credit routes, at the provider's own paths, so the Hub can query the credit of a CPF without touching the provider. Every call carries the public token of the simulation:</p>
+                <div class="code" data-local-only="only on your container"><pre><code># The score of a test CPF (200).
+curl 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The Boa Vista report of the same CPF (200).
+curl 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The consultation is created in the background (201) and its id is kept.
+CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1&amp;Async=habilitar' \
+  | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)
+
+# The first read answers 202 (still running), the next one the full envelope (200).
+curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
+                <p>The score and the Boa Vista report answer <code>200</code>. The asynchronous creation answers <code>201</code> with the <code>consultaUid</code> in it; the read answers <code>202</code> (<code>HTTP/1.1 202 Accepted</code>) while the consultation runs, then <code>200</code> (<code>HTTP/1.1 200 OK</code>) with the full envelope when it is over. A call without the token answers <code>401</code>.</p>
+                <p>The panel of the container (<a href="http://localhost:45450">http://localhost:45450</a>) has a <strong>Crédito por CPF · Direct Data</strong> sheet that shows the same answers and edits the test CPFs. The full reference is in the <a href="../docs/#directd">docs: Direct Data credit check</a>.</p>
               </li>
 
               <li id="ui">

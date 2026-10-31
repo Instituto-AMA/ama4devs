@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Generator docs: kinds, fields, parameters, and Asaas seeder | ama4devs</title>
-  <meta name="description" content="Technical reference for the Brazilian fake data generator: entity fields, query parameters, deterministic PRNG, safe data guarantees, Asaas population details, configuration, and security guard.">
-  <meta name="keywords" content="generator documentation, brazilian fake data schema, deterministic seed, safe test data, asaas mock seeder, fake data api reference">
+  <title>Generator docs: kinds, fields, parameters, Asaas seeder, and Direct Data credit check | ama4devs</title>
+  <meta name="description" content="Technical reference for the Brazilian fake data generator: entity fields, query parameters, deterministic PRNG, safe data guarantees, Asaas population details, the Direct Data credit check, configuration, and security guard.">
+  <meta name="keywords" content="generator documentation, brazilian fake data schema, deterministic seed, safe test data, asaas mock seeder, direct data credit check, cpf score mock, fake data api reference">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/docs/">
   <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/docs/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="ama4devs">
   <meta property="og:title" content="Generator docs: reference &amp; rules">
-  <meta property="og:description" content="Reference documentation for all 12 generated kinds, query parameters, determinism, and Asaas mock integration.">
+  <meta property="og:description" content="Reference documentation for all 12 generated kinds, query parameters, determinism, Asaas mock integration, and the Direct Data credit check.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/docs/">
   <meta name="theme-color" content="#3d1a12">
   <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
@@ -60,6 +60,7 @@
             <li><a href="#determinism">Determinism</a></li>
             <li><a href="#safe-data">Safe data</a></li>
             <li><a href="#asaas">Asaas population</a></li>
+            <li><a href="#directd">Direct Data credit check</a></li>
             <li><a href="#config">Configuration</a></li>
             <li><a href="#compose">Docker Compose</a></li>
             <li><a href="#local-guard">Local guard</a></li>
@@ -70,7 +71,7 @@
       <div>
         <div class="doc-title">
           <h1>Docs</h1>
-          <p class="lead">Complete reference of generated entities, parameters, determinism guarantees, Asaas population mechanics, and configuration.</p>
+          <p class="lead">Complete reference of generated entities, parameters, determinism guarantees, Asaas population mechanics, the Direct Data credit check, and configuration.</p>
         </div>
 
         <div class="paper-shadow" style="margin-top: 36px">
@@ -289,6 +290,496 @@
               </ol>
             </section>
 
+            <section id="directd" aria-labelledby="directd-title">
+              <h2 id="directd-title">Direct Data credit check</h2>
+              <p>The generator answers the <strong>Direct Data API v3</strong> credit routes the Hub uses, at the provider's own paths, faithful to the provider's documentation. The generator never calls the provider: every answer is computed locally, and the only token it accepts is the public <code>00000000-0000-4000-8000-00000000d1d1</code> — no real token ever lives in this repository.</p>
+
+              <h3>Routes and parameters</h3>
+              <p>Three routes, every parameter in the query string, the way the provider takes them:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Route</th>
+                      <th>What it answers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET /api/Score</code></td>
+                      <td>The QUOD credit score of a CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/BoaVistaAcertaMaisPositivoPF</code></td>
+                      <td>The Boa Vista "Acerta Mais Positivo" report of a CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
+                      <td>The result of an async consultation, by <code>ConsultaUid</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Parameter</th>
+                      <th>What it is</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>CPF</code></td>
+                      <td>The document, with or without the mask (<code>529.982.247-25</code> or <code>52998224725</code>)</td>
+                    </tr>
+                    <tr>
+                      <td><code>TOKEN</code></td>
+                      <td>The public token of the simulation</td>
+                    </tr>
+                    <tr>
+                      <td><code>Async</code></td>
+                      <td><code>habilitar</code> asks for an asynchronous consultation (<code>201</code> with the <code>consultaUid</code>)</td>
+                    </tr>
+                    <tr>
+                      <td><code>Callback</code></td>
+                      <td><code>habilitar</code> only records the flag (<code>enviarCallback: true</code>); nothing is ever posted anywhere</td>
+                    </tr>
+                    <tr>
+                      <td><code>GERARCOMPROVANTE</code></td>
+                      <td><code>Habilitar</code> only records the flag (<code>gerarComprovante: true</code>); no PDF is produced</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>A call without the token (or with a wrong one) answers <code>401</code>.</p>
+
+              <h3>The envelope</h3>
+              <p>Every answer but the rate limit carries the documented envelope, in the documented key order. A <code>200</code> of the Score route:</p>
+              <div class="code"><pre><code>{
+  "metaDados": {
+    "consultaNome": "Score de Crédito - QUOD",
+    "consultaUid": "direct-f690bbf7-df69-4f39-89ab-a7569a6389b4",
+    "chave": "CPF=11100000143;",
+    "usuario": "usuario@ama4devs.local",
+    "mensagem": "Sucesso",
+    "ip": "::ffff:172.17.0.1",
+    "resultadoId": 1,
+    "resultado": "Sucesso",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": null,
+    "assincrono": false,
+    "data": "31/10/2026 12:29:25",
+    "tempoExecucaoMs": 19
+  },
+  "retorno": {
+    "dataConsulta": "31/10/2026 12:29:25",
+    "documentoConsultado": "111.000.001-43",
+    "pessoaFisica": {
+      "score": 850,
+      "faixaScore": "801 a 900",
+      "capacidadePagamento": "R$ 2.500,00",
+      "perfil": "Bom pagador"
+    },
+    "pessoaJuridica": null,
+    "observacao": null
+  }
+}</code></pre></div>
+              <p>An asynchronous consultation answers <code>201</code>, with the <code>consultaUid</code> of the query and no <code>retorno</code> yet:</p>
+              <div class="code"><pre><code>{
+  "metaDados": {
+    "consultaNome": "Score de Crédito - QUOD",
+    "consultaUid": "direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e",
+    "chave": "CPF=11100000143;",
+    "usuario": "usuario@ama4devs.local",
+    "mensagem": "Requisição async criada com sucesso. Utilize o ConsultaUid para consultar o resultado.",
+    "ip": "127.0.0.1",
+    "resultadoId": 1,
+    "resultado": "Sucesso",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": null,
+    "assincrono": true,
+    "data": "31/10/2026 09:00:00",
+    "tempoExecucaoMs": 2
+  },
+  "retorno": null
+}</code></pre></div>
+
+              <h3>Statuses</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>200</code></td>
+                      <td>The answer</td>
+                    </tr>
+                    <tr>
+                      <td><code>201</code></td>
+                      <td>Async consultation created</td>
+                    </tr>
+                    <tr>
+                      <td><code>202</code></td>
+                      <td>Async consultation still running</td>
+                    </tr>
+                    <tr>
+                      <td><code>400</code></td>
+                      <td>Invalid or missing CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>401</code></td>
+                      <td>Invalid or missing token</td>
+                    </tr>
+                    <tr>
+                      <td><code>403</code></td>
+                      <td>No balance</td>
+                    </tr>
+                    <tr>
+                      <td><code>404</code></td>
+                      <td>No record for the document</td>
+                    </tr>
+                    <tr>
+                      <td><code>408</code></td>
+                      <td>The provider did not answer in time</td>
+                    </tr>
+                    <tr>
+                      <td><code>429</code></td>
+                      <td>More than 30 requests per second</td>
+                    </tr>
+                    <tr>
+                      <td><code>500</code></td>
+                      <td>Internal error</td>
+                    </tr>
+                    <tr>
+                      <td><code>503</code></td>
+                      <td>The consultation is under maintenance</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The rate limit is the one answer that is not an envelope — it carries the <code>Retry-After: 30</code> header too:</p>
+              <div class="code"><pre><code>HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+
+{
+  "status": 429,
+  "error": "Too Many Requests",
+  "message": "Você realizou muitas requisições. Aguarde 30 segundos e tente novamente.",
+  "retryAfterSeconds": 30
+}</code></pre></div>
+
+              <h3>The test CPFs</h3>
+              <p>Each CPF below is known by the mock and forces one outcome, the way the Asaas test cards force theirs:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>CPF</th>
+                      <th>Outcome</th>
+                      <th>Status</th>
+                      <th>What it answers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>11100000143</code></td>
+                      <td><code>lowRisk</code></td>
+                      <td>200</td>
+                      <td>200, score 850, 3,5% default probability</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100111212</code></td>
+                      <td><code>mediumRisk</code></td>
+                      <td>200</td>
+                      <td>200, score 650, 18% default probability</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100222391</code></td>
+                      <td><code>highRisk</code></td>
+                      <td>200</td>
+                      <td>200, score 420, 41% default probability</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100333460</code></td>
+                      <td><code>restrictions</code></td>
+                      <td>200</td>
+                      <td>200, score 380, debts, protests and restrictions</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100444530</code></td>
+                      <td><code>deceased</code></td>
+                      <td>200</td>
+                      <td>200, score 0, deceased person</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100555609</code></td>
+                      <td><code>irregular</code></td>
+                      <td>200</td>
+                      <td>200, score 500, suspended CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101666641</code></td>
+                      <td><code>warnings</code></td>
+                      <td>200</td>
+                      <td>200 with warnings, score 700</td>
+                    </tr>
+                    <tr>
+                      <td><code>11111111112</code></td>
+                      <td><code>badDocument</code></td>
+                      <td>400</td>
+                      <td>400, invalid CPF digits</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100666788</code></td>
+                      <td><code>notFound</code></td>
+                      <td>404</td>
+                      <td>404, no record for the document</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100777857</code></td>
+                      <td><code>timeout</code></td>
+                      <td>408</td>
+                      <td>408, the provider did not answer in time</td>
+                    </tr>
+                    <tr>
+                      <td><code>11100888926</code></td>
+                      <td><code>noBalance</code></td>
+                      <td>403</td>
+                      <td>403, insufficient balance</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101000007</code></td>
+                      <td><code>unauthorized</code></td>
+                      <td>401</td>
+                      <td>401, invalid IP or token</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101111186</code></td>
+                      <td><code>rateLimited</code></td>
+                      <td>429</td>
+                      <td>429, more than 30 requests per second</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101222255</code></td>
+                      <td><code>unavailable</code></td>
+                      <td>503</td>
+                      <td>503, consultation under maintenance</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101333324</code></td>
+                      <td><code>internalError</code></td>
+                      <td>500</td>
+                      <td>500, internal error</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101444401</code></td>
+                      <td><code>slow</code></td>
+                      <td>200</td>
+                      <td>200, after a 25 s wait</td>
+                    </tr>
+                    <tr>
+                      <td><code>11101555572</code></td>
+                      <td><code>neverSettles</code></td>
+                      <td>200</td>
+                      <td>200, the async read stays 202</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3>Configuring them</h3>
+              <p>Like the Asaas test cards, the table is data: the Direct Data sheet of the panel edits it, and the control routes do it from a script.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Route</th>
+                      <th>What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET /_mock/directd/test-cpfs</code></td>
+                      <td>The table, the outcomes and the policy of the unlisted CPFs</td>
+                    </tr>
+                    <tr>
+                      <td><code>POST /_mock/directd/test-cpfs</code></td>
+                      <td>Adds or replaces a row: <code>{ "cpf": "…", "outcome": "highRisk", "profile": { … } }</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE /_mock/directd/test-cpfs/{cpf}</code></td>
+                      <td>Removes one row</td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE /_mock/directd/test-cpfs</code></td>
+                      <td>Restores the default table and the policy of the environment</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUT /_mock/directd/test-cpfs/policy</code></td>
+                      <td>Sets the policy of the unlisted CPFs: <code>{ "unlisted": "derived" }</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>A valid CPF outside the table follows one of three policies:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Policy</th>
+                      <th>What it answers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>lowRisk</code></td>
+                      <td>The low risk preset (the default, and the value of <code>DIRECTD_UNLISTED</code>)</td>
+                    </tr>
+                    <tr>
+                      <td><code>derived</code></td>
+                      <td>A profile drawn from the CPF itself with the seeded rng: the same CPF always draws the same person</td>
+                    </tr>
+                    <tr>
+                      <td><code>notFound</code></td>
+                      <td><code>404</code>, as if the document were unknown</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3>Async consultations and release</h3>
+              <p><code>Async=habilitar</code> creates the consultation in the background and answers <code>201</code> with its <code>consultaUid</code>; the result is read afterwards, <code>202</code> while the consultation runs and <code>200</code> with the full envelope when it is over:</p>
+              <div class="code"><pre><code># The consultation is created in the background (201) and its id is kept.
+CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1&amp;Async=habilitar' \
+  | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)
+
+# The first read answers 202 (still running), the next one the full envelope (200).
+curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
+              <p>The read while the consultation runs:</p>
+              <div class="code"><pre><code>{
+  "metaDados": {
+    "consultaNome": "Score de Crédito - QUOD",
+    "consultaUid": "direct-b651b99f-dcbe-4654-835f-4dc852caed21",
+    "chave": "CPF=11100000143;",
+    "usuario": "usuario@ama4devs.local",
+    "mensagem": "Consulta em processamento.",
+    "ip": "::ffff:172.17.0.1",
+    "resultadoId": 10,
+    "resultado": "Processando",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": null,
+    "assincrono": true,
+    "data": "31/10/2026 12:29:25",
+    "tempoExecucaoMs": 0
+  },
+  "retorno": null
+}</code></pre></div>
+              <p>The CPF <code>11101555572</code> never settles on its own: its read stays <code>202</code> until the query is released with <code>POST /_mock/directd/queries/{uid}/release</code>.</p>
+
+              <h3>The request log and the counters</h3>
+              <p>Every call to the provider's routes is logged, and the token is kept as its state (<code>valid</code>, <code>invalid</code> or <code>missing</code>), never as its value.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Route</th>
+                      <th>What it answers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET /_mock/directd/requests</code></td>
+                      <td>The log of the calls, newest first (the last 500)</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /_mock/directd/state</code></td>
+                      <td>The counters, the async queries and the policy</td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE /_mock/directd/state</code></td>
+                      <td>Resets the log, the async queries and the counters</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>The provider charges a consultation whose result is <code>Sucesso</code> or <code>Sucesso com Ressalvas</code>, and the mock counts exactly that: the <code>charged</code> counter grows once per <code>consultaUid</code>, when the consultation answers <code>200</code>. Every other answer is counted as not charged.</p>
+              <div class="code"><pre><code>{
+  "token": "00000000-0000-4000-8000-00000000d1d1",
+  "unlisted": "lowRisk",
+  "counters": {
+    "charged": {
+      "total": 5,
+      "byRoute": {
+        "Score": 3,
+        "BoaVistaAcertaMaisPositivoPF": 2
+      }
+    },
+    "notCharged": {
+      "total": 5,
+      "byStatus": {
+        "201": 1,
+        "202": 1,
+        "400": 1,
+        "401": 1,
+        "429": 1
+      }
+    }
+  },
+  "requests": 10
+}</code></pre></div>
+              <p>The newest entry of the log, with the token kept as its state:</p>
+              <div class="code"><pre><code>{
+  "id": 10,
+  "at": "2026-10-31T15:29:25.714Z",
+  "method": "GET",
+  "path": "/api/Historico/ObterRetornoConsultaAsync",
+  "query": {
+    "ConsultaUid": "direct-b651b99f-dcbe-4654-835f-4dc852caed21",
+    "TOKEN": "valid"
+  },
+  "route": "Historico/ObterRetornoConsultaAsync",
+  "cpf": null,
+  "outcome": "lowRisk",
+  "status": 200,
+  "resultado": "Sucesso",
+  "consultaUid": "direct-b651b99f-dcbe-4654-835f-4dc852caed21",
+  "async": true,
+  "charged": true,
+  "durationMs": 1,
+  "response": { … }
+}</code></pre></div>
+
+              <h3>Using it from an application</h3>
+              <p>The application points at the generator by its URL — in this repository's compose, the service name:</p>
+              <div class="code"><pre><code>DIRECTD_MOCK_URL=http://generator:45450</code></pre></div>
+              <p>Outside compose, with the container published on the host:</p>
+              <div class="code"><pre><code>DIRECTD_MOCK_URL=http://localhost:45450</code></pre></div>
+
+              <h3>What is not simulated</h3>
+              <ul>
+                <li>The <code>resultadoId</code> and <code>resultado</code> of <code>202</code>, <code>400</code>, <code>403</code>, <code>404</code>, <code>408</code>, <code>500</code>, <code>503</code> and of <code>Sucesso com Ressalvas</code> are the simulator's own choice: the provider documents only <code>1 Sucesso</code> and <code>3 Não Autorizado</code>.</li>
+                <li><code>consultaUid</code> and <code>chave</code> are <code>null</code> when the call is refused before a consultation exists (<code>400</code>, <code>401</code>, <code>403</code>), and set when the consultation itself failed (<code>404</code>, <code>408</code>, <code>500</code>, <code>503</code>).</li>
+                <li>The texts of <code>faixaScore</code>, <code>perfil</code>, <code>capacidadePagamento</code>, <code>rendaPresumida.faixa</code> and every other descriptive field are plausible values, documented per scenario above.</li>
+                <li><code>Callback=habilitar</code> only records the flag: the mock never posts anywhere.</li>
+                <li><code>GERARCOMPROVANTE=Habilitar</code> only records the flag: no PDF is produced and <code>urlComprovante</code> stays <code>null</code>.</li>
+                <li><code>GET /api/Historico?ConsultaUid=</code> (the <code>{ info, retorno }</code> form) is not simulated.</li>
+              </ul>
+
+              <h3>The generator never calls the provider</h3>
+              <p>The simulation never proxies, forwards or calls any host. Every answer is computed locally from the test CPF table, and the only token it accepts is the public <code>00000000-0000-4000-8000-00000000d1d1</code> — no real token ever lives in this repository.</p>
+            </section>
+
             <section id="config" aria-labelledby="config-title">
               <h2 id="config-title">Configuration</h2>
               <p>The generator server is configured via environment variables:</p>
@@ -333,6 +824,11 @@
                       <td>Specifies auto-population parameters on container startup (e.g. <code>people=10,companies=3,charges=2,confirm=0.5</code>). Stays off unless set. In the repository's root compose, mapped from <code>GENERATOR_ASAAS_SEED_ON_BOOT</code>.</td>
                     </tr>
                     <tr>
+                      <td><code>DIRECTD_UNLISTED</code></td>
+                      <td><code>lowRisk</code></td>
+                      <td>What the Direct Data credit check answers for a valid CPF outside the test table: <code>lowRisk</code>, <code>derived</code> or <code>notFound</code>.</td>
+                    </tr>
+                    <tr>
                       <td><code>MOCK_ALLOWED_HOSTS</code></td>
                       <td><code>""</code></td>
                       <td>Comma-separated list of additional host header values allowed by the local guard.</td>
@@ -346,7 +842,7 @@
               <h2 id="compose-title">Docker Compose</h2>
               <p>In another project's compose, add a <code>generator</code> service next to <code>asaas</code>. Both find each other automatically by service name without requiring any configuration variables:</p>
               <div class="code"><pre><code>  generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.2.0
+    image: ghcr.io/instituto-ama/generator-mock:0.3.0
     ports:
       - '45450:45450'
     depends_on:

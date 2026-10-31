@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Brazilian fake data generator: CPF, CNPJ, CEP, test cards, Asaas seeder | ama4devs</title>
-  <meta name="description" content="Valid fake Brazilian data generator in Docker and in the browser: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses matching real CEP ranges, credit cards, bank accounts, Pix keys, charges, and one-call Asaas mock population.">
-  <meta name="keywords" content="fake data generator, data generator, cpf generator, cnpj generator, cep generator, brazilian fake data, asaas seeder, test fixtures, deterministic generator, mock data, docker">
+  <title>Brazilian fake data generator: CPF, CNPJ, CEP, test cards, Asaas seeder, credit check | ama4devs</title>
+  <meta name="description" content="Valid fake Brazilian data generator in Docker and in the browser: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses matching real CEP ranges, credit cards, bank accounts, Pix keys, charges, one-call Asaas mock population, and the Direct Data credit check by CPF.">
+  <meta name="keywords" content="fake data generator, data generator, cpf generator, cnpj generator, cep generator, brazilian fake data, asaas seeder, direct data credit check, test fixtures, deterministic generator, mock data, docker">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/">
   <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/generator/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
-  <meta property="og:title" content="Brazilian fake data generator: CPF, CNPJ, CEP, and Asaas seeder">
-  <meta property="og:description" content="Generate valid Brazilian people, companies, addresses, test cards, and charges. Seed test suites deterministically and populate the Asaas mock in one call.">
+  <meta property="og:title" content="Brazilian fake data generator: CPF, CNPJ, CEP, Asaas seeder, and credit check">
+  <meta property="og:description" content="Generate valid Brazilian people, companies, addresses, test cards, and charges. Seed test suites deterministically, populate the Asaas mock in one call, and check a CPF's credit.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="pt_BR">
@@ -30,10 +30,10 @@
     "@type": "SoftwareApplication",
     "name": "Brazilian Fake Data Generator",
     "alternateName": "Generator Mock",
-    "description": "Valid fake Brazilian data generator: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses, credit cards, bank accounts, Pix keys, charges, and one-call Asaas mock seeder.",
+    "description": "Valid fake Brazilian data generator: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses, credit cards, bank accounts, Pix keys, charges, one-call Asaas mock seeder, and the Direct Data credit check by CPF.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Docker (linux/amd64, linux/arm64), Browser",
-    "softwareVersion": "0.2.0",
+    "softwareVersion": "0.3.0",
     "url": "https://instituto-ama.github.io/ama4devs/generator/",
     "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock",
     "license": "https://opensource.org/licenses/MIT",
@@ -88,7 +88,7 @@
     <section class="band" id="what-it-generates" aria-labelledby="kinds-title">
       <div class="wrap">
         <h2 id="kinds-title">What it generates.</h2>
-        <p class="intro">Twelve kinds of Brazilian entities and documents, generated on demand or in batches up to 1,000 items. Every kind is deterministic and conforms to official formatting rules.</p>
+        <p class="intro">Twelve kinds of Brazilian entities and documents, generated on demand or in batches up to 1,000 items, plus the Direct Data credit check by CPF. Every kind is deterministic and conforms to official formatting rules.</p>
         <div class="paper-shadow" style="margin-top: 40px">
           <div class="sheet narrow">
             <div class="table-wrap">
@@ -161,6 +161,11 @@
                     <td>Financial charge with billing type, value in BRL, and due date</td>
                     <td><code>value: 129.90</code></td>
                   </tr>
+                  <tr>
+                    <td><code>Direct Data</code></td>
+                    <td>Credit score and Boa Vista report by CPF, on the provider's own routes</td>
+                    <td><code>score: 850</code></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -199,6 +204,12 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
               <p class="proves">Eliminate flaky tests caused by random values. Pass <code>seed</code> and optionally a reference <code>now</code> date to obtain identical data on every test run across machines and CI runs.</p>
               <div class="code"><pre><code data-online="curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42" data-local="curl 'http://localhost:45450/v1/company?count=3&seed=e2e-fixtures&now=2026-10-29'">curl https://instituto-ama.github.io/ama4devs/generator/api/v1/company/42</code></pre></div>
             </article>
+
+            <article class="case" id="case-credit-check">
+              <h3>Check a patient's credit before releasing a deferred payment</h3>
+              <p class="proves">A backend that releases a deferred payment only when the patient's credit allows it needs one fixed answer per branch. The generator answers the Direct Data credit routes at the provider's own paths, with a test CPF for each outcome: low risk, high risk, restrictions, deceased, invalid document, no balance, timeout.</p>
+              <div class="code" data-local-only="only on your container"><pre><code>curl 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
+            </article>
           </div>
         </div>
       </div>
@@ -221,7 +232,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
                 <tbody>
                   <tr>
                     <td><code>GET /health</code></td>
-                    <td><code>{"status":"ok","service":"generator","version":"0.2.0"}</code></td>
+                    <td><code>{"status":"ok","service":"generator","version":"0.3.0"}</code></td>
                   </tr>
                   <tr>
                     <td><code>GET /</code></td>
@@ -250,6 +261,18 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
                   <tr>
                     <td><code>POST /_mock/asaas/populate</code></td>
                     <td><code>{"seed":"...","panelUrl":"...","customers":[...],"payments":[...],"errors":[]}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Score</code></td>
+                    <td>The QUOD credit score of a CPF: <code>{"retorno":{"pessoaFisica":{"score":850}}}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/BoaVistaAcertaMaisPositivoPF</code></td>
+                    <td>The Boa Vista "Acerta Mais Positivo" report of a CPF</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
+                    <td>The result of an async consultation, by <code>ConsultaUid</code></td>
                   </tr>
                 </tbody>
               </table>
