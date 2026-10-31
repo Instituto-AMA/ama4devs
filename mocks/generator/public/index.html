@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Doto:wght@400..900&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
   <link rel="stylesheet" href="./style.css">
   <script type="module" src="./app.js"></script>
+  <script type="module" src="./directd.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -161,7 +162,182 @@
       </div>
     </section>
 
-    <!-- Sheet 4: Popular o mock do Asaas -->
+    <!-- Sheet 4: Crédito por CPF · Direct Data -->
+    <section class="sheet" id="sheet-directd">
+      <h2>Crédito por CPF · Direct Data</h2>
+      <p>Simula a API v3 da Direct Data nos caminhos reais (<code>/api/Score</code>, <code>/api/BoaVistaAcertaMaisPositivoPF</code>). O Hub consulta aqui em vez do provedor.</p>
+
+      <div class="directd-token">
+        <span>TOKEN</span>
+        <code id="directd-token-value">00000000-0000-4000-8000-00000000d1d1</code>
+        <button type="button" class="key small" id="btn-directd-copy-token">Copiar</button>
+      </div>
+
+      <div class="directd-block">
+        <h3 class="directd-subtitle">Consultar</h3>
+
+        <form id="directd-form" onsubmit="return false;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="directd-cpf">CPF</label>
+              <div class="field-seed">
+                <input type="text" id="directd-cpf" placeholder="000.000.000-00" autocomplete="off" spellcheck="false">
+                <button type="button" class="key correct small" id="btn-directd-generate-cpf">Gerar CPF</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="directd-product">Produto</label>
+              <select id="directd-product">
+                <option value="Score">Score (Quod)</option>
+                <option value="BoaVistaAcertaMaisPositivoPF">Boa Vista Acerta Mais</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field-checkbox">
+                <input type="checkbox" id="directd-async">
+                <span>Assíncrono</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="key confirm" id="btn-directd-consult">Consultar</button>
+          </div>
+        </form>
+
+        <div id="directd-result" style="display: none;">
+          <div id="directd-status-chip" class="directd-chip"></div>
+          <div id="directd-summary" class="directd-summary"></div>
+          <div id="directd-actions" class="result-actions"></div>
+          <pre class="json-pre"><code id="directd-json"></code></pre>
+
+          <div id="directd-pages-note" class="directd-note" style="display: none;">
+            <p>Calculado no navegador — o container responde igual.</p>
+            <div class="cmd-line">
+              <code id="directd-curl"></code>
+              <button type="button" class="key small" id="btn-directd-copy-curl">Copiar cURL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="directd-block">
+        <h3 class="directd-subtitle">CPFs de teste</h3>
+
+        <div class="directd-policy">
+          <label for="directd-policy">CPFs fora da lista</label>
+          <select id="directd-policy">
+            <option value="lowRisk">Baixo risco</option>
+            <option value="derived">Perfil derivado do CPF</option>
+            <option value="notFound">Não encontrado (404)</option>
+          </select>
+        </div>
+
+        <form id="directd-add-form" onsubmit="return false;">
+          <div class="form-grid">
+            <div class="field">
+              <label for="directd-new-cpf">CPF</label>
+              <input type="text" id="directd-new-cpf" placeholder="000.000.000-00" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="field">
+              <label for="directd-new-outcome">Resultado</label>
+              <select id="directd-new-outcome"></select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="key" id="btn-directd-add">Adicionar</button>
+            <button type="button" class="key correct" id="btn-directd-restore">Restaurar padrão</button>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>CPF</th>
+                <th>Resultado</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="directd-test-cpfs"></tbody>
+          </table>
+        </div>
+
+        <p class="small" id="directd-pages-list-note" style="display: none;">No Pages a lista vive só nesta aba.</p>
+      </div>
+
+      <!-- Container mode panel -->
+      <div id="directd-container-panel" style="display: none;">
+        <div class="directd-block">
+          <h3 class="directd-subtitle">Cobrança</h3>
+          <div id="directd-counters" class="directd-counters"></div>
+        </div>
+
+        <div class="directd-block">
+          <h3 class="directd-subtitle">Consultas assíncronas</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>UID</th>
+                  <th>Produto</th>
+                  <th>CPF</th>
+                  <th>Leituras</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="directd-queries"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="directd-block">
+          <h3 class="directd-subtitle">Requisições</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Rota</th>
+                  <th>CPF</th>
+                  <th>Status</th>
+                  <th>Resultado</th>
+                  <th>Cobrada</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="directd-requests"></tbody>
+            </table>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="key correct" id="btn-directd-reset">Zerar log e contadores</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pages mode panel -->
+      <div id="directd-pages-panel" style="display: none;">
+        <div class="docker-guide">
+          <strong>Execute o gerador em container localmente:</strong>
+          <div class="docker-cmd">
+            <code id="directd-docker-cmd">docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code>
+            <button type="button" class="key small" id="btn-directd-copy-docker">Copiar comando</button>
+          </div>
+          <p style="margin-top: 12px; margin-bottom: 0;">
+            Após iniciar o container, acesse <a href="http://localhost:45450" class="key small" target="_blank" rel="noopener">http://localhost:45450 ↗</a> para ver os contadores e o log das consultas.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sheet 5: Popular o mock do Asaas -->
     <section class="sheet" id="sheet-asaas">
       <h2>Popular o mock do Asaas</h2>
 
