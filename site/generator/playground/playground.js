@@ -11,9 +11,37 @@
  * `answer` mirrors `generationRoute` in mocks/generator/src/app.ts: a change to
  * the server's routes or to the options it reads changes this file too.
  *
+ * The credit check (`/api/<route>`) answers the Direct Data routes the way
+ * `createDirectd` in mocks/generator/src/directd.ts does, with the same core
+ * (`answerFor`): those routes send no CORS header, so this page always answers
+ * them and the cURL runs the call on a container.
+ *
  * The form lives in the page's query string, so a call can be shared as a link.
  */
-import { GeneratorError, KINDS, STATES, createRng, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis } from '../app/core/index.js'
+import {
+  DEFAULT_TEST_CPFS,
+  DIRECTD_TOKEN,
+  FAILURES,
+  GeneratorError,
+  KINDS,
+  OUTCOMES,
+  ROUTE_ASYNC_READ,
+  ROUTE_BOA_VISTA,
+  ROUTE_SCORE,
+  STATES,
+  answerFor,
+  asyncCreated,
+  asyncProcessing,
+  asyncSettled,
+  consultParams,
+  createRng,
+  envelope,
+  generate,
+  isValidCnh,
+  isValidCnpj,
+  isValidCpf,
+  isValidPis,
+} from '../app/core/index.js'
 import { enhanceDate, enhanceSelect } from './controls.js'
 
 /** The documents the validation route knows (app.ts, VALIDATORS). */
@@ -119,6 +147,71 @@ export async function receita(cnpj) {
   return { found: null, source: null }
 }
 
+/** The Direct Data routes the credit check answers (directd.ts, routeOf). */
+const CREDIT_ROUTES = [ROUTE_SCORE, ROUTE_BOA_VISTA, ROUTE_ASYNC_READ]
+
+/**
+ * The async consultations this page created, by `consultaUid`: read like the
+ * container reads them (202 on the first read, then the final answer). A page
+ * has no release key, so the `neverSettles` CPF stays 202.
+ * @type {Map<string, { route: string, cpf: string, outcome: any, reads: number, final: { status: number, body: any } }>}
+ */
+const creditQueries = new Map()
+
+/**
+ * A query parameter by name, in any case, the way the container reads it.
+ * @param {URLSearchParams} params
+ * @param {string} name
+ */
+function paramOf(params, name) {
+  for (const [key, value] of params) if (key.toLowerCase() === name.toLowerCase()) return value
+  return undefined
+}
+
+/**
+ * The answer of a Direct Data route, as the container gives it with its
+ * default test CPFs and the low risk policy for any other CPF (directd.ts,
+ * `api`): the token first, then the async read or the consultation.
+ * @param {string} route the path after `/api/`
+ * @param {URLSearchParams} params
+ * @param {{ now?: Date, uid?: string }} [options]
+ * @returns {{ status: number, body: any }}
+ */
+export function creditAnswer(route, params, { now = new Date(), uid = crypto.randomUUID() } = {}) {
+  if (!CREDIT_ROUTES.includes(route)) {
+    return { status: 404, body: { error: { code: 'not_found', message: 'Route not found.' } } }
+  }
+  if (paramOf(params, 'TOKEN') !== DIRECTD_TOKEN) {
+    const failure = FAILURES.unauthorized
+    return { status: failure.status, body: envelope({ route, uid: null, cpf: null, result: failure.result, message: failure.message, now }, null) }
+  }
+
+  if (route === ROUTE_ASYNC_READ) {
+    const requested = paramOf(params, 'ConsultaUid') ?? ''
+    const query = creditQueries.get(requested)
+    if (!query) {
+      const failure = FAILURES.notFound
+      return { status: failure.status, body: envelope({ route, uid: requested || null, cpf: null, result: failure.result, message: failure.message, now }, null) }
+    }
+    query.reads += 1
+    if (asyncSettled(query.outcome, query.reads, false)) return query.final
+    return { status: 202, body: asyncProcessing({ route: query.route, uid: requested, cpf: query.cpf || null, now, startedAt: now }) }
+  }
+
+  const answer = answerFor(route, consultParams(params), { now, uid, startedAt: now })
+  const consultaUid = answer.body?.metaDados?.consultaUid
+  const wantsAsync = String(paramOf(params, 'Async') ?? '').toLowerCase() === 'habilitar'
+  if (wantsAsync && answer.status === 200 && consultaUid) {
+    const cpf = String(answer.body.metaDados.chave ?? '').replace(/\D/g, '')
+    creditQueries.set(consultaUid, { route, cpf, outcome: answer.outcome, reads: 0, final: { status: answer.status, body: answer.body } })
+    return { status: 201, body: asyncCreated({ route, uid: consultaUid, cpf, now, startedAt: now }) }
+  }
+  return { status: answer.status, body: answer.body }
+}
+
+/** A CPF with its mask, for the list of test CPFs. */
+const maskCpf = (/** @type {string} */ cpf) => cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+
 /** The options a static file cannot vary: hidden while the public endpoint answers. */
 const NOT_PUBLIC = ['state', 'gender', 'outcome', 'billingType', 'type', 'now']
 
@@ -135,6 +228,7 @@ const TEXT = {
     notInFiles: 'not among the documents of the public files: its check digits are calculated in this page',
     notInFilesCnpj: 'not among the documents of the public files: check digits calculated in this page, then looked up at the Receita',
     curlContainer: 'The same call on your container',
+    lang: 'en',
     unreachable: (base) =>
       `No answer from ${base}. Is the generator running (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Some browsers block a public page from calling localhost: switch to "This page", which runs the same core.`,
     calendar: { today: 'Today', clear: 'Clear', open: 'Pick a day', prev: 'Previous month', next: 'Next month' },
@@ -148,6 +242,7 @@ const TEXT = {
     notInFiles: 'fora dos documentos dos arquivos públicos: os dígitos verificadores são calculados nesta página',
     notInFilesCnpj: 'fora dos documentos dos arquivos públicos: dígitos calculados nesta página e consulta na Receita',
     curlContainer: 'A mesma chamada no seu container',
+    lang: 'pt',
     unreachable: (base) =>
       `Sem resposta de ${base}. O gerador está rodando (docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest)? Alguns navegadores bloqueiam uma página pública chamando localhost: troque para "Esta página", que roda o mesmo core.`,
     calendar: { today: 'Hoje', clear: 'Limpar', open: 'Escolher um dia', prev: 'Mês anterior', next: 'Próximo mês' },
@@ -172,6 +267,8 @@ const PRESENTATION_LABELS = {
  * @returns {{ status: number, body: any }}
  */
 export function answer(pathname, params) {
+  if (pathname.startsWith('/api/')) return creditAnswer(pathname.slice('/api/'.length), params)
+
   if (pathname === '/v1/kinds') {
     return { status: 200, body: { kinds: KINDS.map(({ id, label }) => ({ id, label })) } }
   }
@@ -241,6 +338,9 @@ function start(form) {
   const keep = /** @type {HTMLButtonElement} */ (out.querySelector('[data-keep-seed]'))
   const curlTitle = /** @type {HTMLElement} */ (out.querySelector('[data-curl-title]'))
   const curlHint = /** @type {HTMLElement} */ (out.querySelector('[data-curl-hint]'))
+  const readAsync = /** @type {HTMLButtonElement} */ (out.querySelector('[data-read-async]'))
+  /** The async consultation the next send reads, set by "Read the result". */
+  let readUid = ''
 
   const kinds = $('kind')
   for (const { id, label } of KINDS) {
@@ -249,6 +349,11 @@ function start(form) {
   }
   const states = $('state')
   for (const [code, name] of Object.entries(STATES)) states.append(new Option(`${code} · ${name}`, code))
+  const testCpfs = $('testCpf')
+  for (const { cpf, outcome } of DEFAULT_TEST_CPFS) {
+    const summary = OUTCOMES.find((o) => o.id === outcome)?.summary[t.lang] ?? outcome
+    testCpfs.append(new Option(`${maskCpf(cpf)} · ${summary}`, cpf))
+  }
 
   // The page's own query string fills the form: a shared link replays its call.
   const shared = new URLSearchParams(location.search)
@@ -261,7 +366,18 @@ function start(form) {
   }
 
   // The receipt-style controls take over once the values are in place.
-  for (const select of form.querySelectorAll('select[data-picker]')) enhanceSelect(/** @type {HTMLSelectElement} */ (select))
+  /** @type {Map<string, { refresh(): void }>} */
+  const pickers = new Map()
+  for (const select of form.querySelectorAll('select[data-picker]')) {
+    pickers.set(/** @type {HTMLSelectElement} */ (select).name, enhanceSelect(/** @type {HTMLSelectElement} */ (select)))
+  }
+  /** The list of test CPFs follows the CPF typed: the matching one, or "another CPF". */
+  function syncTestCpf() {
+    const digits = String($('cpf').value).replace(/\D/g, '')
+    testCpfs.value = DEFAULT_TEST_CPFS.some((row) => row.cpf === digits) ? digits : ''
+    pickers.get('testCpf')?.refresh()
+  }
+  syncTestCpf()
   for (const input of form.querySelectorAll('input[data-date]')) enhanceDate(/** @type {HTMLInputElement} */ (input), t.calendar)
 
   /** The route the form describes, and its query string. */
@@ -269,6 +385,18 @@ function start(form) {
     const route = $('route').value
     const params = new URLSearchParams()
     if (route === 'kinds') return { path: '/v1/kinds', params }
+    if (route === 'credit') {
+      const token = String($('token').value).trim()
+      if (readUid) {
+        if (token) params.set('TOKEN', token)
+        params.set('ConsultaUid', readUid)
+        return { path: `/api/${ROUTE_ASYNC_READ}`, params }
+      }
+      params.set('CPF', String($('cpf').value).trim())
+      if (token) params.set('TOKEN', token)
+      if ($('async').checked) params.set('Async', 'habilitar')
+      return { path: `/api/${$('product').value}`, params }
+    }
     if (route === 'validate') {
       const value = String($('value').value).trim()
       return { path: `/v1/validate/${encodeURIComponent($('doc').value)}/${encodeURIComponent(value || '-')}`, params }
@@ -331,6 +459,10 @@ function start(form) {
     const note = /** @type {HTMLElement} */ (form.querySelector('[data-public-note]'))
     note.hidden = !isPublic || route !== 'kind'
     $('seed').placeholder = isPublic ? `1–${PUBLIC.seeds}` : $('seed').dataset.placeholder ?? ''
+    // The Direct Data routes send no CORS header: only this page answers them.
+    const credit = route === 'credit'
+    for (const radio of $('target')) if (radio.value !== 'browser') radio.disabled = credit
+    if (credit && $('target').value !== 'browser') $('target').value = 'browser'
     const base = /** @type {HTMLElement} */ (form.querySelector('[data-base]'))
     base.hidden = $('target').value !== 'container'
     preview()
@@ -388,7 +520,13 @@ function start(form) {
       page.set('doc', $('doc').value)
       page.set('value', String($('value').value).trim())
     }
-    if (target !== 'public') page.set('target', target)
+    if (route === 'credit') {
+      if ($('product').value !== ROUTE_SCORE) page.set('product', $('product').value)
+      page.set('cpf', String($('cpf').value).trim())
+      if (String($('token').value).trim() !== DIRECTD_TOKEN) page.set('token', String($('token').value).trim())
+      if ($('async').checked) page.set('async', 'true')
+    }
+    if (target !== 'public' && route !== 'credit') page.set('target', target)
     if (target === 'container' && base !== 'http://localhost:45450') page.set('base', base)
     const shared = page.toString()
     history.replaceState(null, '', `${location.pathname}${shared ? `?${shared}` : ''}`)
@@ -405,6 +543,7 @@ function start(form) {
     status.className = 'chip'
     status.textContent = '…'
     keep.hidden = true
+    readAsync.hidden = true
 
     /** @type {{ status: number, body: any } | null} */
     let result = null
@@ -475,6 +614,16 @@ function start(form) {
     status.textContent = `${result.status} · ${ms} ms · ${inPage ? t.browser : target === 'public' ? t.public : remote ? `${t.container} ${base}` : t.browser}`
     body.textContent = JSON.stringify(result.body, null, 2)
 
+    // An async consultation is read with its consultaUid until it settles.
+    const meta = result.body?.metaDados
+    if ($('route').value === 'credit' && (result.status === 201 || result.status === 202) && meta?.consultaUid) {
+      readUid = meta.consultaUid
+      readAsync.hidden = false
+      preview()
+    } else {
+      readUid = ''
+    }
+
     // A random seed is the answer's: offer to keep it, so the call repeats.
     const seed = result.body?.seed
     if (seed && !$('seed').value.trim() && target !== 'public') {
@@ -483,8 +632,18 @@ function start(form) {
     }
   }
 
-  form.addEventListener('input', shape)
-  form.addEventListener('change', shape)
+  // Any change to the form starts a new call: a pending read is dropped.
+  const edited = (/** @type {Event} */ event) => {
+    readUid = ''
+    readAsync.hidden = true
+    const name = /** @type {HTMLInputElement} */ (event.target).name
+    if (name === 'testCpf' && testCpfs.value) $('cpf').value = testCpfs.value
+    if (name === 'cpf') syncTestCpf()
+    shape()
+  }
+  form.addEventListener('input', edited)
+  form.addEventListener('change', edited)
+  readAsync.addEventListener('click', () => void run())
   form.addEventListener('submit', (event) => {
     event.preventDefault()
     void run()

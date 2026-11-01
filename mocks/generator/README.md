@@ -2,11 +2,11 @@
 
 <p align="center"><img src="../../site/assets/ama4devs.jpg" alt="ama4devs in gold pixel letters on a black terminal screen, with a progress bar at 50%." width="720"></p>
 
-# Brazilian Fake Data Generator & Asaas Populator
+# Brazilian Fake Data Generator, Asaas Populator & Direct Data Credit Check
 
-**Valid fake Brazilian data for tests, seeded fixtures, and instant Asaas mock population.**
+**Valid fake Brazilian data for tests, seeded fixtures, instant Asaas mock population, and a faithful Direct Data credit check.**
 
-Generates valid documents (CPF, CNPJ, CNH, PIS, RG), realistic individuals and companies with addresses matching Brazilian CEP ranges and DDDs, credit cards, bank accounts, Pix keys, and billing charges. The core runs with zero dependencies in Node, Bun, or directly inside the browser. It also populates the [Asaas mock](https://instituto-ama.github.io/ama4devs/asaas/) with customers and charges in a single call.
+Generates valid documents (CPF, CNPJ, CNH, PIS, RG), realistic individuals and companies with addresses matching Brazilian CEP ranges and DDDs, credit cards, bank accounts, Pix keys, and billing charges. The core runs with zero dependencies in Node, Bun, or directly inside the browser. It also populates the [Asaas mock](https://instituto-ama.github.io/ama4devs/asaas/) with customers and charges in a single call, and answers the Direct Data API v3 credit routes at the provider's own paths ([Direct Data Credit Check](#direct-data-credit-check)).
 
 <p align="center">
   <a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock"><img alt="Image" src="https://img.shields.io/badge/ghcr.io-instituto--ama%2Fgenerator--mock-7a3a2a"></a>
@@ -34,7 +34,7 @@ In another project's compose, add a `generator` service next to `asaas`. Both fi
 
 ```yaml
   generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.2.0
+    image: ghcr.io/instituto-ama/generator-mock:0.3.0
     ports:
       - '45450:45450'
     depends_on:
@@ -47,7 +47,7 @@ In this repository, running `make up` boots the generator along with the Asaas m
 
 ## API Endpoints
 
-The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`).
+The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`). The `/api/*` Direct Data routes are the provider's own paths: they carry no CORS header, because the Hub calls them from another container.
 
 | Method & Route | Description |
 |---|---|
@@ -59,6 +59,18 @@ The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow
 | `GET /v1/:kind` | Generate items for any kind. Accepts query parameters: `count` (1–1000), `seed`, `formatted`, `state`, `gender`, `outcome`, `billingType`, `now` |
 | `GET /_mock/asaas/status` | Asaas connection check: `{ asaasUrl, panelUrl, reachable, customers }` |
 | `POST /_mock/asaas/populate` | Populate the Asaas mock with realistic customers and charges |
+| `GET /api/Score` | Direct Data credit score of a CPF (the QUOD report) |
+| `GET /api/BoaVistaAcertaMaisPositivoPF` | Direct Data Boa Vista report of a CPF ("Acerta Mais Positivo") |
+| `GET /api/Historico/ObterRetornoConsultaAsync` | Direct Data async result, read by `ConsultaUid` |
+| `GET /_mock/directd/test-cpfs` | The Direct Data test CPF table, the outcomes and the policy of the unlisted CPFs |
+| `POST /_mock/directd/test-cpfs` | Adds or replaces a test CPF: `{ cpf, outcome, profile? }` |
+| `DELETE /_mock/directd/test-cpfs/{cpf}` | Removes one test CPF |
+| `DELETE /_mock/directd/test-cpfs` | Restores the default table and the policy of the environment |
+| `PUT /_mock/directd/test-cpfs/policy` | Sets the policy of the unlisted CPFs: `{ unlisted }` |
+| `POST /_mock/directd/queries/{uid}/release` | Releases an async consultation that would never settle |
+| `GET /_mock/directd/requests` | The request log of the Direct Data routes (the token is kept as its state, never its value) |
+| `GET /_mock/directd/state` | The counters of the charge rule, the async queries and the policy |
+| `DELETE /_mock/directd/state` | Resets the request log, the async queries and the counters |
 
 ### Supported Kinds
 
@@ -131,6 +143,217 @@ Set `ASAAS_SEED_ON_BOOT` (or `GENERATOR_ASAAS_SEED_ON_BOOT` in the root `.env`) 
 ASAAS_SEED_ON_BOOT="people=10,companies=3,charges=2,confirm=0.5"
 ```
 
+## Direct Data Credit Check
+
+The generator also answers the **Direct Data API v3** credit routes the Hub uses, at the provider's own paths, faithful to the provider's documentation ([`spec/directd/`](spec/directd/README.md)). The generator never calls the provider: every answer is computed locally, and the only token it accepts is the public `00000000-0000-4000-8000-00000000d1d1` — no real token ever lives in this repository.
+
+| Route | What it answers |
+|---|---|
+| `GET /api/Score` | The QUOD credit score of a CPF |
+| `GET /api/BoaVistaAcertaMaisPositivoPF` | The Boa Vista "Acerta Mais Positivo" report of a CPF |
+| `GET /api/Historico/ObterRetornoConsultaAsync` | The result of an async consultation, by `ConsultaUid` |
+
+Every parameter goes in the query string, the way the provider takes them:
+
+| Parameter | What it is |
+|---|---|
+| `CPF` | The document, with or without the mask (`529.982.247-25` or `52998224725`) |
+| `TOKEN` | The public token of the simulation |
+| `Async` | `habilitar` asks for an asynchronous consultation (`201` with the `consultaUid`) |
+| `Callback` | `habilitar` only records the flag (`enviarCallback: true`); nothing is ever posted anywhere |
+| `GERARCOMPROVANTE` | `Habilitar` only records the flag (`gerarComprovante: true`); no PDF is produced |
+
+A call without the token (or with a wrong one) answers `401`. Every other answer carries the documented envelope, in the documented key order — a `200` of the Score route:
+
+```json
+{
+  "metaDados": {
+    "consultaNome": "Score de Crédito - QUOD",
+    "consultaUid": "direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e",
+    "chave": "CPF=11100000143;",
+    "usuario": "usuario@ama4devs.local",
+    "mensagem": "Sucesso",
+    "ip": "127.0.0.1",
+    "resultadoId": 1,
+    "resultado": "Sucesso",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": null,
+    "assincrono": false,
+    "data": "31/10/2026 09:00:00",
+    "tempoExecucaoMs": 3
+  },
+  "retorno": {
+    "dataConsulta": "31/10/2026 09:00:00",
+    "documentoConsultado": "111.000.001-43",
+    "pessoaFisica": {
+      "score": 850,
+      "faixaScore": "801 a 900",
+      "capacidadePagamento": "R$ 2.500,00",
+      "perfil": "Bom pagador"
+    },
+    "pessoaJuridica": null,
+    "observacao": null
+  }
+}
+```
+
+An asynchronous consultation answers `201`, with the `consultaUid` of the query and no `retorno` yet:
+
+```json
+{
+  "metaDados": {
+    "consultaNome": "Score de Crédito - QUOD",
+    "consultaUid": "direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e",
+    "chave": "CPF=11100000143;",
+    "usuario": "usuario@ama4devs.local",
+    "mensagem": "Requisição async criada com sucesso. Utilize o ConsultaUid para consultar o resultado.",
+    "ip": "127.0.0.1",
+    "resultadoId": 1,
+    "resultado": "Sucesso",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": null,
+    "assincrono": true,
+    "data": "31/10/2026 09:00:00",
+    "tempoExecucaoMs": 2
+  },
+  "retorno": null
+}
+```
+
+The rate limit is the one answer that is not an envelope — it carries the `Retry-After: 30` header too:
+
+```json
+{
+  "status": 429,
+  "error": "Too Many Requests",
+  "message": "Você realizou muitas requisições. Aguarde 30 segundos e tente novamente.",
+  "retryAfterSeconds": 30
+}
+```
+
+The statuses of the routes: `200` (the answer), `201` (async consultation created), `202` (async consultation still running), `400` (invalid or missing CPF), `401` (invalid or missing token), `403` (no balance), `404` (no record for the document), `408` (the provider did not answer in time), `429` (more than 30 requests per second), `500` (internal error) and `503` (the consultation is under maintenance).
+
+### The test CPFs
+
+Each CPF below is known by the mock and forces one outcome, the way the Asaas test cards force theirs:
+
+| CPF | Outcome | Status | What it answers |
+|---|---|---|---|
+| `11100000143` | `lowRisk` | 200 | 200, score 850, 3,5% default probability |
+| `11100111212` | `mediumRisk` | 200 | 200, score 650, 18% default probability |
+| `11100222391` | `highRisk` | 200 | 200, score 420, 41% default probability |
+| `11100333460` | `restrictions` | 200 | 200, score 380, debts, protests and restrictions |
+| `11100444530` | `deceased` | 200 | 200, score 0, deceased person |
+| `11100555609` | `irregular` | 200 | 200, score 500, suspended CPF |
+| `11101666641` | `warnings` | 200 | 200 with warnings, score 700 |
+| `11111111112` | `badDocument` | 400 | 400, invalid CPF digits |
+| `11100666788` | `notFound` | 404 | 404, no record for the document |
+| `11100777857` | `timeout` | 408 | 408, the provider did not answer in time |
+| `11100888926` | `noBalance` | 403 | 403, insufficient balance |
+| `11101000007` | `unauthorized` | 401 | 401, invalid IP or token |
+| `11101111186` | `rateLimited` | 429 | 429, more than 30 requests per second |
+| `11101222255` | `unavailable` | 503 | 503, consultation under maintenance |
+| `11101333324` | `internalError` | 500 | 500, internal error |
+| `11101444401` | `slow` | 200 | 200, after a 25 s wait |
+| `11101555572` | `neverSettles` | 200 | 200, the async read stays 202 |
+
+### Configuring them
+
+Like the Asaas test cards, the table is data: the Direct Data sheet of the panel edits it, and the control routes do it from a script.
+
+| Route | What it does |
+|---|---|
+| `GET /_mock/directd/test-cpfs` | The table, the outcomes and the policy of the unlisted CPFs |
+| `POST /_mock/directd/test-cpfs` | Adds or replaces a row: `{ "cpf": "…", "outcome": "highRisk", "profile": { … } }` |
+| `DELETE /_mock/directd/test-cpfs/{cpf}` | Removes one row |
+| `DELETE /_mock/directd/test-cpfs` | Restores the default table and the policy of the environment |
+| `PUT /_mock/directd/test-cpfs/policy` | Sets the policy of the unlisted CPFs: `{ "unlisted": "derived" }` |
+
+A valid CPF outside the table follows one of three policies:
+
+| Policy | What it answers |
+|---|---|
+| `lowRisk` | The low risk preset (the default, and the value of `DIRECTD_UNLISTED`) |
+| `derived` | A profile drawn from the CPF itself with the seeded rng: the same CPF always draws the same person |
+| `notFound` | `404`, as if the document were unknown |
+
+### Async consultations
+
+`Async=habilitar` creates the consultation in the background and answers `201` with its `consultaUid`; the result is read afterwards, `202` while the consultation runs and `200` with the full envelope when it is over:
+
+```bash
+# The consultation is created in the background (201) and its id is kept.
+CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1&Async=habilitar' \
+  | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)
+
+# The first read answers 202 (still running), the next one the full envelope (200).
+curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&TOKEN=00000000-0000-4000-8000-00000000d1d1"
+```
+
+The CPF `11101555572` never settles on its own: its read stays `202` until the query is released with `POST /_mock/directd/queries/{uid}/release`.
+
+### The request log and the counters
+
+Every call to the provider's routes is logged, and the token is kept as its state (`valid`, `invalid` or `missing`), never as its value.
+
+| Route | What it answers |
+|---|---|
+| `GET /_mock/directd/requests` | The log of the calls, newest first (the last 500) |
+| `GET /_mock/directd/state` | The counters, the async queries and the policy |
+| `DELETE /_mock/directd/state` | Resets the log, the async queries and the counters |
+
+The provider charges a consultation whose result is `Sucesso` or `Sucesso com Ressalvas`, and the mock counts exactly that: the `charged` counter grows once per `consultaUid`, when the consultation answers `200`. Every other answer is counted as not charged.
+
+### Using it from an application
+
+The application points at the generator by its URL — in this repository's compose, the service name:
+
+```bash
+DIRECTD_MOCK_URL=http://generator:45450
+```
+
+Outside compose, with the container published on the host:
+
+```bash
+DIRECTD_MOCK_URL=http://localhost:45450
+```
+
+### The calls
+
+```bash
+# The score of a test CPF (200).
+curl 'http://localhost:45450/api/Score?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The same CPF with its mask (200).
+curl 'http://localhost:45450/api/Score?CPF=111.000.001-43&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The Boa Vista report of the same CPF (200).
+curl 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# A failure: the CPF with the invalid check digits (400).
+curl 'http://localhost:45450/api/Score?CPF=11111111112&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# A call without the token (401).
+curl 'http://localhost:45450/api/Score?CPF=11100000143'
+```
+
+### What is not simulated
+
+- The `resultadoId` and `resultado` of `202`, `400`, `403`, `404`, `408`, `500`, `503` and of `Sucesso com Ressalvas` are the simulator's own choice: the provider documents only `1 Sucesso` and `3 Não Autorizado`.
+- `consultaUid` and `chave` are `null` when the call is refused before a consultation exists (`400`, `401`, `403`), and set when the consultation itself failed (`404`, `408`, `500`, `503`).
+- The texts of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every other descriptive field are plausible values, documented per scenario above.
+- `Callback=habilitar` only records the flag: the mock never posts anywhere.
+- `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced and `urlComprovante` stays `null`.
+- `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated.
+- The 429 is forced by its test CPF only: the mock counts no requests per second, and `retryAfterSeconds` is always `30` (no progressive block).
+- `Async=habilitar` on a CPF that fails answers the failure at once, with no `201`; the slow CPF waits only on a synchronous call — its async consultation is created at once.
+- The async read answers `202` on the first read and the final envelope from the second on (or at once after a release); an unknown `ConsultaUid` answers `404` named `Obter Retorno Consulta Async`.
+- The parameter names are read whatever their case (`cpf`, `async`, `token`).
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -141,6 +364,7 @@ ASAAS_SEED_ON_BOOT="people=10,companies=3,charges=2,confirm=0.5"
 | `ASAAS_API_KEY` | `$aact_hmlg_local_master` | Default API key for customer and charge creation (overridable via `apiKey` in populate body) |
 | `ASAAS_PANEL_URL` | `http://localhost:45445` | Browser-accessible URL for Asaas panel links |
 | `ASAAS_SEED_ON_BOOT` | `""` | Comma-separated boot seed configuration (stays off unless set) |
+| `DIRECTD_UNLISTED` | `lowRisk` | What the Direct Data credit check answers for a valid CPF outside the test table: `lowRisk`, `derived` or `notFound` |
 | `MOCK_ALLOWED_HOSTS` | `""` | Comma-separated list of additional host headers allowed by the local guard |
 
 ## Local Guard

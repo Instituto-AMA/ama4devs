@@ -9,6 +9,7 @@ import {
 } from './core/index.js'
 import { asaasStatus, populate, type PopulateInput } from './asaas.ts'
 import type { Config } from './config.ts'
+import { createDirectd } from './directd.ts'
 import { guardLocal } from './local-guard.ts'
 
 /**
@@ -18,17 +19,22 @@ import { guardLocal } from './local-guard.ts'
 export interface AppDeps {
   fetch?: typeof fetch
   now?: () => Date
+  newId?: () => string
+  sleep?: (ms: number) => Promise<void>
 }
 
 /** The application: a fetch handler the server (and the tests) can call. */
 export interface App {
-  fetch(request: Request): Promise<Response>
+  fetch(request: Request, clientIp?: string): Promise<Response>
 }
 
 /** The public files the UI needs, and the type each one is served with. */
 const PUBLIC_FILES: Record<string, { name: string; type: string }> = {
   '/index.html': { name: 'index.html', type: 'text/html; charset=utf-8' },
   '/app.js': { name: 'app.js', type: 'text/javascript; charset=utf-8' },
+  '/directd.js': { name: 'directd.js', type: 'text/javascript; charset=utf-8' },
+  '/chips.js': { name: 'chips.js', type: 'text/javascript; charset=utf-8' },
+  '/tools.js': { name: 'tools.js', type: 'text/javascript; charset=utf-8' },
   '/style.css': { name: 'style.css', type: 'text/css; charset=utf-8' },
   '/favicon.svg': { name: 'favicon.svg', type: 'image/svg+xml' },
 }
@@ -57,9 +63,15 @@ interface GenerateOptions {
 export function createApp(config: Config, deps: AppDeps = {}): App {
   const doFetch = deps.fetch ?? fetch
   const now = deps.now ?? (() => new Date())
+  const newId = deps.newId ?? (() => crypto.randomUUID())
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+
+  // The Direct Data server is built once: the test CPFs, the log and the
+  // counters live between the requests.
+  const directd = createDirectd({ now, newId, sleep }, { unlisted: config.directdUnlisted })
 
   return {
-    async fetch(request: Request): Promise<Response> {
+    async fetch(request: Request, clientIp?: string): Promise<Response> {
       const url = new URL(request.url)
       const pathname = url.pathname
 
@@ -90,6 +102,16 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
 
       if (pathname.startsWith('/v1/')) {
         return generationRoute(request, url)
+      }
+
+      // The Direct Data routes live at the provider's own paths: the Hub
+      // calls them from another container, so they carry no local guard.
+      if (pathname.startsWith('/api/')) {
+        return directd.api(request, url, clientIp)
+      }
+
+      if (pathname.startsWith('/_mock/directd/')) {
+        return directd.control(request, url)
       }
 
       if (pathname === '/_mock/asaas/status') {

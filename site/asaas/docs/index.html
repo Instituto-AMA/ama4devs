@@ -109,6 +109,7 @@
                 <li>Everything comes up configured: on boot and on every tick, the sender number gets this server's webhook and the payer templates are created in the WhatsApp mock, through Meta's own calls.</li>
                 <li>Every customer is born with Asaas's eight default notification settings (<code>GET /v3/customers/{id}/notifications</code>, changed with <code>PUT /v3/notifications/batch</code>), with e-mail, SMS and WhatsApp all on here (Asaas starts WhatsApp off). The due-date warning goes out N days before (10 by default) and on the due day; an overdue charge is told again every N days (7 by default) while unpaid; a subscription's charge is not told on creation.</li>
                 <li>The customer's <code>notificationDisabled</code> and each setting are honored (the SMS needs a mobile phone on the customer), a failing channel never blocks the charge, and the panel resends on demand.</li>
+                <li>Each account has its own switch per channel: <strong>Integrações › E-mail, WhatsApp, SMS</strong> in the panel, or <code>PUT /_admin/accounts/:id/notify</code> with <code>{"email": false}</code>. A channel turned off sends nothing to that account's customers, whatever their settings say; the other accounts do not change. A new account starts with every channel on. It is the simulator's switch, not an Asaas field.</li>
               </ul>
             </section>
 

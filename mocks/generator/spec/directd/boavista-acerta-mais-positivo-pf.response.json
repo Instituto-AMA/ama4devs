@@ -1,0 +1,290 @@
+{
+  "metaDados": {
+    "consultaNome": "string",
+    "consultaUid": "string",
+    "chave": "string",
+    "usuario": "string",
+    "mensagem": "string",
+    "ip": "string",
+    "resultadoId": 0,
+    "resultado": "string",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": "string",
+    "assincrono": true,
+    "data": "dd/MM/yyyy HH:mm:ss",
+    "tempoExecucaoMs": 0
+  },
+  "retorno": {
+    "cpf": "string",
+    "cpfSituacao": "string",
+    "cpfOrigem": "string",
+    "cpfDataAtualizacaoReceita": "string",
+    "rg": "string",
+    "rguf": "string",
+    "rgDataEmissao": "string",
+    "nome": "string",
+    "nomeSocial": "string",
+    "nomePai": "string",
+    "mae": "string",
+    "nascimento": "string",
+    "sexo": "string",
+    "nacionalidade": "string",
+    "naturalidade": "string",
+    "grauInstrucao": "string",
+    "estadoCivil": "string",
+    "numeroDependentes": "string",
+    "indicacaoObito": "string",
+    "tituloEleitor": "string",
+    "numeroPIS": "string",
+    "cartaoNacionalSaude": "string",
+    "email": "string",
+    "telefone": "string",
+    "faixaRenda": "string",
+    "classeSocial": "string",
+    "poderAquisitivo": "string",
+    "ultimoImpostoRenda": "string",
+    "qtdDependentesBolsaFamilia": "string",
+    "rua": "string",
+    "bairro": "string",
+    "cidade": "string",
+    "uf": "string",
+    "cep": "string",
+    "restricoes": {
+      "quantidadeOcorrencias": "string",
+      "ocorrencias": [
+        {
+          "codigoInformacao": "string",
+          "descricaoInformacao": "string",
+          "titulo": "string",
+          "observacoes": "string"
+        }
+      ]
+    },
+    "participacaoEmEmpresas": {
+      "quantidadeOcorrencias": "string",
+      "ocorrencias": [
+        {
+          "cnpj": "string",
+          "razaoSocial": "string",
+          "participanteTipo": "string",
+          "participanteDocumento": "string",
+          "participanteCargo": "string",
+          "participanteRenda": "string",
+          "participacao": "string",
+          "quantidadeOutrosSocios": "string"
+        }
+      ]
+    },
+    "pendenciasFinanceiras": {
+      "quantidadeOcorrencia": "string",
+      "valorTotal": "string",
+      "ultimoVencimento": "string",
+      "dataPrimeiro": "string",
+      "totalCredores": "string",
+      "valorMaior": "string",
+      "valorPrimeiro": "string",
+      "periodoInicial": "string",
+      "periodoFinal": "string",
+      "dataMaior": "string",
+      "provedores": [
+        {
+          "provedor": "string"
+        }
+      ],
+      "ocorrencias": [
+        {
+          "dataVencimento": "string",
+          "dataInclusao": "string",
+          "informante": "string",
+          "tipoDevedor": "string",
+          "credor": "string",
+          "moeda": "string",
+          "valor": "string",
+          "contrato": "string",
+          "origem": "string",
+          "subjudice": "string",
+          "modalidade": "string",
+          "entidade": "string"
+        }
+      ]
+    },
+    "protestos": {
+      "quantidadeOcorrencia": "string",
+      "valorTotal": "string",
+      "ultimoProtesto": "string",
+      "dataPrimeiro": "string",
+      "valorPrimeiro": "string",
+      "dataUltimo": "string",
+      "valorUltimo": "string",
+      "dataMaior": "string",
+      "valorMaior": "string",
+      "ocorrencias": [
+        {
+          "data": "string",
+          "moeda": "string",
+          "valor": "string",
+          "valorCustas": "string",
+          "quantidade": "string",
+          "cartorio": "string",
+          "origem": "string",
+          "credor": "string",
+          "anuencia": "string",
+          "tipoAnotacao": "string",
+          "subjudice": "string",
+          "vencimento": "string"
+        }
+      ]
+    },
+    "chequeSemFundoVarejo": {
+      "quantidadeOcorrencia": "string",
+      "correntista": "string",
+      "tipoPessoa": "string",
+      "documento": "string"
+    },
+    "chequeSemFundoBacen": {
+      "quantidadeOcorrencia": "string",
+      "correntista": "string",
+      "tipoPessoa": "string",
+      "documento": "string"
+    },
+    "falenciasAcoesRecuperacoes": {
+      "quantidadeOcorrencia": "string",
+      "valorTotal": "string",
+      "ultimoRegistro": "string",
+      "ocorrencias": [
+        {
+          "tipo": "string",
+          "quantidade": "string",
+          "cartorio": "string",
+          "data": "string",
+          "origem": "string",
+          "valor": "string",
+          "documento": "string",
+          "razaoSocial": "string"
+        }
+      ]
+    },
+    "scores": {
+      "quantidadeOcorrencias": "string",
+      "ocorrencias": [
+        {
+          "layout": "string",
+          "tipoScore": "string",
+          "score": "string",
+          "execucao": "string",
+          "descricaoPlano": "string",
+          "descricaoScore": "string",
+          "classificacaoNro": "string",
+          "classificacaoABC": "string",
+          "probabilidadeInadimplencia": "string",
+          "texto": "string",
+          "risco": "string",
+          "modeloScore": "string",
+          "informante": "string"
+        }
+      ]
+    },
+    "somenteTelefone": {
+      "registroLocalizado": "string",
+      "dados": [
+        {
+          "codigoIdentificacaoTelefone": "string",
+          "tipoPessoa": "string",
+          "documento": "string",
+          "ddd": "string",
+          "numeroTelefone": "string",
+          "tipoTelefone": "string",
+          "pontuacao": "string"
+        }
+      ]
+    },
+    "somenteEndereco": {
+      "registroLocalizado": "string",
+      "dados": [
+        {
+          "codigoIdentificacaoEndereco": "string",
+          "tipoPessoa": "string",
+          "documento": "string",
+          "endereco": "string",
+          "numero": "string",
+          "complemento": "string",
+          "bairro": "string",
+          "cidade": "string",
+          "uf": "string",
+          "cep": "string",
+          "pontuacao": "string",
+          "latitude": "string",
+          "longitude": "string"
+        }
+      ]
+    },
+    "passagensComerciais": {
+      "quantidadeOcorrencias": "string",
+      "ocorrencias": [
+        {
+          "dataConsulta": "string",
+          "horaConsulta": "string",
+          "clienteConsulta": "string",
+          "telefoneCliente": "string",
+          "enderecoCliente": "string"
+        }
+      ]
+    },
+    "acoesCiveis": {
+      "quantidadeOcorrencia": "string",
+      "valorTotal": "string",
+      "valorPrimeiro": "string",
+      "valorUltimo": "string",
+      "dataPrimeiro": "string",
+      "dataUltimo": "string",
+      "valorMaior": "string",
+      "valorMenor": "string",
+      "dataMaior": "string",
+      "dataMenor": "string",
+      "ocorrencias": [
+        {
+          "requerido": "string",
+          "valor": "string",
+          "acao": "string",
+          "documento": "string",
+          "foro": "string",
+          "origem": "string",
+          "vara": "string",
+          "comarca": "string",
+          "autor": "string",
+          "processo": "string",
+          "dataDistribuicao": "string"
+        }
+      ]
+    },
+    "decisao": {
+      "codigoSituacao": "string",
+      "descricao": "string",
+      "observacoes": "string",
+      "layout": "string"
+    },
+    "rendaPresumida": {
+      "descricao": "string",
+      "faixa": "string",
+      "rendaAnual": "string",
+      "mensagem": "string",
+      "dataReferencia": "string",
+      "valorPresumido": "string",
+      "dadosCadastroPositivo": "string"
+    },
+    "controlePositivo": {
+      "ocorrenciasFaturasEmAtraso": [
+        {
+          "notaComportamentoFaturaEmAtraso": "string"
+        }
+      ],
+      "ocorrenciasNotaComportamentosContratosRecentes": [
+        {
+          "nota": "string"
+        }
+      ]
+    }
+  }
+}

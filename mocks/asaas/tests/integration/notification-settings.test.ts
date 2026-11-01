@@ -8,7 +8,9 @@
  * customer's own account; a setting turned off silences its event; the warning
  * goes out N days before the due date and on the due day; an overdue charge is
  * told again every N days while unpaid, once per day; a moved offset moves the
- * day; a subscription's charge is not told on creation.
+ * day; a subscription's charge is not told on creation; a channel the account
+ * turned off (the simulator's switch, /_admin/accounts/:id/notify) queues
+ * nothing for any of its customers, and only for that account.
  */
 import { afterEach, describe, expect, it } from 'bun:test'
 import { notificationDeliveries } from '../../src/db/schema/index.ts'
@@ -186,5 +188,56 @@ describe('customer notification settings', () => {
     expect(res.status).toBe(200)
     await h.tick()
     expect((await told()).filter((t) => t.includes('PAYMENT_CREATED'))).toEqual([])
+  })
+})
+
+async function admin(path: string, method = 'GET', body?: unknown) {
+  const res = await h.app.app.handle(
+    new Request(`http://localhost${path}`, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+  )
+  return { status: res.status, body: (await res.json().catch(() => null)) as any }
+}
+
+describe("the account's channel switches", () => {
+  it('a new account sends through every channel', async () => {
+    await boot()
+    const res = await admin(`/_admin/accounts/${h.accountId}/notify`)
+    expect(res).toEqual({ status: 200, body: { email: true, whatsapp: true, sms: true } })
+  })
+
+  it('a channel turned off queues nothing for the customers of that account', async () => {
+    await boot()
+    const put = await admin(`/_admin/accounts/${h.accountId}/notify`, 'PUT', { email: false })
+    expect(put).toEqual({ status: 200, body: { email: false, whatsapp: true, sms: true } })
+
+    await charge(await customer())
+    await h.tick()
+    expect(await told()).toEqual(['2026-01-05 PAYMENT_CREATED WHATSAPP'])
+  })
+
+  it('another account keeps its own switches', async () => {
+    await boot()
+    const other = await createSecondAccount(h)
+    await admin(`/_admin/accounts/${h.accountId}/notify`, 'PUT', { email: false, whatsapp: false })
+
+    const res = await h.as(other.apiKey).call('create-new-customer', {
+      body: { name: 'Joana Teste', cpfCnpj: '24971563792', email: 'joana@localhost', mobilePhone: '47999997777' },
+    })
+    const due = await h.as(other.apiKey).call('create-new-payment', {
+      body: { customer: res.body.id, billingType: 'BOLETO', value: 80, dueDate: '2026-01-20' },
+    })
+    expect(due.status).toBe(200)
+    await h.tick()
+    expect(await told()).toEqual(['2026-01-05 PAYMENT_CREATED EMAIL', '2026-01-05 PAYMENT_CREATED WHATSAPP'])
+  })
+
+  it('an unknown account is 404', async () => {
+    await boot()
+    expect((await admin('/_admin/accounts/nope/notify')).status).toBe(404)
+    expect((await admin('/_admin/accounts/nope/notify', 'PUT', { sms: false })).status).toBe(404)
   })
 })

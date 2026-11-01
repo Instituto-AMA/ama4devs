@@ -1,7 +1,7 @@
 {
   "name": "generator-mock",
-  "version": "0.2.0",
-  "description": "Brazilian fake data generator for development and tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, plus one-call population of the Asaas mock.",
+  "version": "0.3.0",
+  "description": "Brazilian fake data generator for development and tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, plus one-call population of the Asaas mock and the Direct Data credit check simulation.",
   "keywords": [
     "fake-data",
     "generator",
@@ -10,6 +10,8 @@
     "cep",
     "brazil",
     "asaas",
+    "direct-data",
+    "credit-check",
     "mock-server",
     "testing",
     "docker"

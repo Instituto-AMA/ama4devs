@@ -31,6 +31,7 @@ import {
   type NotifiableEvent,
 } from '../domain/notification-text.ts'
 import { serializePayment, type PaymentRow } from '../modules/payments/serializer.ts'
+import { accountChannels, setAccountChannels } from '../notify/account-switches.ts'
 import { arrivals, channelStatus } from '../notify/channels.ts'
 import { dispatchNotifications, sendTestNotification } from '../notify/dispatcher.ts'
 import { inboundWhatsapp } from '../notify/inbound.ts'
@@ -764,6 +765,20 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
           ),
         },
       )
+
+      /**
+       * The payer channels of an account (Integrações › E-mail / WhatsApp / SMS):
+       * a channel turned off here queues nothing for the account's customers.
+       * The simulator's switch, not an Asaas operation.
+       */
+      .get('/accounts/:id/notify', async ({ params }) => accountChannels(ctx.db, params.id))
+      .put('/accounts/:id/notify', async ({ params, body }) => setAccountChannels(ctx.db, params.id, body), {
+        body: t.Object({
+          email: t.Optional(t.Boolean()),
+          whatsapp: t.Optional(t.Boolean()),
+          sms: t.Optional(t.Boolean()),
+        }),
+      })
 
       // ── API keys of an account (the "Chaves de API" tab) ─────────────────
       .get('/accounts/:id/keys', async ({ params }) => ({

@@ -6,6 +6,8 @@
  * works: whether the channel answers, what Asaas sent, what actually arrived at
  * Mailpit or the WhatsApp mock (read back from them), the WhatsApp statuses and
  * replies, a button to open Mailpit or the WhatsApp console, and "Enviar teste".
+ * The switch of the account selected in the topbar turns the channel off for
+ * that account only (`/_admin/accounts/:id/notify`).
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin, type PayerNotification } from '../../api.ts'
@@ -22,11 +24,21 @@ import {
   Field,
   Row,
   Table,
+  Toggle,
   type Tone,
 } from '../../components/ui.tsx'
 import * as I from '../../icons.ts'
 
 type Channel = 'EMAIL' | 'WHATSAPP' | 'SMS'
+
+/** The account's switches, as `/_admin/accounts/:id/notify` answers them. */
+interface AccountSwitches {
+  email: boolean
+  whatsapp: boolean
+  sms: boolean
+}
+
+const SWITCH_KEY: Record<Channel, keyof AccountSwitches> = { EMAIL: 'email', WHATSAPP: 'whatsapp', SMS: 'sms' }
 
 interface ChannelState {
   on: boolean
@@ -64,6 +76,7 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
   const [to, setTo] = useState(email ? 'teste@localhost' : sms ? '+5511999990010' : '5511999999999')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<{ tone: 'primary' | 'danger'; text: string } | null>(null)
+  const [switches, setSwitches] = useState<AccountSwitches | null>(null)
   const accountId = props.store.selected?.id
 
   const load = async () => {
@@ -75,6 +88,21 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
     setStatus(s)
     setSent((list.data as PayerNotification[]).filter((n) => n.channel === channel))
     setArrived(a)
+    setSwitches(accountId ? await admin(`/accounts/${encodeURIComponent(accountId)}/notify`) : null)
+  }
+
+  const flip = async (on: boolean) => {
+    if (!accountId) return
+    setNotice(null)
+    try {
+      const next = await admin(`/accounts/${encodeURIComponent(accountId)}/notify`, {
+        method: 'PUT',
+        body: JSON.stringify({ [SWITCH_KEY[channel]]: on }),
+      })
+      setSwitches(next)
+    } catch (e) {
+      setNotice({ tone: 'danger', text: errorText(e) })
+    }
   }
 
   useEffect(() => {
@@ -145,6 +173,21 @@ export function ChannelPage(props: PageProps & { channel: Channel }) {
             </Badge>
           )}
         </div>
+        {switches && (
+          <div style={{ marginBottom: 'var(--pad-sm)' }}>
+            <Toggle
+              checked={switches[SWITCH_KEY[channel]]}
+              onChange={(on) => void flip(on)}
+              hint={
+                switches[SWITCH_KEY[channel]]
+                  ? 'Os clientes desta conta recebem por este canal, conforme as notificações de cada um.'
+                  : 'Nada sai por este canal para os clientes desta conta. As outras contas não mudam.'
+              }
+            >
+              {email ? 'Enviar e-mail' : sms ? 'Enviar SMS' : 'Enviar WhatsApp'} aos clientes desta conta
+            </Toggle>
+          </div>
+        )}
         {/* Off, the message says where the simulator looked for it: a hint, not a failure. */}
         {s.error && <Banner tone={s.on ? 'danger' : 'warn'}>{s.error}</Banner>}
         <div class="detail-grid">

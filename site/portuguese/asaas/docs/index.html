@@ -110,6 +110,7 @@
                 <li>Tudo sobe configurado: no boot e a cada tick, o número remetente recebe o webhook deste servidor e os templates do pagador são criados no mock do WhatsApp, pelas chamadas da própria Meta.</li>
                 <li>Todo cliente nasce com as oito notificações padrão do Asaas (<code>GET /v3/customers/{id}/notifications</code>, alteradas com <code>PUT /v3/notifications/batch</code>), aqui com e-mail, SMS e WhatsApp ligados (o Asaas começa com o WhatsApp desligado). O aviso de vencimento sai N dias antes (10 por padrão) e no dia do vencimento; a cobrança vencida é avisada de novo a cada N dias (7 por padrão) enquanto não é paga; a cobrança de assinatura não é avisada na criação.</li>
                 <li>O <code>notificationDisabled</code> do cliente e cada configuração são respeitados, um canal com falha nunca trava a cobrança, e o painel reenvia quando você pede.</li>
+                <li>Cada conta tem a sua chave por canal: <strong>Integrações › E-mail, WhatsApp, SMS</strong> no painel, ou <code>PUT /_admin/accounts/:id/notify</code> com <code>{"email": false}</code>. Um canal desligado não manda nada aos clientes daquela conta, seja qual for a configuração deles; as outras contas não mudam. Uma conta nova começa com todos os canais ligados. É uma chave do simulador, não um campo do Asaas.</li>
               </ul>
             </section>
 

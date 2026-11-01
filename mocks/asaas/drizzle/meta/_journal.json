@@ -57,6 +57,13 @@
       "when": 1793297332267,
       "tag": "0007_invoice_issuing",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793567306073,
+      "tag": "0008_account_notify_channels",
+      "breakpoints": true
     }
   ]
 }
