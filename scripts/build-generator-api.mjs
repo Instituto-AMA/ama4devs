@@ -20,10 +20,38 @@
 // `now` is fixed, so a file never changes between builds: ages and due dates
 // count from NOW.
 //
+// The Direct Data credit check rides along, one level up (<out>/../): the
+// container's synchronous answer for every test CPF on both routes, at the
+// provider's own route names:
+//
+//   <out>/../Score/<cpf>                          = GET /api/Score?CPF=<cpf>&TOKEN=<token>
+//   <out>/../BoaVistaAcertaMaisPositivoPF/<cpf>   = GET /api/BoaVistaAcertaMaisPositivoPF?CPF=<cpf>&TOKEN=<token>
+//   <out>/../directd.json                         the test CPFs, their outcome and the status the container answers
+//
+// The body is the provider's, byte for byte as the container builds it (the
+// envelope with `metaDados` and `retorno`, the 429 body); Pages always answers
+// HTTP 200, so the status the container would answer is in directd.json. A
+// static file checks no token and runs no async query: those live in the
+// container and in the playground's own page.
+//
 // usage: node scripts/build-generator-api.mjs <out-dir>
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { KINDS, generate, isValidCnh, isValidCnpj, isValidCpf, isValidPis } from '../mocks/generator/src/core/index.js'
+import { dirname, join } from 'node:path'
+import {
+  DEFAULT_TEST_CPFS,
+  DIRECTD_TOKEN,
+  KINDS,
+  OUTCOMES,
+  ROUTE_BOA_VISTA,
+  ROUTE_SCORE,
+  answerFor,
+  createRng,
+  generate,
+  isValidCnh,
+  isValidCnpj,
+  isValidCpf,
+  isValidPis,
+} from '../mocks/generator/src/core/index.js'
 
 const SEEDS = 100
 const COUNT = 10
@@ -107,4 +135,34 @@ write(join(out, 'index'), {
   sameAs: `GET /v1/<kind>?count=${COUNT}&seed=<seed>&now=${NOW}[&formatted=true] on the container`,
 })
 
-console.log(`generator api: ${files} files (${validated} validated documents) in ${out}`)
+// The Direct Data credit check: the synchronous answer of every test CPF.
+const creditOut = dirname(out)
+/** A stable consultaUid per route and CPF, so a file never changes between builds. */
+const stableUid = (seed) => {
+  const rng = createRng(seed)
+  const hex = (n) => Array.from({ length: n }, () => rng.int(0, 15).toString(16)).join('')
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-${'89ab'[rng.int(0, 3)]}${hex(3)}-${hex(12)}`
+}
+const creditNow = new Date(`${NOW}T12:00:00-03:00`)
+const creditIndex = []
+for (const route of [ROUTE_SCORE, ROUTE_BOA_VISTA]) {
+  mkdirSync(join(creditOut, route), { recursive: true })
+  for (const { cpf, outcome } of DEFAULT_TEST_CPFS) {
+    const answer = answerFor(route, { CPF: cpf }, { now: creditNow, startedAt: creditNow, uid: stableUid(`directd:${route}:${cpf}`), ip: '127.0.0.1' })
+    write(join(creditOut, route, cpf), answer.body)
+    if (route === ROUTE_SCORE) {
+      creditIndex.push({ cpf, outcome, status: answer.status, summary: OUTCOMES.find((o) => o.id === outcome)?.summary })
+    }
+  }
+}
+write(join(creditOut, 'directd'), {
+  description: 'Static answers of the Direct Data credit check simulated by the ama4devs generator: the body its container gives, for every test CPF. Pages answers HTTP 200; `status` is what the container answers.',
+  token: DIRECTD_TOKEN,
+  now: NOW,
+  routes: [ROUTE_SCORE, ROUTE_BOA_VISTA],
+  urls: { answer: '<route>/<cpf>', json: '<route>/<cpf>.json' },
+  sameAs: 'GET /api/<route>?CPF=<cpf>&TOKEN=<token> on the container (synchronous; async, the token check and other CPFs live in the container and the playground)',
+  cpfs: creditIndex,
+})
+
+console.log(`generator api: ${files} files (${validated} validated documents, ${creditIndex.length} credit CPFs) in ${out}`)

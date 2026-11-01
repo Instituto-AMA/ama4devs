@@ -47,7 +47,7 @@ In this repository, running `make up` boots the generator along with the Asaas m
 
 ## API Endpoints
 
-The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`). The `/api/*` Direct Data routes are the provider's own paths: they carry no CORS header, because the Hub calls them from another container.
+The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`). The `/api/*` Direct Data routes are the provider's own paths; they send the same CORS header, so the [playground](https://instituto-ama.github.io/ama4devs/generator/playground/?route=credit) on Pages can call your container. Online, with no container, every test CPF also has a static answer: `curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143` (also `BoaVistaAcertaMaisPositivoPF/<cpf>`; the list and the status each one answers in `generator/api/directd.json`).
 
 | Method & Route | Description |
 |---|---|

@@ -135,7 +135,7 @@
             <label class="pg-check" data-for="credit">
               <input name="async" type="checkbox"> Async <small>responde 201; cada leitura responde 202 e depois 200</small>
             </label>
-            <p class="pg-note" data-for="credit"><strong>Dados simulados.</strong> Score, faixa, restrições e situação do CPF são gerados automaticamente para testes: não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. As rotas da Direct Data não mandam cabeçalho CORS, então esta página responde com o mesmo core do container, e o cURL roda a mesma chamada no seu container.</p>
+            <p class="pg-note" data-for="credit"><strong>Dados simulados.</strong> Score, faixa, restrições e situação do CPF são gerados automaticamente para testes: não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. <strong>Endpoint público</strong> lê a resposta do container para cada CPF de teste, um arquivo que qualquer um chama com <code>curl</code>; <strong>Esta página</strong> roda o mesmo core para qualquer CPF, token e modo assíncrono; <strong>Seu container</strong> responde da sua máquina.</p>
 
             <fieldset class="pg-keys">
               <legend>Quem responde <small>o endpoint público é o Pages; esta página roda o mesmo código do container</small></legend>

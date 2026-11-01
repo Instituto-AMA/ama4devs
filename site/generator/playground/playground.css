@@ -306,7 +306,3 @@
 .pg-label small { display: block; margin-top: 2px; font: 400 12px/1.4 var(--mono); color: var(--fade); overflow-wrap: anywhere; }
 .pg-out .code { margin-bottom: 18px; }
 .pg-note { margin: 0; padding: 10px 12px; font: 400 13px/1.5 var(--sans); color: var(--ink-soft); background: var(--paper-band); border-radius: 6px; }
-
-/* A target the chosen route cannot use (the credit check answers only here). */
-.pg-keyrow input:disabled { cursor: not-allowed; }
-.pg-keyrow input:disabled + span { opacity: 0.45; filter: none; }

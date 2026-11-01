@@ -66,7 +66,8 @@ describe('the Direct Data routes', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+    // The playground on Pages calls a local container from the browser.
+    expect(response.headers.get('access-control-allow-origin')).toBe('*')
 
     const body = await bodyOf(response)
     expect(Object.keys(body.metaDados)).toEqual(Object.keys(spec.metaDados))

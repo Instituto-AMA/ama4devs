@@ -13,8 +13,10 @@
  *
  * The credit check (`/api/<route>`) answers the Direct Data routes the way
  * `createDirectd` in mocks/generator/src/directd.ts does, with the same core
- * (`answerFor`): those routes send no CORS header, so this page always answers
- * them and the cURL runs the call on a container.
+ * (`answerFor`), in the three places: the public endpoint holds the answer of
+ * every test CPF (generator/api/<route>/<cpf>, written by
+ * scripts/build-generator-api.mjs), this page runs the core, and a container
+ * answers from the developer's machine (its /api routes send CORS).
  *
  * The form lives in the page's query string, so a call can be shared as a link.
  */
@@ -70,6 +72,8 @@ const KIND_OPTIONS = {
  */
 const PUBLIC = { count: 10, now: '2026-01-01', seeds: 100, formatted: ['person', 'company', 'address'] }
 const PUBLIC_BASE = new URL('../api/v1/', import.meta.url).href
+/** The public credit answers: <route>/<cpf> beside /v1, at the provider's route names. */
+const CREDIT_BASE = new URL('../api/', import.meta.url).href
 /** The files of the public endpoint already read, by URL. */
 /** @type {Map<string, Promise<any>>} */
 const publicFiles = new Map()
@@ -225,6 +229,12 @@ const TEXT = {
     public: 'answered by the public endpoint',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
     curlPublic: 'Call the public endpoint',
+    creditLocal: {
+      cpf: 'only the test CPFs have a public file: this CPF is answered in this page, by the same core',
+      token: 'a public file checks no token: this call is answered in this page, by the same core',
+      async: 'a public file runs no async query: this call is answered in this page, by the same core',
+    },
+    creditStatus: (n) => `Pages answers HTTP 200 with this body; the container answers ${n}`,
     notInFiles: 'not among the documents of the public files: its check digits are calculated in this page',
     notInFilesCnpj: 'not among the documents of the public files: check digits calculated in this page, then looked up at the Receita',
     curlContainer: 'The same call on your container',
@@ -239,6 +249,12 @@ const TEXT = {
     public: 'respondido pelo endpoint público',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
     curlPublic: 'Chame o endpoint público',
+    creditLocal: {
+      cpf: 'só os CPFs de teste têm arquivo público: este CPF é respondido nesta página, pelo mesmo core',
+      token: 'um arquivo público não confere token: esta chamada é respondida nesta página, pelo mesmo core',
+      async: 'um arquivo público não roda consulta assíncrona: esta chamada é respondida nesta página, pelo mesmo core',
+    },
+    creditStatus: (n) => `o Pages responde HTTP 200 com este corpo; o container responde ${n}`,
     notInFiles: 'fora dos documentos dos arquivos públicos: os dígitos verificadores são calculados nesta página',
     notInFilesCnpj: 'fora dos documentos dos arquivos públicos: dígitos calculados nesta página e consulta na Receita',
     curlContainer: 'A mesma chamada no seu container',
@@ -422,11 +438,22 @@ function start(form) {
    * @param {string} seed
    * `url` is the file read, `address` the short one a person types (Pages
    * answers it from the file's .html twin): no seed is <kind>, a seed <kind>/<n>.
-   * @returns {{ url: string, address: string, validate?: boolean } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { error: string }}
+   * A credit check reads the file of a test CPF; a call no file holds (another
+   * CPF, another token, async) is answered in this page, with the reason.
+   * @returns {{ url: string, address: string, validate?: boolean, status?: number } | { mix: ReturnType<typeof publicMix>, kind: string, seed: string, count: number } | { local: string } | { error: string }}
    */
   function publicPlan(seed) {
     const route = $('route').value
     if (route === 'kinds') return { url: `${PUBLIC_BASE}kinds.json`, address: `${PUBLIC_BASE}kinds` }
+    if (route === 'credit') {
+      const cpf = String($('cpf').value).replace(/\D/g, '')
+      if ($('async').checked) return { local: t.creditLocal.async }
+      if (String($('token').value).trim() !== DIRECTD_TOKEN) return { local: t.creditLocal.token }
+      if (!DEFAULT_TEST_CPFS.some((row) => row.cpf === cpf)) return { local: t.creditLocal.cpf }
+      const file = `${$('product').value}/${cpf}`
+      const status = answerFor($('product').value, { CPF: cpf }).status
+      return { url: `${CREDIT_BASE}${file}.json`, address: `${CREDIT_BASE}${file}`, status }
+    }
     if (route === 'validate') {
       const value = String($('value').value).replace(/\D/g, '')
       const file = `validate/${$('doc').value}/${value || '0'}`
@@ -459,10 +486,6 @@ function start(form) {
     const note = /** @type {HTMLElement} */ (form.querySelector('[data-public-note]'))
     note.hidden = !isPublic || route !== 'kind'
     $('seed').placeholder = isPublic ? `1–${PUBLIC.seeds}` : $('seed').dataset.placeholder ?? ''
-    // The Direct Data routes send no CORS header: only this page answers them.
-    const credit = route === 'credit'
-    for (const radio of $('target')) if (radio.value !== 'browser') radio.disabled = credit
-    if (credit && $('target').value !== 'browser') $('target').value = 'browser'
     const base = /** @type {HTMLElement} */ (form.querySelector('[data-base]'))
     base.hidden = $('target').value !== 'container'
     preview()
@@ -482,9 +505,13 @@ function start(form) {
       if ('error' in plan) {
         line.textContent = `GET ${PUBLIC_BASE}`
         curl.textContent = plan.error
+      } else if ('local' in plan) {
+        line.textContent = `GET ${path}${query ? `?${query}` : ''}`
+        curl.textContent = `curl '${base}${path}${query ? `?${query}` : ''}'\n# ${plan.local}`
       } else if ('url' in plan) {
         line.textContent = `GET ${plan.address}`
         curl.textContent = `curl ${plan.address}`
+        if (plan.status && plan.status !== 200) curl.textContent += `\n# ${t.creditStatus(plan.status)}`
       } else if ('mix' in plan) {
         const files = plan.mix.files
         line.textContent = `GET ${plan.count} × ${plan.kind} · ${t.mixed(files.length)}`
@@ -526,7 +553,7 @@ function start(form) {
       if (String($('token').value).trim() !== DIRECTD_TOKEN) page.set('token', String($('token').value).trim())
       if ($('async').checked) page.set('async', 'true')
     }
-    if (target !== 'public' && route !== 'credit') page.set('target', target)
+    if (target !== 'public') page.set('target', target)
     if (target === 'container' && base !== 'http://localhost:45450') page.set('base', base)
     const shared = page.toString()
     history.replaceState(null, '', `${location.pathname}${shared ? `?${shared}` : ''}`)
@@ -558,9 +585,13 @@ function start(form) {
         return
       }
       try {
-        if ('url' in plan) {
+        if ('local' in plan) {
+          // No public file holds this call: the same core answers it here.
+          result = answer(path, params)
+          inPage = true
+        } else if ('url' in plan) {
           try {
-            result = { status: 200, body: await readPublic(plan.url) }
+            result = { status: plan.status ?? 200, body: await readPublic(plan.url) }
           } catch (error) {
             // The static endpoint validates the documents its files hold; any
             // other one is checked here, by the same core.

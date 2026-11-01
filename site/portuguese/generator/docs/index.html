@@ -305,7 +305,10 @@ Content-Type: application/json
               <h2 id="directd-title">Consulta de crédito Direct Data</h2>
               <p>O gerador também responde às rotas de crédito da <strong>Direct Data API v3</strong> que o Hub usa, nos próprios caminhos do provedor, fiel à documentação do provedor. Um conjunto de CPFs de teste força cada resultado, do mesmo jeito que os cartões de teste do Asaas forçam os seus.</p>
               <p class="note"><strong>Dados simulados.</strong> Tudo o que a consulta de crédito responde é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. Sem vínculo com a Direct Data, a Quod ou a Boa Vista.</p>
-              <p>Teste cada rota no <a href="../playground/?route=credit">playground</a>: escolha um CPF de teste, o produto e o modo assíncrono, e a página responde com o mesmo core do container, ao lado do cURL da mesma chamada.</p>
+              <p>Online, sem container: cada CPF de teste tem sua resposta no Pages, o corpo que o container dá para a chamada síncrona, nos nomes de rota do provedor. <code>generator/api/directd.json</code> lista os CPFs e o status que o container responde (o próprio Pages sempre responde HTTP 200).</p>
+              <div class="code"><pre><code>curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143
+curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPositivoPF/11100333460</code></pre></div>
+              <p>Teste cada rota no <a href="../playground/?route=credit">playground</a>, respondida pelo endpoint público, pela própria página (qualquer CPF, token e modo assíncrono, com o mesmo core) ou pelo seu container (as rotas <code>/api</code> mandam CORS).</p>
 
               <h3>As rotas e os parâmetros</h3>
               <div class="table-wrap">

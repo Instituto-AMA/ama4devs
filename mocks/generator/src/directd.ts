@@ -124,7 +124,9 @@ export function createDirectd(
 
   /**
    * The provider's routes: the Hub calls them from another container, so they
-   * carry no local guard and no CORS header.
+   * carry no local guard. They send the CORS header of the API (like /v1), so
+   * the playground on Pages can call a container on the developer's machine;
+   * the body and the status stay the provider's.
    * @param request The request to answer.
    * @param url The URL of the request.
    * @param clientIp The address of the caller.
@@ -733,6 +735,8 @@ function loggedQuery(params: URLSearchParams, tokenState: TokenState): Record<st
 function respond(answer: Answer): Response {
   const headers: Record<string, string> = {
     'content-type': 'application/json; charset=utf-8',
+    // The playground on Pages calls the container from the browser.
+    'access-control-allow-origin': '*',
     ...answer.headers,
   }
 

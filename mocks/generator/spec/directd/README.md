@@ -66,3 +66,9 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   `30`, and the progressive block (30 s → 60 s → … → 300 s) is not simulated.
 - Parameter names are matched whatever their case (`cpf`, `async`, `token`), the way the provider's
   documentation itself mixes them (`CPF`, `Async`, `ConsultaUid`, `TOKEN`).
+- `Access-Control-Allow-Origin: *` on every `/api/*` answer: a transport header, so the playground on
+  Pages can call a container on the developer's machine. The body and the status do not change.
+- The public endpoint on Pages (`generator/api/<route>/<cpf>`) holds the synchronous answer of each test
+  CPF on both routes, built by `scripts/build-generator-api.mjs` from this core with a fixed date and a
+  stable `consultaUid`. Pages answers HTTP 200 for every file; `generator/api/directd.json` lists the
+  status the container answers. A static file checks no token and runs no async query.
