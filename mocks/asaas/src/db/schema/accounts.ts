@@ -52,6 +52,16 @@ export const accounts = sqliteTable(
 
     accountNumber: text('account_number'),
     dateCreated: datetime('date_created').notNull(),
+
+    /**
+     * The payer channels this account sends through: the simulator's own switch
+     * (Integrações in the panel, `/_admin/accounts/:id/notify`), not an Asaas
+     * field. Off, the channel queues nothing for this account's customers,
+     * whatever their own settings say. A forced send still goes out.
+     */
+    notifyEmail: bool('notify_email').notNull().default(true),
+    notifyWhatsapp: bool('notify_whatsapp').notNull().default(true),
+    notifySms: bool('notify_sms').notNull().default(true),
   },
   (t) => [
     uniqueIndex('accounts_wallet_id_uq').on(t.walletId),

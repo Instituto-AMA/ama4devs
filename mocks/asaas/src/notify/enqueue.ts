@@ -5,8 +5,9 @@
  * Which channels: those whose address is known, set or found (discovery.ts), for a
  * customer whose notifications are on, by the customer's notification setting for
  * the event at that offset (settings.ts; no such row, or the row off, sends
- * nothing). A forced send (the panel's Send now action) names its channels and
- * skips the settings.
+ * nothing), and among those only the channels the account itself keeps on
+ * (account-switches.ts). A forced send (the panel's Send now action) names its
+ * channels and skips both.
  */
 import { eq } from 'drizzle-orm'
 import type { Config } from '../core/config.ts'
@@ -137,10 +138,27 @@ export async function enqueuePaymentNotifications(
   if (channels.length === 0) return 0
 
   const [account] = await tx
-    .select({ name: accounts.name })
+    .select({
+      name: accounts.name,
+      notifyEmail: accounts.notifyEmail,
+      notifyWhatsapp: accounts.notifyWhatsapp,
+      notifySms: accounts.notifySms,
+    })
     .from(accounts)
     .where(eq(accounts.id, args.accountId))
     .limit(1)
+
+  // The account's own switches come last: a channel the account turned off
+  // queues nothing for its customers. A forced send names its channels itself.
+  if (!args.forced && account) {
+    const allowed: Record<Channel, boolean> = {
+      EMAIL: account.notifyEmail,
+      WHATSAPP: account.notifyWhatsapp,
+      SMS: account.notifySms,
+    }
+    channels = channels.filter((channel) => allowed[channel])
+    if (channels.length === 0) return 0
+  }
 
   const message = composeNotification(args.event, {
     payer: customer.name,

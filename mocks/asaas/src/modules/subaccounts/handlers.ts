@@ -156,7 +156,7 @@ export const subaccountHandlers: HandlerMap = {
 
       name: String(b.name),
       companyName: null,
-      // "Display name (auto-populated)" — o Asaas preenche sozinho.
+      // "Display name (auto-populated)" — Asaas fills it in by itself.
       tradingName: String(b.name),
       email: String(b.email),
       loginEmail: b.loginEmail ? String(b.loginEmail) : String(b.email),
@@ -182,6 +182,10 @@ export const subaccountHandlers: HandlerMap = {
       balanceCents: 0,
       accountNumber: `${ctx.rng.digits(6)}-${ctx.rng.digits(1)}`,
       dateCreated: now,
+      // A new subaccount sends through every payer channel, like any account.
+      notifyEmail: true,
+      notifyWhatsapp: true,
+      notifySms: true,
     }
 
     await ctx.db.transaction(async (tx) => {

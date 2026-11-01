@@ -124,6 +124,12 @@ What Asaas tells the person who pays, delivered for real on your machine:
 - The customer's `notificationDisabled` and each setting are honored (the SMS
   needs a mobile phone on the customer), a failing channel never blocks the
   charge, and the panel resends on demand.
+- Each account has its own switch per channel (Integrações › E-mail, WhatsApp,
+  SMS in the panel, or `PUT /_admin/accounts/:id/notify` with
+  `{"email": false}`): a channel turned off queues nothing for that account's
+  customers, whatever their settings say, and the other accounts do not change.
+  A new account starts with every channel on. It is the simulator's switch, not
+  an Asaas field; a send forced from the panel still goes out.
 
 </td>
 </tr>
@@ -181,7 +187,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 ```yaml
 services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.5   # pin a version, or :latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.11.6   # pin a version, or :latest
     ports:
       - '45445:45445'
     environment:
@@ -269,6 +275,7 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET /_admin/credit-cards` · `PUT /_admin/credit-cards/:token` | Saved cards; `{"outcome": "DECLINE"}` or `{"approvalsLeft": 3}` (approve 3 more, then decline) |
 | `GET`, `PUT /_admin/card-capture/schedule` | The retry schedule of recurring card charges, `{"schedule": "0@08:00,1@08:00"}`; `""` is Asaas's default |
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Payer notifications: sent, resend, channel health, what arrived |
+| `GET`, `PUT /_admin/accounts/:id/notify` | The account's payer channels, `{"email": true, "whatsapp": true, "sms": false}`; off queues nothing for its customers |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operations with an engine; the fee table |
 | `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | The city hall's answer to a note now, instead of on the next tick: authorize (fiscal information or not), refuse with `{"description": "…"}`, cancel or refuse to cancel |
 
