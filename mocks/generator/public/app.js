@@ -14,14 +14,7 @@ import {
   isValidCnh,
   isValidPis,
 } from './core/index.js'
-
-/**
- * Text that came from the Asaas mock, escaped before it lands in markup.
- * @param {unknown} value
- */
-function esc(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c)
-}
+import { chipsFor } from './chips.js'
 
 /** Portuguese labels used only by the Portuguese interface. */
 const PRESENTATION_LABELS = {
@@ -51,10 +44,8 @@ const btnNewSeed = /** @type {HTMLButtonElement} */ (document.getElementById('bt
 const btnGenerate = /** @type {HTMLButtonElement} */ (document.getElementById('btn-generate'))
 const genError = /** @type {HTMLElement} */ (document.getElementById('gen-error'))
 
-const optGender = /** @type {HTMLElement} */ (document.getElementById('opt-gender'))
-const optOutcome = /** @type {HTMLElement} */ (document.getElementById('opt-outcome'))
-const optBilling = /** @type {HTMLElement} */ (document.getElementById('opt-billing'))
-const optPixType = /** @type {HTMLElement} */ (document.getElementById('opt-pix-type'))
+/** The options read by some kinds only; `data-for` lists the kinds. */
+const kindOptions = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.kind-opt')])
 
 const tabBtnTable = /** @type {HTMLButtonElement} */ (document.getElementById('tab-btn-table'))
 const tabBtnJson = /** @type {HTMLButtonElement} */ (document.getElementById('tab-btn-json'))
@@ -76,29 +67,6 @@ const btnCopyCurl = /** @type {HTMLButtonElement} */ (document.getElementById('b
 
 const valInput = /** @type {HTMLInputElement} */ (document.getElementById('val-input'))
 const valOutput = /** @type {HTMLElement} */ (document.getElementById('val-output'))
-
-const asaasContainerPanel = /** @type {HTMLElement} */ (document.getElementById('asaas-container-panel'))
-const asaasPagesPanel = /** @type {HTMLElement} */ (document.getElementById('asaas-pages-panel'))
-const asaasStatusBar = /** @type {HTMLElement} */ (document.getElementById('asaas-status-bar'))
-const asaasStatusMsg = /** @type {HTMLElement} */ (document.getElementById('asaas-status-msg'))
-const asaasPeople = /** @type {HTMLInputElement} */ (document.getElementById('asaas-people'))
-const asaasCompanies = /** @type {HTMLInputElement} */ (document.getElementById('asaas-companies'))
-const asaasCharges = /** @type {HTMLInputElement} */ (document.getElementById('asaas-charges'))
-const asaasSeed = /** @type {HTMLInputElement} */ (document.getElementById('asaas-seed'))
-const btnAsaasSeed = /** @type {HTMLButtonElement} */ (document.getElementById('btn-asaas-seed'))
-const asaasBillingPix = /** @type {HTMLInputElement} */ (document.getElementById('asaas-billing-pix'))
-const asaasBillingBoleto = /** @type {HTMLInputElement} */ (document.getElementById('asaas-billing-boleto'))
-const asaasBillingCc = /** @type {HTMLInputElement} */ (document.getElementById('asaas-billing-cc'))
-const asaasConfirmRange = /** @type {HTMLInputElement} */ (document.getElementById('asaas-confirm-range'))
-const asaasConfirmVal = /** @type {HTMLElement} */ (document.getElementById('asaas-confirm-val'))
-const btnAsaasPopulate = /** @type {HTMLButtonElement} */ (document.getElementById('btn-asaas-populate'))
-const asaasResultArea = /** @type {HTMLElement} */ (document.getElementById('asaas-result-area'))
-const asaasSummaryCounts = /** @type {HTMLElement} */ (document.getElementById('asaas-summary-counts'))
-const asaasLinkPanel = /** @type {HTMLAnchorElement} */ (document.getElementById('asaas-link-panel'))
-const asaasPaymentsTbody = /** @type {HTMLElement} */ (document.getElementById('asaas-payments-tbody'))
-const asaasErrors = /** @type {HTMLElement} */ (document.getElementById('asaas-errors'))
-const btnCopyDocker = /** @type {HTMLButtonElement} */ (document.getElementById('btn-copy-docker'))
-const dockerCmdCode = /** @type {HTMLElement} */ (document.getElementById('docker-cmd-code'))
 
 const toast = /** @type {HTMLElement} */ (document.getElementById('toast'))
 
@@ -329,10 +297,15 @@ function downloadFile(content, filename, mimeType) {
  */
 function updateKindOptions() {
   const kind = genKind.value
-  optGender.style.display = kind === 'person' ? 'flex' : 'none'
-  optOutcome.style.display = kind === 'credit-card' ? 'flex' : 'none'
-  optBilling.style.display = kind === 'charge' ? 'flex' : 'none'
-  optPixType.style.display = kind === 'pix-key' ? 'flex' : 'none'
+  for (const option of kindOptions) option.hidden = !(option.dataset.for ?? '').split(' ').includes(kind)
+}
+
+/**
+ * Whether the chosen kind reads an option.
+ * @param {string} id the id of the option's field
+ */
+function kindReads(id) {
+  return !(/** @type {HTMLElement} */ (document.getElementById(id)).hidden)
 }
 
 /**
@@ -346,7 +319,7 @@ function runGenerate() {
   const count = Math.min(1000, Math.max(1, parseInt(genCount.value, 10) || 10))
   const seed = genSeed.value.trim() || randomSeed()
   const formatted = genFormatted.checked
-  const state = genState.value || undefined
+  const state = kindReads('opt-state') ? genState.value || undefined : undefined
 
   /** @type {Record<string, any>} */
   const opts = { count, seed, formatted }
@@ -467,147 +440,31 @@ function runValidator() {
   `
 }
 
-// ───────── Asaas Population ─────────
-
-/**
- * Checks Asaas connection status from container.
- */
-async function checkAsaasStatus() {
-  try {
-    const res = await fetch('./_mock/asaas/status')
-    if (res.ok) {
-      const data = await res.json()
-      if (data && data.reachable) {
-        asaasStatusBar.className = 'asaas-status is-connected'
-        asaasStatusMsg.textContent = `Asaas em ${data.asaasUrl}: conectado (${data.customers} clientes)`
-        return
-      }
-      asaasStatusBar.className = 'asaas-status'
-      asaasStatusMsg.textContent = `Asaas em ${data?.asaasUrl || 'localhost'}: fora do ar`
-      return
-    }
-  } catch {
-    // network or endpoint failure
-  }
-  asaasStatusBar.className = 'asaas-status'
-  asaasStatusMsg.textContent = 'Asaas: fora do ar'
-}
-
-/**
- * Executes Asaas population.
- */
-async function runAsaasPopulate() {
-  btnAsaasPopulate.disabled = true
-  btnAsaasPopulate.textContent = 'Populando…'
-  asaasErrors.style.display = 'none'
-  asaasErrors.innerHTML = ''
-
-  /** @type {string[]} */
-  const billingTypes = []
-  if (asaasBillingPix.checked) billingTypes.push('PIX')
-  if (asaasBillingBoleto.checked) billingTypes.push('BOLETO')
-  if (asaasBillingCc.checked) billingTypes.push('CREDIT_CARD')
-
-  const people = parseInt(asaasPeople.value, 10) || 0
-  const companies = parseInt(asaasCompanies.value, 10) || 0
-  const chargesPerCustomer = parseInt(asaasCharges.value, 10) || 0
-  const confirm = (parseInt(asaasConfirmRange.value, 10) || 0) / 100
-  const seed = asaasSeed.value.trim() || undefined
-
-  const payload = {
-    people,
-    companies,
-    chargesPerCustomer,
-    billingTypes,
-    confirm,
-    seed,
-  }
-
-  try {
-    const res = await fetch('./_mock/asaas/populate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      throw new Error(data?.error?.message || `HTTP error ${res.status}`)
-    }
-
-    asaasResultArea.style.display = 'block'
-
-    const customerCount = data.customers ? data.customers.length : 0
-    const paymentCount = data.payments ? data.payments.length : 0
-    asaasSummaryCounts.textContent = `${customerCount} clientes criados · ${paymentCount} cobranças criadas · seed ${data.seed}`
-
-    if (data.panelUrl) {
-      asaasLinkPanel.href = data.panelUrl
-      asaasLinkPanel.style.display = 'inline-flex'
-    } else {
-      asaasLinkPanel.style.display = 'none'
-    }
-
-    // Render payments table
-    asaasPaymentsTbody.innerHTML = ''
-    if (Array.isArray(data.payments)) {
-      for (const p of data.payments) {
-        const tr = document.createElement('tr')
-        const custName =
-          data.customers?.find((/** @type {any} */ c) => c.id === p.customer)?.name || p.customer || '—'
-        const valFormatted =
-          typeof p.value === 'number'
-            ? p.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-            : `R$ ${p.value}`
-
-        tr.innerHTML = `
-          <td>${esc(custName)}</td>
-          <td>${esc(p.billingType)}</td>
-          <td>${esc(valFormatted)}</td>
-          <td>${esc(p.dueDate)}</td>
-          <td>${esc(p.status)}</td>
-          <td>${/^https?:\/\//.test(String(p.invoiceUrl)) ? `<a href="${esc(p.invoiceUrl)}" target="_blank" rel="noopener">fatura ↗</a>` : '—'}</td>
-        `
-        asaasPaymentsTbody.appendChild(tr)
-      }
-    }
-
-    // Render errors if any
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
-      asaasErrors.style.display = 'block'
-      asaasErrors.innerHTML = `
-        <strong>Ocorrências durante a população:</strong>
-        <ul style="margin: 8px 0 0 20px; padding: 0;">
-          ${data.errors.map((/** @type {any} */ e) => `<li>[${esc(e.step)}] ${esc(e.message)} (${esc(e.status)})</li>`).join('')}
-        </ul>
-      `
-    }
-
-    // Update status bar with new counts
-    await checkAsaasStatus()
-  } catch (err) {
-    asaasErrors.style.display = 'block'
-    asaasErrors.textContent = `Falha ao popular o Asaas: ${err instanceof Error ? err.message : String(err)}`
-  } finally {
-    btnAsaasPopulate.disabled = false
-    btnAsaasPopulate.textContent = 'Popular'
-  }
-}
-
 // ───────── Initialization ─────────
 
 async function init() {
   // Populate kinds select
   genKind.innerHTML = KINDS.map((k) => `<option value="${k.id}">${PRESENTATION_LABELS[k.id] ?? k.label}</option>`).join('')
 
-  // Populate states select
+  // Populate states select: the chip shows the code, the tooltip the name
   for (const [code, name] of Object.entries(STATES)) {
     const opt = document.createElement('option')
     opt.value = code
-    opt.textContent = `${code} — ${name}`
+    opt.textContent = code
+    opt.title = name
     genState.appendChild(opt)
   }
+
+  // The choices are chips on the sheet; the selects keep the values
+  chipsFor(genKind)
+  chipsFor(genState, { compact: true })
+  for (const id of ['gen-gender', 'gen-outcome', 'gen-billing', 'gen-pix-type']) {
+    const select = /** @type {HTMLSelectElement} */ (document.getElementById(id))
+    chipsFor(select)
+    select.addEventListener('change', runGenerate)
+  }
+  genState.addEventListener('change', runGenerate)
+  genFormatted.addEventListener('change', runGenerate)
 
   // Bind kind change
   genKind.addEventListener('change', () => {
@@ -673,21 +530,6 @@ async function init() {
   // Validator
   valInput.addEventListener('input', runValidator)
 
-  // Asaas confirm slider
-  asaasConfirmRange.addEventListener('input', () => {
-    asaasConfirmVal.textContent = `${asaasConfirmRange.value}%`
-  })
-
-  btnAsaasSeed.addEventListener('click', () => {
-    asaasSeed.value = randomSeed()
-  })
-
-  btnCopyDocker.addEventListener('click', () => {
-    copyToClipboard(dockerCmdCode.textContent || '', 'Comando copiado')
-  })
-
-  btnAsaasPopulate.addEventListener('click', runAsaasPopulate)
-
   // Generate initial data on load (person, 10)
   runGenerate()
 
@@ -696,14 +538,9 @@ async function init() {
   if (mode === 'container') {
     modeChip.className = 'mode-chip is-container'
     modeText.textContent = 'Rodando no container'
-    asaasContainerPanel.style.display = 'block'
-    asaasPagesPanel.style.display = 'none'
-    await checkAsaasStatus()
   } else {
     modeChip.className = 'mode-chip is-pages'
     modeText.textContent = 'Rodando no navegador'
-    asaasContainerPanel.style.display = 'none'
-    asaasPagesPanel.style.display = 'block'
   }
 }
 

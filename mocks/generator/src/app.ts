@@ -33,6 +33,8 @@ const PUBLIC_FILES: Record<string, { name: string; type: string }> = {
   '/index.html': { name: 'index.html', type: 'text/html; charset=utf-8' },
   '/app.js': { name: 'app.js', type: 'text/javascript; charset=utf-8' },
   '/directd.js': { name: 'directd.js', type: 'text/javascript; charset=utf-8' },
+  '/chips.js': { name: 'chips.js', type: 'text/javascript; charset=utf-8' },
+  '/tools.js': { name: 'tools.js', type: 'text/javascript; charset=utf-8' },
   '/style.css': { name: 'style.css', type: 'text/css; charset=utf-8' },
   '/favicon.svg': { name: 'favicon.svg', type: 'image/svg+xml' },
 }

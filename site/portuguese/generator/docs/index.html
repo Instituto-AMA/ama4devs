@@ -305,6 +305,7 @@ Content-Type: application/json
               <h2 id="directd-title">Consulta de crédito Direct Data</h2>
               <p>O gerador também responde às rotas de crédito da <strong>Direct Data API v3</strong> que o Hub usa, nos próprios caminhos do provedor, fiel à documentação do provedor. Um conjunto de CPFs de teste força cada resultado, do mesmo jeito que os cartões de teste do Asaas forçam os seus.</p>
               <p class="note"><strong>Dados simulados.</strong> Tudo o que a consulta de crédito responde é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. Sem vínculo com a Direct Data, a Quod ou a Boa Vista.</p>
+              <p>Teste cada rota no <a href="../playground/?route=credit">playground</a>: escolha um CPF de teste, o produto e o modo assíncrono, e a página responde com o mesmo core do container, ao lado do cURL da mesma chamada.</p>
 
               <h3>As rotas e os parâmetros</h3>
               <div class="table-wrap">

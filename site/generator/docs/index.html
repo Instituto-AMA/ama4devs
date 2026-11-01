@@ -294,6 +294,7 @@
               <h2 id="directd-title">Direct Data credit check</h2>
               <p>The generator answers the <strong>Direct Data API v3</strong> credit routes the Hub uses, at the provider's own paths, faithful to the provider's documentation. The generator never calls the provider: every answer is computed locally, and the only token it accepts is the public <code>00000000-0000-4000-8000-00000000d1d1</code> — no real token ever lives in this repository.</p>
               <p class="note"><strong>Simulated data.</strong> Everything the credit check answers is generated automatically for tests: the score, the band, the restrictions and the situation of the CPF are not real and must never be used as a source of truth about any person. Not affiliated with Direct Data, Quod or Boa Vista.</p>
+              <p>Try every route in the <a href="../playground/?route=credit">playground</a>: pick a test CPF, a product and async, and the page answers with the same core the container runs, next to the cURL of the same call.</p>
 
               <h3>Routes and parameters</h3>
               <p>Three routes, every parameter in the query string, the way the provider takes them:</p>

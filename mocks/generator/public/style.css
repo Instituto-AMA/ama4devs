@@ -87,6 +87,11 @@ a:hover {
   border-radius: 4px;
 }
 
+/* A hidden element stays hidden whatever display its class gives it. */
+[hidden] {
+  display: none !important;
+}
+
 /* ───────── Header Bar ───────── */
 
 .site-header {
@@ -140,6 +145,38 @@ a:hover {
   background: var(--key-correct);
 }
 
+/* The four tools of the screen, one at a time, like the tabs of the site. */
+.tool-tabs {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 12px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tool-tabs::-webkit-scrollbar {
+  display: none;
+}
+.tool-tabs a {
+  flex: none;
+  font: 600 14px/1 var(--sans);
+  text-decoration: none;
+  color: var(--on-ground-soft);
+  padding: 11px 16px 10px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--ground-line);
+}
+.tool-tabs a:hover {
+  color: var(--on-ground);
+  background: var(--ground-raise);
+}
+.tool-tabs a[aria-current='page'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 2px 0 #00000040;
+}
+
 /* ───────── Main Content & Sheets ───────── */
 
 main {
@@ -161,6 +198,25 @@ main {
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x;
   filter: drop-shadow(0 16px 22px #00000066);
   margin-bottom: 44px;
+}
+
+/* The paper is light: its native controls (checkboxes, spinners, scrollbars) are drawn light too. */
+.sheet {
+  color-scheme: light;
+}
+
+/* A long path in a sentence breaks on a phone instead of widening the sheet. */
+.sheet p code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .wordmark {
+    font-size: 18px;
+  }
+  .mode-chip {
+    font-size: 11px;
+  }
 }
 
 .sheet h2 {
@@ -261,11 +317,17 @@ main {
   max-width: 100%;
 }
 
-.field label {
-  font: 700 12px/1 var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.field label,
+.field-label {
+  font: 600 13px/1.2 var(--sans);
   color: var(--ink-soft);
+}
+.field label small,
+.field-label small,
+.field-checkbox small {
+  font: 400 12px/1.2 var(--sans);
+  color: var(--fade);
+  margin-left: 4px;
 }
 
 .field input[type='text'],
@@ -327,6 +389,49 @@ main {
 }
 .error-inline.is-visible {
   display: block;
+}
+
+/* ───────── Generator Form ───────── */
+
+/* One column of groups: the kind on top, then count and seed, then the options of the kind. */
+.gen-form {
+  display: grid;
+  gap: 22px;
+}
+.gen-form .form-actions {
+  margin-top: 0;
+}
+.gen-form .field {
+  gap: 8px;
+}
+.gen-row {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) auto;
+  gap: 16px 20px;
+  align-items: end;
+}
+.gen-seed {
+  max-width: 460px;
+}
+.gen-formatted {
+  padding: 0 0 10px;
+}
+
+/* The states: short mono keys, the name in the tooltip. */
+.choice-chips.is-compact {
+  gap: 5px;
+}
+.choice-chips.is-compact .choice-chip span {
+  min-width: 46px;
+  justify-content: center;
+  padding: 6px 8px 5px;
+  font: 600 12px/1.2 var(--mono);
+}
+
+@media (max-width: 640px) {
+  .gen-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ───────── Tabs & Result Views ───────── */
@@ -520,78 +625,7 @@ td.copyable:hover {
   font-style: italic;
 }
 
-/* ───────── Asaas Sheet ───────── */
-
-.asaas-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: var(--paper-band);
-  border: 1px solid var(--paper-rule);
-  font: 600 13px/1 var(--mono);
-  color: var(--ink);
-  margin-bottom: 20px;
-}
-.asaas-status .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--print-red);
-}
-.asaas-status.is-connected .dot {
-  background: var(--key-confirm);
-}
-
-.checkbox-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 8px 0;
-}
-
-.range-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.range-wrap input[type='range'] {
-  flex: 1;
-  accent-color: var(--key-confirm);
-}
-.range-value {
-  font: 700 13px/1 var(--mono);
-  color: var(--ink);
-  min-width: 44px;
-}
-
-.asaas-results {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px dashed var(--paper-rule);
-}
-
-.asaas-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  font: 600 14px/1.4 var(--sans);
-  color: var(--ink);
-}
-
-.populate-errors {
-  margin-top: 14px;
-  padding: 12px;
-  background: color-mix(in srgb, var(--print-red) 10%, #ffffff);
-  border: 1px solid var(--print-red);
-  border-radius: 6px;
-  color: var(--print-red);
-  font: 500 13px/1.5 var(--mono);
-}
+/* ───────── Docker Guide (Pages mode) ───────── */
 
 .docker-guide {
   background: var(--paper-band);
@@ -656,11 +690,10 @@ td.copyable:hover {
 }
 
 .directd-subtitle {
-  font: 800 15px/1.2 var(--display);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font: 800 20px/1.15 var(--display);
+  letter-spacing: 0.02em;
   color: var(--ink);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 
 .directd-disclaimer {
@@ -749,7 +782,7 @@ td.copyable:hover {
   display: none;
 }
 .directd-summary-item {
-  border-left: 3px solid var(--paper-rule);
+  border-left: 1px solid var(--paper-rule);
   padding-left: 10px;
 }
 .directd-summary-item span {
@@ -835,9 +868,7 @@ tr.directd-empty td {
 .directd-choice legend {
   padding: 0;
   margin-bottom: 8px;
-  font: 700 12px/1 var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font: 600 13px/1.2 var(--sans);
   color: var(--ink-soft);
 }
 .directd-policy {
@@ -845,7 +876,7 @@ tr.directd-empty td {
 }
 
 .directd-option input,
-.directd-chip-option input {
+.choice-chip input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -901,9 +932,48 @@ tr.directd-empty td {
   color: color-mix(in srgb, var(--paper) 72%, var(--ink));
 }
 .directd-option input:focus-visible + .directd-option-face,
-.directd-chip-option input:focus-visible + span {
+.choice-chip input:focus-visible + span {
   outline: 3px solid var(--key-correct);
   outline-offset: 2px;
+}
+
+/* The consultation: CPF, product and async on one line, labels on one baseline. */
+.directd-consult-row {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) max-content max-content;
+  justify-content: start;
+  gap: 16px 28px;
+  align-items: start;
+}
+.directd-consult-row .field {
+  gap: 8px;
+}
+.directd-consult-row .field label,
+.directd-consult-row .directd-choice legend {
+  line-height: 1.2;
+  margin: 0;
+}
+.directd-consult-row .directd-choice legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.directd-consult-row .directd-segment {
+  clear: both;
+}
+/* The async box sits on the line of the controls, not of the labels. */
+.directd-consult-row > .field:last-child {
+  align-self: stretch;
+  justify-content: flex-end;
+  padding-bottom: 14px;
+}
+@media (max-width: 760px) {
+  .directd-consult-row {
+    grid-template-columns: 1fr;
+  }
+  .directd-consult-row > .field:last-child {
+    padding-bottom: 0;
+  }
 }
 
 #directd-add-form .directd-new-cpf {
@@ -926,24 +996,24 @@ tr.directd-empty td {
   font: 600 13px/1.2 var(--sans);
   color: var(--fade);
 }
-.directd-chips {
+.choice-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.directd-chip-option {
+.choice-chip {
   position: relative;
   cursor: pointer;
   --tone: var(--key-confirm-deep);
 }
-.directd-chip-option.is-failure {
+.choice-chip.is-failure {
   --tone: var(--print-red);
 }
-.directd-chip-option.is-behavior {
+.choice-chip.is-behavior {
   --tone: var(--fade);
 }
-.directd-chip-option span {
+.choice-chip span {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
@@ -955,23 +1025,23 @@ tr.directd-empty td {
   color: var(--ink);
   transition: transform 90ms steps(2), background-color 120ms ease, border-color 120ms ease;
 }
-.directd-chip-option b {
+.choice-chip b {
   font: 700 11.5px/1 var(--mono);
   color: var(--tone);
 }
-.directd-chip-option:hover span {
+.choice-chip:hover span {
   border-color: var(--ink-soft);
 }
-.directd-chip-option:active span {
+.choice-chip:active span {
   transform: translateY(1px);
 }
 /* The chosen chip is inked, like the active tab and the pressed key. */
-.directd-chip-option input:checked + span {
+.choice-chip input:checked + span {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
 }
-.directd-chip-option input:checked + span b {
+.choice-chip input:checked + span b {
   color: color-mix(in srgb, var(--tone) 50%, #ffffff);
 }
 

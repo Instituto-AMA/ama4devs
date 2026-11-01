@@ -165,7 +165,7 @@ function outcomeChip(id) {
   const view = outcomeView(id)
   const code = view.tone === 'is-failure' ? `<b>${esc(view.status)}</b>` : ''
   return `
-    <label class="directd-chip-option ${view.tone}">
+    <label class="choice-chip ${view.tone}">
       <input type="radio" name="directd-new-outcome" value="${esc(id)}">
       <span>${code}${esc(view.title)}</span>
     </label>
@@ -952,7 +952,7 @@ async function init() {
     (group) => `
       <div class="directd-outcome-row">
         <span class="directd-outcome-row-name">${esc(group.label)}</span>
-        <div class="directd-chips">
+        <div class="choice-chips">
           ${OUTCOMES.filter((entry) => entry.kind === group.kind).map((entry) => outcomeChip(entry.id)).join('')}
         </div>
       </div>

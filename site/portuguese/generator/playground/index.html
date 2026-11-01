@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Playground da API do gerador: teste toda rota /v1 | ama4devs</title>
-  <meta name="description" content="Teste a API do gerador de dados brasileiros no navegador: pessoas, empresas, endereços, CPF, CNPJ, cartões, chaves Pix e cobranças, com sementes que dão a mesma resposta do container.">
+  <title>Playground da API do gerador: toda rota /v1 e a consulta de crédito | ama4devs</title>
+  <meta name="description" content="Teste a API do gerador de dados brasileiros no navegador: pessoas, empresas, endereços, CPF, CNPJ, cartões, chaves Pix, cobranças e a consulta de crédito por CPF da Direct Data, com sementes que dão a mesma resposta do container.">
   <meta name="keywords" content="playground api gerador, dados fake brasileiros, gerador cpf, gerador cnpj, api dados de teste, semente">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/portuguese/generator/playground/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
   <meta property="og:title" content="Playground da API do gerador">
-  <meta property="og:description" content="Toda rota /v1 do gerador, rodando no navegador.">
+  <meta property="og:description" content="Toda rota /v1 do gerador e a consulta de crédito da Direct Data, rodando no navegador.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/portuguese/generator/playground/">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:locale:alternate" content="en_US">
@@ -56,7 +56,7 @@
     <div class="wrap pg">
       <div class="doc-title">
         <h1>Playground da API</h1>
-        <p class="lead">Monte uma chamada para qualquer rota <code>/v1</code> e rode. <strong>Esta página</strong> responde com o mesmo core que o container roda, então uma semente dá o mesmo corpo aqui e nos seus testes. <strong>Seu container</strong> manda a chamada para um gerador rodando na sua máquina.</p>
+        <p class="lead">Monte uma chamada para qualquer rota <code>/v1</code>, ou para a consulta de crédito da Direct Data, e rode. <strong>Esta página</strong> responde com o mesmo core que o container roda, então uma semente dá o mesmo corpo aqui e nos seus testes. <strong>Seu container</strong> manda a chamada para um gerador rodando na sua máquina.</p>
       </div>
 
       <div class="pg-grid">
@@ -66,7 +66,7 @@
 
             <fieldset class="pg-keys">
               <legend>Rota</legend>
-              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Gerar</span></label><label><input type="radio" name="route" value="validate"><span>Validar</span></label><label><input type="radio" name="route" value="kinds"><span>Listar tipos</span></label></div>
+              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Gerar</span></label><label><input type="radio" name="route" value="validate"><span>Validar</span></label><label><input type="radio" name="route" value="kinds"><span>Listar tipos</span></label><label><input type="radio" name="route" value="credit"><span>Consulta de crédito</span></label></div>
             </fieldset>
 
             <div class="pg-field" data-for="kind">
@@ -118,6 +118,25 @@
               <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
             </label>
 
+            <fieldset class="pg-keys" data-for="credit">
+              <legend>produto <small>a rota da Direct Data</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="product" value="Score" checked><span>Score · Quod</span></label><label><input type="radio" name="product" value="BoaVistaAcertaMaisPositivoPF"><span>Boa Vista · Acerta Mais</span></label></div>
+            </fieldset>
+            <div class="pg-field" data-for="credit">
+              <span class="pg-name">CPF de teste <small>cada um responde um resultado</small></span>
+              <select name="testCpf" data-picker><option value="">outro CPF</option></select>
+            </div>
+            <label class="pg-field" data-for="credit">CPF <small>um CPF fora da lista responde baixo risco</small>
+              <input name="cpf" type="text" value="11100000143" inputmode="numeric" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="pg-field" data-for="credit">TOKEN <small>o token público da simulação; qualquer outro valor responde 401</small>
+              <input name="token" type="text" value="00000000-0000-4000-8000-00000000d1d1" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="pg-check" data-for="credit">
+              <input name="async" type="checkbox"> Async <small>responde 201; cada leitura responde 202 e depois 200</small>
+            </label>
+            <p class="pg-note" data-for="credit"><strong>Dados simulados.</strong> Score, faixa, restrições e situação do CPF são gerados automaticamente para testes: não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. As rotas da Direct Data não mandam cabeçalho CORS, então esta página responde com o mesmo core do container, e o cURL roda a mesma chamada no seu container.</p>
+
             <fieldset class="pg-keys">
               <legend>Quem responde <small>o endpoint público é o Pages; esta página roda o mesmo código do container</small></legend>
               <div class="pg-keyrow"><label><input type="radio" name="target" value="public" checked><span>Endpoint público</span></label><label><input type="radio" name="target" value="browser"><span>Esta página</span></label><label><input type="radio" name="target" value="container"><span>Seu container</span></label></div>
@@ -140,7 +159,7 @@
             <div class="code"><pre><code data-link></code></pre></div>
             <p class="pg-label"><span data-curl-title>A mesma chamada no seu container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
             <div class="code"><pre><code data-curl></code></pre></div>
-            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Fixar esta semente</button></p>
+            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Fixar esta semente</button> <button class="key small confirm" type="button" data-read-async hidden>Ler o resultado</button></p>
             <div class="code pg-body"><pre><code data-body></code></pre></div>
           </section>
         </div>

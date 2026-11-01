@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Generator API playground: try every /v1 route | ama4devs</title>
-  <meta name="description" content="Try the Brazilian fake data generator's API in the browser: people, companies, addresses, CPF, CNPJ, cards, Pix keys and charges, with seeds that give the same answer as the container.">
+  <title>Generator API playground: every /v1 route and the credit check | ama4devs</title>
+  <meta name="description" content="Try the Brazilian fake data generator's API in the browser: people, companies, addresses, CPF, CNPJ, cards, Pix keys, charges and the Direct Data credit check by CPF, with seeds that give the same answer as the container.">
   <meta name="keywords" content="generator api playground, brazilian fake data, cpf generator, cnpj generator, test data api, seed">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/generator/playground/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
   <meta property="og:title" content="Generator API playground">
-  <meta property="og:description" content="Every /v1 route of the generator, runnable in the browser.">
+  <meta property="og:description" content="Every /v1 route of the generator and its Direct Data credit check, runnable in the browser.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/generator/playground/">
   <meta name="theme-color" content="#3d1a12">
   <link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
@@ -54,7 +54,7 @@
     <div class="wrap pg">
       <div class="doc-title">
         <h1>API playground</h1>
-        <p class="lead">Build a call to any <code>/v1</code> route and run it. <strong>This page</strong> answers with the same core the container runs, so a seed gives the same body here and in your tests. <strong>Your container</strong> sends the call to a generator running on your machine.</p>
+        <p class="lead">Build a call to any <code>/v1</code> route, or to the Direct Data credit check, and run it. <strong>This page</strong> answers with the same core the container runs, so a seed gives the same body here and in your tests. <strong>Your container</strong> sends the call to a generator running on your machine.</p>
       </div>
 
       <div class="pg-grid">
@@ -64,7 +64,7 @@
 
             <fieldset class="pg-keys">
               <legend>Route</legend>
-              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Generate</span></label><label><input type="radio" name="route" value="validate"><span>Validate</span></label><label><input type="radio" name="route" value="kinds"><span>List kinds</span></label></div>
+              <div class="pg-keyrow"><label><input type="radio" name="route" value="kind" checked><span>Generate</span></label><label><input type="radio" name="route" value="validate"><span>Validate</span></label><label><input type="radio" name="route" value="kinds"><span>List kinds</span></label><label><input type="radio" name="route" value="credit"><span>Credit check</span></label></div>
             </fieldset>
 
             <div class="pg-field" data-for="kind">
@@ -116,6 +116,25 @@
               <input name="value" type="text" value="52998224725" autocomplete="off" spellcheck="false">
             </label>
 
+            <fieldset class="pg-keys" data-for="credit">
+              <legend>product <small>the Direct Data route</small></legend>
+              <div class="pg-keyrow"><label><input type="radio" name="product" value="Score" checked><span>Score · Quod</span></label><label><input type="radio" name="product" value="BoaVistaAcertaMaisPositivoPF"><span>Boa Vista · Acerta Mais</span></label></div>
+            </fieldset>
+            <div class="pg-field" data-for="credit">
+              <span class="pg-name">test CPF <small>each one answers one outcome</small></span>
+              <select name="testCpf" data-picker><option value="">another CPF</option></select>
+            </div>
+            <label class="pg-field" data-for="credit">CPF <small>a CPF outside the list answers low risk</small>
+              <input name="cpf" type="text" value="11100000143" inputmode="numeric" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="pg-field" data-for="credit">TOKEN <small>the public token of the simulation; any other value answers 401</small>
+              <input name="token" type="text" value="00000000-0000-4000-8000-00000000d1d1" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="pg-check" data-for="credit">
+              <input name="async" type="checkbox"> Async <small>answers 201; each read answers 202, then 200</small>
+            </label>
+            <p class="pg-note" data-for="credit"><strong>Simulated data.</strong> Score, range, restrictions and CPF status are generated automatically for tests: they are not real and are never a source of truth about anyone. The Direct Data routes send no CORS header, so this page answers with the container's own core, and the cURL runs the same call on your container.</p>
+
             <fieldset class="pg-keys">
               <legend>Answered by <small>the public endpoint lives on Pages; this page runs the container's own code</small></legend>
               <div class="pg-keyrow"><label><input type="radio" name="target" value="public" checked><span>Public endpoint</span></label><label><input type="radio" name="target" value="browser"><span>This page</span></label><label><input type="radio" name="target" value="container"><span>Your container</span></label></div>
@@ -138,7 +157,7 @@
             <div class="code"><pre><code data-link></code></pre></div>
             <p class="pg-label"><span data-curl-title>The same call on your container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
             <div class="code"><pre><code data-curl></code></pre></div>
-            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Keep this seed</button></p>
+            <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Keep this seed</button> <button class="key small confirm" type="button" data-read-async hidden>Read the result</button></p>
             <div class="code pg-body"><pre><code data-body></code></pre></div>
           </section>
         </div>
