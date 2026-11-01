@@ -155,12 +155,19 @@
           <section class="sheet pg-out" data-playground-out aria-labelledby="pg-out-title" aria-live="polite">
             <h2 id="pg-out-title">Resposta</h2>
             <p class="pg-line"><code data-line></code></p>
-            <p class="pg-label">Link desta chamada</p>
-            <div class="code"><pre><code data-link></code></pre></div>
-            <p class="pg-label"><span data-curl-title>A mesma chamada no seu container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
-            <div class="code"><pre><code data-curl></code></pre></div>
+            <div class="pg-calls">
+              <div>
+                <p class="pg-label">Link desta chamada</p>
+                <div class="code"><pre><code data-link></code></pre></div>
+              </div>
+              <div>
+                <p class="pg-label"><span data-curl-title>A mesma chamada no seu container</span> <small data-curl-hint>docker run --rm -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</small></p>
+                <div class="code"><pre><code data-curl></code></pre></div>
+              </div>
+            </div>
             <p class="pg-status"><span class="chip" data-status></span> <button class="key small correct" type="button" data-keep-seed hidden>Fixar esta semente</button> <button class="key small confirm" type="button" data-read-async hidden>Ler o resultado</button></p>
             <div class="code pg-body"><pre><code data-body></code></pre></div>
+            <button class="key small pg-expand" type="button" data-expand aria-expanded="false" hidden>Mostrar tudo</button>
           </section>
         </div>
       </div>

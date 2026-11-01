@@ -1,4 +1,4 @@
-/* The generator's API playground: the request sheet beside the response sheet.
+/* The generator's API playground: the request sheet on top, the response sheet under it.
    Tokens and components (sheet, key, chip, code) come from assets/style.css. */
 
 .pg { padding-bottom: 72px; }
@@ -6,15 +6,27 @@
 
 .pg-grid {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(20px, 3vw, 36px);
-  align-items: start;
-}
-@media (max-width: 960px) {
-  .pg-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-.pg-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* The request takes the whole width: its fields sit side by side in a grid,
+   the long rows (route, who answers, notes, the send key) across all of it. */
+.pg-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 18px 28px;
+  align-items: start;
+}
+.pg-form > :is(h2, .pg-note, .actions, .pg-row, [data-base]),
+.pg-form > .pg-keys:has(input[name='route'], input[name='target']) { grid-column: 1 / -1; }
+.pg-form > .pg-note { max-width: none; }
+/* The token is long: two cells, so it reads whole. A checkbox sits on the line of the inputs. */
+.pg-form > .pg-field:has(input[name='token']) { grid-column: span 2; }
+@media (max-width: 640px) { .pg-form > .pg-field:has(input[name='token']) { grid-column: 1 / -1; } }
+.pg-form > .pg-check { align-self: end; min-height: 44px; }
+/* The paper is light: its native controls are drawn light too. */
+.pg .sheet { color-scheme: light; }
 .pg-form h2, .pg-out h2 { margin-bottom: 4px; }
 /* `.key` and the fields set a display; `hidden` must still win. */
 .pg [hidden] { display: none !important; }
@@ -55,7 +67,18 @@
 .pg-line { margin: 0 0 10px; }
 .pg-line code { font-size: 14px; }
 .pg-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
-.pg-body pre { max-height: 70vh; overflow: auto; }
+/* The body wraps and stays short until asked: "Show all" opens it whole. */
+.pg-out .pg-body { margin-bottom: 12px; }
+.pg-body:not(.is-open) pre {
+  max-height: 380px;
+  overflow: hidden;
+  -webkit-mask: linear-gradient(#000 70%, #0000);
+  mask: linear-gradient(#000 70%, #0000);
+}
+.pg-body.is-open pre { max-height: none; }
+
+/* The link and the curl line, side by side when there is room. */
+.pg-calls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 0 28px; }
 
 /* ───────── Keypad choices ─────────
    A short list is a row of keypad keys. The chosen key sits pressed in, with

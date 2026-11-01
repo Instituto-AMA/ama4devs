@@ -229,6 +229,8 @@ const TEXT = {
     public: 'answered by the public endpoint',
     mixed: (n) => `mixed by the seed from ${n} files of the public endpoint`,
     curlPublic: 'Call the public endpoint',
+    expand: 'Show all',
+    collapse: 'Collapse',
     creditLocal: {
       cpf: 'only the test CPFs have a public file: this CPF is answered in this page, by the same core',
       token: 'a public file checks no token: this call is answered in this page, by the same core',
@@ -249,6 +251,8 @@ const TEXT = {
     public: 'respondido pelo endpoint público',
     mixed: (n) => `misturado pela seed a partir de ${n} arquivos do endpoint público`,
     curlPublic: 'Chame o endpoint público',
+    expand: 'Mostrar tudo',
+    collapse: 'Recolher',
     creditLocal: {
       cpf: 'só os CPFs de teste têm arquivo público: este CPF é respondido nesta página, pelo mesmo core',
       token: 'um arquivo público não confere token: esta chamada é respondida nesta página, pelo mesmo core',
@@ -355,6 +359,17 @@ function start(form) {
   const curlTitle = /** @type {HTMLElement} */ (out.querySelector('[data-curl-title]'))
   const curlHint = /** @type {HTMLElement} */ (out.querySelector('[data-curl-hint]'))
   const readAsync = /** @type {HTMLButtonElement} */ (out.querySelector('[data-read-async]'))
+  const expand = /** @type {HTMLButtonElement} */ (out.querySelector('[data-expand]'))
+  const bodyBox = /** @type {HTMLElement} */ (body.closest('.pg-body'))
+
+  /** Shows the body folded, and the key to open it only when it is longer than the fold. */
+  function foldBody() {
+    bodyBox.classList.remove('is-open')
+    expand.setAttribute('aria-expanded', 'false')
+    expand.textContent = t.expand
+    const pre = /** @type {HTMLElement} */ (body.parentElement)
+    expand.hidden = pre.scrollHeight <= pre.clientHeight + 4
+  }
   /** The async consultation the next send reads, set by "Read the result". */
   let readUid = ''
 
@@ -560,8 +575,14 @@ function start(form) {
     link.textContent = location.href
   }
 
-  /** Runs the call and prints its answer. */
+  /** Runs the call, prints its answer and folds a long body. */
   async function run() {
+    await call()
+    foldBody()
+  }
+
+  /** Runs the call and prints its answer. */
+  async function call() {
     const { path, params } = request()
     const base = String($('base').value).replace(/\/+$/, '') || 'http://localhost:45450'
     const target = $('target').value
@@ -675,6 +696,11 @@ function start(form) {
   form.addEventListener('input', edited)
   form.addEventListener('change', edited)
   readAsync.addEventListener('click', () => void run())
+  expand.addEventListener('click', () => {
+    const open = bodyBox.classList.toggle('is-open')
+    expand.setAttribute('aria-expanded', String(open))
+    expand.textContent = open ? t.collapse : t.expand
+  })
   form.addEventListener('submit', (event) => {
     event.preventDefault()
     void run()
