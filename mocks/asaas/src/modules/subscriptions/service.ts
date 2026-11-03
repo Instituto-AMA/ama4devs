@@ -189,6 +189,8 @@ export async function generateOne(
       splits: await splitTemplateOf(tx as never, sub.id),
       subscriptionId: sub.id,
       creditCardId: sub.creditCardId,
+      // A subscription born from a hosted checkout marks every charge it generates.
+      checkoutSession: sub.checkoutSession,
     })
 
     report?.created.push({

@@ -56,6 +56,8 @@ export interface CreatePaymentInput {
   installmentTotalCents?: Cents
   subscriptionId?: string | null
   creditCardId?: string | null
+  /** The hosted checkout the charge was born from (`checkoutSession` in the answer). */
+  checkoutSession?: string | null
 }
 
 /** Translates the API body into the service's input. It validates what Asaas validates. */
@@ -207,7 +209,7 @@ export async function createPayment(
         ? null
         : String(input.installmentNumber),
     paymentLinkId: null,
-    checkoutSession: null,
+    checkoutSession: input.checkoutSession ?? null,
 
     billingType: input.billingType,
     status: 'PENDING',

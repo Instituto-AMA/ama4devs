@@ -60,7 +60,7 @@ import {
 import { serializeInvoice } from '../invoices/serializer.ts'
 import { generateOne, parseSubscriptionSplits, removeSubscription } from './service.ts'
 
-const CYCLES: Cycle[] = [
+export const CYCLES: Cycle[] = [
   'WEEKLY',
   'BIWEEKLY',
   'MONTHLY',
@@ -186,113 +186,124 @@ async function resolveCreditCard(
   return creditCardId
 }
 
+/**
+ * Creates a subscription and its first charge. Shared by POST /v3/subscriptions
+ * and by a paid hosted checkout (`modules/checkout/service.ts`), which passes the
+ * checkout id in `links`: the API body cannot set it, as Asaas fills it itself.
+ *
+ * THE FIRST CHARGE IS CREATED HERE, and the `nextDueDate` moves one cycle
+ * forward. See the header of the file — and do not "fix" this without running
+ * the parity first.
+ */
+export async function createSubscription(
+  ctx: AppContext,
+  auth: AuthContext,
+  b: Record<string, any>,
+  links: { checkoutSession?: string | null } = {},
+): Promise<SubscriptionRow> {
+  const cycle = String(b.cycle ?? '') as Cycle
+  if (!CYCLES.includes(cycle)) {
+    throw invalid('cycle', `Ciclo inválido. Use um de: ${CYCLES.join(', ')}.`)
+  }
+
+  if (!isValidIsoDate(String(b.nextDueDate ?? ''))) {
+    throw invalid('nextDueDate', 'A data do próximo vencimento é inválida.')
+  }
+  if (b.endDate !== undefined && b.endDate !== null && !isValidIsoDate(String(b.endDate))) {
+    throw invalid('endDate', 'A data de término é inválida.')
+  }
+
+  const valueCents = brlToCents(Number(b.value))
+  if (!(valueCents > 0)) {
+    throw invalid('value', 'O valor da assinatura deve ser maior que zero.')
+  }
+
+  const maxPayments =
+    b.maxPayments === undefined || b.maxPayments === null ? null : Number(b.maxPayments)
+  if (maxPayments !== null && (!Number.isInteger(maxPayments) || maxPayments < 1)) {
+    throw invalid('maxPayments', 'maxPayments deve ser um inteiro maior que zero.')
+  }
+
+  const customerId = String(b.customer ?? '')
+  const [customer] = await ctx.db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.id, customerId), eq(customers.accountId, auth.accountId)))
+    .limit(1)
+  if (!customer) throw notFound('Cliente')
+
+  const id = ids.subscriptionId(ctx.rng) // sub_<alphanumeric>
+
+  // The subscription stores the card. Without this it would be born
+  // `billingType: CREDIT_CARD` with `creditCardId: null` — and the charge
+  // generated 40 days from now would have no card to charge. A silent failure,
+  // visible only 40 days later.
+  const creditCardId = await resolveCreditCard(ctx, auth, customerId, b)
+
+  const row: SubscriptionRow = {
+    id,
+    accountId: auth.accountId,
+    customerId,
+    billingType: String(b.billingType ?? 'UNDEFINED'),
+    cycle,
+    status: 'ACTIVE',
+    valueCents,
+    nextDueDate: String(b.nextDueDate),
+    endDate: b.endDate ?? null,
+    maxPayments,
+    paymentsGenerated: 0,
+    description: b.description ?? null,
+    externalReference: b.externalReference ?? null,
+    paymentLinkId: null,
+    checkoutSession: links.checkoutSession ?? null,
+    creditCardId,
+    discount: b.discount ?? null,
+    fine: b.fine ?? null,
+    interest: b.interest ?? null,
+    deleted: false,
+    dateCreated: ctx.clock.today(),
+  }
+
+  await ctx.db.transaction(async (tx) => {
+    await tx.insert(subscriptions).values(row)
+    await persistSplitTemplate(ctx, tx as never, id, b.split, auth.walletId)
+
+    await ctx.emit(tx as never, {
+      accountId: auth.accountId,
+      event: 'SUBSCRIPTION_CREATED',
+      resourceType: 'subscription',
+      resourceId: id,
+      resource: await serializeSubscription(tx as never, row),
+    })
+  })
+
+  /**
+   * THE FIRST CHARGE IS BORN HERE. Proven against the real sandbox.
+   *
+   * Reading the documentation, we believed Asaas only generated the charge
+   * when the due date entered the 40-day window — and that creating a
+   * subscription created no charge at all. It is wrong:
+   *
+   *   POST /v3/subscriptions with nextDueDate = today+60
+   *     → the answer brings nextDueDate = today+90 (it already moved one cycle)
+   *     → and the charge of today+60 already exists
+   *
+   * `generateOne` does both things (it creates the charge and moves the cycle
+   * forward, with a CAS), and it is the SAME function the job uses — so the
+   * charge of the creation cannot differ from the charge of the second month.
+   */
+  const updated = await generateOne(ctx, row)
+
+  return updated ?? row
+}
+
 export const subscriptionHandlers: HandlerMap = {
   /**
    * Serves `create-subscription-with-credit-card` too — the two share
    * POST /v3/subscriptions in the spec, and the body decides.
-   *
-   * THE FIRST CHARGE IS CREATED HERE, and the `nextDueDate` moves one cycle
-   * forward. See the header of the file — and do not "fix" this without running
-   * the parity first.
    */
-  'create-new-subscription': async ({ ctx, auth, body }) => {
-    const b = body as Record<string, any>
-
-    const cycle = String(b.cycle ?? '') as Cycle
-    if (!CYCLES.includes(cycle)) {
-      throw invalid('cycle', `Ciclo inválido. Use um de: ${CYCLES.join(', ')}.`)
-    }
-
-    if (!isValidIsoDate(String(b.nextDueDate ?? ''))) {
-      throw invalid('nextDueDate', 'A data do próximo vencimento é inválida.')
-    }
-    if (b.endDate !== undefined && b.endDate !== null && !isValidIsoDate(String(b.endDate))) {
-      throw invalid('endDate', 'A data de término é inválida.')
-    }
-
-    const valueCents = brlToCents(Number(b.value))
-    if (!(valueCents > 0)) {
-      throw invalid('value', 'O valor da assinatura deve ser maior que zero.')
-    }
-
-    const maxPayments =
-      b.maxPayments === undefined || b.maxPayments === null ? null : Number(b.maxPayments)
-    if (maxPayments !== null && (!Number.isInteger(maxPayments) || maxPayments < 1)) {
-      throw invalid('maxPayments', 'maxPayments deve ser um inteiro maior que zero.')
-    }
-
-    const customerId = String(b.customer ?? '')
-    const [customer] = await ctx.db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(and(eq(customers.id, customerId), eq(customers.accountId, auth.accountId)))
-      .limit(1)
-    if (!customer) throw notFound('Cliente')
-
-    const id = ids.subscriptionId(ctx.rng) // sub_<alphanumeric>
-
-    // The subscription stores the card. Without this it would be born
-    // `billingType: CREDIT_CARD` with `creditCardId: null` — and the charge
-    // generated 40 days from now would have no card to charge. A silent failure,
-    // visible only 40 days later.
-    const creditCardId = await resolveCreditCard(ctx, auth, customerId, b)
-
-    const row: SubscriptionRow = {
-      id,
-      accountId: auth.accountId,
-      customerId,
-      billingType: String(b.billingType ?? 'UNDEFINED'),
-      cycle,
-      status: 'ACTIVE',
-      valueCents,
-      nextDueDate: String(b.nextDueDate),
-      endDate: b.endDate ?? null,
-      maxPayments,
-      paymentsGenerated: 0,
-      description: b.description ?? null,
-      externalReference: b.externalReference ?? null,
-      paymentLinkId: null,
-      checkoutSession: null,
-      creditCardId,
-      discount: b.discount ?? null,
-      fine: b.fine ?? null,
-      interest: b.interest ?? null,
-      deleted: false,
-      dateCreated: ctx.clock.today(),
-    }
-
-    await ctx.db.transaction(async (tx) => {
-      await tx.insert(subscriptions).values(row)
-      await persistSplitTemplate(ctx, tx as never, id, b.split, auth.walletId)
-
-      await ctx.emit(tx as never, {
-        accountId: auth.accountId,
-        event: 'SUBSCRIPTION_CREATED',
-        resourceType: 'subscription',
-        resourceId: id,
-        resource: await serializeSubscription(tx as never, row),
-      })
-    })
-
-    /**
-     * THE FIRST CHARGE IS BORN HERE. Proven against the real sandbox.
-     *
-     * Reading the documentation, we believed Asaas only generated the charge
-     * when the due date entered the 40-day window — and that creating a
-     * subscription created no charge at all. It is wrong:
-     *
-     *   POST /v3/subscriptions with nextDueDate = today+60
-     *     → the answer brings nextDueDate = today+90 (it already moved one cycle)
-     *     → and the charge of today+60 already exists
-     *
-     * `generateOne` does both things (it creates the charge and moves the cycle
-     * forward, with a CAS), and it is the SAME function the job uses — so the
-     * charge of the creation cannot differ from the charge of the second month.
-     */
-    const updated = await generateOne(ctx, row)
-
-    return serializeSubscription(ctx.db, updated ?? row)
-  },
+  'create-new-subscription': async ({ ctx, auth, body }) =>
+    serializeSubscription(ctx.db, await createSubscription(ctx, auth, body as Record<string, any>)),
 
   'list-subscriptions': async ({ ctx, auth, query }) => {
     const { limit, offset } = paginationParams(query)
