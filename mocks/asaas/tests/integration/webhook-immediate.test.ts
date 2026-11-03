@@ -84,6 +84,34 @@ describe('immediate webhook dispatch', () => {
     expect(got[0]!.payload.payment.paymentDate).toBe('2026-01-12')
   })
 
+  it('delivers CHECKOUT_PAID right after the payer pays on the checkout page', async () => {
+    await h.subscribeWebhook(['CHECKOUT_PAID', 'PAYMENT_CONFIRMED'])
+    const cus = await h.api.call('create-new-customer', {
+      body: { name: 'Fulano de Tal', cpfCnpj: '24971563792' },
+    })
+    const checkout = await h.api.call('create-new-checkout', {
+      body: {
+        billingTypes: ['CREDIT_CARD'],
+        chargeTypes: ['RECURRENT'],
+        customer: cus.body.id,
+        callback: { successUrl: 'https://example.com/ok', cancelUrl: 'https://example.com/cancel' },
+        items: [{ name: 'Plano', imageBase64: 'SU1BR0U=', quantity: 1, value: 99.9 }],
+        subscription: { cycle: 'MONTHLY', nextDueDate: '2026-01-10' },
+      },
+    })
+    await settled()
+    h.sink.clear()
+
+    // The page is outside /v3 and /_mock: without its own prefix the payment
+    // waited for the next tick, a minute away, while the payer was redirected.
+    const res = await post(`/checkoutSession/show/${checkout.body.id}/pay`, { billingType: 'CREDIT_CARD' })
+    expect(res.status).toBe(200)
+    await settled()
+
+    expect(h.sink.eventsOf('CHECKOUT_PAID').length).toBe(1)
+    expect(h.sink.eventsOf('PAYMENT_CONFIRMED').length).toBe(1)
+  })
+
   it('holds the delivery while paused, and sends it once resumed', async () => {
     await h.subscribeWebhook(['PAYMENT_RECEIVED'])
     const id = await newPayment()

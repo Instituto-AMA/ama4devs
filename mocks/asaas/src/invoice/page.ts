@@ -66,12 +66,12 @@ export function esc(value: unknown): string {
     .replace(/'/g, '&#39;')
 }
 
-const brl = (c: number) =>
+export const brl = (c: number) =>
   (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const br = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—')
+export const br = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—')
 
-function formatDocument(cpfCnpj: string): string {
+export function formatDocument(cpfCnpj: string): string {
   const d = cpfCnpj.replace(/\D/g, '')
   if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
   if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
@@ -240,7 +240,8 @@ export function renderInvoice(v: InvoiceView): string {
 </html>`
 }
 
-const CSS = `
+/** The payer pages' stylesheet, shared with the checkout page (src/checkout/page.ts). */
+export const CSS = `
 :root { --bg:#f4f6fb; --surface:#fff; --text:#0b1736; --muted:#5b6785; --border:#dfe4ef;
   --primary:#0038e5; --primary-soft:#e6edff; --ok:#0a7a4b; --ok-soft:#e3f6ec; --warn:#9a5b00;
   --warn-soft:#fff3db; --bad:#b42318; --bad-soft:#fde8e6; color-scheme: light dark; }

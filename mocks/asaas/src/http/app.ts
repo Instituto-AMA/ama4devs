@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { panelRoutes } from '../admin/panel.ts'
 import { adminRoutes } from '../admin/routes.ts'
+import { checkoutRoutes } from '../checkout/routes.ts'
 import type { AppContext } from '../core/context.ts'
 import { AsaasError, unauthorized } from '../core/errors.ts'
 import { nfseRoutes } from '../invoice/nfse.ts'
@@ -77,9 +78,9 @@ function asaasError(ctx: AppContext) {
   }
 }
 
-const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin', '/i']
+const DISPATCH_PREFIXES = ['/v3', '/_mock', '/_admin', '/i', '/checkoutSession']
 
-/** True for a finished 2xx mutating request under the API, mock or admin routes. */
+/** True for a finished 2xx mutating request under the API, mock or admin routes, or a payer page. */
 function shouldDispatch(request: Request, status: unknown): boolean {
   if (!STATE_CHANGING_METHODS.has(request.method)) return false
   const code = status === undefined ? 200 : Number(status)
@@ -135,6 +136,7 @@ export function createApp(deps: AppDeps): { app: Elysia; coverage: RegisterResul
     .use(adminRoutes(ctx, deps.scheduler))
     .use(mockRoutes(ctx))
     .use(invoiceRoutes(ctx))
+    .use(checkoutRoutes(ctx))
     .use(nfseRoutes(ctx))
     .use(api)
 

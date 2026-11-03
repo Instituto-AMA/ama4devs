@@ -1,0 +1,26 @@
+{
+  "_why": "The spec has no `customer` field on a checkout, neither in CheckoutSessionSaveRequestDTO nor in CheckoutSessionResponseDTO. Asaas's own reference page for POST /v3/checkouts says the opposite: \"to associate the Checkout with a customer already registered in Asaas, send its ID in `customer`\", never together with `customerData`; and the CHECKOUT_CREATED example on the checkout events page carries `checkout.customer`. Without the field in the schema, Elysia prunes it from the body before the handler runs, so a checkout opened for an existing customer silently lost it and its payment had no customer to bill. spec/openapi.json stays untouched so the drift diff against upstream stays clean.",
+  "_source": "https://docs.asaas.com/reference/criar-novo-checkout",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/components/schemas/CheckoutSessionSaveRequestDTO/properties/customer",
+      "value": {
+        "type": "string",
+        "description": "Unique identifier of an existing customer in Asaas. Do not send together with customerData",
+        "example": "cus_000005219613",
+        "deprecated": false
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/CheckoutSessionResponseDTO/properties/customer",
+      "value": {
+        "type": "string",
+        "description": "Unique identifier of the customer in Asaas",
+        "example": "cus_000005219613",
+        "deprecated": false
+      }
+    }
+  ]
+}

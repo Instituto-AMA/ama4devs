@@ -82,6 +82,16 @@ This is not a mock of static responses.
   rounding remainder goes to the **last** installment, and on a card each one
   credits at **D+32×n**. *(All three captured from the real sandbox, all three
   contradict what the docs suggest.)*
+- **A hosted checkout that gets paid, or expires.** The checkout's `link` opens
+  the payer's page on this server (`/checkoutSession/show/<id>`, Asaas's own
+  path). Paying there, or with `POST /_mock/checkouts/:id/pay`, turns a
+  `RECURRENT` checkout into a card subscription whose first charge is paid on the
+  spot, and a `DETACHED` one into a single charge paid by Pix or card; both carry
+  `checkoutSession`, neither the checkout's `externalReference`, and
+  `CHECKOUT_PAID` comes first (`"eventOrder": "PAYMENT_FIRST"` puts it after the
+  charge: integrations see both orders). A refused card creates nothing. Once its
+  `minutesToExpire` runs out on the clock it goes `EXPIRED` with
+  `CHECKOUT_EXPIRED`. A checkout for an existing customer keeps `customer`.
 - **Pix that actually pays.** `GET /v3/payments/{id}/pixQrCode` returns a **real
   EMV BR Code** with CRC16 and the QR image: a phone camera reads it.
 - **Subaccount onboarding.** Create the subaccount, list the pending KYC
@@ -187,7 +197,7 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
 ```yaml
 services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.6   # pin a version, or :latest
+    image: ghcr.io/instituto-ama/asaas-mock:0.12.0   # pin a version, or :latest
     ports:
       - '45445:45445'
     environment:
@@ -242,7 +252,7 @@ lets you open it or populate the selected account.
 | `WEBHOOK_LOCALHOST_REWRITE` | *(empty)* | Host that replaces `localhost` in webhook URLs. **Use `host.docker.internal`.** |
 | `CLOCK_MODE` | `REAL` | `REAL` · `VIRTUAL_FLOWING` (flows, you can skip) · `VIRTUAL_FROZEN` (moves only when told, for CI) |
 | `ADMIN_ENABLED` | `true` | The `/_admin/*` routes and the panel |
-| `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Where `invoiceUrl` and `bankSlipUrl` point, as the browser reaches this server |
+| `INVOICE_BASE_URL` | `http://localhost:<PORT>` | Where `invoiceUrl`, `bankSlipUrl` and a checkout's `link` point, as the browser reaches this server |
 | `MAILPIT_URL` | *(unset: found by itself)* | Mailpit for the payer e-mails; set empty, e-mail is off |
 | `WHATSAPP_MOCK_URL` | *(unset: found by itself)* | The WhatsApp mock for the payer templates; set empty, WhatsApp is off |
 | `SMS_MOCK_URL` | *(unset: found by itself)* | The SMS mock for the payer SMS; set empty, SMS is off |
@@ -278,6 +288,8 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET`, `PUT /_admin/accounts/:id/notify` | The account's payer channels, `{"email": true, "whatsapp": true, "sms": false}`; off queues nothing for its customers |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operations with an engine; the fee table |
 | `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | The city hall's answer to a note now, instead of on the next tick: authorize (fiscal information or not), refuse with `{"description": "…"}`, cancel or refuse to cancel |
+| `POST /_mock/checkouts/:id/pay` | Pay a hosted checkout as its payer: `chargeType`, `billingType`, `creditCard` (a test card that approves when empty), `customerData` (when the checkout has no payer), `eventOrder` (`CHECKOUT_FIRST` or `PAYMENT_FIRST`); answers the checkout, the subscription and the charge |
+| `POST /_mock/checkouts/:id/expire` | Expire an `ACTIVE` checkout now, with `CHECKOUT_EXPIRED`, instead of waiting for its `minutesToExpire` |
 
 ## Fidelity: proven, not promised
 

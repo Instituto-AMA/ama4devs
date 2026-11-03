@@ -156,7 +156,7 @@ The Asaas mock provides an in-depth simulation of the Asaas payment platform.
   - Inside Docker containers, `localhost` refers to the container itself. The mock uses `WEBHOOK_LOCALHOST_REWRITE=host.docker.internal` and `extra_hosts` to rewrite loopback webhook targets to reach the host machine.
   - Webhooks include the `asaas-access-token` header.
   - Webhook `authToken` values must be between 32 and 255 characters, matching the official Asaas specification.
-  - Immediate delivery: mutating operations (`POST`, `PUT`, `PATCH`, `DELETE`) under `/v3`, `/_mock`, and `/_admin` trigger immediate dispatch via `Scheduler.dispatchNow()` in `mocks/asaas/src/scheduler/scheduler.ts` (called from `onAfterResponse` in `mocks/asaas/src/http/app.ts`), delivering webhooks right after successful commits without waiting for the next timer tick. Retries run on every tick with backoff up to 15 attempts.
+  - Immediate delivery: mutating operations (`POST`, `PUT`, `PATCH`, `DELETE`) under `/v3`, `/_mock`, `/_admin` and the payer pages (`/i`, `/checkoutSession`) trigger immediate dispatch via `Scheduler.dispatchNow()` in `mocks/asaas/src/scheduler/scheduler.ts` (called from `onAfterResponse` in `mocks/asaas/src/http/app.ts`), delivering webhooks right after successful commits without waiting for the next timer tick. Retries run on every tick with backoff up to 15 attempts.
 
 ### Mock Payment Control Routes (`/_mock/payments/...`)
 
@@ -187,6 +187,16 @@ Key-free helper routes mounted under `/_mock` allow deterministic control over p
   curl -X POST http://localhost:45445/_mock/payments/pay_123456789012/refund \
     -H 'Content-Type: application/json' \
     -d '{"value": 50.00}'
+  ```
+- **Pay a hosted checkout** (a `RECURRENT` one becomes a card subscription with its first charge paid, a `DETACHED` one a single charge; `CHECKOUT_PAID` goes out). The checkout's `link` opens the same payment on the payer's page:
+  ```bash
+  curl -X POST http://localhost:45445/_mock/checkouts/<checkout-id>/pay \
+    -H 'Content-Type: application/json' \
+    -d '{"billingType": "CREDIT_CARD"}'
+  ```
+- **Expire a hosted checkout now** (`CHECKOUT_EXPIRED`; the clock does it by itself once `minutesToExpire` runs out):
+  ```bash
+  curl -X POST http://localhost:45445/_mock/checkouts/<checkout-id>/expire
   ```
 
 ## The Generator
