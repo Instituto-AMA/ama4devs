@@ -269,14 +269,14 @@ describe('the webhook of the provider', () => {
     expect(state.confirmed).toBe(true)
 
     const firedOk = await control(h, '/_mock/directd/webhook/fire', 'POST', {
-      product: 'APIv3-StatusAvailability',
+      product: 'APIv3',
       id: 'direct-id-9',
       status: 'Modified',
     })
     expect(firedOk.status).toBe(200)
 
     const last = h.sent[h.sent.length - 1]!
-    expect(last.body.Product).toBe('APIv3-StatusAvailability')
+    expect(last.body.Product).toBe('APIv3')
     expect(last.body.Id).toBe('direct-id-9')
     expect(last.body.Status).toBe('Modified')
 
@@ -650,6 +650,158 @@ describe('the balance of the account', () => {
 
     const invalid = await control(h, '/_mock/directd/balance', 'POST', { nope: 1 })
     expect(invalid.status).toBe(400)
+  })
+})
+
+describe('the notice, the billing switch and the forced failure', () => {
+  test('fires an availability notice with its own status word', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const fired = await control(h, '/_mock/directd/webhook/fire', 'POST', {
+      product: 'APIv3-StatusAvailability',
+      status: 'unavailable',
+    })
+    expect(fired.status).toBe(200)
+
+    // The notice carries the product and its status word, and nothing else.
+    const last = h.sent[h.sent.length - 1]!
+    expect(Object.keys(last.body)).toEqual(['Product', 'Status'])
+    expect(last.body.Product).toBe('APIv3-StatusAvailability')
+    expect(last.body.Status).toBe('unavailable')
+
+    // Without a status word there is no notice.
+    const noStatus = await control(h, '/_mock/directd/webhook/fire', 'POST', {
+      product: 'APIv3-StatusAvailability',
+    })
+    expect(noStatus.status).toBe(400)
+    expect((await bodyOf(noStatus)).error.code).toBe('invalid_status')
+    expect(h.sent).toHaveLength(2)
+
+    // Without a confirmed URL there is no notice either.
+    const fresh = harness()
+    const noRegistration = await control(fresh, '/_mock/directd/webhook/fire', 'POST', {
+      product: 'APIv3-StatusAvailability',
+      status: 'unavailable',
+    })
+    expect(noRegistration.status).toBe(409)
+  })
+
+  test('the billing switch answers on the consumption route', async () => {
+    const h = harness()
+
+    const off = await control(h, '/_mock/directd/account', 'POST', { active: false })
+    expect(off.status).toBe(200)
+    expect((await bodyOf(off)).consumption.active).toBe(false)
+
+    const consumption = await bodyOf(
+      await call(h, '/api/Billing/GetConsumptionApiV3', { headers: { Token: DIRECTD_TOKEN } }),
+    )
+    expect(consumption.consumption.active).toBe(false)
+
+    const on = await control(h, '/_mock/directd/account', 'POST', { active: true })
+    expect((await bodyOf(on)).consumption.active).toBe(true)
+
+    const invalid = await control(h, '/_mock/directd/account', 'POST', { active: 'no' })
+    expect(invalid.status).toBe(400)
+    expect((await bodyOf(invalid)).error.code).toBe('invalid_active')
+  })
+
+  test('the forced failure answers the management routes and only them', async () => {
+    const h = harness()
+
+    const forced = await control(h, '/_mock/directd/management-failure', 'PUT', { status: 429 })
+    expect(forced.status).toBe(200)
+    expect((await bodyOf(forced)).managementFailure).toBe(429)
+
+    const balance = await call(h, '/api/Marketplace/GetBalance', { headers: { Token: DIRECTD_TOKEN } })
+    expect(balance.status).toBe(429)
+    expect(balance.headers.get('Retry-After')).toBe('30')
+
+    const balanceBody = await bodyOf(balance)
+    expect(balanceBody.status).toBe(429)
+    expect(balanceBody.retryAfterSeconds).toBe(30)
+
+    // A consultation is not a management route: it still answers.
+    const consult = await call(h, `/api/Score?CPF=11100000143&TOKEN=${DIRECTD_TOKEN}`)
+    expect(consult.status).toBe(200)
+
+    const internal = await control(h, '/_mock/directd/management-failure', 'PUT', { status: 500 })
+    expect(internal.status).toBe(200)
+
+    const consumption = await call(h, '/api/Billing/GetConsumptionApiV3', {
+      headers: { Token: DIRECTD_TOKEN },
+    })
+    expect(consumption.status).toBe(500)
+
+    const created = await provider(h, '/api/Webhook/CreateUrlCallBack', {
+      Url: 'http://localhost:9999/callback',
+    })
+    expect(created.status).toBe(500)
+
+    // A wrong token still answers 401: the forced failure comes after it.
+    const wrong = await call(h, '/api/Marketplace/GetBalance', { headers: { Token: 'nope' } })
+    expect(wrong.status).toBe(401)
+
+    const cleared = await control(h, '/_mock/directd/management-failure', 'DELETE')
+    expect(cleared.status).toBe(200)
+    expect((await bodyOf(cleared)).managementFailure).toBeNull()
+
+    const restored = await call(h, '/api/Marketplace/GetBalance', { headers: { Token: DIRECTD_TOKEN } })
+    expect(restored.status).toBe(200)
+
+    const unknown = await control(h, '/_mock/directd/management-failure', 'PUT', { status: 418 })
+    expect(unknown.status).toBe(400)
+    expect((await bodyOf(unknown)).error.code).toBe('invalid_status')
+  })
+
+  test('the reset forgets the account and the registration', async () => {
+    const h = harness(500)
+
+    const consult = await call(h, `/api/Score?CPF=11100000143&TOKEN=${DIRECTD_TOKEN}`)
+    expect(consult.status).toBe(200)
+
+    const topUp = await control(h, '/_mock/directd/balance', 'POST', { add: 100 })
+    expect(topUp.status).toBe(200)
+
+    await confirmed(h)
+
+    const off = await control(h, '/_mock/directd/account', 'POST', { active: false })
+    expect(off.status).toBe(200)
+
+    const forced = await control(h, '/_mock/directd/management-failure', 'PUT', { status: 500 })
+    expect(forced.status).toBe(200)
+
+    const reset = await control(h, '/_mock/directd/state', 'DELETE')
+    expect(reset.status).toBe(200)
+
+    const state = await bodyOf(await call(h, '/_mock/directd/state'))
+    expect(state.balance).toBe(500)
+    expect(state.addedLast30Days).toBe(0)
+    expect(state.consumedLast30Days).toBe(0)
+    expect(state.billingActive).toBe(true)
+    expect(state.managementFailure).toBeNull()
+
+    const webhook = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    expect(webhook.url).toBeNull()
+    expect(webhook.confirmed).toBe(false)
+
+    const consumption = await bodyOf(
+      await call(h, '/api/Billing/GetConsumptionApiV3', { headers: { Token: DIRECTD_TOKEN } }),
+    )
+    expect(consumption.consumption.active).toBe(true)
+  })
+
+  test('the account routes do not touch the counters', async () => {
+    const h = harness()
+
+    await call(h, '/api/Marketplace/GetBalance', { headers: { Token: DIRECTD_TOKEN } })
+    await call(h, '/api/Billing/GetConsumptionApiV3', { headers: { Token: DIRECTD_TOKEN } })
+    await call(h, '/api/Marketplace/GetBalance', { headers: { Token: DIRECTD_TOKEN } })
+
+    const state = await bodyOf(await call(h, '/_mock/directd/state'))
+    expect(state.counters.notCharged.total).toBe(0)
+    expect(state.counters.charged.total).toBe(0)
   })
 })
 

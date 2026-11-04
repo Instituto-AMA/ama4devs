@@ -16,6 +16,7 @@ import {
   consultParams,
   envelope,
   normalizeCpf,
+  rateLimitBody,
   resolveCpf,
 } from './core/credit.js'
 import type { Outcome, TestCpf, UnlistedPolicy } from './core/credit.js'
@@ -185,6 +186,10 @@ export function createDirectd(
   let addedLast30Days = 0
   /** What was consumed from the balance over the last 30 days. */
   let consumedLast30Days = 0
+  /** Whether the account is billed: the Hub reads it on the consumption route. */
+  let billingActive = true
+  /** The failure the management routes are forced to answer, when there is one. */
+  let managementFailure: number | null = null
 
   /**
    * The provider's routes: the Hub calls them from another container, so they
@@ -232,7 +237,9 @@ export function createDirectd(
       answer = await consultAnswer(route, params, ip, startedAt, cpf)
     }
 
-    const charged = countAnswer(answer)
+    // The counters count consultations only: a management route is a read of
+    // the account, not a consultation.
+    const charged = webhook || account ? false : countAnswer(answer)
     const entry = entryOf(request, url, answer, charged, tokenState, cpf, startedAt)
     entry.id = ++sequence
     entry.durationMs = Math.max(0, now().getTime() - startedAt.getTime())
@@ -273,6 +280,9 @@ export function createDirectd(
       return { ...base, status: 401, body: webhookError('unauthorized', 'The Token header is missing or wrong.') }
     }
 
+    const forced = forcedFailure()
+    if (forced) return { ...base, ...forced }
+
     if (route === WEBHOOK_ROUTE_CREATE) {
       return { ...base, ...(await createUrlCallBack(request, startedAt)) }
     }
@@ -306,8 +316,35 @@ export function createDirectd(
       return { ...base, status: 401, body: webhookError('unauthorized', 'The Token header is missing or wrong.') }
     }
 
+    const forced = forcedFailure()
+    if (forced) return { ...base, ...forced }
+
     const body = route === ROUTE_CONSUMPTION ? consumptionBody(startedAt) : balanceBody(startedAt)
     return { ...base, status: 200, body }
+  }
+
+  /**
+   * The failure the control route forces on the management routes: the Hub
+   * maps 429 and 5xx on them, so a test has to be able to provoke them.
+   * @return The forced answer, or null when no failure is forced.
+   */
+  function forcedFailure(): { status: number; body: unknown; headers: Record<string, string> } | null {
+    if (managementFailure === null) return null
+
+    if (managementFailure === 429) {
+      const seconds = FAILURES.rateLimited.retryAfterSeconds ?? 30
+      return {
+        status: 429,
+        body: rateLimitBody(seconds),
+        headers: { 'Retry-After': String(seconds) },
+      }
+    }
+
+    return {
+      status: managementFailure,
+      body: webhookError('forced_failure', 'The control route forced this answer.'),
+      headers: {},
+    }
   }
 
   /**
@@ -340,7 +377,7 @@ export function createDirectd(
       consumption: {
         details: { balance: round2(balance) },
         description: BALANCE_DESCRIPTION,
-        active: true,
+        active: billingActive,
       },
       success: true,
       status: 'OK',
@@ -495,13 +532,28 @@ export function createDirectd(
    * @param body The body of the request.
    */
   async function fireCallback(body: Record<string, any>): Promise<{ status: number; body: unknown }> {
-    if (!registration || !registration.confirmed) {
+    const target = registration
+    if (!target || !target.confirmed) {
       return { status: 409, body: webhookError('not_confirmed', 'There is no confirmed registration.') }
     }
 
     const product = String(body.product ?? '')
     if (!WEBHOOK_PRODUCTS.includes(product)) {
       return { status: 400, body: webhookError('invalid_product', `Unknown product: ${product}.`) }
+    }
+
+    // The availability notice carries its own status word: it says whether
+    // the API is up, so it has no id and no status of a consultation.
+    if (product === PRODUCT_AVAILABILITY) {
+      const word = String(body.status ?? '').trim()
+      if (!word) {
+        return { status: 400, body: webhookError('invalid_status', 'The status is missing.') }
+      }
+
+      const result = await post(target.url, { Product: product, Status: word })
+      target.lastStatus = result.status
+
+      return { status: 200, body: { posted: true, status: result.status } }
     }
 
     const status = String(body.status ?? '')
@@ -554,6 +606,8 @@ export function createDirectd(
         unlisted,
         counters,
         balance: round2(balance),
+        billingActive,
+        managementFailure,
         consumedLast30Days: round2(consumedLast30Days),
         addedLast30Days: round2(addedLast30Days),
         webhook: registration
@@ -696,6 +750,42 @@ export function createDirectd(
       return json(balanceBody(now()))
     }
 
+    if (method === 'POST' && path === 'account') {
+      const body = await bodyOf(request)
+      if (body instanceof Response) return body
+
+      if (typeof body.active !== 'boolean') {
+        return json(
+          { error: { code: 'invalid_active', message: 'The active must be true or false.' } },
+          400,
+        )
+      }
+
+      billingActive = body.active
+      return json(consumptionBody(now()))
+    }
+
+    if (method === 'PUT' && path === 'management-failure') {
+      const body = await bodyOf(request)
+      if (body instanceof Response) return body
+
+      const value = Number(body.status)
+      if (!MANAGEMENT_FAILURES.includes(value)) {
+        return json(
+          { error: { code: 'invalid_status', message: `Unknown status: ${body.status}.` } },
+          400,
+        )
+      }
+
+      managementFailure = value
+      return json({ managementFailure })
+    }
+
+    if (method === 'DELETE' && path === 'management-failure') {
+      managementFailure = null
+      return json({ managementFailure: null })
+    }
+
     if (method === 'GET' && path === 'webhook') {
       return json({
         url: registration?.url ?? null,
@@ -791,6 +881,14 @@ export function createDirectd(
       counters.charged.byRoute = {}
       counters.notCharged.total = 0
       counters.notCharged.byStatus = {}
+      // The reset forgets the account too: the balance, the registration and
+      // the switches go back to what they were when the mock booted.
+      balance = round2(options.balance)
+      addedLast30Days = 0
+      consumedLast30Days = 0
+      registration = null
+      billingActive = true
+      managementFailure = null
       return json({ reset: true })
     }
 
@@ -1107,6 +1205,9 @@ const WEBHOOK_ROUTE_CREATE = 'Webhook/CreateUrlCallBack'
 /** The route of the confirmation of a callback URL. */
 const WEBHOOK_ROUTE_CONFIRM = 'Webhook/ConfirmUrlCallBack'
 
+/** The product of the availability notice, the way the provider names it. */
+const PRODUCT_AVAILABILITY = 'APIv3-StatusAvailability'
+
 /** The products a callback may carry. */
 const WEBHOOK_PRODUCTS = [
   'Enrichment',
@@ -1115,8 +1216,14 @@ const WEBHOOK_PRODUCTS = [
   'Dossier',
   'CorporateLinkage',
   'APIv3',
-  'APIv3-StatusAvailability',
+  PRODUCT_AVAILABILITY,
 ]
+
+/**
+ * The failures the management routes may be forced to answer: the statuses
+ * the Hub maps on them.
+ */
+const MANAGEMENT_FAILURES = [400, 401, 429, 500, 503]
 
 /** The statuses a callback may carry. */
 const WEBHOOK_STATUSES = ['Created', 'Processing', 'Error', 'Canceled', 'Modified', 'Finished']
