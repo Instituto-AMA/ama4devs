@@ -316,6 +316,9 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
 
 curl -s -i "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
                 <p>A criação responde <code>HTTP/1.1 201 Created</code> com o <code>consultaUid</code>; a primeira leitura responde <code>HTTP/1.1 202 Accepted</code> (ainda processando) e a seguinte <code>HTTP/1.1 200 OK</code>, com o envelope completo.</p>
+                <p>O saldo da conta, do jeito que o Hub lê:</p>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl -s 'http://localhost:45450/api/Marketplace/GetBalance' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
                 <p>Cada CPF de teste força um resultado — risco baixo, médio ou alto, restrições, pessoa falecida, CPF suspenso, 404, timeout, 429 e outros. A tabela completa está na <a href="../docs/#directd">seção de crédito Direct Data da documentação</a>, e a mesma consulta pode ser feita na aba <strong>Crédito por CPF · Direct Data</strong> do painel do gerador.</p>
               </li>
 
