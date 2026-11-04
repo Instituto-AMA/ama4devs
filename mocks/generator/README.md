@@ -34,7 +34,7 @@ In another project's compose, add a `generator` service next to `asaas`. Both fi
 
 ```yaml
   generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.3.0
+    image: ghcr.io/instituto-ama/generator-mock:0.4.0
     ports:
       - '45450:45450'
     depends_on:
@@ -67,10 +67,19 @@ The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow
 | `DELETE /_mock/directd/test-cpfs/{cpf}` | Removes one test CPF |
 | `DELETE /_mock/directd/test-cpfs` | Restores the default table and the policy of the environment |
 | `PUT /_mock/directd/test-cpfs/policy` | Sets the policy of the unlisted CPFs: `{ unlisted }` |
-| `POST /_mock/directd/queries/{uid}/release` | Releases an async consultation that would never settle |
+| `POST /_mock/directd/queries/{uid}/release` | Releases an async consultation that would never settle; it posts the callback too |
+| `POST /_mock/directd/queries/{uid}/fail` | Fails an async consultation: `{ "outcome": "internalError" }` (also `notFound`, `timeout`, `unavailable`) |
+| `GET /_mock/directd/balance` | The balance of the account |
+| `POST /_mock/directd/balance` | Sets (`{ "set": 12.5 }`) or tops up (`{ "add": 100 }`) the balance |
+| `GET /_mock/directd/webhook` | The registration of the callback URL: `{ url, confirmed, code }` |
+| `POST /_mock/directd/webhook/fire` | Posts a callback now: `{ "product": "APIv3", "id": "…", "status": "Modified" }` |
+| `DELETE /_mock/directd/webhook` | Clears the registration |
+| `POST /_mock/directd/account` | Switches the billing of the account: `{ "active": false }` |
+| `PUT /_mock/directd/management-failure` | Forces the answer of the webhook and account routes: `{ "status": 429 }` |
+| `DELETE /_mock/directd/management-failure` | Clears the forced failure |
 | `GET /_mock/directd/requests` | The request log of the Direct Data routes (the token is kept as its state, never its value) |
-| `GET /_mock/directd/state` | The counters of the charge rule, the async queries and the policy |
-| `DELETE /_mock/directd/state` | Resets the request log, the async queries and the counters |
+| `GET /_mock/directd/state` | The counters of the charge rule, the async queries, the balance, the registration and the policy |
+| `DELETE /_mock/directd/state` | Resets the request log, the async queries, the counters, the balance and the switches |
 
 ### Supported Kinds
 
@@ -247,15 +256,17 @@ The statuses of the routes: `200` (the answer), `201` (async consultation create
 ### The webhook
 
 The mock answers the provider's webhook routes ([`spec/directd/webhook.md`](spec/directd/webhook.md)): the URL is
-registered, the provider posts a code to it and the receiver confirms that code. Then every consultation that
-settles posts its callback to the confirmed URL.
+registered and the provider posts a code to it. **Only `ConfirmUrlCallBack` confirms** — the receiver sends the code
+it got back to the provider, and until it does the URL receives no callback. Then every consultation that asked
+for a callback (`Callback=habilitar`) and settles posts it to the confirmed URL.
 
 The mock never leaves the machine: it posts only to a loopback host (`127.0.0.1`, `::1`, `localhost`) or to a
 single-label host (a service of a compose network, like `hub-webhooks`). Any other URL is refused with `400` and
 nothing is posted.
 
 ```bash
-# Register the URL of the receiver (200). The mock posts the code to it.
+# Register the URL of the receiver (200). The mock posts the code to it: a receiver has to answer
+# there (the Hub's own endpoint, or any local one) and its answer is recorded as `codeStatus`.
 curl -s -X POST 'http://localhost:45450/api/Webhook/CreateUrlCallBack' \
   -H 'Token: 00000000-0000-4000-8000-00000000d1d1' \
   -H 'content-type: application/json' \
@@ -273,8 +284,13 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
 ```
 
 The code the provider sends is `CALL-` and four uppercase alphanumerics, and the mock keeps one registration: a
-new `CreateUrlCallBack` replaces the previous one. A receiver that does not answer `201` leaves the registration
-unconfirmed, and an unconfirmed URL receives no callback.
+new `CreateUrlCallBack` replaces the previous one. The receiver's answer to the code message is recorded
+(`codeStatus` on `GET /_mock/directd/state`), and an unconfirmed URL receives no callback.
+
+When the callback goes out: with `Callback=habilitar` and a confirmed URL, the consultation settles on its own
+about one second after the `201` — the slow CPF (`11101444401`) takes 25 seconds, and the never-settling one
+(`11101555572`) settles only by `release` or `fail`. It posts its callback once, and the first read after that
+answers `200`. Without a confirmed URL the read rule stays: the first read answers `202`, the second one `200`.
 
 The callback of a consultation carries the documented keys, in this order — `Product`, `Id`, `Status` and `Url`:
 
@@ -287,14 +303,20 @@ The callback of a consultation carries the documented keys, in this order — `P
 }
 ```
 
-`Status` is `Finished` when the consultation succeeded and `Error` when it failed. The control routes drive the
-webhook from a script:
+`Status` is `Finished` when the consultation succeeded and `Error` when it failed. `Status: Error` happens when the
+consultation fails after it was created: `POST /_mock/directd/queries/{uid}/fail` with
+`{ "outcome": "internalError" }` (also `notFound`, `timeout` and `unavailable`). The read then answers that
+failure, and nothing is charged.
+
+The control routes drive the webhook from a script:
 
 | Route | What it does |
 |---|---|
 | `GET /_mock/directd/webhook` | The registration: `{ url, confirmed, code }` |
-| `POST /_mock/directd/webhook/fire` | Posts a callback now: `{ "product": "APIv3", "id": "…", "status": "Modified" }`; `409` when nothing is confirmed |
+| `POST /_mock/directd/webhook/fire` | Posts a callback now: `{ "product": "APIv3", "id": "…", "status": "Modified" }`; `409` when nothing is confirmed. The `APIv3-StatusAvailability` product takes any status word, needs no id and posts `{ Product, Status }` |
 | `DELETE /_mock/directd/webhook` | Clears the registration |
+| `POST /_mock/directd/queries/{uid}/release` | Settles a consultation that would never settle; it posts the callback too, when the consultation asked for one |
+| `POST /_mock/directd/queries/{uid}/fail` | Fails a consultation: `{ "outcome": "internalError" }` (also `notFound`, `timeout`, `unavailable`); the read answers that failure and the callback goes out with `Status: Error`, when the consultation asked for one |
 
 ### The balance and the consumption
 
@@ -337,6 +359,13 @@ The control routes drive the balance from a script:
 |---|---|
 | `GET /_mock/directd/balance` | The balance, the same body the provider route answers |
 | `POST /_mock/directd/balance` | Sets the balance (`{ "set": 12.5 }`) or tops it up (`{ "add": 100 }`); a top-up joins `addedLast30Days` |
+| `POST /_mock/directd/account` | Switches the billing of the account: `{ "active": false }` (the `consumption.active` of the consumption route) |
+| `PUT /_mock/directd/management-failure` | Forces the answer of the webhook and account routes: `{ "status": 429 }` (allowed: `400`, `401`, `429`, `500`, `503`); the `429` carries `Retry-After` |
+| `DELETE /_mock/directd/management-failure` | Clears the forced failure |
+
+The balance lives while the mock runs: `DELETE /_mock/directd/state` restores it to the value the mock booted
+with, forgets the registration, the billing switch and the forced failure. The account and the webhook routes are
+reads of the account, not consultations: they never touch the charge counters.
 
 ### The test CPFs
 
@@ -395,7 +424,8 @@ CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&TOKEN=0
 curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&TOKEN=00000000-0000-4000-8000-00000000d1d1"
 ```
 
-The CPF `11101555572` never settles on its own: its read stays `202` until the query is released with `POST /_mock/directd/queries/{uid}/release`.
+The CPF `11101555572` never settles on its own: its read stays `202` until the query is released with
+`POST /_mock/directd/queries/{uid}/release` or failed with `POST /_mock/directd/queries/{uid}/fail`.
 
 ### The request log and the counters
 
@@ -404,8 +434,8 @@ Every call to the provider's routes is logged, and the token is kept as its stat
 | Route | What it answers |
 |---|---|
 | `GET /_mock/directd/requests` | The log of the calls, newest first (the last 500) |
-| `GET /_mock/directd/state` | The counters, the async queries and the policy |
-| `DELETE /_mock/directd/state` | Resets the log, the async queries and the counters |
+| `GET /_mock/directd/state` | The counters, the async queries, the balance and the policy |
+| `DELETE /_mock/directd/state` | Resets the log, the async queries, the counters, the balance and the switches |
 
 The provider charges a consultation whose result is `Sucesso` or `Sucesso com Ressalvas`, and the mock counts exactly that: the `charged` counter grows once per `consultaUid`, when the consultation answers `200`. Every other answer is counted as not charged.
 
@@ -453,7 +483,9 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143'
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated.
 - The 429 is forced by its test CPF only: the mock counts no requests per second, and `retryAfterSeconds` is always `30` (no progressive block).
 - `Async=habilitar` on a CPF that fails answers the failure at once, with no `201`; the slow CPF waits only on a synchronous call — its async consultation is created at once.
-- The async read answers `202` on the first read and the final envelope from the second on (or at once after a release); an unknown `ConsultaUid` answers `404` named `Obter Retorno Consulta Async`.
+- The async read answers `202` on the first read and the final envelope from the second on (or at once after the
+  autonomous settle of a callback consultation, after a release or after a fail); an unknown `ConsultaUid`
+  answers `404` named `Obter Retorno Consulta Async`.
 - The parameter names are read whatever their case (`cpf`, `async`, `token`).
 
 ## Environment Variables

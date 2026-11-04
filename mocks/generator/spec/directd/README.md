@@ -53,7 +53,8 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 
 - `POST /api/Webhook/CreateUrlCallBack` takes the token in the `Token` header and a body `{"Url": "…"}`; it
   answers `200` with `{ id, result: "Created", status: "OK", elapsedTimeMs, dateTimeExecution }`. The provider
-  then posts the code to that URL and the receiver answers `201`.
+  then posts the code to that URL (the receiver answers `201`) and the code comes back through
+  `ConfirmUrlCallBack`: the `201` is not the confirmation.
 - `POST /api/Webhook/ConfirmUrlCallBack` takes the token in the `Token` header and a body `{"Code": "…"}`; it
   answers `200` with `{ id, result: "Confirmed", status: "OK", elapsedTimeMs, dateTimeExecution }`.
 - The callback of a consultation carries `Product`, `Id`, `Status` and `Url`, in that order; the products are
@@ -77,8 +78,16 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated: the Hub polls
   `ObterRetornoConsultaAsync`.
 - When the async read turns `200`: the first read answers `202`, the second and the next ones the final
-  envelope; `POST /_mock/directd/queries/{uid}/release` settles a query at once (the only way for
-  `neverSettles`). An unknown `ConsultaUid` answers `404` with `consultaNome` `Obter Retorno Consulta Async`.
+  envelope. A consultation that settles on its own (a callback consultation with a confirmed URL), a release
+  or a fail turns the first read into the final envelope; `POST /_mock/directd/queries/{uid}/release` settles
+  a query at once (the only way for `neverSettles`). An unknown `ConsultaUid` answers `404` with
+  `consultaNome` `Obter Retorno Consulta Async`.
+- The settling delay of an async consultation that asked for a callback: about 1 s (25 s for the slow CPF) —
+  the mock's own.
+- `POST /_mock/directd/queries/{uid}/fail` and the forced failure of the management routes are control routes,
+  not provider behavior; the body of a forced failure is the mock's own.
+- The body of the availability notice: `{ Product, Status }` only, since the provider documents no body and no
+  status words for it; the status word is the tester's.
 - `Async=habilitar` on a CPF whose outcome fails answers that failure synchronously, with no `201`.
 - The `429` comes from its test CPF only: no requests are counted per second, `retryAfterSeconds` is always
   `30`, and the progressive block (30 s → 60 s → … → 300 s) is not simulated.
@@ -105,3 +114,4 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - A balance shorter than the cost of the product answers the `403` of the `Saldo insuficiente` outcome, the
   same answer the provider gives.
 - The body of the `401` of the account routes: `{ "error": { "code": "unauthorized", … } }`, the mock's own.
+- `consumption.active` false is the shape of the captured answer with its value switched.
