@@ -19,7 +19,7 @@ It also does two jobs of a mock:
 | `src/core/index.js` | Re-exports every module of the core |
 | `src/app.ts` | The application: the routes, the local guard, the static files |
 | `src/server.ts` | The HTTP server (`Bun.serve`) |
-| `src/directd.ts` | The Direct Data server: the provider's routes, the async queries, the log, the counters and the control routes |
+| `src/directd.ts` | The Direct Data server: the credit routes, the webhook routes, the account routes, the async queries, the log, the counters and the control routes |
 | `src/core/credit.js` | The Direct Data credit core: the test CPFs, the outcomes, the profiles and the documented envelope |
 | `src/asaas.ts`, `src/discovery.ts` | The Asaas population and the discovery of the Asaas mock |
 | `src/config.ts` | The configuration, read from the environment |
@@ -56,11 +56,11 @@ A wrong field gives the Hub false confidence, and the Hub ships it. So:
 - **No `fetch` to the outside, and no provider URL in `credit.js` or `directd.ts`.** A test guards it. The simulation never proxies, forwards or calls any host.
 - **The only post the mock makes is to a local receiver.** A registered callback URL is posted to only when its host is a loopback (`127.0.0.1`, `::1`, `localhost`) or a single-label compose host; any other URL is refused with `400` and nothing is posted. The `fetch` that carries the post lives in the wiring of `src/app.ts`, never in `credit.js`.
 - **The only token is the public one**, `00000000-0000-4000-8000-00000000d1d1`. No real token lives in this repository, and the log keeps the state of the token (`valid`, `invalid`, `missing`), never its value.
-- `Callback=habilitar` records the flag and posts the callback of a settled consultation to the confirmed URL, and to nowhere else. `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced.
+- `Callback=habilitar` records the flag and the mock posts the callback of a settled consultation to the confirmed URL on its own schedule, and to nowhere else. Only `ConfirmUrlCallBack` confirms a registration: the code the receiver got comes back through it. `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced.
 
 ### The tests inject the outside world
 
-The clock, the ids and the sleep come from `Deps` (`src/app.ts`): the server passes them, the tests replace them with fakes. **The tests never sleep**, and neither does the core.
+The clock, the ids, the sleep, the schedule and the post come from `Deps` (`src/app.ts`): the server passes them, the tests replace them with fakes. **The tests never sleep**, and neither does the core.
 
 ### Changing a behavior changes the docs
 
