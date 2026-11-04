@@ -281,6 +281,9 @@ CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOK
 # The first read answers 202 (still running), the next one the full envelope (200).
 curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
                 <p>The score and the Boa Vista report answer <code>200</code>. The asynchronous creation answers <code>201</code> with the <code>consultaUid</code> in it; the read answers <code>202</code> (<code>HTTP/1.1 202 Accepted</code>) while the consultation runs, then <code>200</code> (<code>HTTP/1.1 200 OK</code>) with the full envelope when it is over. A call without the token answers <code>401</code>.</p>
+                <p>The balance of the account, the way the Hub reads it:</p>
+                <div class="code" data-local-only="only on your container"><pre><code>curl -s 'http://localhost:45450/api/Marketplace/GetBalance' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
                 <p>The panel of the container (<a href="http://localhost:45450">http://localhost:45450</a>) has a <strong>Crédito por CPF · Direct Data</strong> sheet that shows the same answers and edits the test CPFs. The full reference is in the <a href="../docs/#directd">docs: Direct Data credit check</a>.</p>
               </li>
 
