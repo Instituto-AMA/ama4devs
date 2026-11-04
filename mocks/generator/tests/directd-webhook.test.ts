@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createApp } from '../src/app.ts'
+import { createApp, deliveryUrl } from '../src/app.ts'
 import { loadConfig } from '../src/config.ts'
 import { DIRECTD_TOKEN } from '../src/core/credit.js'
 import { isLocalDestination } from '../src/directd.ts'
@@ -394,4 +394,18 @@ describe('the balance of the account', () => {
     const invalid = await control(h, '/_mock/directd/balance', 'POST', { nope: 1 })
     expect(invalid.status).toBe(400)
   })
+})
+
+describe('the delivery address of a local receiver', () => {
+  const cases: Array<[string, string, string]> = [
+    ['http://localhost:18081/hooks/directdata/t', 'host.docker.internal', 'http://host.docker.internal:18081/hooks/directdata/t'],
+    ['http://127.0.0.1:18081/hooks/directdata/t', 'host.docker.internal', 'http://host.docker.internal:18081/hooks/directdata/t'],
+    ['http://hub-webhooks:8081/hooks/directdata/t', 'host.docker.internal', 'http://hub-webhooks:8081/hooks/directdata/t'],
+    ['http://localhost:18081/hooks/directdata/t', '', 'http://localhost:18081/hooks/directdata/t'],
+  ]
+  for (const [registered, rewrite, delivered] of cases) {
+    test(`${registered} with rewrite '${rewrite}'`, () => {
+      expect(deliveryUrl(registered, rewrite)).toBe(delivered)
+    })
+  }
 })

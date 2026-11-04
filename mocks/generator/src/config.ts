@@ -20,6 +20,12 @@ export interface Config {
   directdUnlisted: UnlistedPolicy
   /** The balance the Direct Data mock starts with. */
   directdBalance: number
+  /**
+   * The host a webhook registered on `localhost` is delivered to (the Hub runs
+   * on the Docker host in development: `host.docker.internal`); empty keeps
+   * the registered host.
+   */
+  webhookLocalhostRewrite: string
   allowedHosts: string[]
   publicDir: string
   coreDir: string
@@ -65,6 +71,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     seedOnBoot: env.ASAAS_SEED_ON_BOOT?.trim() ?? '',
     directdUnlisted: directdUnlistedOf(env.DIRECTD_UNLISTED),
     directdBalance: balanceOf(env.DIRECTD_BALANCE),
+    webhookLocalhostRewrite: env.WEBHOOK_LOCALHOST_REWRITE?.trim() ?? '',
     allowedHosts: allowedHostsOf(env.MOCK_ALLOWED_HOSTS),
     publicDir: new URL('../public', import.meta.url).pathname,
     coreDir: new URL('./core', import.meta.url).pathname,

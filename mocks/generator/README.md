@@ -468,6 +468,7 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143'
 | `ASAAS_SEED_ON_BOOT` | `""` | Comma-separated boot seed configuration (stays off unless set) |
 | `DIRECTD_UNLISTED` | `lowRisk` | What the Direct Data credit check answers for a valid CPF outside the test table: `lowRisk`, `derived` or `notFound` |
 | `DIRECTD_BALANCE` | `500.00` | The balance the Direct Data mock starts with |
+| `WEBHOOK_LOCALHOST_REWRITE` | empty | The host a webhook registered on `localhost`/`127.0.0.1` is delivered to (`host.docker.internal` when the Hub runs on the Docker host); the registration keeps the address the Hub sent |
 | `MOCK_ALLOWED_HOSTS` | `""` | Comma-separated list of additional host headers allowed by the local guard |
 
 ## Local Guard

@@ -70,7 +70,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
   // The Direct Data server is built once: the test CPFs, the log and the
   // counters live between the requests.
   const directd = createDirectd(
-    { now, newId, sleep, post: deps.post ?? defaultPost },
+    { now, newId, sleep, post: deps.post ?? rewritingPost(config.webhookLocalhostRewrite) },
     {
       unlisted: config.directdUnlisted,
       baseUrl: `http://localhost:${config.port}`,
@@ -307,6 +307,33 @@ function isApi(pathname: string): boolean {
  */
 function joinPath(dir: string, name: string): string {
   return `${dir.replace(/\/+$/, '')}/${name}`
+}
+
+/** The hosts a registration names when the receiver runs on this machine. */
+const LOCAL_NAMES = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+/**
+ * The address a delivery really goes to: a receiver registered on a local
+ * name is reached at the rewrite host (the Docker host from a container), the
+ * same rule as the other mocks of ama4devs. The registration keeps the
+ * address the Hub sent.
+ * @param raw The registered URL.
+ * @param rewrite The host that replaces a local name; empty keeps it.
+ */
+export function deliveryUrl(raw: string, rewrite: string): string {
+  if (!rewrite) return raw
+  const url = new URL(raw)
+  if (!LOCAL_NAMES.has(url.hostname)) return raw
+  url.hostname = rewrite
+  return url.toString()
+}
+
+/**
+ * The default post behind the localhost rewrite.
+ * @param rewrite The host that replaces a local name; empty keeps it.
+ */
+function rewritingPost(rewrite: string): (url: string, body: unknown) => Promise<{ status: number }> {
+  return (url, body) => defaultPost(deliveryUrl(url, rewrite), body)
 }
 
 /**
