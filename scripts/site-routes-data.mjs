@@ -140,6 +140,13 @@ const cancellingNote = async () => {
 // Charges for the /_mock routes are created right before each call: the clock routes
 // tick, and a tick would turn an earlier charge overdue on its own.
 const pix = async () => (await v3('POST', '/payments', { customer: actx.customer, billingType: 'PIX', value: 89.9, dueDate: '2030-01-10' })).body.id
+/** A fresh card subscription checkout of the customer, ACTIVE for an hour. */
+const recurringCheckout = async () => (await v3('POST', '/checkouts', {
+  billingTypes: ['CREDIT_CARD'], chargeTypes: ['RECURRENT'], minutesToExpire: 60, customer: actx.customer,
+  callback: { successUrl: 'https://example.com/ok', cancelUrl: 'https://example.com/cancel' },
+  items: [{ name: 'Plano Mensal', imageBase64: 'SU1BR0U=', quantity: 1, value: 99.9 }],
+  subscription: { cycle: 'MONTHLY', nextDueDate: '2030-01-10' },
+})).body.id
 actx.p1 = await pix()
 actx.p2 = await pix()
 await v3('POST', '/webhooks', {
@@ -354,6 +361,28 @@ const ASAAS = [
     body: { description: 'Cancelamento negado pela prefeitura: prazo de cancelamento expirado.' },
     params: [p('id', 'path', 'string', 'A note in PROCESSING_CANCELLATION', true)],
     fields: [f('description', 'string', 'The reason; empty uses a default one')],
+  }),
+  route('Checkout controls (/_mock)', 'POST', '/_mock/checkouts/:id/pay', 'Pay a hosted checkout as its payer would', {
+    before: async (c) => { c.checkout = await recurringCheckout() },
+    call: (c) => `/_mock/checkouts/${c.checkout}/pay`,
+    body: {},
+    params: [p('id', 'path', 'string', 'An ACTIVE checkout', true)],
+    fields: [
+      f('chargeType', 'string', "DETACHED or RECURRENT, one of the checkout's; empty takes the first"),
+      f('billingType', 'string', "CREDIT_CARD or PIX, one of the checkout's; empty takes the first"),
+      f('creditCard', 'object', 'The card; empty pays with a test card that approves'),
+      f('customerData', 'object', 'The payer, when the checkout has neither customer nor customerData'),
+      f('eventOrder', 'string', 'CHECKOUT_FIRST (default) or PAYMENT_FIRST: where CHECKOUT_PAID goes in the webhook queue'),
+    ],
+    description: 'A RECURRENT checkout becomes a card subscription whose first charge is paid now; a DETACHED one, a single charge paid by Pix or card. Both carry checkoutSession. A refused card creates nothing and leaves the checkout ACTIVE.',
+    errors: [{ call: (c) => `/_mock/checkouts/${c.checkout}/pay`, why: 'A checkout already paid.' }],
+  }),
+  route('Checkout controls (/_mock)', 'POST', '/_mock/checkouts/:id/expire', 'Expire a hosted checkout now', {
+    before: async (c) => { c.checkout = await recurringCheckout() },
+    call: (c) => `/_mock/checkouts/${c.checkout}/expire`,
+    params: [p('id', 'path', 'string', 'An ACTIVE checkout', true)],
+    description: 'ACTIVE → EXPIRED with CHECKOUT_EXPIRED, what the clock does once minutesToExpire runs out.',
+    errors: [{ call: (c) => `/_mock/checkouts/${c.checkout}/expire`, why: 'A checkout no longer ACTIVE.' }],
   }),
 ]
 const asaas = await capture(asaasUrl, ASAAS, actx)

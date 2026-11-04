@@ -7,6 +7,7 @@
  */
 import type { Job } from '../scheduler.ts'
 import { anticipationSettlement } from './anticipation-jobs.ts'
+import { checkoutExpiry } from './checkout-jobs.ts'
 import { invoiceIssuing } from './invoice-jobs.ts'
 import { paymentNotices } from './notice-jobs.ts'
 import { cardCapture, creditSettlement, overdue } from './payment-jobs.ts'
@@ -87,6 +88,14 @@ export { transferSettlement }
 export { invoiceIssuing }
 
 /**
+ * 7c. Hosted checkouts past their `minutesToExpire` → EXPIRED, with
+ *     CHECKOUT_EXPIRED. On every tick, not once a day: a checkout lives minutes.
+ *     Before the dispatcher, which delivers the event in the same tick.
+ *     → Track G1 — src/scheduler/jobs/checkout-jobs.ts
+ */
+export { checkoutExpiry }
+
+/**
  * 8. Delivers the pending webhooks.
  *
  *    RUNS LAST, on purpose: every event the jobs above produced is already
@@ -115,6 +124,7 @@ export const JOBS: Job[] = [
   anticipationSettlement,
   transferSettlement,
   invoiceIssuing,
+  checkoutExpiry,
   webhookDispatch,
   retentionPurge,
 ]

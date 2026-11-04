@@ -64,7 +64,9 @@ function isGuardedPath(pathname: string): boolean {
     pathname.startsWith('/_mock') ||
     // The payer's invoice and bank slip pages: key-free, and paying changes state.
     pathname.startsWith('/i/') ||
-    pathname.startsWith('/b/')
+    pathname.startsWith('/b/') ||
+    // The hosted checkout page: key-free too, and paying creates the charge.
+    pathname.startsWith('/checkoutSession/')
   )
 }
 
