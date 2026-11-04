@@ -253,6 +253,7 @@ const pagesPanel = /** @type {HTMLElement} */ (document.getElementById('directd-
 const dockerCmd = /** @type {HTMLElement} */ (document.getElementById('directd-docker-cmd'))
 const btnCopyDocker = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-copy-docker'))
 const countersBox = /** @type {HTMLElement} */ (document.getElementById('directd-counters'))
+const accountBox = /** @type {HTMLElement} */ (document.getElementById('directd-account'))
 const queriesBody = /** @type {HTMLElement} */ (document.getElementById('directd-queries'))
 const requestsBody = /** @type {HTMLElement} */ (document.getElementById('directd-requests'))
 const btnReset = /** @type {HTMLButtonElement} */ (document.getElementById('btn-directd-reset'))
@@ -726,6 +727,7 @@ async function refreshState() {
     if (stateRes.ok) {
       const state = await stateRes.json()
       renderCounters(state.counters)
+      renderAccount(state)
       renderQueries(state.asyncQueries ?? [])
     }
 
@@ -741,9 +743,9 @@ async function refreshState() {
 /**
  * What each live panel last drew, so the 2 s refresh redraws only what changed
  * (a redraw would close the JSON a developer opened in the log).
- * @type {{ counters: string | null, queries: string | null, requests: string | null }}
+ * @type {{ account: string | null, counters: string | null, queries: string | null, requests: string | null }}
  */
-const drawn = { counters: null, queries: null, requests: null }
+const drawn = { account: null, counters: null, queries: null, requests: null }
 
 /** The totals the counters last showed, to mark the one that moved. */
 const lastTotals = { charged: -1, notCharged: -1 }
@@ -809,6 +811,185 @@ function renderCounters(counters) {
       </dl>
     </div>
   `
+}
+
+/**
+ * The last state of the account, so a toggle knows what to flip.
+ * @type {{ balance: number, added: number, consumed: number, billingActive: boolean, managementFailure: number | null, webhook: any } | null}
+ */
+let lastAccount = null
+
+/** The failures the management routes may be forced to answer. */
+const MANAGEMENT_FAILURES = [400, 401, 429, 500, 503]
+
+/**
+ * The account of the mock and the registration of the webhook: the balance,
+ * the billing, the forced failure and the callback.
+ * @param {any} state
+ */
+function renderAccount(state) {
+  const balance = Number(state?.balance ?? 0)
+  const added = Number(state?.addedLast30Days ?? 0)
+  const consumed = Number(state?.consumedLast30Days ?? 0)
+  const billingActive = Boolean(state?.billingActive)
+  const managementFailure = state?.managementFailure ?? null
+  const webhook = state?.webhook ?? null
+
+  // Only the fields of the account: a redraw would erase the amount being typed.
+  const account = { balance, added, consumed, billingActive, managementFailure, webhook }
+  lastAccount = account
+  if (!changed('account', account)) return
+
+  const billingLabel = billingActive ? 'Desativar faturamento' : 'Ativar faturamento'
+  const failureOptions = MANAGEMENT_FAILURES.map(
+    (status) => `<option value="${esc(status)}"${status === managementFailure ? ' selected' : ''}>${esc(status)}</option>`,
+  ).join('')
+
+  accountBox.innerHTML = `
+    <div class="directd-counter">
+      <h4>Saldo</h4>
+      <dl>
+        <dt>Saldo</dt>
+        <dd>${esc(money(balance))}</dd>
+        <dt>Adicionado (30 dias)</dt>
+        <dd>${esc(money(added))}</dd>
+        <dt>Consumido (30 dias)</dt>
+        <dd>${esc(money(consumed))}</dd>
+        <dt>Faturamento</dt>
+        <dd>${esc(billingActive ? 'Ativo' : 'Inativo')}</dd>
+        <dt>Falha forçada</dt>
+        <dd>${esc(managementFailure === null ? 'Nenhuma' : managementFailure)}</dd>
+      </dl>
+      <div class="field">
+        <label for="directd-topup">Crédito</label>
+        <input type="text" id="directd-topup" inputmode="decimal" placeholder="100,00" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="key correct small" data-account="topup">Adicionar crédito</button>
+        <button type="button" class="key small" data-account="billing">${esc(billingLabel)}</button>
+      </div>
+      <div class="field">
+        <label for="directd-failure">Falha forçada</label>
+        <select id="directd-failure">
+          <option value="">Sem falha</option>
+          ${failureOptions}
+        </select>
+      </div>
+    </div>
+    <div class="directd-counter">
+      <h4>Webhook</h4>
+      <dl>
+        <dt>URL</dt>
+        <dd>${esc(webhook ? webhook.url : 'Nenhuma registrada')}</dd>
+        ${
+          webhook
+            ? `
+        <dt>Código</dt>
+        <dd>${esc(webhook.code)}</dd>
+        <dt>Estado</dt>
+        <dd>${esc(webhook.confirmed ? 'Confirmado' : 'Aguardando confirmação')}</dd>
+        <dt>Resposta ao código</dt>
+        <dd>${esc(webhook.codeStatus || '—')}</dd>
+        <dt>Último aviso</dt>
+        <dd>${esc(webhook.lastStatus || '—')}</dd>
+      `
+            : ''
+        }
+      </dl>
+      ${
+        webhook
+          ? '<div class="form-actions"><button type="button" class="key small" data-account="clear">Limpar registro</button></div>'
+          : ''
+      }
+    </div>
+  `
+}
+
+/**
+ * Adds credit to the balance of the account.
+ */
+async function topUpAccount() {
+  const input = /** @type {HTMLInputElement | null} */ (accountBox.querySelector('#directd-topup'))
+  const raw = String(input?.value ?? '').trim().replace(',', '.')
+  const amount = Number(raw)
+  if (!raw || !Number.isFinite(amount) || amount <= 0) {
+    showToast('Informe um valor maior que zero.')
+    return
+  }
+
+  try {
+    const res = await fetch('./_mock/directd/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ add: amount }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  } catch (err) {
+    showToast(`Falha ao adicionar crédito: ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+  await refreshState()
+}
+
+/**
+ * Turns the billing of the account on or off.
+ */
+async function toggleBilling() {
+  const active = !lastAccount?.billingActive
+
+  try {
+    const res = await fetch('./_mock/directd/account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  } catch (err) {
+    showToast(`Falha ao mudar o faturamento: ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+  await refreshState()
+}
+
+/**
+ * Forgets the registration of the webhook.
+ */
+async function clearWebhook() {
+  try {
+    const res = await fetch('./_mock/directd/webhook', { method: 'DELETE' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  } catch (err) {
+    showToast(`Falha ao limpar o registro: ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+  await refreshState()
+}
+
+/**
+ * Forces the management routes to answer a failure, or to answer normally.
+ * @param {string} value
+ */
+async function setManagementFailure(value) {
+  try {
+    if (value === '') {
+      const res = await fetch('./_mock/directd/management-failure', { method: 'DELETE' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    } else {
+      const res = await fetch('./_mock/directd/management-failure', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: Number(value) }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    }
+  } catch (err) {
+    showToast(`Falha ao forçar a falha: ${err instanceof Error ? err.message : String(err)}`)
+    // The picker goes back to what the container still answers.
+    const select = /** @type {HTMLSelectElement | null} */ (accountBox.querySelector('#directd-failure'))
+    if (select) select.value = lastAccount?.managementFailure === null ? '' : String(lastAccount?.managementFailure ?? '')
+    return
+  }
+  await refreshState()
 }
 
 /**
@@ -1019,6 +1200,25 @@ async function init() {
     pagesPanel.style.display = 'none'
     await loadTestCpfs()
     await refreshState()
+
+    // The account panel only exists in the container: its routes are the mock's.
+    accountBox.addEventListener('click', (event) => {
+      const target = /** @type {HTMLElement} */ (event.target)
+      const action = target.closest('[data-account]')
+      if (!action) return
+
+      const name = String(action.getAttribute('data-account'))
+      if (name === 'topup') topUpAccount()
+      else if (name === 'billing') toggleBilling()
+      else if (name === 'clear') clearWebhook()
+    })
+
+    accountBox.addEventListener('change', (event) => {
+      const target = /** @type {HTMLElement} */ (event.target)
+      if (target.id !== 'directd-failure') return
+      setManagementFailure(String(target.value ?? ''))
+    })
+
     setInterval(() => {
       if (document.visibilityState === 'visible') refreshState()
     }, 2000)
