@@ -3,7 +3,8 @@
  *
  * One POST per payment outcome, no `access_token`, the payment found by id in
  * any account. Every action goes through `applyTransition`, so the ledger and
- * the webhook queue move exactly as in the real flows.
+ * the webhook queue move exactly as in the real flows. A hosted checkout is paid
+ * or expired the same way, through `modules/checkout/service.ts`.
  *
  * Mounted next to `/_admin`, behind the same `adminEnabled` gate.
  */
@@ -25,6 +26,22 @@ import {
   refuseInvoice,
 } from '../modules/invoices/service.ts'
 import { badRequest } from '../core/errors.ts'
+import {
+  expireCheckout,
+  loadCheckout,
+  payCheckout,
+  serializeCheckout,
+} from '../modules/checkout/service.ts'
+
+/** What the payer chooses on the hosted page; every field optional. */
+export const checkoutPayBody = t.Object({
+  chargeType: t.Optional(t.String()),
+  billingType: t.Optional(t.String()),
+  creditCard: t.Optional(t.Record(t.String(), t.Unknown())),
+  creditCardHolderInfo: t.Optional(t.Record(t.String(), t.Unknown())),
+  customerData: t.Optional(t.Record(t.String(), t.Unknown())),
+  eventOrder: t.Optional(t.Union([t.Literal('CHECKOUT_FIRST'), t.Literal('PAYMENT_FIRST')])),
+})
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -111,6 +128,23 @@ export function mockRoutes(ctx: AppContext) {
   const reason = t.Optional(t.Object({ description: t.Optional(t.String()) }))
 
   return app
+    // ── Hosted checkouts: the payer's page and the expiry, on demand ──────────
+    // The same service as the checkout page (src/checkout/routes.ts).
+    .post('/checkouts/:id/pay', ({ params, body }) => payCheckout(ctx, params.id, body ?? {}), {
+      params,
+      body: t.Optional(checkoutPayBody),
+    })
+    .post(
+      '/checkouts/:id/expire',
+      async ({ params }) => {
+        const row = await loadCheckout(ctx, params.id)
+        if (!(await expireCheckout(ctx, row))) {
+          throw badRequest('invalid_action', `The checkout is ${row.status}; only an ACTIVE one expires.`)
+        }
+        return serializeCheckout(await loadCheckout(ctx, params.id))
+      },
+      { params },
+    )
     // ── Fiscal notes: the city hall, on demand ──────────────────────────────
     // Authorizes regardless of the fiscal information: the outcome is forced.
     .post(

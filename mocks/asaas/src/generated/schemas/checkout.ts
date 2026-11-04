@@ -79,6 +79,7 @@ export const CheckoutSessionResponse = Type.Object({
     "subscription": Type.Optional(Nullable(CheckoutSessionSubscription)),
     "installment": Type.Optional(Nullable(CheckoutSessionInstallment)),
     "split": Type.Optional(Nullable(Type.Array(CheckoutSessionSplit))),
+    "customer": Type.Optional(Nullable(Type.String({ description: "Unique identifier of the customer in Asaas", examples: ["cus_000005219613"] }))),
   })
 export type CheckoutSessionResponse = (typeof CheckoutSessionResponse)['static']
 
@@ -93,5 +94,6 @@ export const CheckoutSessionSaveRequest = Type.Object({
     "subscription": Type.Optional(Nullable(CheckoutSessionSubscription)),
     "installment": Type.Optional(Nullable(CheckoutSessionInstallment)),
     "splits": Type.Optional(Nullable(Type.Array(CheckoutSessionSplit))),
+    "customer": Type.Optional(Nullable(Type.String({ description: "Unique identifier of an existing customer in Asaas. Do not send together with customerData", examples: ["cus_000005219613"] }))),
   })
 export type CheckoutSessionSaveRequest = (typeof CheckoutSessionSaveRequest)['static']

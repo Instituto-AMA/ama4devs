@@ -7,51 +7,24 @@
  * The cancellation emits CHECKOUT_CANCELED — the webhook is an EFFECT of the
  * transition, not something the handler "remembers" to do, and that is why it is
  * emitted in the same transaction that changes the status.
+ *
+ * Paying and expiring have no API call: they live in `service.ts`.
  */
 import { and, eq } from 'drizzle-orm'
-import { toBusinessTimestamp } from '../../core/clock.ts'
 import { badRequest, invalid, notFound } from '../../core/errors.ts'
-import { checkouts } from '../../db/schema/misc.ts'
+import { checkouts, customers } from '../../db/schema/index.ts'
 import { checkoutId } from '../../domain/ids.ts'
 import { brlToCents, cents, roundCents } from '../../domain/money.ts'
 import type { HandlerMap } from '../../http/register.ts'
-
-type CheckoutRow = typeof checkouts.$inferSelect
+import {
+  expirationFor,
+  serializeCheckout as serialize,
+  type CheckoutPayload,
+  type CheckoutRow,
+} from './service.ts'
 
 const BILLING_TYPES = new Set(['CREDIT_CARD', 'PIX'])
 const CHARGE_TYPES = new Set(['DETACHED', 'RECURRENT', 'INSTALLMENT'])
-
-interface CheckoutPayload {
-  billingTypes: string[]
-  chargeTypes: string[]
-  minutesToExpire: number
-  externalReference: string | null
-  callback: Record<string, unknown>
-  items: Record<string, unknown>[]
-  customerData: Record<string, unknown> | null
-  subscription: Record<string, unknown> | null
-  installment: Record<string, unknown> | null
-  split: Record<string, unknown>[] | null
-}
-
-function serialize(row: CheckoutRow) {
-  const p = row.payload as unknown as CheckoutPayload
-  return {
-    id: row.id,
-    link: row.link,
-    status: row.status,
-    billingTypes: p.billingTypes,
-    chargeTypes: p.chargeTypes,
-    minutesToExpire: p.minutesToExpire,
-    externalReference: p.externalReference,
-    callback: p.callback,
-    items: p.items,
-    customerData: p.customerData,
-    subscription: p.subscription,
-    installment: p.installment,
-    split: p.split,
-  }
-}
 
 /** Sum of the items, in cents. Integer arithmetic from the start to the end. */
 function totalCents(items: Record<string, unknown>[]) {
@@ -114,6 +87,18 @@ export const checkoutHandlers: HandlerMap = {
       )
     }
 
+    // An existing customer (overlay 009). TODO(rule): the sentence Asaas answers
+    // for an unknown one was not captured; this is the one of POST /v3/payments.
+    const customer = b.customer ? String(b.customer) : null
+    if (customer) {
+      const [owned] = await ctx.db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(and(eq(customers.id, customer), eq(customers.accountId, auth.accountId)))
+        .limit(1)
+      if (!owned) throw invalid('customer', 'Customer inválido ou não informado.')
+    }
+
     const value = totalCents(items)
 
     const minutesToExpire =
@@ -133,6 +118,7 @@ export const checkoutHandlers: HandlerMap = {
       externalReference: (b.externalReference as string | null) ?? null,
       callback: callback as Record<string, unknown>,
       items,
+      customer,
       customerData: (b.customerData as Record<string, unknown> | null) ?? null,
       subscription: (b.subscription as Record<string, unknown> | null) ?? null,
       installment: (b.installment as Record<string, unknown> | null) ?? null,
@@ -141,16 +127,16 @@ export const checkoutHandlers: HandlerMap = {
       split: (b.splits as Record<string, unknown>[] | null) ?? null,
     }
 
-    // Virtual clock: the expiration is calculated in SIMULATED time.
-    const expiresAt = new Date(ctx.clock.nowMs() + minutesToExpire * 60_000)
-
     const row = {
       id,
       accountId: auth.accountId,
       status: 'ACTIVE',
       valueCents: value,
-      link: `${ctx.config.publicBaseUrl}/checkoutSession/show/${id}`,
-      expirationDate: toBusinessTimestamp(expiresAt),
+      // Asaas's path, on this server: the page exists here (src/checkout/routes.ts),
+      // the way `invoiceUrl` opens the invoice page.
+      link: `${ctx.config.invoiceBaseUrl}/checkoutSession/show/${id}`,
+      // Virtual clock: the expiration is calculated in SIMULATED time.
+      expirationDate: expirationFor(ctx, minutesToExpire),
       payload: payload as unknown as Record<string, unknown>,
       dateCreated: ctx.clock.timestamp(),
     }

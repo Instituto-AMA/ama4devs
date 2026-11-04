@@ -149,15 +149,16 @@ export interface Config {
   logLevel: string
 
   /**
-   * Base of the public URLs the API RETURNS (payment link, checkout,
-   * image/report download). It is not the URL this server listens on: it is the
-   * host Asaas would put in the response, and integrations usually display it.
+   * Base of the public URLs the API RETURNS (payment link, image/report
+   * download). It is not the URL this server listens on: it is the host Asaas
+   * would put in the response, and integrations usually display it.
    */
   publicBaseUrl: string
 
   /**
-   * Where the payer's invoice page (`invoiceUrl`, `/i/<id>`) and bank slip (`bankSlipUrl`)
-   * open: this server, as the browser reaches it. Unlike `publicBaseUrl` the page exists
+   * Where the payer's invoice page (`invoiceUrl`, `/i/<id>`), bank slip (`bankSlipUrl`) and
+   * hosted checkout (`link`, `/checkoutSession/show/<id>`) open: this server, as the
+   * browser reaches it. Unlike `publicBaseUrl` the page exists
    * here, so the link has to work. Default `http://localhost:<PORT>`; behind a different
    * host port, set INVOICE_BASE_URL to it.
    */
