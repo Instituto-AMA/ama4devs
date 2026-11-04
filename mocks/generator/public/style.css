@@ -1150,6 +1150,20 @@ tr.directd-empty td {
   font-size: 20px;
 }
 
+/* A registered URL is longer than the card: it wraps instead of leaving it. */
+#directd-account .directd-counter {
+  min-width: 0;
+}
+#directd-account dl {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+#directd-account dd {
+  overflow-wrap: anywhere;
+}
+#directd-account .field {
+  margin-top: 14px;
+}
+
 .directd-log summary {
   cursor: pointer;
   font: 700 12px/1 var(--mono);
