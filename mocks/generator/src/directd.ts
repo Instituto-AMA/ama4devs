@@ -68,6 +68,8 @@ export interface AsyncQuery {
   charged: boolean
   /** Whether the consultation asked for a callback. */
   callback: boolean
+  /** Whether the callback of the consultation was posted. */
+  announced: boolean
   final: { status: number; body: unknown }
 }
 
@@ -115,6 +117,12 @@ const LOG_LIMIT = 500
 /** The route that reads the balance of the account. */
 const ROUTE_BALANCE = 'Marketplace/GetBalance'
 
+/**
+ * How long a consultation that asked for a callback runs before it announces
+ * itself.
+ */
+const CALLBACK_DELAY_MS = 1000
+
 /** The route that reads the consumption of the account. */
 const ROUTE_CONSUMPTION = 'Billing/GetConsumptionApiV3'
 
@@ -133,7 +141,8 @@ const BALANCE_DESCRIPTION = 'Faturamento Saldo (Pré)'
 /**
  * The Direct Data server: the provider's routes and the control routes of the
  * test CPFs.
- * @param deps The outside world: the clock, the ids, the wait and the post.
+ * @param deps The outside world: the clock, the ids, the wait, the schedule and
+ * the post.
  * @param options The policy of the CPFs that are not in the test table and the
  * public URL of the mock itself.
  */
@@ -142,6 +151,7 @@ export function createDirectd(
     now: () => Date
     newId: () => string
     sleep: (ms: number) => Promise<void>
+    schedule: (ms: number, task: () => Promise<void>) => void
     post: (url: string, body: unknown) => Promise<{ status: number }>
   },
   options: { unlisted: UnlistedPolicy; baseUrl: string; balance: number },
@@ -149,7 +159,7 @@ export function createDirectd(
   api(request: Request, url: URL, clientIp?: string): Promise<Response>
   control(request: Request, url: URL): Promise<Response>
 } {
-  const { now, newId, sleep, post } = deps
+  const { now, newId, sleep, schedule, post } = deps
   const envUnlisted = options.unlisted
   const baseUrl = options.baseUrl.replace(/\/+$/, '')
 
@@ -355,7 +365,8 @@ export function createDirectd(
 
   /**
    * The registration of a callback URL: the mock remembers it, posts the code
-   * to it and waits for the receiver to answer `201`.
+   * to it and waits for the receiver to answer `201`. The URL is ready only
+   * when the code comes back through `ConfirmUrlCallBack`.
    * @param request The request of the registration.
    * @param startedAt When the request came in.
    */
@@ -403,7 +414,6 @@ export function createDirectd(
     })
 
     current.codeStatus = result.status
-    current.confirmed = result.status === 201
 
     return { status: 200, body: webhookExecution(current.id, 'Created', startedAt) }
   }
@@ -450,6 +460,33 @@ export function createDirectd(
     })
 
     registration.lastStatus = result.status
+  }
+
+  /**
+   * The announcement of a consultation that asked for a callback: the callback
+   * goes to the confirmed URL, once, with the status of the answer.
+   * @param query The consultation that settles.
+   */
+  async function announce(query: AsyncQuery): Promise<void> {
+    if (!query.callback || query.announced) return
+    if (!registration || !registration.confirmed) return
+
+    query.announced = true
+    const resultado: string | null = metaOf(query.final.body)?.resultado ?? null
+    const status = resultado !== null && CHARGED_RESULTS.includes(resultado) ? 'Finished' : 'Error'
+    await postCallback(query.uid, 'APIv3', status)
+  }
+
+  /**
+   * A consultation that settles by itself: its timer released it and it
+   * announces itself, with no read.
+   * @param query The consultation that settles.
+   */
+  async function settleAlone(query: AsyncQuery): Promise<void> {
+    // A reset forgets the query: its timer must not post it.
+    if (queries.get(query.uid) !== query) return
+    query.released = true
+    await announce(query)
   }
 
   /**
@@ -689,7 +726,61 @@ export function createDirectd(
       }
 
       query.released = true
+      await announce(query)
       return json({ released: uid })
+    }
+
+    const fail = /^queries\/([^/]+)\/fail$/.exec(path)
+    if (method === 'POST' && fail) {
+      const uid = decodeURIComponent(fail[1]!)
+      const query = queries.get(uid)
+      if (!query) {
+        return json({ error: { code: 'not_found', message: `No query: ${uid}.` } }, 404)
+      }
+
+      if (query.delivered) {
+        return json(
+          { error: { code: 'already_settled', message: `The query is already settled: ${uid}.` } },
+          409,
+        )
+      }
+
+      const body = await bodyOf(request)
+      if (body instanceof Response) return body
+
+      const outcome = String(body.outcome ?? '')
+      const key = FAILURE_OUTCOMES.find((entry) => entry === outcome)
+      const failure = key ? FAILURES[key] : undefined
+      if (!failure) {
+        return json(
+          { error: { code: 'invalid_outcome', message: `Unknown outcome: ${outcome}.` } },
+          400,
+        )
+      }
+
+      query.outcome = outcome as Outcome
+      query.final = {
+        status: failure.status,
+        body: envelope(
+          {
+            route: query.route,
+            uid: query.uid,
+            cpf: query.cpf || null,
+            result: failure.result,
+            message: failure.message,
+            ip: '127.0.0.1',
+            async: true,
+            callback: query.callback,
+            receipt: false,
+            now: now(),
+            startedAt: now(),
+          },
+          null,
+        ),
+      }
+      query.released = true
+      await announce(query)
+      return json({ failed: uid, outcome })
     }
 
     if (method === 'DELETE' && path === 'state') {
@@ -745,7 +836,7 @@ export function createDirectd(
     const outcome = core.outcome as Outcome
 
     if (wantsAsync && core.status === 200 && consultaUid) {
-      queries.set(consultaUid, {
+      const query: AsyncQuery = {
         uid: consultaUid,
         route,
         cpf,
@@ -756,8 +847,16 @@ export function createDirectd(
         delivered: false,
         charged: false,
         callback: Boolean(meta?.enviarCallback),
+        announced: false,
         final: { status: core.status, body: core.body },
-      })
+      }
+      queries.set(consultaUid, query)
+
+      // A consultation that asked for a callback settles alone: it announces
+      // itself to the confirmed URL, with no read.
+      if (query.callback && registration?.confirmed && outcome !== 'neverSettles') {
+        schedule(outcome === 'slow' ? SLOW_DELAY_MS : CALLBACK_DELAY_MS, () => settleAlone(query))
+      }
 
       const created = asyncCreated({
         route,
@@ -866,10 +965,7 @@ export function createDirectd(
     if (resultado !== null && CHARGED_RESULTS.includes(resultado)) query.charged = true
 
     // The consultation is over: the callback goes to the confirmed URL.
-    if (query.callback) {
-      const status = resultado !== null && CHARGED_RESULTS.includes(resultado) ? 'Finished' : 'Error'
-      await postCallback(query.uid, 'APIv3', status)
-    }
+    await announce(query)
 
     return {
       status: query.final.status,
@@ -1024,6 +1120,14 @@ const WEBHOOK_PRODUCTS = [
 
 /** The statuses a callback may carry. */
 const WEBHOOK_STATUSES = ['Created', 'Processing', 'Error', 'Canceled', 'Modified', 'Finished']
+
+/**
+ * The failures a consultation can fail with: the ones that happen after the
+ * consultation exists, so the query has a uid to fail.
+ */
+const FAILURE_OUTCOMES = (Object.keys(FAILURES) as Array<keyof typeof FAILURES>).filter(
+  (key) => !FAILURES[key].beforeConsultation,
+)
 
 /** The alphabet of the code of a registration: no letter that reads like a digit. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

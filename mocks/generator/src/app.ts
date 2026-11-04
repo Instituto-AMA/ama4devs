@@ -21,6 +21,7 @@ export interface AppDeps {
   now?: () => Date
   newId?: () => string
   sleep?: (ms: number) => Promise<void>
+  schedule?: (ms: number, task: () => Promise<void>) => void
   post?: (url: string, body: unknown) => Promise<{ status: number }>
 }
 
@@ -70,7 +71,13 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
   // The Direct Data server is built once: the test CPFs, the log and the
   // counters live between the requests.
   const directd = createDirectd(
-    { now, newId, sleep, post: deps.post ?? rewritingPost(config.webhookLocalhostRewrite) },
+    {
+      now,
+      newId,
+      sleep,
+      schedule: deps.schedule ?? defaultSchedule,
+      post: deps.post ?? rewritingPost(config.webhookLocalhostRewrite),
+    },
     {
       unlisted: config.directdUnlisted,
       baseUrl: `http://localhost:${config.port}`,
@@ -334,6 +341,16 @@ export function deliveryUrl(raw: string, rewrite: string): string {
  */
 function rewritingPost(rewrite: string): (url: string, body: unknown) => Promise<{ status: number }> {
   return (url, body) => defaultPost(deliveryUrl(url, rewrite), body)
+}
+
+/**
+ * The schedule of the mock when the caller injects none: the task runs after
+ * the milliseconds it was given.
+ * @param ms The milliseconds to wait.
+ * @param task The task to run.
+ */
+function defaultSchedule(ms: number, task: () => Promise<void>): void {
+  setTimeout(() => void task(), ms)
 }
 
 /**

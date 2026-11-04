@@ -10,27 +10,38 @@ interface Sent {
   body: any
 }
 
-/** The harness: the clock, the ids, the wait and the post are fakes. */
+/** A task the mock scheduled: the tests run it by hand, they never sleep. */
+interface Scheduled {
+  ms: number
+  task: () => Promise<void>
+}
+
+/** The harness: the clock, the ids, the wait, the schedule and the post are fakes. */
 interface Harness {
   app: ReturnType<typeof createApp>
   sent: Sent[]
+  scheduled: Scheduled[]
 }
 
 function harness(balance?: number): Harness {
   const sent: Sent[] = []
+  const scheduled: Scheduled[] = []
   let counter = 0
 
   const app = createApp(loadConfig(balance === undefined ? {} : { DIRECTD_BALANCE: String(balance) }), {
     now: () => new Date('2026-11-04T12:36:08.000Z'),
     newId: () => `id-${++counter}`,
     sleep: async () => {},
+    schedule: (ms: number, task: () => Promise<void>) => {
+      scheduled.push({ ms, task })
+    },
     post: async (url: string, body: unknown) => {
       sent.push({ url, body })
       return { status: 201 }
     },
   })
 
-  return { app, sent }
+  return { app, sent, scheduled }
 }
 
 /** A request to the mock. */
@@ -59,6 +70,26 @@ function provider(h: Harness, path: string, payload: unknown, token = DIRECTD_TO
     headers: { 'content-type': 'application/json', Token: token },
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * A registration of a callback URL that is ready for the callbacks: the code
+ * comes back through `ConfirmUrlCallBack`.
+ * @param h The harness.
+ */
+async function confirmed(h: Harness): Promise<void> {
+  await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9999/callback' })
+
+  const state = await bodyOf(await call(h, '/_mock/directd/webhook'))
+  await provider(h, '/api/Webhook/ConfirmUrlCallBack', { Code: state.code })
+}
+
+/**
+ * The callbacks of the consultations, the way the receiver sees them.
+ * @param h The harness.
+ */
+function apiV3Callbacks(h: Harness): Sent[] {
+  return h.sent.filter((entry) => entry.body.Product === 'APIv3')
 }
 
 describe('the webhook of the provider', () => {
@@ -91,6 +122,10 @@ describe('the webhook of the provider', () => {
     expect(h.sent[0]!.body.Status).toBe('Created')
     expect(h.sent[0]!.body.Code).toMatch(/^CALL-[A-Z0-9]{4}$/)
 
+    // The URL is not ready: the code has not come back yet.
+    const before = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    expect(before.confirmed).toBe(false)
+
     const confirmed = await provider(h, '/api/Webhook/ConfirmUrlCallBack', {
       Code: h.sent[0]!.body.Code,
     })
@@ -100,6 +135,9 @@ describe('the webhook of the provider', () => {
     expect(confirmedBody.result).toBe('Confirmed')
     expect(confirmedBody.status).toBe('OK')
     expect(confirmedBody.id).toBe(createdBody.id)
+
+    const after = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    expect(after.confirmed).toBe(true)
   })
 
   test('refuses a token that is wrong or missing', async () => {
@@ -186,7 +224,7 @@ describe('the webhook of the provider', () => {
   test('posts the callback of a consultation that settles', async () => {
     const h = harness()
 
-    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9999/callback' })
+    await confirmed(h)
 
     const created = await call(
       h,
@@ -223,7 +261,7 @@ describe('the webhook of the provider', () => {
     })
     expect(fired.status).toBe(409)
 
-    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9999/callback' })
+    await confirmed(h)
 
     const state = await bodyOf(await call(h, '/_mock/directd/webhook'))
     expect(Object.keys(state)).toEqual(['url', 'confirmed', 'code'])
@@ -248,6 +286,225 @@ describe('the webhook of the provider', () => {
     const after = await bodyOf(await call(h, '/_mock/directd/webhook'))
     expect(after.url).toBeNull()
     expect(after.confirmed).toBe(false)
+  })
+
+  test('a receiver that answers 201 is not confirmed until the code comes back', async () => {
+    const h = harness()
+
+    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9999/callback' })
+
+    // The 201 of the receiver is not the confirmation: the code has to come back.
+    const state = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    expect(state.confirmed).toBe(false)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+
+    // Nothing is scheduled and nothing is posted: the URL is not ready.
+    expect(h.scheduled).toHaveLength(0)
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+  })
+
+  test('a consultation announces itself with no read', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    // The consultation announces itself after a second, with no read.
+    expect(h.scheduled).toHaveLength(1)
+    expect(h.scheduled[0]!.ms).toBe(1000)
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+
+    await h.scheduled[0]!.task()
+
+    const posted = apiV3Callbacks(h)
+    expect(posted).toHaveLength(1)
+    expect(Object.keys(posted[0]!.body)).toEqual(['Product', 'Id', 'Status', 'Url'])
+    expect(posted[0]!.body.Product).toBe('APIv3')
+    expect(posted[0]!.body.Id).toBe(uid)
+    expect(posted[0]!.body.Status).toBe('Finished')
+
+    // The consultation is over: the first read answers at once.
+    const ready = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(ready.status).toBe(200)
+
+    // A second read posts nothing more.
+    await call(h, `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`)
+    expect(apiV3Callbacks(h)).toHaveLength(1)
+  })
+
+  test('the slow CPF announces after its wait', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11101444401&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+
+    expect(h.scheduled).toHaveLength(1)
+    expect(h.scheduled[0]!.ms).toBe(25000)
+  })
+
+  test('a query that never settles waits for the release', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11101555572&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    // The consultation never settles on its own.
+    expect(h.scheduled).toHaveLength(0)
+
+    const pending = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(pending.status).toBe(202)
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+
+    const released = await control(h, `/_mock/directd/queries/${uid}/release`, 'POST')
+    expect(released.status).toBe(200)
+
+    const posted = apiV3Callbacks(h)
+    expect(posted).toHaveLength(1)
+    expect(posted[0]!.body.Status).toBe('Finished')
+
+    const ready = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(ready.status).toBe(200)
+    expect(apiV3Callbacks(h)).toHaveLength(1)
+  })
+
+  test('a failed query announces Error', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11101555572&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    const balanceBefore = await bodyOf(await call(h, '/_mock/directd/balance'))
+
+    const failed = await control(h, `/_mock/directd/queries/${uid}/fail`, 'POST', {
+      outcome: 'internalError',
+    })
+    expect(failed.status).toBe(200)
+
+    const posted = apiV3Callbacks(h)
+    expect(posted).toHaveLength(1)
+    expect(posted[0]!.body.Status).toBe('Error')
+
+    // The read answers the failure of the provider.
+    const read = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(read.status).toBe(500)
+    const readBody = await bodyOf(read)
+    expect(readBody.metaDados.resultado).toBe('Erro Interno')
+    expect(readBody.retorno).toBeNull()
+
+    // The failure charges nothing.
+    const balanceAfter = await bodyOf(await call(h, '/_mock/directd/balance'))
+    expect(balanceAfter.balance.balance).toBe(balanceBefore.balance.balance)
+
+    // The query is settled: it cannot fail twice.
+    const again = await control(h, `/_mock/directd/queries/${uid}/fail`, 'POST', {
+      outcome: 'internalError',
+    })
+    expect(again.status).toBe(409)
+    expect((await bodyOf(again)).error.code).toBe('already_settled')
+
+    // A failure that happens before the consultation cannot be forced.
+    const other = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    const otherUid = (await bodyOf(other)).metaDados.consultaUid
+
+    const invalid = await control(h, `/_mock/directd/queries/${otherUid}/fail`, 'POST', {
+      outcome: 'noBalance',
+    })
+    expect(invalid.status).toBe(400)
+    expect((await bodyOf(invalid)).error.code).toBe('invalid_outcome')
+
+    // An unknown query answers 404.
+    const unknown = await control(h, '/_mock/directd/queries/direct-nope/fail', 'POST', {
+      outcome: 'internalError',
+    })
+    expect(unknown.status).toBe(404)
+    expect((await bodyOf(unknown)).error.code).toBe('not_found')
+  })
+
+  test('a reset drops a scheduled announce', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+    expect(h.scheduled).toHaveLength(1)
+
+    const reset = await control(h, '/_mock/directd/state', 'DELETE')
+    expect(reset.status).toBe(200)
+
+    // The timer of a forgotten query posts nothing.
+    await h.scheduled[0]!.task()
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+  })
+
+  test('without a confirmed URL the read rule stays', async () => {
+    const h = harness()
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(created.status).toBe(201)
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    // Without a confirmed URL nothing is scheduled.
+    expect(h.scheduled).toHaveLength(0)
+
+    const pending = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(pending.status).toBe(202)
+
+    const ready = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(ready.status).toBe(200)
+
+    // And nothing is posted.
+    expect(h.sent).toHaveLength(0)
   })
 })
 
