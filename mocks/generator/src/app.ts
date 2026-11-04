@@ -366,6 +366,8 @@ async function defaultPost(url: string, body: unknown): Promise<{ status: number
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
+      // A redirect could lead anywhere: the destination guard saw this URL only.
+      redirect: 'manual',
       // A receiver that never answers must not hold the provider's route.
       signal: AbortSignal.timeout(5000),
     })

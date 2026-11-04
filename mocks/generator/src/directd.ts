@@ -481,42 +481,52 @@ export function createDirectd(
   }
 
   /**
-   * The callback of a settled consultation, in the documented key order.
+   * The callback of a settled consultation, in the documented key order. The
+   * answer lands on the registration that got the post: the current one may be
+   * replaced or cleared while the post is on its way.
+   * @param target The registration the callback goes to.
    * @param id The `consultaUid` of the consultation.
    * @param product The product of the callback.
    * @param status The status of the callback.
+   * @return The status the receiver answered.
    */
-  async function postCallback(id: string, product: string, status: string): Promise<void> {
-    if (!registration || !registration.confirmed) return
-
-    const result = await post(registration.url, {
+  async function postCallback(
+    target: WebhookRegistration,
+    id: string,
+    product: string,
+    status: string,
+  ): Promise<number> {
+    const result = await post(target.url, {
       Product: product,
       Id: id,
       Status: status,
       Url: `${baseUrl}/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${id}`,
     })
 
-    registration.lastStatus = result.status
+    target.lastStatus = result.status
+    return result.status
   }
 
   /**
    * The announcement of a consultation that asked for a callback: the callback
-   * goes to the confirmed URL, once, with the status of the answer.
+   * goes to the URL confirmed at this moment, once, with the status of the answer.
    * @param query The consultation that settles.
    */
   async function announce(query: AsyncQuery): Promise<void> {
+    const target = registration
     if (!query.callback || query.announced) return
-    if (!registration || !registration.confirmed) return
+    if (!target || !target.confirmed) return
 
     query.announced = true
     const resultado: string | null = metaOf(query.final.body)?.resultado ?? null
     const status = resultado !== null && CHARGED_RESULTS.includes(resultado) ? 'Finished' : 'Error'
-    await postCallback(query.uid, 'APIv3', status)
+    await postCallback(target, query.uid, 'APIv3', status)
   }
 
   /**
    * A consultation that settles by itself: its timer released it and it
-   * announces itself, with no read.
+   * announces itself, with no read. A registration cleared while the timer
+   * waited stops the post, not the settling: the consultation is over anyway.
    * @param query The consultation that settles.
    */
   async function settleAlone(query: AsyncQuery): Promise<void> {
@@ -566,9 +576,9 @@ export function createDirectd(
       return { status: 400, body: webhookError('invalid_id', 'The id is missing.') }
     }
 
-    await postCallback(id, product, status)
+    const answered = await postCallback(target, id, product, status)
 
-    return { status: 200, body: { posted: true, status: registration?.lastStatus ?? null } }
+    return { status: 200, body: { posted: true, status: answered } }
   }
 
   /**
@@ -702,7 +712,7 @@ export function createDirectd(
     }
 
     if (method === 'DELETE' && path.startsWith('test-cpfs/')) {
-      const cpf = normalizeCpf(decodeURIComponent(path.slice('test-cpfs/'.length)))
+      const cpf = normalizeCpf(decodedSegment(path.slice('test-cpfs/'.length)))
       const index = testCpfs.findIndex((entry) => entry.cpf === cpf)
       if (index < 0) {
         return json({ error: { code: 'not_found', message: `No test CPF: ${cpf}.` } }, 404)
@@ -809,7 +819,7 @@ export function createDirectd(
 
     const release = /^queries\/([^/]+)\/release$/.exec(path)
     if (method === 'POST' && release) {
-      const uid = decodeURIComponent(release[1]!)
+      const uid = decodedSegment(release[1]!)
       const query = queries.get(uid)
       if (!query) {
         return json({ error: { code: 'not_found', message: `No query: ${uid}.` } }, 404)
@@ -822,13 +832,15 @@ export function createDirectd(
 
     const fail = /^queries\/([^/]+)\/fail$/.exec(path)
     if (method === 'POST' && fail) {
-      const uid = decodeURIComponent(fail[1]!)
+      const uid = decodedSegment(fail[1]!)
       const query = queries.get(uid)
       if (!query) {
         return json({ error: { code: 'not_found', message: `No query: ${uid}.` } }, 404)
       }
 
-      if (query.delivered) {
+      // The read or the callback already told how the query ended: a failure
+      // now would have the read contradict what the receiver was told.
+      if (query.delivered || query.announced) {
         return json(
           { error: { code: 'already_settled', message: `The query is already settled: ${uid}.` } },
           409,
@@ -848,6 +860,7 @@ export function createDirectd(
         )
       }
 
+      const meta = metaOf(query.final.body)
       query.outcome = outcome as Outcome
       query.final = {
         status: failure.status,
@@ -858,10 +871,10 @@ export function createDirectd(
             cpf: query.cpf || null,
             result: failure.result,
             message: failure.message,
-            ip: '127.0.0.1',
+            ip: meta?.ip,
             async: true,
             callback: query.callback,
-            receipt: false,
+            receipt: Boolean(meta?.gerarComprovante),
             now: now(),
             startedAt: now(),
           },
@@ -1420,6 +1433,19 @@ function paramOf(params: URLSearchParams, name: string): string | undefined {
     if (key.toLowerCase() === name.toLowerCase()) return value
   }
   return undefined
+}
+
+/**
+ * A segment of a control path, decoded; a malformed one stays as it came, so it
+ * matches nothing and the route answers its 404.
+ * @param segment The raw segment.
+ */
+function decodedSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
 }
 
 /**

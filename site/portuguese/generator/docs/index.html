@@ -353,7 +353,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPo
                     </tr>
                     <tr>
                       <td><code>Callback</code></td>
-                      <td><code>habilitar</code> pede um callback: o mock o envia para a URL de um registro confirmado, e para nenhum outro lugar</td>
+                      <td><code>habilitar</code> numa consulta assíncrona pede um callback: o mock envia esse callback à URL de um registro confirmado, e a nenhum outro lugar</td>
                     </tr>
                     <tr>
                       <td><code>GERARCOMPROVANTE</code></td>
@@ -604,7 +604,7 @@ CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOK
 
 # A primeira leitura responde 202 (ainda rodando), a seguinte o envelope completo (200).
 curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
-              <p>O CPF <code>11101555572</code> nunca termina sozinho: a leitura fica em <code>202</code> até a consulta ser liberada com <code>POST /_mock/directd/queries/{uid}/release</code>.</p>
+              <p>O CPF <code>11101555572</code> nunca termina sozinho: a leitura fica em <code>202</code> até a consulta ser liberada com <code>POST /_mock/directd/queries/{uid}/release</code> ou falhar com <code>POST /_mock/directd/queries/{uid}/fail</code>.</p>
 
               <h3>O log e os contadores</h3>
               <p>Toda chamada às rotas do provedor é registrada, e o token é guardado como estado (<code>valid</code>, <code>invalid</code> ou <code>missing</code>), nunca como valor.</p>
@@ -620,11 +620,11 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
                     </tr>
                     <tr>
                       <td><code>GET /_mock/directd/state</code></td>
-                      <td>Os contadores, as consultas assíncronas e a política</td>
+                      <td>Os contadores, as consultas assíncronas, o saldo, o registro e a política</td>
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/state</code></td>
-                      <td>Zera o log, as consultas assíncronas e os contadores</td>
+                      <td>Zera o log, as consultas assíncronas, os contadores, o saldo, o registro e as chaves da conta</td>
                     </tr>
                   </tbody>
                 </table>
@@ -659,7 +659,7 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
               <div class="code"><pre><code>DIRECTD_MOCK_URL=http://localhost:45450</code></pre></div>
 
               <h3 id="directd-webhook">O webhook</h3>
-              <p>O mock responde às rotas de webhook do provedor, nos próprios caminhos do provedor. O token vem no cabeçalho <code>Token</code>, do jeito que o provedor o recebe ali. O handshake tem três passos e só o terceiro confirma a URL: a URL do receptor é registrada, o mock envia um código para ela e o receptor devolve esse código em <code>POST /api/Webhook/ConfirmUrlCallBack</code>. O <code>201</code> que o receptor responde à mensagem do código não confirma nada — só o <code>ConfirmUrlCallBack</code> confirma a URL.</p>
+              <p>O mock atende as rotas de webhook do provedor, nos mesmos caminhos do provedor. O token vai no cabeçalho <code>Token</code>, como o provedor exige nessas rotas. O handshake tem três passos e só o terceiro confirma a URL: a URL do receptor é registrada, o mock envia um código para ela e o receptor devolve esse código em <code>POST /api/Webhook/ConfirmUrlCallBack</code>. O <code>201</code> com que o receptor responde à mensagem do código não confirma nada — só o <code>ConfirmUrlCallBack</code> confirma a URL.</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -692,7 +692,7 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
   -H 'Token: 00000000-0000-4000-8000-00000000d1d1' \
   -H 'content-type: application/json' \
   -d "{\"Code\":\"$CODE\"}"</code></pre></div>
-              <p>O mock nunca sai da máquina: ele envia apenas para um host de loopback (<code>127.0.0.1</code>, <code>::1</code>, <code>localhost</code>) ou para um host de um único rótulo (um serviço de uma rede de compose, como <code>hub-webhooks</code>). Qualquer outra URL é recusada com <code>400</code> e nada é enviado.</p>
+              <p>O mock nunca sai da máquina: ele envia apenas para um host de loopback (<code>127.0.0.1</code>, <code>::1</code>, <code>localhost</code>) ou para um host de nome simples, sem pontos (um serviço de uma rede do compose, como <code>hub-webhooks</code>). Qualquer outra URL é recusada com <code>400</code> e nada é enviado, e um redirecionamento do receptor não é seguido.</p>
               <p>O callback de uma consulta carrega as chaves documentadas, nesta ordem — <code>Product</code>, <code>Id</code>, <code>Status</code> e <code>Url</code>:</p>
               <div class="code"><pre><code>{
   "Product": "APIv3",
@@ -701,8 +701,9 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
   "Url": "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e"
 }</code></pre></div>
               <p>O <code>Status</code> é <code>Finished</code> quando a consulta deu certo e <code>Error</code> quando falhou.</p>
-              <p>Uma consulta com <code>Callback=habilitar</code> e uma URL confirmada termina sozinha: cerca de um segundo depois do <code>201</code> (25 s para o CPF lento <code>11101444401</code>) o mock envia o callback uma única vez, e a primeira leitura do resultado responde <code>200</code> na hora. O CPF <code>11101555572</code> nunca termina sozinho: só o <code>release</code> ou o <code>fail</code> o termina. Sem URL confirmada nada é enviado e a regra da leitura continua como era — <code>202</code> na primeira leitura, <code>200</code> da segunda em diante.</p>
-              <p>As rotas de controle conduzem o webhook por script:</p>
+              <p>Uma consulta assíncrona com <code>Callback=habilitar</code> e uma URL confirmada termina sozinha: cerca de um segundo depois do <code>201</code> (25 s para o CPF lento <code>11101444401</code>) o mock envia o callback uma única vez, e a primeira leitura do resultado responde <code>200</code> na hora. O CPF <code>11101555572</code> nunca termina sozinho: só o <code>release</code> ou o <code>fail</code> o termina. Sem URL confirmada nada é enviado e a regra da leitura continua como era — <code>202</code> na primeira leitura, <code>200</code> da segunda em diante. Uma consulta síncrona não tem o que avisar: a flag é registrada e nada é enviado.</p>
+              <p>A URL confirmada conta em dois momentos. Na criação da consulta, ela decide se a consulta termina sozinha. No término, ela decide para onde vai o callback: para a URL confirmada naquele momento, mesmo que um novo registro tenha substituído o primeiro. Se no meio do caminho o registro for limpo ou trocado por outro ainda não confirmado, o envio não acontece, mas a consulta termina do mesmo jeito: a primeira leitura responde <code>200</code>.</p>
+              <p>As rotas de controle permitem comandar o webhook por script:</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -719,22 +720,22 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/webhook/fire</code></td>
-                      <td>Envia um callback agora: <code>{ "product": "APIv3", "id": "…", "status": "Modified" }</code>; o aviso de disponibilidade <code>{ "product": "APIv3-StatusAvailability", "status": "available" }</code> aceita qualquer palavra de status e envia <code>{ Product, Status }</code>; <code>409</code> quando nada está confirmado</td>
+                      <td>Envia um callback agora: <code>{ "product": "APIv3", "id": "…", "status": "Modified" }</code>; o aviso de disponibilidade <code>{ "product": "APIv3-StatusAvailability", "status": "available" }</code> aceita qualquer palavra de status e envia <code>{ Product, Status }</code>; não termina nenhuma consulta; <code>409</code> quando nada está confirmado</td>
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/queries/{uid}/release</code></td>
-                      <td>Termina uma consulta agora e envia o seu callback</td>
+                      <td>Termina uma consulta agora e envia o callback, se ela pediu um</td>
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/queries/{uid}/fail</code></td>
-                      <td>Termina uma consulta com uma falha: <code>{ "outcome": "notFound" }</code> (<code>notFound</code>, <code>timeout</code>, <code>unavailable</code> ou <code>internalError</code>); o callback carrega <code>Status: Error</code></td>
+                      <td>Termina uma consulta com uma falha: <code>{ "outcome": "notFound" }</code> (<code>notFound</code>, <code>timeout</code>, <code>unavailable</code> ou <code>internalError</code>); a leitura responde essa falha e o callback, se a consulta pediu um, carrega <code>Status: Error</code>; <code>409</code> depois que a consulta foi lida ou que o callback saiu, para a leitura nunca contradizer o que o receptor ouviu</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               <h3 id="directd-account">O saldo e o consumo</h3>
-              <p>O mock mantém um saldo: ele começa em <code>DIRECTD_BALANCE</code> (500 por padrão) e cada consulta que o provedor cobra desconta o custo do seu produto — <code>Score</code> 1.98 e <code>BoaVistaAcertaMaisPositivoPF</code> 11.18. Um saldo menor que o custo responde o <code>403</code> do resultado <code>Saldo insuficiente</code>, e nada é cobrado. As duas rotas recebem o token no cabeçalho <code>Token</code>.</p>
+              <p>O mock mantém um saldo: ele começa em <code>DIRECTD_BALANCE</code> (500 por padrão) e cada consulta que o provedor cobra desconta o custo do seu produto — <code>Score</code> R$ 1,98 e <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18. Com saldo menor que o custo, a consulta responde o <code>403</code> do resultado <code>Saldo insuficiente</code> e nada é cobrado. As duas rotas recebem o token no cabeçalho <code>Token</code>.</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -774,7 +775,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
   "dateTimeExecution": "11/4/2026 3:36:08 PM",
   "error": null
 }</code></pre></div>
-              <p>As rotas de controle conduzem o saldo e a conta por script:</p>
+              <p>As rotas de controle permitem comandar o saldo e a conta por script:</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -787,7 +788,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/balance</code></td>
-                      <td>Define o saldo (<code>{ "set": 12.5 }</code>) ou o recarrega (<code>{ "add": 100 }</code>); a recarga entra em <code>addedLast30Days</code></td>
+                      <td>Define o saldo (<code>{ "set": 12.5 }</code>) ou faz uma recarga (<code>{ "add": 100 }</code>); a recarga entra em <code>addedLast30Days</code></td>
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/account</code></td>
@@ -795,7 +796,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     </tr>
                     <tr>
                       <td><code>PUT /_mock/directd/management-failure</code></td>
-                      <td>Força o status das rotas de management: <code>{ "status": 429 }</code> (400, 401, 429, 500 ou 503)</td>
+                      <td>Força a resposta das rotas de webhook e de conta: <code>{ "status": 429 }</code> (400, 401, 429, 500 ou 503)</td>
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/management-failure</code></td>
@@ -803,7 +804,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/state</code></td>
-                      <td>Restaura o saldo, o faturamento, o registro e os contadores</td>
+                      <td>Restaura o saldo, o faturamento, o registro, a falha forçada e os contadores, e esvazia o log e as consultas assíncronas</td>
                     </tr>
                   </tbody>
                 </table>
@@ -814,24 +815,24 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                 <li>O <code>resultadoId</code> e o <code>resultado</code> de <code>202</code>, <code>400</code>, <code>403</code>, <code>404</code>, <code>408</code>, <code>500</code>, <code>503</code> e de <code>Sucesso com Ressalvas</code> são escolha do próprio simulador: o provedor documenta apenas <code>1 Sucesso</code> e <code>3 Não Autorizado</code>.</li>
                 <li><code>consultaUid</code> e <code>chave</code> são <code>null</code> quando a chamada é recusada antes de existir uma consulta (<code>400</code>, <code>401</code>, <code>403</code>), e preenchidos quando a própria consulta falhou (<code>404</code>, <code>408</code>, <code>500</code>, <code>503</code>).</li>
                 <li>Os textos de <code>faixaScore</code>, <code>perfil</code>, <code>capacidadePagamento</code>, <code>rendaPresumida.faixa</code> e de qualquer outro campo descritivo são valores plausíveis, documentados por cenário acima.</li>
-                <li><code>Callback=habilitar</code> pede um callback: o mock o envia para a URL de um registro confirmado, e para nenhum outro lugar.</li>
+                <li><code>Callback=habilitar</code> numa consulta assíncrona pede um callback: o mock envia esse callback à URL de um registro confirmado, e a nenhum outro lugar. Numa chamada síncrona, ele só registra a flag.</li>
                 <li><code>GERARCOMPROVANTE=Habilitar</code> apenas registra a flag: nenhum PDF é produzido e <code>urlComprovante</code> continua <code>null</code>.</li>
                 <li><code>GET /api/Historico?ConsultaUid=</code> (a forma <code>{ info, retorno }</code>) não é simulada.</li>
                 <li>O 429 é forçado só pelo seu CPF de teste: o mock não conta requisições por segundo, e <code>retryAfterSeconds</code> é sempre <code>30</code> (sem bloqueio progressivo).</li>
                 <li><code>Async=habilitar</code> num CPF que falha responde a falha na hora, sem <code>201</code>; o CPF lento espera só na chamada síncrona — a consulta assíncrona dele é criada na hora.</li>
-                <li>A leitura assíncrona responde <code>202</code> na primeira leitura e o envelope final da segunda em diante (ou na hora, depois de liberada, de uma falha ou do término automático de uma consulta com URL de callback confirmada); um <code>ConsultaUid</code> desconhecido responde <code>404</code> com o nome <code>Obter Retorno Consulta Async</code>.</li>
+                <li>A leitura assíncrona responde <code>202</code> na primeira leitura e o envelope final da segunda em diante (ou na hora, se a consulta foi liberada, falhou ou terminou sozinha com uma URL de callback confirmada); um <code>ConsultaUid</code> desconhecido responde <code>404</code> com o nome <code>Obter Retorno Consulta Async</code>.</li>
                 <li>Os nomes dos parâmetros valem em qualquer caixa (<code>cpf</code>, <code>async</code>, <code>token</code>).</li>
               </ul>
 
               <h3>O gerador nunca chama o provedor</h3>
-              <p>A simulação é local: nenhuma requisição sai do container para a Direct Data, nenhum host externo é chamado e nenhum token real existe neste repositório. O único token aceito é o público <code>00000000-0000-4000-8000-00000000d1d1</code>, e cada resposta é calculada a partir da tabela de CPFs de teste — o mesmo CPF devolve sempre o mesmo resultado.</p>
+              <p>A simulação é local: nenhuma requisição sai do container para a Direct Data e nenhum token real existe neste repositório. A única chamada que o mock faz é o callback para um receptor local (um host de loopback ou de nome simples). O único token aceito é o público <code>00000000-0000-4000-8000-00000000d1d1</code>, e cada resposta é calculada a partir da tabela de CPFs de teste — o mesmo CPF devolve sempre o mesmo resultado.</p>
             </section>
 
             <section id="compose" aria-labelledby="compose-title">
               <h2 id="compose-title">Compose em outro projeto</h2>
               <p>Para usar o gerador no <code>docker-compose.yml</code> de outro projeto, basta adicionar o serviço <code>generator</code> ao lado do serviço <code>asaas</code>. Os dois serviços se acham automaticamente pelo nome na rede interna, sem precisar definir variáveis de URL:</p>
               <div class="code"><pre><code>  generator:
-    image: ghcr.io/instituto-ama/generator-mock:latest
+    image: ghcr.io/instituto-ama/generator-mock:0.4.0
     ports:
       - '45450:45450'
     environment:
@@ -884,7 +885,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     <tr>
                       <td><code>DIRECTD_BALANCE</code></td>
                       <td><code>500</code></td>
-                      <td>O saldo com que o mock Direct Data começa. Cada consulta cobrada desconta o custo do seu produto (<code>Score</code> 1.98, <code>BoaVistaAcertaMaisPositivoPF</code> 11.18)</td>
+                      <td>O saldo inicial do mock Direct Data. Cada consulta cobrada desconta o custo do seu produto (<code>Score</code> R$ 1,98, <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18)</td>
                     </tr>
                     <tr>
                       <td><code>WEBHOOK_LOCALHOST_REWRITE</code></td>

@@ -348,7 +348,7 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPo
                     </tr>
                     <tr>
                       <td><code>Callback</code></td>
-                      <td><code>habilitar</code> asks for a callback: the mock posts it to the URL of a confirmed registration, and to nowhere else</td>
+                      <td><code>habilitar</code> on an async consultation asks for a callback: the mock posts it to the URL of a confirmed registration, and to nowhere else</td>
                     </tr>
                     <tr>
                       <td><code>GERARCOMPROVANTE</code></td>
@@ -690,7 +690,7 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
   },
   "retorno": null
 }</code></pre></div>
-              <p>The CPF <code>11101555572</code> never settles on its own: its read stays <code>202</code> until the query is released with <code>POST /_mock/directd/queries/{uid}/release</code>.</p>
+              <p>The CPF <code>11101555572</code> never settles on its own: its read stays <code>202</code> until the query is released with <code>POST /_mock/directd/queries/{uid}/release</code> or failed with <code>POST /_mock/directd/queries/{uid}/fail</code>.</p>
 
               <h3>The request log and the counters</h3>
               <p>Every call to the provider's routes is logged, and the token is kept as its state (<code>valid</code>, <code>invalid</code> or <code>missing</code>), never as its value.</p>
@@ -709,16 +709,16 @@ curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?Consulta
                     </tr>
                     <tr>
                       <td><code>GET /_mock/directd/state</code></td>
-                      <td>The counters, the async queries and the policy</td>
+                      <td>The counters, the async queries, the balance, the registration and the policy</td>
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/state</code></td>
-                      <td>Resets the log, the async queries and the counters</td>
+                      <td>Resets the log, the async queries, the counters, the balance, the registration and the switches of the account</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p>The provider charges a consultation whose result is <code>Sucesso</code> or <code>Sucesso com Ressalvas</code>, and the mock counts exactly that: the <code>charged</code> counter grows once per <code>consultaUid</code>, when the consultation answers <code>200</code>. Every other answer is counted as not charged.</p>
+              <p>The provider charges a consultation whose result is <code>Sucesso</code> or <code>Sucesso com Ressalvas</code>, and the mock counts exactly that: the <code>charged</code> counter grows once per <code>consultaUid</code>, when the consultation answers <code>200</code>. Every other answer is counted as not charged. An excerpt of the state, after the ten calls of the run:</p>
               <div class="code"><pre><code>{
   "token": "00000000-0000-4000-8000-00000000d1d1",
   "unlisted": "lowRisk",
@@ -808,7 +808,7 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
   -H 'Token: 00000000-0000-4000-8000-00000000d1d1' \
   -H 'content-type: application/json' \
   -d "{\"Code\":\"$CODE\"}"</code></pre></div>
-              <p>The mock never leaves the machine: it posts only to a loopback host (<code>127.0.0.1</code>, <code>::1</code>, <code>localhost</code>) or to a single-label host (a service of a compose network, like <code>hub-webhooks</code>). Any other URL is refused with <code>400</code> and nothing is posted.</p>
+              <p>The mock never leaves the machine: it posts only to a loopback host (<code>127.0.0.1</code>, <code>::1</code>, <code>localhost</code>) or to a single-label host (a service of a compose network, like <code>hub-webhooks</code>). Any other URL is refused with <code>400</code> and nothing is posted, and a redirect from the receiver is not followed.</p>
               <p>The callback of a consultation carries the documented keys, in this order — <code>Product</code>, <code>Id</code>, <code>Status</code> and <code>Url</code>:</p>
               <div class="code"><pre><code>{
   "Product": "APIv3",
@@ -817,7 +817,8 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
   "Url": "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e"
 }</code></pre></div>
               <p><code>Status</code> is <code>Finished</code> when the consultation succeeded and <code>Error</code> when it failed.</p>
-              <p>A consultation with <code>Callback=habilitar</code> and a confirmed URL settles alone: about one second after the <code>201</code> (25 s for the slow CPF <code>11101444401</code>) the mock posts the callback once, and the first read of the result answers <code>200</code> right away. The CPF <code>11101555572</code> never settles on its own: only <code>release</code> or <code>fail</code> settles it. Without a confirmed URL nothing is posted and the read rule stays as it was — <code>202</code> on the first read, <code>200</code> from the second on.</p>
+              <p>An async consultation with <code>Callback=habilitar</code> and a confirmed URL settles alone: about one second after the <code>201</code> (25 s for the slow CPF <code>11101444401</code>) the mock posts the callback once, and the first read of the result answers <code>200</code> right away. The CPF <code>11101555572</code> never settles on its own: only <code>release</code> or <code>fail</code> settles it. Without a confirmed URL nothing is posted and the read rule stays as it was — <code>202</code> on the first read, <code>200</code> from the second on. A synchronous consultation has nothing to announce: the flag is recorded and nothing is posted.</p>
+              <p>Whether a URL is confirmed matters at two moments. When the consultation is created, it decides whether the consultation settles alone. When the consultation settles, it decides where the callback goes: to the URL confirmed at that moment, even if a new registration replaced the first one. A registration cleared or replaced by an unconfirmed one in between stops the post, not the settling: the first read still answers <code>200</code>.</p>
               <p>The control routes drive the webhook from a script:</p>
               <div class="table-wrap">
                 <table>
@@ -838,15 +839,15 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/webhook/fire</code></td>
-                      <td>Posts a callback now: <code>{ "product": "APIv3", "id": "…", "status": "Modified" }</code>; the availability notice <code>{ "product": "APIv3-StatusAvailability", "status": "available" }</code> takes any status word and posts <code>{ Product, Status }</code>; <code>409</code> when nothing is confirmed</td>
+                      <td>Posts a callback now: <code>{ "product": "APIv3", "id": "…", "status": "Modified" }</code>; the availability notice <code>{ "product": "APIv3-StatusAvailability", "status": "available" }</code> takes any status word and posts <code>{ Product, Status }</code>; it settles no consultation; <code>409</code> when nothing is confirmed</td>
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/queries/{uid}/release</code></td>
-                      <td>Settles a query now and posts its callback</td>
+                      <td>Settles a query now and posts its callback, when it asked for one</td>
                     </tr>
                     <tr>
                       <td><code>POST /_mock/directd/queries/{uid}/fail</code></td>
-                      <td>Settles a query with a failure: <code>{ "outcome": "notFound" }</code> (<code>notFound</code>, <code>timeout</code>, <code>unavailable</code> or <code>internalError</code>); the callback carries <code>Status: Error</code></td>
+                      <td>Settles a query with a failure: <code>{ "outcome": "notFound" }</code> (<code>notFound</code>, <code>timeout</code>, <code>unavailable</code> or <code>internalError</code>); the read answers that failure and the callback, when the query asked for one, carries <code>Status: Error</code>; <code>409</code> once the query was read or its callback went out, so the read never contradicts what the receiver was told</td>
                     </tr>
                   </tbody>
                 </table>
@@ -920,7 +921,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     </tr>
                     <tr>
                       <td><code>PUT /_mock/directd/management-failure</code></td>
-                      <td>Forces the status of the management routes: <code>{ "status": 429 }</code> (400, 401, 429, 500 or 503)</td>
+                      <td>Forces the answer of the webhook and account routes: <code>{ "status": 429 }</code> (400, 401, 429, 500 or 503)</td>
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/management-failure</code></td>
@@ -928,7 +929,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     </tr>
                     <tr>
                       <td><code>DELETE /_mock/directd/state</code></td>
-                      <td>Restores the balance, the billing, the registration and the counters</td>
+                      <td>Restores the balance, the billing, the registration, the forced failure and the counters, and empties the log and the async queries</td>
                     </tr>
                   </tbody>
                 </table>
@@ -939,7 +940,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                 <li>The <code>resultadoId</code> and <code>resultado</code> of <code>202</code>, <code>400</code>, <code>403</code>, <code>404</code>, <code>408</code>, <code>500</code>, <code>503</code> and of <code>Sucesso com Ressalvas</code> are the simulator's own choice: the provider documents only <code>1 Sucesso</code> and <code>3 Não Autorizado</code>.</li>
                 <li><code>consultaUid</code> and <code>chave</code> are <code>null</code> when the call is refused before a consultation exists (<code>400</code>, <code>401</code>, <code>403</code>), and set when the consultation itself failed (<code>404</code>, <code>408</code>, <code>500</code>, <code>503</code>).</li>
                 <li>The texts of <code>faixaScore</code>, <code>perfil</code>, <code>capacidadePagamento</code>, <code>rendaPresumida.faixa</code> and every other descriptive field are plausible values, documented per scenario above.</li>
-                <li><code>Callback=habilitar</code> asks for a callback: the mock posts it to the URL of a confirmed registration, and to nowhere else.</li>
+                <li><code>Callback=habilitar</code> on an async consultation asks for a callback: the mock posts it to the URL of a confirmed registration, and to nowhere else. On a synchronous call it only records the flag.</li>
                 <li><code>GERARCOMPROVANTE=Habilitar</code> only records the flag: no PDF is produced and <code>urlComprovante</code> stays <code>null</code>.</li>
                 <li><code>GET /api/Historico?ConsultaUid=</code> (the <code>{ info, retorno }</code> form) is not simulated.</li>
                 <li>The 429 is forced by its test CPF only: the mock counts no requests per second, and <code>retryAfterSeconds</code> is always <code>30</code> (no progressive block).</li>
@@ -1024,7 +1025,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
               <h2 id="compose-title">Docker Compose</h2>
               <p>In another project's compose, add a <code>generator</code> service next to <code>asaas</code>. Both find each other automatically by service name without requiring any configuration variables:</p>
               <div class="code"><pre><code>  generator:
-    image: ghcr.io/instituto-ama/generator-mock:0.3.0
+    image: ghcr.io/instituto-ama/generator-mock:0.4.0
     ports:
       - '45450:45450'
     depends_on:

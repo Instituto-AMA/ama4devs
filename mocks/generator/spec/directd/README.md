@@ -72,8 +72,8 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   (400, 401, 403), set when the consultation itself failed (404, 408, 500, 503).
 - The text of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every
   descriptive field: plausible values, documented per scenario in the generator's README.
-- `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and posts the callback to the URL of a
-  confirmed registration, and to nowhere else.
+- `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and, on an async consultation, posts the
+  callback to the URL of a confirmed registration, and to nowhere else. A synchronous consultation posts nothing.
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated: the Hub polls
   `ObterRetornoConsultaAsync`.
@@ -85,7 +85,12 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - The settling delay of an async consultation that asked for a callback: about 1 s (25 s for the slow CPF) —
   the mock's own.
 - `POST /_mock/directd/queries/{uid}/fail` and the forced failure of the management routes are control routes,
-  not provider behavior; the body of a forced failure is the mock's own.
+  not provider behavior; the body of a forced failure is the mock's own. A query already read, or whose callback
+  already went out, answers `409` to a fail: the read never contradicts the callback.
+- Which URL gets a callback: the one confirmed when the consultation settles. Whether it settles on its own is
+  decided when it is created; a registration cleared or replaced by an unconfirmed one in between stops the post,
+  not the settling; the timer does not try again, and a later read announces only if a URL is confirmed by then.
+- The `Url` of a callback names the mock as `http://localhost:<port>`, whatever name the caller reached it by.
 - The body of the availability notice: `{ Product, Status }` only, since the provider documents no body and no
   status words for it; the status word is the tester's.
 - `Async=habilitar` on a CPF whose outcome fails answers that failure synchronously, with no `201`.
@@ -105,13 +110,16 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   URLs is not documented.
 - An unknown code answers `400`; the body of the refusal is the mock's own (`{ "error": { "code": … } }`).
 - The destination guard: the mock posts only to a loopback host (`127.0.0.1`, `::1`, `localhost`) or to a
-  single-label host (a service of a compose network); any other host answers `400` and nothing is posted.
+  single-label host (a service of a compose network); any other host answers `400` and nothing is posted. A
+  redirect from the receiver is not followed.
 - The cost of each product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18): the prices of the
   provider's catalog, as the mock reads them; the provider does not document them on the API.
 - The balance starts at `DIRECTD_BALANCE` (500 by default); a charged consultation subtracts the cost of its
   product, a top-up adds to it, and `addedLast30Days` and `consumedLast30Days` are the running sums since the
-  mock booted — the 30-day window itself is not simulated.
+  mock booted — the 30-day window itself is not simulated. An async consultation is charged when it is read and
+  the balance is checked when it is created, so reads can take the balance below zero.
 - A balance shorter than the cost of the product answers the `403` of the `Saldo insuficiente` outcome, the
   same answer the provider gives.
-- The body of the `401` of the account routes: `{ "error": { "code": "unauthorized", … } }`, the mock's own.
+- The bodies of the `401` and of the `405` of the webhook and account routes: `{ "error": { "code": … } }`, the
+  mock's own.
 - `consumption.active` false is the shape of the captured answer with its value switched.

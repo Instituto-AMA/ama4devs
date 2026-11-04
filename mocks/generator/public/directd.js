@@ -1111,7 +1111,8 @@ async function releaseQuery(uid) {
 }
 
 /**
- * Empties the log and the counters.
+ * Empties the log and the counters, and takes the account and the webhook back
+ * to what they were when the mock booted.
  */
 async function resetState() {
   try {

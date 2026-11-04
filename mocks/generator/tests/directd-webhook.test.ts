@@ -44,6 +44,33 @@ function harness(balance?: number): Harness {
   return { app, sent, scheduled }
 }
 
+/**
+ * A harness whose receiver holds the callbacks of the consultations until the
+ * test answers them, so a test can act while a post is on its way.
+ */
+function holdingCallbacks(): Harness & { answers: Array<(value: { status: number }) => void> } {
+  const scheduled: Scheduled[] = []
+  const answers: Array<(value: { status: number }) => void> = []
+  let counter = 0
+
+  const app = createApp(loadConfig({}), {
+    now: () => new Date('2026-11-04T12:36:08.000Z'),
+    newId: () => `id-${++counter}`,
+    sleep: async () => {},
+    schedule: (ms: number, task: () => Promise<void>) => {
+      scheduled.push({ ms, task })
+    },
+    post: (_url: string, body: unknown) =>
+      (body as { Product?: string }).Product === 'APIv3'
+        ? new Promise((resolve) => {
+            answers.push(resolve)
+          })
+        : Promise.resolve({ status: 201 }),
+  })
+
+  return { app, sent: [], scheduled, answers }
+}
+
 /** A request to the mock. */
 function call(h: Harness, path: string, init?: RequestInit): Promise<Response> {
   return h.app.fetch(new Request(`http://localhost:45450${path}`, init))
@@ -478,6 +505,206 @@ describe('the webhook of the provider', () => {
     expect(apiV3Callbacks(h)).toHaveLength(0)
   })
 
+  test('a fail after the callback said Finished is refused and the read stays the success', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    await h.scheduled[0]!.task()
+    expect(apiV3Callbacks(h)[0]!.body.Status).toBe('Finished')
+
+    const failed = await control(h, `/_mock/directd/queries/${uid}/fail`, 'POST', {
+      outcome: 'internalError',
+    })
+    expect(failed.status).toBe(409)
+    expect((await bodyOf(failed)).error.code).toBe('already_settled')
+
+    // The receiver was told Finished, and that is what the read answers.
+    const read = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(read.status).toBe(200)
+    expect((await bodyOf(read)).metaDados.resultado).toBe('Sucesso')
+    expect(apiV3Callbacks(h)).toHaveLength(1)
+  })
+
+  test('a fail before the timer announces Error and the timer posts nothing more', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    const failed = await control(h, `/_mock/directd/queries/${uid}/fail`, 'POST', {
+      outcome: 'timeout',
+    })
+    expect(failed.status).toBe(200)
+
+    await h.scheduled[0]!.task()
+
+    const posted = apiV3Callbacks(h)
+    expect(posted).toHaveLength(1)
+    expect(posted[0]!.body.Status).toBe('Error')
+
+    const read = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(read.status).toBe(408)
+  })
+
+  test('a failed query keeps the caller and the flags of its consultation', async () => {
+    const h = harness()
+
+    const created = await h.app.fetch(
+      new Request(
+        `http://localhost:45450/api/Score?CPF=11101555572&Async=habilitar&GERARCOMPROVANTE=Habilitar&TOKEN=${DIRECTD_TOKEN}`,
+      ),
+      '10.0.0.7',
+    )
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    await control(h, `/_mock/directd/queries/${uid}/fail`, 'POST', { outcome: 'unavailable' })
+
+    const read = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(read.status).toBe(503)
+
+    const meta = (await bodyOf(read)).metaDados
+    expect(meta.ip).toBe('10.0.0.7')
+    expect(meta.gerarComprovante).toBe(true)
+  })
+
+  test('a uid with a malformed encoding answers 404', async () => {
+    const h = harness()
+
+    const released = await control(h, '/_mock/directd/queries/%ZZ/release', 'POST')
+    expect(released.status).toBe(404)
+
+    const failed = await control(h, '/_mock/directd/queries/%ZZ/fail', 'POST', {
+      outcome: 'internalError',
+    })
+    expect(failed.status).toBe(404)
+  })
+
+  test('a timer that outlives its registration posts nothing and the query settles', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const created = await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    const uid = (await bodyOf(created)).metaDados.consultaUid
+
+    await control(h, '/_mock/directd/webhook', 'DELETE')
+    await h.scheduled[0]!.task()
+
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+
+    const read = await call(
+      h,
+      `/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${uid}&TOKEN=${DIRECTD_TOKEN}`,
+    )
+    expect(read.status).toBe(200)
+  })
+
+  test('a timer posts nothing to a registration that replaced its own and is not confirmed', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+
+    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9998/other' })
+    await h.scheduled[0]!.task()
+
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+  })
+
+  test('a timer posts to the URL confirmed when it fires', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+
+    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9998/other' })
+    const state = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    await provider(h, '/api/Webhook/ConfirmUrlCallBack', { Code: state.code })
+
+    await h.scheduled[0]!.task()
+
+    const posted = apiV3Callbacks(h)
+    expect(posted).toHaveLength(1)
+    expect(posted[0]!.url).toBe('http://localhost:9998/other')
+  })
+
+  test('a registration cleared while the callback is on its way breaks nothing', async () => {
+    const h = holdingCallbacks()
+    await confirmed(h)
+
+    await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+
+    const running = h.scheduled[0]!.task()
+    await control(h, '/_mock/directd/webhook', 'DELETE')
+    h.answers[0]!({ status: 201 })
+
+    // The timer has no one to report to: a rejection here would go unhandled.
+    await running
+    const webhook = await bodyOf(await call(h, '/_mock/directd/webhook'))
+    expect(webhook.url).toBeNull()
+  })
+
+  test('the answer of a callback lands on the registration that got it', async () => {
+    const h = holdingCallbacks()
+    await confirmed(h)
+
+    await call(
+      h,
+      `/api/Score?CPF=11100000143&Async=habilitar&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`,
+    )
+
+    const running = h.scheduled[0]!.task()
+    await provider(h, '/api/Webhook/CreateUrlCallBack', { Url: 'http://localhost:9998/other' })
+    h.answers[0]!({ status: 500 })
+    await running
+
+    const state = await bodyOf(await call(h, '/_mock/directd/state'))
+    expect(state.webhook.url).toBe('http://localhost:9998/other')
+    expect(state.webhook.lastStatus).toBeNull()
+  })
+
+  test('a synchronous consultation that asks for a callback posts nothing', async () => {
+    const h = harness()
+    await confirmed(h)
+
+    const answered = await call(h, `/api/Score?CPF=11100000143&Callback=habilitar&TOKEN=${DIRECTD_TOKEN}`)
+    expect(answered.status).toBe(200)
+    expect((await bodyOf(answered)).metaDados.enviarCallback).toBe(true)
+
+    expect(h.scheduled).toHaveLength(0)
+    expect(apiV3Callbacks(h)).toHaveLength(0)
+  })
+
   test('without a confirmed URL the read rule stays', async () => {
     const h = harness()
 
@@ -802,6 +1029,40 @@ describe('the notice, the billing switch and the forced failure', () => {
     const state = await bodyOf(await call(h, '/_mock/directd/state'))
     expect(state.counters.notCharged.total).toBe(0)
     expect(state.counters.charged.total).toBe(0)
+  })
+})
+
+describe('the post of the mock', () => {
+  test('never follows a redirect of the receiver', async () => {
+    const hits: string[] = []
+    const receiver = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch(request) {
+        const { pathname } = new URL(request.url)
+        hits.push(pathname)
+        return pathname === '/callback'
+          ? new Response(null, { status: 307, headers: { Location: '/elsewhere' } })
+          : new Response(null, { status: 201 })
+      },
+    })
+
+    try {
+      // No fake post here: this is the real one, against a receiver on this machine.
+      const app = createApp(loadConfig({}))
+      const created = await app.fetch(
+        new Request('http://localhost:45450/api/Webhook/CreateUrlCallBack', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', Token: DIRECTD_TOKEN },
+          body: JSON.stringify({ Url: `http://127.0.0.1:${receiver.port}/callback` }),
+        }),
+      )
+
+      expect(created.status).toBe(200)
+      expect(hits).toEqual(['/callback'])
+    } finally {
+      receiver.stop(true)
+    }
   })
 })
 
