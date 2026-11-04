@@ -37,7 +37,7 @@ It also does two jobs of a mock:
 
 ## Direct Data
 
-The Direct Data simulation answers the provider's credit routes (`/api/Score`, `/api/BoaVistaAcertaMaisPositivoPF`, `/api/Historico/ObterRetornoConsultaAsync`) and the Hub's credit check points at it.
+The Direct Data simulation answers the provider's credit routes (`/api/Score`, `/api/BoaVistaAcertaMaisPositivoPF`, `/api/Historico/ObterRetornoConsultaAsync`), its webhook routes (`/api/Webhook/CreateUrlCallBack`, `/api/Webhook/ConfirmUrlCallBack`), its account routes (`/api/Marketplace/GetBalance`, `/api/Billing/GetConsumptionApiV3`) and the Hub's credit check points at it.
 
 ### The source of truth is the provider's documentation
 
@@ -54,8 +54,9 @@ A wrong field gives the Hub false confidence, and the Hub ships it. So:
 ### It never leaves the machine
 
 - **No `fetch` to the outside, and no provider URL in `credit.js` or `directd.ts`.** A test guards it. The simulation never proxies, forwards or calls any host.
+- **The only post the mock makes is to a local receiver.** A registered callback URL is posted to only when its host is a loopback (`127.0.0.1`, `::1`, `localhost`) or a single-label compose host; any other URL is refused with `400` and nothing is posted. The `fetch` that carries the post lives in the wiring of `src/app.ts`, never in `credit.js`.
 - **The only token is the public one**, `00000000-0000-4000-8000-00000000d1d1`. No real token lives in this repository, and the log keeps the state of the token (`valid`, `invalid`, `missing`), never its value.
-- `Callback=habilitar` only records the flag: nothing is ever posted anywhere. `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced.
+- `Callback=habilitar` records the flag and posts the callback of a settled consultation to the confirmed URL, and to nowhere else. `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced.
 
 ### The tests inject the outside world
 

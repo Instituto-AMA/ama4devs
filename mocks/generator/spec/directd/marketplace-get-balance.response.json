@@ -1,0 +1,14 @@
+{
+  "balance": {
+    "description": "Faturamento Saldo (Pré)",
+    "type": "Prepaid",
+    "balance": 25.00,
+    "addedLast30Days": 0.00,
+    "consumedLast30Days": 0.00
+  },
+  "success": true,
+  "status": "OK",
+  "elapsedTimeMs": 51,
+  "dateTimeExecution": "11/4/2026 3:36:08 PM",
+  "error": null
+}

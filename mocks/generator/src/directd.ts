@@ -66,7 +66,28 @@ export interface AsyncQuery {
   /** Whether a read already answered the final body. */
   delivered: boolean
   charged: boolean
+  /** Whether the consultation asked for a callback. */
+  callback: boolean
   final: { status: number; body: unknown }
+}
+
+/**
+ * The registration of a callback URL: the URL, the code the provider sends to
+ * it and whether the receiver confirmed that code.
+ */
+export interface WebhookRegistration {
+  /** The id of the registration, the uuid the provider answers with. */
+  id: string
+  /** The URL the provider posts to. */
+  url: string
+  /** The code the receiver confirms. */
+  code: string
+  /** Whether the receiver confirmed the code. */
+  confirmed: boolean
+  /** The status the receiver answered the code message with. */
+  codeStatus: number | null
+  /** The status of the last callback the mock posted. */
+  lastStatus: number | null
 }
 
 /** The counters of the charge rule: what was charged and what was not. */
@@ -91,21 +112,46 @@ interface Answer {
 /** How many requests the log keeps. */
 const LOG_LIMIT = 500
 
+/** The route that reads the balance of the account. */
+const ROUTE_BALANCE = 'Marketplace/GetBalance'
+
+/** The route that reads the consumption of the account. */
+const ROUTE_CONSUMPTION = 'Billing/GetConsumptionApiV3'
+
+/**
+ * The cost of each product of the catalog, the way the provider's catalog
+ * prices them: a charged consultation subtracts its cost from the balance.
+ */
+const PRODUCT_COSTS: Record<string, number> = {
+  [ROUTE_SCORE]: 1.98,
+  [ROUTE_BOA_VISTA]: 11.18,
+}
+
+/** The description of the balance, the way the provider writes it. */
+const BALANCE_DESCRIPTION = 'Faturamento Saldo (Pré)'
+
 /**
  * The Direct Data server: the provider's routes and the control routes of the
  * test CPFs.
- * @param deps The outside world: the clock, the ids and the wait.
- * @param options The policy of the CPFs that are not in the test table.
+ * @param deps The outside world: the clock, the ids, the wait and the post.
+ * @param options The policy of the CPFs that are not in the test table and the
+ * public URL of the mock itself.
  */
 export function createDirectd(
-  deps: { now: () => Date; newId: () => string; sleep: (ms: number) => Promise<void> },
-  options: { unlisted: UnlistedPolicy },
+  deps: {
+    now: () => Date
+    newId: () => string
+    sleep: (ms: number) => Promise<void>
+    post: (url: string, body: unknown) => Promise<{ status: number }>
+  },
+  options: { unlisted: UnlistedPolicy; baseUrl: string; balance: number },
 ): {
   api(request: Request, url: URL, clientIp?: string): Promise<Response>
   control(request: Request, url: URL): Promise<Response>
 } {
-  const { now, newId, sleep } = deps
+  const { now, newId, sleep, post } = deps
   const envUnlisted = options.unlisted
+  const baseUrl = options.baseUrl.replace(/\/+$/, '')
 
   let unlisted: UnlistedPolicy = envUnlisted
   let testCpfs: TestCpf[] = DEFAULT_TEST_CPFS.map((row) => ({ ...row }))
@@ -121,6 +167,14 @@ export function createDirectd(
     notCharged: { total: 0, byStatus: {} },
   }
   let sequence = 0
+  /** The registration of the callback URL, when there is one. */
+  let registration: WebhookRegistration | null = null
+  /** The balance of the account, in the currency of the provider. */
+  let balance = round2(options.balance)
+  /** What was added to the balance over the last 30 days. */
+  let addedLast30Days = 0
+  /** What was consumed from the balance over the last 30 days. */
+  let consumedLast30Days = 0
 
   /**
    * The provider's routes: the Hub calls them from another container, so they
@@ -141,7 +195,14 @@ export function createDirectd(
 
     let answer: Answer
 
-    if (request.method !== 'GET' || route === null) {
+    const webhook = webhookRouteOf(url.pathname)
+    const account = accountRouteOf(url.pathname)
+
+    if (webhook) {
+      answer = await webhookAnswer(request, webhook, startedAt)
+    } else if (account) {
+      answer = accountAnswer(request, account, startedAt)
+    } else if (request.method !== 'GET' || route === null) {
       answer = {
         status: 404,
         body: { error: { code: 'not_found', message: 'Route not found.' } },
@@ -156,7 +217,7 @@ export function createDirectd(
     } else if (tokenState !== 'valid') {
       answer = unauthorizedAnswer(route, ip, startedAt)
     } else if (route === ROUTE_ASYNC_READ) {
-      answer = readAnswer(route, params, ip, startedAt)
+      answer = await readAnswer(route, params, ip, startedAt)
     } else {
       answer = await consultAnswer(route, params, ip, startedAt, cpf)
     }
@@ -170,6 +231,271 @@ export function createDirectd(
     if (requests.length > LOG_LIMIT) requests.pop()
 
     return respond(answer)
+  }
+
+  /**
+   * The answer of the provider's webhook routes: the token comes in the
+   * `Token` header, the way the provider takes it.
+   * @param request The request to answer.
+   * @param route The webhook route.
+   * @param startedAt When the request came in.
+   */
+  async function webhookAnswer(
+    request: Request,
+    route: string,
+    startedAt: Date,
+  ): Promise<Answer> {
+    const base = {
+      headers: {},
+      route,
+      outcome: null,
+      resultado: null,
+      consultaUid: null,
+      async: false,
+      chargeRoute: route,
+    }
+
+    if (request.method !== 'POST') {
+      return { ...base, status: 405, body: webhookError('method_not_allowed', 'The webhook routes use POST.') }
+    }
+
+    if (headerTokenState(request) !== 'valid') {
+      return { ...base, status: 401, body: webhookError('unauthorized', 'The Token header is missing or wrong.') }
+    }
+
+    if (route === WEBHOOK_ROUTE_CREATE) {
+      return { ...base, ...(await createUrlCallBack(request, startedAt)) }
+    }
+
+    return { ...base, ...(await confirmUrlCallBack(request, startedAt)) }
+  }
+
+  /**
+   * The answer of the routes of the account: the balance and the consumption.
+   * The token comes in the `Token` header, the way the provider takes it.
+   * @param request The request to answer.
+   * @param route The route of the account.
+   * @param startedAt When the request came in.
+   */
+  function accountAnswer(request: Request, route: string, startedAt: Date): Answer {
+    const base = {
+      headers: {},
+      route,
+      outcome: null,
+      resultado: null,
+      consultaUid: null,
+      async: false,
+      chargeRoute: route,
+    }
+
+    if (request.method !== 'GET') {
+      return { ...base, status: 405, body: webhookError('method_not_allowed', 'The account routes use GET.') }
+    }
+
+    if (headerTokenState(request) !== 'valid') {
+      return { ...base, status: 401, body: webhookError('unauthorized', 'The Token header is missing or wrong.') }
+    }
+
+    const body = route === ROUTE_CONSUMPTION ? consumptionBody(startedAt) : balanceBody(startedAt)
+    return { ...base, status: 200, body }
+  }
+
+  /**
+   * The body of the balance, in the key order of the captured answer.
+   * @param startedAt When the request came in.
+   */
+  function balanceBody(startedAt: Date): Record<string, unknown> {
+    return {
+      balance: {
+        description: BALANCE_DESCRIPTION,
+        type: 'Prepaid',
+        balance: round2(balance),
+        addedLast30Days: round2(addedLast30Days),
+        consumedLast30Days: round2(consumedLast30Days),
+      },
+      success: true,
+      status: 'OK',
+      elapsedTimeMs: Math.max(0, now().getTime() - startedAt.getTime()),
+      dateTimeExecution: formatExecutionDate(now()),
+      error: null,
+    }
+  }
+
+  /**
+   * The body of the consumption, in the key order of the captured answer.
+   * @param startedAt When the request came in.
+   */
+  function consumptionBody(startedAt: Date): Record<string, unknown> {
+    return {
+      consumption: {
+        details: { balance: round2(balance) },
+        description: BALANCE_DESCRIPTION,
+        active: true,
+      },
+      success: true,
+      status: 'OK',
+      elapsedTimeMs: Math.max(0, now().getTime() - startedAt.getTime()),
+      dateTimeExecution: formatExecutionDate(now()),
+      error: null,
+    }
+  }
+
+  /**
+   * The charge of a consultation: the cost of the product leaves the balance
+   * and joins what was consumed over the last 30 days.
+   * @param route The route of the consultation.
+   */
+  function chargeProduct(route: string): void {
+    const cost = PRODUCT_COSTS[route]
+    if (cost === undefined) return
+
+    balance = round2(balance - cost)
+    consumedLast30Days = round2(consumedLast30Days + cost)
+  }
+
+  /**
+   * The registration of a callback URL: the mock remembers it, posts the code
+   * to it and waits for the receiver to answer `201`.
+   * @param request The request of the registration.
+   * @param startedAt When the request came in.
+   */
+  async function createUrlCallBack(
+    request: Request,
+    startedAt: Date,
+  ): Promise<{ status: number; body: unknown }> {
+    const body = await jsonBody(request)
+    if (!body) {
+      return { status: 400, body: webhookError('invalid_body', 'The request body must be valid JSON.') }
+    }
+
+    const raw = body.Url
+    if (typeof raw !== 'string' || raw.trim() === '') {
+      return { status: 400, body: webhookError('invalid_url', 'The Url is missing.') }
+    }
+
+    const url = raw.trim()
+    if (!isHttpUrl(url)) {
+      return { status: 400, body: webhookError('invalid_url', 'The Url must be an http(s) URL.') }
+    }
+
+    // The mock never leaves the machine: a foreign host is refused and
+    // nothing is posted.
+    if (!isLocalDestination(url)) {
+      return { status: 400, body: webhookError('forbidden_destination', 'The Url must be a local address.') }
+    }
+
+    const id = newId()
+    const current: WebhookRegistration = {
+      id,
+      url,
+      code: codeFrom(id),
+      confirmed: false,
+      codeStatus: null,
+      lastStatus: null,
+    }
+    // A new registration replaces the previous one.
+    registration = current
+
+    const result = await post(url, {
+      MessageStep: "Send this code to 'POST Webhook/ConfirmUrlCallBack'",
+      Code: current.code,
+      Status: 'Created',
+    })
+
+    current.codeStatus = result.status
+    current.confirmed = result.status === 201
+
+    return { status: 200, body: webhookExecution(current.id, 'Created', startedAt) }
+  }
+
+  /**
+   * The confirmation of a registration: the receiver sends the code it got and
+   * the URL is ready for the callbacks.
+   * @param request The request of the confirmation.
+   * @param startedAt When the request came in.
+   */
+  async function confirmUrlCallBack(
+    request: Request,
+    startedAt: Date,
+  ): Promise<{ status: number; body: unknown }> {
+    const body = await jsonBody(request)
+    if (!body) {
+      return { status: 400, body: webhookError('invalid_body', 'The request body must be valid JSON.') }
+    }
+
+    const code = typeof body.Code === 'string' ? body.Code.trim().toUpperCase() : ''
+    if (!registration || code !== registration.code) {
+      return { status: 400, body: webhookError('unknown_code', 'The code does not match a registration.') }
+    }
+
+    registration.confirmed = true
+
+    return { status: 200, body: webhookExecution(registration.id, 'Confirmed', startedAt) }
+  }
+
+  /**
+   * The callback of a settled consultation, in the documented key order.
+   * @param id The `consultaUid` of the consultation.
+   * @param product The product of the callback.
+   * @param status The status of the callback.
+   */
+  async function postCallback(id: string, product: string, status: string): Promise<void> {
+    if (!registration || !registration.confirmed) return
+
+    const result = await post(registration.url, {
+      Product: product,
+      Id: id,
+      Status: status,
+      Url: `${baseUrl}/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=${id}`,
+    })
+
+    registration.lastStatus = result.status
+  }
+
+  /**
+   * The callback the control route fires at once: the tester chooses the
+   * product, the id and the status.
+   * @param body The body of the request.
+   */
+  async function fireCallback(body: Record<string, any>): Promise<{ status: number; body: unknown }> {
+    if (!registration || !registration.confirmed) {
+      return { status: 409, body: webhookError('not_confirmed', 'There is no confirmed registration.') }
+    }
+
+    const product = String(body.product ?? '')
+    if (!WEBHOOK_PRODUCTS.includes(product)) {
+      return { status: 400, body: webhookError('invalid_product', `Unknown product: ${product}.`) }
+    }
+
+    const status = String(body.status ?? '')
+    if (!WEBHOOK_STATUSES.includes(status)) {
+      return { status: 400, body: webhookError('invalid_status', `Unknown status: ${status}.`) }
+    }
+
+    const id = String(body.id ?? '')
+    if (!id) {
+      return { status: 400, body: webhookError('invalid_id', 'The id is missing.') }
+    }
+
+    await postCallback(id, product, status)
+
+    return { status: 200, body: { posted: true, status: registration?.lastStatus ?? null } }
+  }
+
+  /**
+   * The body of a webhook answer, the way the provider writes it.
+   * @param id The id of the registration.
+   * @param result What the answer says (`Created` or `Confirmed`).
+   * @param startedAt When the request came in.
+   */
+  function webhookExecution(id: string, result: string, startedAt: Date): Record<string, unknown> {
+    return {
+      id,
+      result,
+      status: 'OK',
+      elapsedTimeMs: Math.max(0, now().getTime() - startedAt.getTime()),
+      dateTimeExecution: formatExecutionDate(now()),
+    }
   }
 
   /**
@@ -190,6 +516,18 @@ export function createDirectd(
         token: DIRECTD_TOKEN,
         unlisted,
         counters,
+        balance: round2(balance),
+        consumedLast30Days: round2(consumedLast30Days),
+        addedLast30Days: round2(addedLast30Days),
+        webhook: registration
+          ? {
+              url: registration.url,
+              code: registration.code,
+              confirmed: registration.confirmed,
+              codeStatus: registration.codeStatus,
+              lastStatus: registration.lastStatus,
+            }
+          : null,
         asyncQueries: [...queries.values()].reverse(),
         requests: requests.length,
       })
@@ -283,6 +621,65 @@ export function createDirectd(
       return json({ removed: cpf })
     }
 
+    if (method === 'GET' && path === 'balance') {
+      return json(balanceBody(now()))
+    }
+
+    if (method === 'POST' && path === 'balance') {
+      const body = await bodyOf(request)
+      if (body instanceof Response) return body
+
+      const set = body.set
+      const add = body.add
+
+      if (set !== undefined) {
+        if (!isAmount(set)) {
+          return json(
+            { error: { code: 'invalid_amount', message: 'The set must be a number.' } },
+            400,
+          )
+        }
+        balance = round2(Number(set))
+      } else if (add !== undefined) {
+        if (!isAmount(add)) {
+          return json(
+            { error: { code: 'invalid_amount', message: 'The add must be a number.' } },
+            400,
+          )
+        }
+        balance = round2(balance + Number(add))
+        addedLast30Days = round2(addedLast30Days + Number(add))
+      } else {
+        return json(
+          { error: { code: 'invalid_body', message: 'The body needs a set or an add.' } },
+          400,
+        )
+      }
+
+      return json(balanceBody(now()))
+    }
+
+    if (method === 'GET' && path === 'webhook') {
+      return json({
+        url: registration?.url ?? null,
+        confirmed: registration?.confirmed ?? false,
+        code: registration?.code ?? null,
+      })
+    }
+
+    if (method === 'POST' && path === 'webhook/fire') {
+      const body = await bodyOf(request)
+      if (body instanceof Response) return body
+
+      const fired = await fireCallback(body)
+      return json(fired.body, fired.status)
+    }
+
+    if (method === 'DELETE' && path === 'webhook') {
+      registration = null
+      return json({ cleared: true })
+    }
+
     const release = /^queries\/([^/]+)\/release$/.exec(path)
     if (method === 'POST' && release) {
       const uid = decodeURIComponent(release[1]!)
@@ -328,6 +725,13 @@ export function createDirectd(
     const query = consultParams(params)
     const wantsAsync = flagOf(params, 'Async') === 'habilitar'
 
+    // The balance pays for the consultation: a balance shorter than the cost
+    // of the product answers the failure of the provider, no charge at all.
+    const cost = PRODUCT_COSTS[route]
+    if (cost !== undefined && balance < cost) {
+      return noBalanceAnswer(route, ip, startedAt)
+    }
+
     // The slow CPF is the only wait of the mock; an async consultation is
     // created at once, so only the synchronous call waits.
     if (!wantsAsync && resolveCpf(cpf, { testCpfs, unlisted }).outcome === 'slow') {
@@ -351,6 +755,7 @@ export function createDirectd(
         released: false,
         delivered: false,
         charged: false,
+        callback: Boolean(meta?.enviarCallback),
         final: { status: core.status, body: core.body },
       })
 
@@ -398,12 +803,12 @@ export function createDirectd(
    * @param ip The address of the caller.
    * @param startedAt When the request came in.
    */
-  function readAnswer(
+  async function readAnswer(
     route: string,
     params: URLSearchParams,
     ip: string,
     startedAt: Date,
-  ): Answer {
+  ): Promise<Answer> {
     const requested = paramOf(params, 'ConsultaUid') ?? ''
     const query = queries.get(requested)
 
@@ -460,6 +865,12 @@ export function createDirectd(
     // The consultation is charged when it answers, once.
     if (resultado !== null && CHARGED_RESULTS.includes(resultado)) query.charged = true
 
+    // The consultation is over: the callback goes to the confirmed URL.
+    if (query.callback) {
+      const status = resultado !== null && CHARGED_RESULTS.includes(resultado) ? 'Finished' : 'Error'
+      await postCallback(query.uid, 'APIv3', status)
+    }
+
     return {
       status: query.final.status,
       body: query.final.body,
@@ -512,6 +923,45 @@ export function createDirectd(
   }
 
   /**
+   * The refusal of a balance that does not pay for the product: the failure
+   * of the provider, with no consultation and no charge.
+   * @param route The route of the request.
+   * @param ip The address of the caller.
+   * @param startedAt When the request came in.
+   */
+  function noBalanceAnswer(route: string, ip: string, startedAt: Date): Answer {
+    const failure = FAILURES.noBalance
+    const body = envelope(
+      {
+        route,
+        uid: null,
+        cpf: null,
+        result: failure.result,
+        message: failure.message,
+        ip,
+        async: false,
+        callback: false,
+        receipt: false,
+        now: now(),
+        startedAt,
+      },
+      null,
+    )
+
+    return {
+      status: failure.status,
+      body,
+      headers: {},
+      route,
+      outcome: 'noBalance',
+      resultado: metaOf(body)?.resultado ?? null,
+      consultaUid: null,
+      async: false,
+      chargeRoute: route,
+    }
+  }
+
+  /**
    * The counters: a consultation is charged once, when it answers 200 with a
    * charged result. Everything else is a request that was not charged.
    * @param answer The answer of the request.
@@ -529,6 +979,8 @@ export function createDirectd(
       counters.charged.total += 1
       const route = answer.chargeRoute
       counters.charged.byRoute[route] = (counters.charged.byRoute[route] ?? 0) + 1
+      // A charged consultation is a consultation the balance pays for.
+      chargeProduct(route)
       return true
     }
 
@@ -551,6 +1003,172 @@ function routeOf(pathname: string): string | null {
   const name = pathname.slice('/api/'.length)
   if (name === ROUTE_SCORE || name === ROUTE_BOA_VISTA || name === ROUTE_ASYNC_READ) return name
   return null
+}
+
+/** The route of the registration of a callback URL. */
+const WEBHOOK_ROUTE_CREATE = 'Webhook/CreateUrlCallBack'
+
+/** The route of the confirmation of a callback URL. */
+const WEBHOOK_ROUTE_CONFIRM = 'Webhook/ConfirmUrlCallBack'
+
+/** The products a callback may carry. */
+const WEBHOOK_PRODUCTS = [
+  'Enrichment',
+  'AdvancedSearch',
+  'LookALike',
+  'Dossier',
+  'CorporateLinkage',
+  'APIv3',
+  'APIv3-StatusAvailability',
+]
+
+/** The statuses a callback may carry. */
+const WEBHOOK_STATUSES = ['Created', 'Processing', 'Error', 'Canceled', 'Modified', 'Finished']
+
+/** The alphabet of the code of a registration: no letter that reads like a digit. */
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+/**
+ * The webhook route a path names, or null when the path is not one of them.
+ * @param pathname The path of the request.
+ */
+function webhookRouteOf(pathname: string): string | null {
+  if (pathname === '/api/Webhook/CreateUrlCallBack') return WEBHOOK_ROUTE_CREATE
+  if (pathname === '/api/Webhook/ConfirmUrlCallBack') return WEBHOOK_ROUTE_CONFIRM
+  return null
+}
+
+/**
+ * The account route a path names, or null when the path is not one of them.
+ * @param pathname The path of the request.
+ */
+function accountRouteOf(pathname: string): string | null {
+  if (pathname === '/api/Marketplace/GetBalance') return ROUTE_BALANCE
+  if (pathname === '/api/Billing/GetConsumptionApiV3') return ROUTE_CONSUMPTION
+  return null
+}
+
+/**
+ * A money value with two decimals: the balance never carries a fraction of a
+ * cent.
+ * @param value The value.
+ */
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+/**
+ * Whether a value is a number of money: a finite number from zero up.
+ * @param value The value.
+ */
+function isAmount(value: unknown): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+/**
+ * The state of the token of a request that carries it in the header: the
+ * state, never the value.
+ * @param request The request.
+ */
+function headerTokenState(request: Request): TokenState {
+  const token = request.headers.get('token')
+  if (token === null) return 'missing'
+  return token.trim() === DIRECTD_TOKEN ? 'valid' : 'invalid'
+}
+
+/**
+ * Whether a URL is a destination the mock may post to: a loopback address or
+ * the single-label name of a service of a compose network. Everything else is
+ * refused — the mock never leaves the machine.
+ * @param raw The URL of the destination.
+ */
+export function isLocalDestination(raw: string): boolean {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return false
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+
+  const host = url.hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true
+
+  // A single label is the name of a service of a compose network; a name with
+  // a dot is a host of the internet.
+  return host !== '' && !host.includes('.') && !host.includes(':')
+}
+
+/**
+ * Whether a string is an http(s) URL.
+ * @param raw The string.
+ */
+function isHttpUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The code of a registration, from the id the provider gave it: `CALL-` and
+ * four uppercase alphanumerics.
+ * @param id The id of the registration.
+ */
+function codeFrom(id: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index)
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+
+  let code = ''
+  for (let index = 0; index < 4; index += 1) {
+    code += CODE_ALPHABET[hash % CODE_ALPHABET.length]
+    hash = Math.imul(hash, 48271) >>> 0
+  }
+
+  return `CALL-${code}`
+}
+
+/**
+ * The date of an execution, the way the provider writes it: `7/14/2025 3:46:14 PM`.
+ * @param date The moment of the execution.
+ */
+function formatExecutionDate(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const hours = date.getHours()
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12
+
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()} ` +
+    `${hour12}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ` +
+    `${hours >= 12 ? 'PM' : 'AM'}`
+}
+
+/**
+ * The error of a webhook answer.
+ * @param code The code of the error.
+ * @param message What went wrong.
+ */
+function webhookError(code: string, message: string): Record<string, unknown> {
+  return { error: { code, message } }
+}
+
+/**
+ * The body of a request, or null when it is not a JSON object.
+ * @param request The request.
+ */
+async function jsonBody(request: Request): Promise<Record<string, any> | null> {
+  try {
+    const value = await request.json()
+    if (!value || typeof value !== 'object') return null
+    return value as Record<string, any>
+  } catch {
+    return null
+  }
 }
 
 /**

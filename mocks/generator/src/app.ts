@@ -21,6 +21,7 @@ export interface AppDeps {
   now?: () => Date
   newId?: () => string
   sleep?: (ms: number) => Promise<void>
+  post?: (url: string, body: unknown) => Promise<{ status: number }>
 }
 
 /** The application: a fetch handler the server (and the tests) can call. */
@@ -68,7 +69,14 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
 
   // The Direct Data server is built once: the test CPFs, the log and the
   // counters live between the requests.
-  const directd = createDirectd({ now, newId, sleep }, { unlisted: config.directdUnlisted })
+  const directd = createDirectd(
+    { now, newId, sleep, post: deps.post ?? defaultPost },
+    {
+      unlisted: config.directdUnlisted,
+      baseUrl: `http://localhost:${config.port}`,
+      balance: config.directdBalance,
+    },
+  )
 
   return {
     async fetch(request: Request, clientIp?: string): Promise<Response> {
@@ -299,4 +307,26 @@ function isApi(pathname: string): boolean {
  */
 function joinPath(dir: string, name: string): string {
   return `${dir.replace(/\/+$/, '')}/${name}`
+}
+
+/**
+ * The post of the mock when the caller injects none: the body goes to the URL
+ * and the status the receiver answered comes back. The destination guard of
+ * the Direct Data server keeps this call inside the machine.
+ * @param url The URL of the receiver.
+ * @param body The body of the post.
+ */
+async function defaultPost(url: string, body: unknown): Promise<{ status: number }> {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      // A receiver that never answers must not hold the provider's route.
+      signal: AbortSignal.timeout(5000),
+    })
+    return { status: response.status }
+  } catch {
+    return { status: 0 }
+  }
 }

@@ -18,6 +18,8 @@ export interface Config {
   seedOnBoot: string
   /** What the Direct Data mock answers a CPF that is not in its test table. */
   directdUnlisted: UnlistedPolicy
+  /** The balance the Direct Data mock starts with. */
+  directdBalance: number
   allowedHosts: string[]
   publicDir: string
   coreDir: string
@@ -42,6 +44,9 @@ const DEFAULT_ASAAS_API_KEY = '$aact_hmlg_local_master'
 /** The port of the service, as the compose file and the docs say. */
 const DEFAULT_PORT = 45450
 
+/** The balance the Direct Data mock starts with when the environment says nothing. */
+const DEFAULT_DIRECTD_BALANCE = 500
+
 /**
  * The configuration of the server, read from the environment.
  * @param env The environment to read: `process.env` in the server, a plain
@@ -59,6 +64,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     asaasPanelUrl: trimTrailingSlash(env.ASAAS_PANEL_URL?.trim() || 'http://localhost:45445'),
     seedOnBoot: env.ASAAS_SEED_ON_BOOT?.trim() ?? '',
     directdUnlisted: directdUnlistedOf(env.DIRECTD_UNLISTED),
+    directdBalance: balanceOf(env.DIRECTD_BALANCE),
     allowedHosts: allowedHostsOf(env.MOCK_ALLOWED_HOSTS),
     publicDir: new URL('../public', import.meta.url).pathname,
     coreDir: new URL('./core', import.meta.url).pathname,
@@ -83,6 +89,20 @@ function directdUnlistedOf(value: string | undefined): UnlistedPolicy {
   const name = String(value ?? '').trim()
   if (name === 'derived' || name === 'notFound') return name
   return 'lowRisk'
+}
+
+/**
+ * The balance of the Direct Data mock: the number of the environment, or the
+ * default when it says nothing usable.
+ * @param value The raw DIRECTD_BALANCE value.
+ */
+function balanceOf(value: string | undefined): number {
+  const raw = String(value ?? '').trim()
+  if (raw === '') return DEFAULT_DIRECTD_BALANCE
+
+  const balance = Number(raw)
+  if (!Number.isFinite(balance) || balance < 0) return DEFAULT_DIRECTD_BALANCE
+  return Math.round(balance * 100) / 100
 }
 
 /**

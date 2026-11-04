@@ -152,6 +152,13 @@ The generator also answers the **Direct Data API v3** credit routes the Hub uses
 | `GET /api/Score` | The QUOD credit score of a CPF |
 | `GET /api/BoaVistaAcertaMaisPositivoPF` | The Boa Vista "Acerta Mais Positivo" report of a CPF |
 | `GET /api/Historico/ObterRetornoConsultaAsync` | The result of an async consultation, by `ConsultaUid` |
+| `POST /api/Webhook/CreateUrlCallBack` | Registers the URL the provider posts the callbacks to |
+| `POST /api/Webhook/ConfirmUrlCallBack` | Confirms the code the provider sent to that URL |
+| `GET /api/Marketplace/GetBalance` | The balance of the account |
+| `GET /api/Billing/GetConsumptionApiV3` | The consumption of the account |
+
+The webhook and the account routes take the token in the `Token` header, the way the provider takes it there; the
+credit routes take it in the query string.
 
 Every parameter goes in the query string, the way the provider takes them:
 
@@ -160,7 +167,7 @@ Every parameter goes in the query string, the way the provider takes them:
 | `CPF` | The document, with or without the mask (`529.982.247-25` or `52998224725`) |
 | `TOKEN` | The public token of the simulation |
 | `Async` | `habilitar` asks for an asynchronous consultation (`201` with the `consultaUid`) |
-| `Callback` | `habilitar` only records the flag (`enviarCallback: true`); nothing is ever posted anywhere |
+| `Callback` | `habilitar` asks for a callback: the mock posts it to the URL of a confirmed registration (nothing is posted anywhere else) |
 | `GERARCOMPROVANTE` | `Habilitar` only records the flag (`gerarComprovante: true`); no PDF is produced |
 
 A call without the token (or with a wrong one) answers `401`. Every other answer carries the documented envelope, in the documented key order — a `200` of the Score route:
@@ -236,6 +243,100 @@ The rate limit is the one answer that is not an envelope — it carries the `Ret
 ```
 
 The statuses of the routes: `200` (the answer), `201` (async consultation created), `202` (async consultation still running), `400` (invalid or missing CPF), `401` (invalid or missing token), `403` (no balance), `404` (no record for the document), `408` (the provider did not answer in time), `429` (more than 30 requests per second), `500` (internal error) and `503` (the consultation is under maintenance).
+
+### The webhook
+
+The mock answers the provider's webhook routes ([`spec/directd/webhook.md`](spec/directd/webhook.md)): the URL is
+registered, the provider posts a code to it and the receiver confirms that code. Then every consultation that
+settles posts its callback to the confirmed URL.
+
+The mock never leaves the machine: it posts only to a loopback host (`127.0.0.1`, `::1`, `localhost`) or to a
+single-label host (a service of a compose network, like `hub-webhooks`). Any other URL is refused with `400` and
+nothing is posted.
+
+```bash
+# Register the URL of the receiver (200). The mock posts the code to it.
+curl -s -X POST 'http://localhost:45450/api/Webhook/CreateUrlCallBack' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1' \
+  -H 'content-type: application/json' \
+  -d '{"Url":"http://localhost:45451/webhooks/directd"}'
+
+# The registration: the URL, the code and whether it is confirmed.
+curl -s 'http://localhost:45450/_mock/directd/webhook'
+
+# Confirm the code the receiver got (200).
+CODE=$(curl -s 'http://localhost:45450/_mock/directd/webhook' | grep -o '"code": "[^"]*"' | cut -d'"' -f4)
+curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1' \
+  -H 'content-type: application/json' \
+  -d "{\"Code\":\"$CODE\"}"
+```
+
+The code the provider sends is `CALL-` and four uppercase alphanumerics, and the mock keeps one registration: a
+new `CreateUrlCallBack` replaces the previous one. A receiver that does not answer `201` leaves the registration
+unconfirmed, and an unconfirmed URL receives no callback.
+
+The callback of a consultation carries the documented keys, in this order — `Product`, `Id`, `Status` and `Url`:
+
+```json
+{
+  "Product": "APIv3",
+  "Id": "direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e",
+  "Status": "Finished",
+  "Url": "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=direct-6b1f0d1e-6a5e-4a6c-9a5a-6f5f0d1e6a5e"
+}
+```
+
+`Status` is `Finished` when the consultation succeeded and `Error` when it failed. The control routes drive the
+webhook from a script:
+
+| Route | What it does |
+|---|---|
+| `GET /_mock/directd/webhook` | The registration: `{ url, confirmed, code }` |
+| `POST /_mock/directd/webhook/fire` | Posts a callback now: `{ "product": "APIv3", "id": "…", "status": "Modified" }`; `409` when nothing is confirmed |
+| `DELETE /_mock/directd/webhook` | Clears the registration |
+
+### The balance and the consumption
+
+The mock keeps a balance — it starts at `DIRECTD_BALANCE` (500 by default) and every consultation the provider
+charges subtracts the cost of its product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18). A balance shorter
+than the cost answers the `403` of the `Saldo insuficiente` outcome, and nothing is charged.
+
+```bash
+# The balance of the account (200).
+curl -s 'http://localhost:45450/api/Marketplace/GetBalance' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1'
+
+# The consumption of the account (200).
+curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
+  -H 'Token: 00000000-0000-4000-8000-00000000d1d1'
+```
+
+The answer of the balance, in the key order of the real one:
+
+```json
+{
+  "balance": {
+    "description": "Faturamento Saldo (Pré)",
+    "type": "Prepaid",
+    "balance": 500,
+    "addedLast30Days": 0,
+    "consumedLast30Days": 0
+  },
+  "success": true,
+  "status": "OK",
+  "elapsedTimeMs": 1,
+  "dateTimeExecution": "11/4/2026 3:36:08 PM",
+  "error": null
+}
+```
+
+The control routes drive the balance from a script:
+
+| Route | What it does |
+|---|---|
+| `GET /_mock/directd/balance` | The balance, the same body the provider route answers |
+| `POST /_mock/directd/balance` | Sets the balance (`{ "set": 12.5 }`) or tops it up (`{ "add": 100 }`); a top-up joins `addedLast30Days` |
 
 ### The test CPFs
 
@@ -346,7 +447,8 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143'
 - The `resultadoId` and `resultado` of `202`, `400`, `403`, `404`, `408`, `500`, `503` and of `Sucesso com Ressalvas` are the simulator's own choice: the provider documents only `1 Sucesso` and `3 Não Autorizado`.
 - `consultaUid` and `chave` are `null` when the call is refused before a consultation exists (`400`, `401`, `403`), and set when the consultation itself failed (`404`, `408`, `500`, `503`).
 - The texts of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every other descriptive field are plausible values, documented per scenario above.
-- `Callback=habilitar` only records the flag: the mock never posts anywhere.
+- `Callback=habilitar` asks for a callback: the mock posts it to the URL of a confirmed registration, and to
+  nowhere else.
 - `GERARCOMPROVANTE=Habilitar` only records the flag: no PDF is produced and `urlComprovante` stays `null`.
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated.
 - The 429 is forced by its test CPF only: the mock counts no requests per second, and `retryAfterSeconds` is always `30` (no progressive block).
@@ -365,6 +467,7 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143'
 | `ASAAS_PANEL_URL` | `http://localhost:45445` | Browser-accessible URL for Asaas panel links |
 | `ASAAS_SEED_ON_BOOT` | `""` | Comma-separated boot seed configuration (stays off unless set) |
 | `DIRECTD_UNLISTED` | `lowRisk` | What the Direct Data credit check answers for a valid CPF outside the test table: `lowRisk`, `derived` or `notFound` |
+| `DIRECTD_BALANCE` | `500.00` | The balance the Direct Data mock starts with |
 | `MOCK_ALLOWED_HOSTS` | `""` | Comma-separated list of additional host headers allowed by the local guard |
 
 ## Local Guard

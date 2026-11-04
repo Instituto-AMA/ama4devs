@@ -283,6 +283,26 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
                     <td>Resultado de uma consulta de crédito assíncrona, pelo <code>ConsultaUid</code></td>
                     <td><code>{"metaDados": {"resultado": "Processando"}, "retorno": null}</code></td>
                   </tr>
+                  <tr>
+                    <td><code>POST /api/Webhook/CreateUrlCallBack</code></td>
+                    <td>Registra a URL onde o fornecedor envia os callbacks</td>
+                    <td><code>{"id": "…", "result": "Created", "status": "OK"}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/Webhook/ConfirmUrlCallBack</code></td>
+                    <td>Confirma o código que o fornecedor enviou para essa URL</td>
+                    <td><code>{"id": "…", "result": "Confirmed", "status": "OK"}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Marketplace/GetBalance</code></td>
+                    <td>Saldo da conta</td>
+                    <td><code>{"balance": {"balance": 500, "consumedLast30Days": 0}}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Billing/GetConsumptionApiV3</code></td>
+                    <td>Consumo da conta</td>
+                    <td><code>{"consumption": {"details": {"balance": 500}}}</code></td>
+                  </tr>
                 </tbody>
               </table>
             </div>

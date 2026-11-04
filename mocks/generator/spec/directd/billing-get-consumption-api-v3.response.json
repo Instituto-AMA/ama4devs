@@ -1,0 +1,14 @@
+{
+  "consumption": {
+    "details": {
+      "balance": 25
+    },
+    "description": "Faturamento Saldo (Pré)",
+    "active": true
+  },
+  "success": true,
+  "status": "OK",
+  "elapsedTimeMs": 6,
+  "dateTimeExecution": "11/4/2026 3:36:09 PM",
+  "error": null
+}

@@ -274,6 +274,22 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/validate/cnpj/112
                     <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
                     <td>The result of an async consultation, by <code>ConsultaUid</code></td>
                   </tr>
+                  <tr>
+                    <td><code>POST /api/Webhook/CreateUrlCallBack</code></td>
+                    <td>Registers the URL the provider posts the callbacks to</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/Webhook/ConfirmUrlCallBack</code></td>
+                    <td>Confirms the code the provider sent to that URL</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Marketplace/GetBalance</code></td>
+                    <td>The balance of the account: <code>{"balance":{"balance":500,"consumedLast30Days":0}}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/Billing/GetConsumptionApiV3</code></td>
+                    <td>The consumption of the account: <code>{"consumption":{"details":{"balance":500}}}</code></td>
+                  </tr>
                 </tbody>
               </table>
             </div>

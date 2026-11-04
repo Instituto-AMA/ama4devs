@@ -10,6 +10,9 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 | `score.mcp.json` | `directdata_detalhar_api` (`Score`) on the public MCP `https://mcp.directd.com.br` (no token) |
 | `boavista-acerta-mais-positivo-pf.mcp.json` | `directdata_detalhar_api` (`/api/BoaVistaAcertaMaisPositivoPF`) on the same MCP |
 | `integration-guide.md` | `directdata_guia_integracao`, topics envelope, async, auth, statuscodes, ratelimit, callback |
+| `webhook.md` | The `WEBHOOK` paths of https://api.app.directd.com.br/swagger/v1/swagger.json, byte for byte (read on 2026-11-04) |
+| `marketplace-get-balance.response.json` | The real answer of `GET /api/Marketplace/GetBalance`, captured on 2026-11-04 |
+| `billing-get-consumption-api-v3.response.json` | The real answer of `GET /api/Billing/GetConsumptionApiV3`, captured on 2026-11-04 |
 
 ## What is documented
 
@@ -46,6 +49,21 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   `mensagem: "IP ou Token inválido. Verifique."`.
 - The provider charges a consultation whose `resultado` is `Sucesso` or `Sucesso com Ressalvas`.
 
+## The webhook and the account
+
+- `POST /api/Webhook/CreateUrlCallBack` takes the token in the `Token` header and a body `{"Url": "…"}`; it
+  answers `200` with `{ id, result: "Created", status: "OK", elapsedTimeMs, dateTimeExecution }`. The provider
+  then posts the code to that URL and the receiver answers `201`.
+- `POST /api/Webhook/ConfirmUrlCallBack` takes the token in the `Token` header and a body `{"Code": "…"}`; it
+  answers `200` with `{ id, result: "Confirmed", status: "OK", elapsedTimeMs, dateTimeExecution }`.
+- The callback of a consultation carries `Product`, `Id`, `Status` and `Url`, in that order; the products are
+  `Enrichment`, `AdvancedSearch`, `LookALike`, `Dossier`, `CorporateLinkage`, `APIv3` and
+  `APIv3-StatusAvailability`; the statuses are `Created`, `Processing`, `Error`, `Canceled`, `Modified` and
+  `Finished`.
+- `GET /api/Marketplace/GetBalance` and `GET /api/Billing/GetConsumptionApiV3` take the token in the `Token`
+  header; their real answers were captured on 2026-11-04 (`marketplace-get-balance.response.json` and
+  `billing-get-consumption-api-v3.response.json`) and are the shape the mock answers.
+
 ## What is not documented (the mock's own choice, stable, never asserted as the provider's)
 
 - `resultadoId` and `resultado` of 202, 400, 403, 404, 408, 500, 503 and of `Sucesso com Ressalvas`.
@@ -53,8 +71,8 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   (400, 401, 403), set when the consultation itself failed (404, 408, 500, 503).
 - The text of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every
   descriptive field: plausible values, documented per scenario in the generator's README.
-- `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and never posts anywhere — it
-  makes no outbound call.
+- `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and posts the callback to the URL of a
+  confirmed registration, and to nowhere else.
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.
 - `GET /api/Historico?ConsultaUid=` (the `{ info, retorno }` form) is not simulated: the Hub polls
   `ObterRetornoConsultaAsync`.
@@ -72,3 +90,18 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   CPF on both routes, built by `scripts/build-generator-api.mjs` from this core with a fixed date and a
   stable `consultaUid`. Pages answers HTTP 200 for every file; `generator/api/directd.json` lists the
   status the container answers. A static file checks no token and runs no async query.
+- The code of a registration: `CALL-` and four uppercase alphanumerics, drawn from the id the provider gave
+  it. The provider's own example is `CALL-A123`; the format of the four characters is the mock's choice.
+- A new `CreateUrlCallBack` replaces the previous registration: the provider's behaviour with two registered
+  URLs is not documented.
+- An unknown code answers `400`; the body of the refusal is the mock's own (`{ "error": { "code": … } }`).
+- The destination guard: the mock posts only to a loopback host (`127.0.0.1`, `::1`, `localhost`) or to a
+  single-label host (a service of a compose network); any other host answers `400` and nothing is posted.
+- The cost of each product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18): the prices of the
+  provider's catalog, as the mock reads them; the provider does not document them on the API.
+- The balance starts at `DIRECTD_BALANCE` (500 by default); a charged consultation subtracts the cost of its
+  product, a top-up adds to it, and `addedLast30Days` and `consumedLast30Days` are the running sums since the
+  mock booted — the 30-day window itself is not simulated.
+- A balance shorter than the cost of the product answers the `403` of the `Saldo insuficiente` outcome, the
+  same answer the provider gives.
+- The body of the `401` of the account routes: `{ "error": { "code": "unauthorized", … } }`, the mock's own.
