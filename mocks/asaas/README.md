@@ -287,6 +287,7 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `GET`, `POST /_admin/notifications` · `GET /_admin/notify/status` · `GET /_admin/notify/arrivals` · `POST /_admin/notify/test` | Payer notifications: sent, resend, channel health, what arrived |
 | `GET`, `PUT /_admin/accounts/:id/notify` | The account's payer channels, `{"email": true, "whatsapp": true, "sms": false}`; off queues nothing for its customers |
 | `GET /_admin/coverage` · `GET /_admin/fees` | Operations with an engine; the fee table |
+| `PATCH /_admin/fees` | Persist a partial global fee table (integer cents and basis points). Available under Simulator › Fees in the panel. Saved values override environment defaults on boot; `GET /v3/myAccount/fees` and the engine use this same table. Fresh instances always have default fees. |
 | `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | The city hall's answer to a note now, instead of on the next tick: authorize (fiscal information or not), refuse with `{"description": "…"}`, cancel or refuse to cancel |
 | `POST /_mock/checkouts/:id/pay` | Pay a hosted checkout as its payer: `chargeType`, `billingType`, `creditCard` (a test card that approves when empty), `customerData` (when the checkout has no payer), `eventOrder` (`CHECKOUT_FIRST` or `PAYMENT_FIRST`); answers the checkout, the subscription and the charge |
 | `POST /_mock/checkouts/:id/expire` | Expire an `ACTIVE` checkout now, with `CHECKOUT_EXPIRED`, instead of waiting for its `minutesToExpire` |

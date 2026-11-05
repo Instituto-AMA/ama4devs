@@ -185,6 +185,11 @@ const ASAAS = [
   }),
   route('Simulator', 'GET', '/_admin/coverage', 'Which /v3 operations have a business engine'),
   route('Simulator', 'GET', '/_admin/fees', 'The fee table in force'),
+  route('Simulator', 'PATCH', '/_admin/fees', 'Persist global fees used by the engine and the Asaas account fees API', {
+    body: { pix: 199, creditCard: { oneInstallment: 299 } },
+    description: 'Partial table in integer cents and basis points. Saved values override environment defaults on restart. Available in Simulator › Fees.',
+    errors: [{ body: { pix: -1 }, why: 'Negative fees are rejected.' }],
+  }),
   route('Webhooks', 'GET', '/_admin/webhooks/events', 'Every webhook event name Asaas sends'),
   route('Webhooks', 'GET', '/_admin/webhooks/queue', 'The delivery queue: pending, failing, interrupted'),
   route('Webhooks', 'GET', '/_admin/webhooks/deliveries', 'Every delivery attempt with your endpoint\'s answer, and the events no webhook took (NO_WEBHOOK)', {

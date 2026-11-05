@@ -116,6 +116,7 @@
 
             <section id="panel" aria-labelledby="panel-title">
               <h2 id="panel-title">The panel</h2>
+              <p><strong>Simulator › Fees</strong> edits the global fee table, persisted across restarts. Fresh instances always have default fees. Applications read <code>GET /v3/myAccount/fees</code> with their Asaas key; the response uses the same rates as the engine. <code>PATCH /_admin/fees</code> accepts a partial table in integer cents and basis points, like <code>{"pix":199,"creditCard":{"oneInstallment":299}}</code>. Saved values override environment defaults. Existing ledger entries are unchanged.</p>
               <p>Open <a href="http://localhost:45445">http://localhost:45445</a>. It is not the Asaas dashboard: it is the simulator's, and it shows what Asaas does not let you see.</p>
               <div class="carousel-section" data-carousel>
                 <div class="carousel-header-bar">

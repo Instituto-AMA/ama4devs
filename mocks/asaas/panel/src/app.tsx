@@ -29,6 +29,7 @@ import { Subaccounts } from './pages/Subaccounts.tsx'
 import { Clock } from './pages/sim/Clock.tsx'
 import { Profiles } from './pages/sim/Profiles.tsx'
 import { TestCards } from './pages/sim/TestCards.tsx'
+import { Fees } from './pages/sim/Fees.tsx'
 import { useStore, type Store } from './store.ts'
 import './app.css'
 
@@ -50,6 +51,7 @@ const TITLES: Record<string, string> = {
   'sim-profiles': 'Perfis',
   'sim-clock': 'Relógio virtual',
   'sim-cards': 'Cartões de teste',
+  'sim-fees': 'Taxas',
 }
 
 /** Old links that moved: `#webhooks` now lives under Integrações. */
@@ -238,6 +240,8 @@ function Page({ page, ...p }: PageProps & { page: string }) {
       return <Clock {...p} />
     case 'sim-cards':
       return <TestCards /> // the table comes from the domain, not from the selected account
+    case 'sim-fees':
+      return <Fees />
     default:
       return null
   }

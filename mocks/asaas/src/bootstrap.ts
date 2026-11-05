@@ -8,6 +8,7 @@
  * assembly that drifts over time.
  */
 import { eq } from 'drizzle-orm'
+import { loadFees } from './admin/fees.ts'
 import type { Elysia } from 'elysia'
 import { seedExtraAccounts, seedMasterAccount, type SeedResult } from './admin/seed.ts'
 import { createClock, type Clock } from './core/clock.ts'
@@ -143,6 +144,7 @@ export async function bootstrap(opts: BootstrapOptions = {}): Promise<App> {
     },
   }
 
+  await loadFees(ctx)
   const seed = await seedMasterAccount({ db, config, clock, rng })
   await seedExtraAccounts({ db, config, clock, rng })
 

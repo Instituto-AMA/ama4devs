@@ -67,6 +67,7 @@ import { createKey, deleteKey, listKeys, rotateKey, updateKey } from './keys.ts'
 import { generatorStatus, populateThroughGenerator } from './generator.ts'
 import { createProfile, deleteProfile, seededDocuments } from './profiles.ts'
 import { RESET_GROUPS, resetProfile } from './reset.ts'
+import { updateFees } from './fees.ts'
 
 /** Every event a webhook can subscribe to, in the spec's order. */
 const WEBHOOK_EVENTS: string[] = WebhookEvent.anyOf.map((s) => String(s.const))
@@ -450,6 +451,7 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       })
 
       .get('/fees', () => ctx.config.fees)
+      .patch('/fees', ({ body }) => updateFees(ctx, body), { body: t.Unknown() })
 
       .get('/jobs', () => ({ order: scheduler.jobNames, paused: scheduler.paused }))
 

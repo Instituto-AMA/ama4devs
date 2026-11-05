@@ -117,6 +117,7 @@
 
             <section id="panel" aria-labelledby="panel-title">
               <h2 id="panel-title">O painel</h2>
+              <p><strong>Simulador › Taxas</strong> edita a tabela global, salva entre reinícios. Instâncias novas sempre têm taxas padrão. A aplicação consulta <code>GET /v3/myAccount/fees</code> com sua chave Asaas; a resposta usa as mesmas taxas dos cálculos. <code>PATCH /_admin/fees</code> aceita parte da tabela em centavos e pontos-base inteiros, como <code>{"pix":199,"creditCard":{"oneInstallment":299}}</code>. Valores salvos prevalecem sobre os padrões do ambiente. Lançamentos existentes permanecem intactos.</p>
               <p>Abra <a href="http://localhost:45445">http://localhost:45445</a>. Não é o painel do Asaas: é o do simulador, e mostra o que o Asaas não deixa ver.</p>
               <div class="carousel-section" data-carousel>
                 <div class="carousel-header-bar">

@@ -54,6 +54,7 @@ export const SIM_NAV: NavItem[] = [
   { id: 'sim-profiles', label: 'Perfis', icon: I.PROFILE },
   { id: 'sim-clock', label: 'Relógio virtual', icon: I.CLOCK },
   { id: 'sim-cards', label: 'Cartões de teste', icon: I.CARD },
+  { id: 'sim-fees', label: 'Taxas', icon: I.STATEMENT },
 ]
 
 export function Sidebar(props: {
