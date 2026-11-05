@@ -307,7 +307,8 @@ Content-Type: application/json
               <p class="note"><strong>Dados simulados.</strong> Tudo o que a consulta de crédito responde é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa. Sem vínculo com a Direct Data, a Quod ou a Boa Vista.</p>
               <p>Online, sem container: cada CPF de teste tem sua resposta no Pages, o corpo que o container dá para a chamada síncrona, nos nomes de rota do provedor. <code>generator/api/directd.json</code> lista os CPFs e o status que o container responde (o próprio Pages sempre responde HTTP 200).</p>
               <div class="code"><pre><code>curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143
-curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPositivoPF/11100333460</code></pre></div>
+curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPositivoPF/11100333460
+curl https://instituto-ama.github.io/ama4devs/generator/api/DossieCreditoCompleto/11100333460</code></pre></div>
               <p>Teste cada rota no <a href="../playground/?route=credit">playground</a>, respondida pelo endpoint público, pela própria página (qualquer CPF, token e modo assíncrono, com o mesmo core) ou pelo seu container (as rotas <code>/api</code> mandam CORS).</p>
 
               <h3>As rotas e os parâmetros</h3>
@@ -324,6 +325,14 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPo
                     <tr>
                       <td><code>GET /api/BoaVistaAcertaMaisPositivoPF</code></td>
                       <td>O relatório Boa Vista "Acerta Mais Positivo" de um CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/BoaVistaAcertaCompletoPositivoPF</code></td>
+                      <td>O relatório Boa Vista "Acerta Completo Positivo" de um CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/DossieCreditoCompleto</code></td>
+                      <td>O dossiê de crédito "Dossiê QUOD - Completo" de um CPF</td>
                     </tr>
                     <tr>
                       <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
@@ -735,7 +744,7 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
               </div>
 
               <h3 id="directd-account">O saldo e o consumo</h3>
-              <p>O mock mantém um saldo: ele começa em <code>DIRECTD_BALANCE</code> (500 por padrão) e cada consulta que o provedor cobra desconta o custo do seu produto — <code>Score</code> R$ 1,98 e <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18. Com saldo menor que o custo, a consulta responde o <code>403</code> do resultado <code>Saldo insuficiente</code> e nada é cobrado. As duas rotas recebem o token no cabeçalho <code>Token</code>.</p>
+              <p>O mock mantém um saldo: ele começa em <code>DIRECTD_BALANCE</code> (500 por padrão) e cada consulta que o provedor cobra desconta o custo do seu produto — <code>Score</code> R$ 1,98, <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18, <code>BoaVistaAcertaCompletoPositivoPF</code> R$ 14,03 e <code>DossieCreditoCompleto</code> R$ 6,99. Com saldo menor que o custo, a consulta responde o <code>403</code> do resultado <code>Saldo insuficiente</code> e nada é cobrado. As duas rotas recebem o token no cabeçalho <code>Token</code>.</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -885,7 +894,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     <tr>
                       <td><code>DIRECTD_BALANCE</code></td>
                       <td><code>500</code></td>
-                      <td>O saldo inicial do mock Direct Data. Cada consulta cobrada desconta o custo do seu produto (<code>Score</code> R$ 1,98, <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18)</td>
+                      <td>O saldo inicial do mock Direct Data. Cada consulta cobrada desconta o custo do seu produto (<code>Score</code> R$ 1,98, <code>BoaVistaAcertaMaisPositivoPF</code> R$ 11,18, <code>BoaVistaAcertaCompletoPositivoPF</code> R$ 14,03, <code>DossieCreditoCompleto</code> R$ 6,99)</td>
                     </tr>
                     <tr>
                       <td><code>WEBHOOK_LOCALHOST_REWRITE</code></td>

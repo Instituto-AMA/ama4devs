@@ -1,0 +1,705 @@
+{
+  "metaDados": {
+    "consultaNome": "string",
+    "consultaUid": "string",
+    "chave": "string",
+    "usuario": "string",
+    "mensagem": "string",
+    "ip": "string",
+    "resultadoId": 0,
+    "resultado": "string",
+    "apiVersao": "v3",
+    "enviarCallback": false,
+    "gerarComprovante": false,
+    "urlComprovante": "string",
+    "assincrono": true,
+    "data": "dd/MM/yyyy HH:mm:ss",
+    "tempoExecucaoMs": 0
+  },
+  "retorno": {
+    "documentoConsultado": "string",
+    "entidadeJuridica": {
+      "statusCadastroPositivo": "string",
+      "dadosCadastrais": {
+        "situacaoCadastral": "string",
+        "razaoSocial": "string",
+        "nomeFantasia": "string",
+        "naturezaJuridica": "string",
+        "quantidadeFilial": 0,
+        "nire": 0,
+        "codigoAtividadePrincipal": "string",
+        "descricaoAtividadePrincipal": "string",
+        "codigoAtividadeSecundaria": "string",
+        "descricaoAtividadeSecundaria": "string",
+        "dataFundacao": "string",
+        "endereco": {
+          "logradouro": "string",
+          "numero": "string",
+          "complemento": "string",
+          "bairro": "string",
+          "cidade": "string",
+          "uf": "string",
+          "cep": "string"
+        },
+        "email": "string",
+        "telefone": "string",
+        "outrosEnderecos": [
+          {
+            "logradouro": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cidade": "string",
+            "uf": "string",
+            "cep": "string"
+          }
+        ],
+        "outrosEmails": [
+          "string"
+        ],
+        "outrosTelefones": [
+          "string"
+        ],
+        "outrasEmpresas": [
+          {
+            "documento": "string",
+            "dataFundacao": "string"
+          }
+        ]
+      },
+      "quadroSocietario": {
+        "informacoes": [
+          {
+            "entidade": "string",
+            "documento": "string",
+            "nomeEmpresa": "string",
+            "status": "string",
+            "percentualParticipacao": 0,
+            "valorFinanceiro": 0,
+            "funcaoSocio": "string",
+            "dataInicioSociedade": "string",
+            "dataInicioEntrada": "string",
+            "dataSaida": "string",
+            "socioAdministrador": true
+          }
+        ],
+        "capitalSocial": 0
+      },
+      "scoreEntidades": {
+        "entidadeFisica": {
+          "score": 0,
+          "scoreCompromissoPagamento": 0,
+          "descricaoCompromissoPagamento": "string",
+          "scorePerfil": 0,
+          "descricaoPerfil": "string"
+        },
+        "entidadeJuridica": {
+          "score": 0,
+          "motivos": [
+            "string"
+          ],
+          "indicadoresNegocio": [
+            {
+              "indicador": "string",
+              "status": "string",
+              "risco": "string",
+              "observacao": "string"
+            }
+          ]
+        },
+        "observacao": "string"
+      },
+      "pendenciaFinanceira": {
+        "status": "string",
+        "totalPendencia": 0,
+        "protestos": [
+          {
+            "situacao": "string",
+            "valorTotal": 0,
+            "cartorios": [
+              {
+                "codigoCidade": "string",
+                "codigoCartorio": "string",
+                "nome": "string",
+                "telefone": "string",
+                "endereco": "string",
+                "cidade": "string",
+                "quantidadeProtestos": 0,
+                "valorProtestado": 0
+              }
+            ],
+            "observacao": "string"
+          }
+        ],
+        "acoesJudiciais": [
+          {
+            "numeroProcessoPrincipal": "string",
+            "numeroProcessoAntigo": "string",
+            "comarca": "string",
+            "forum": "string",
+            "vara": "string",
+            "parteAcusada": "string",
+            "dataAjuizamento": "string",
+            "tipoProcesso": "string",
+            "status": "string",
+            "valor": 0,
+            "autorProcesso": "string",
+            "cidade": "string",
+            "tipoTribunal": "string",
+            "documento": "string"
+          }
+        ],
+        "negativacoes": [
+          {
+            "documento": "string",
+            "nomeEmpresa": "string",
+            "motivo": "string",
+            "valor": 0,
+            "numeroContrato": "string",
+            "tipoParticipacao": "string",
+            "status": "string",
+            "dataOcorrencia": "string",
+            "dataInclusao": "string",
+            "dataModificacao": "string",
+            "endereco": {
+              "logradouro": "string",
+              "numero": "string",
+              "complemento": "string",
+              "bairro": "string",
+              "cidade": "string",
+              "uf": "string",
+              "cep": "string"
+            }
+          }
+        ],
+        "recuperacoesJudiciaisFalencia": [
+          {
+            "numeroProcessoPrincipal": "string",
+            "numeroProcessoAntigo": "string",
+            "comarca": "string",
+            "forum": "string",
+            "vara": "string",
+            "parteAcusada": "string",
+            "dataAjuizamento": "string",
+            "tipoProcesso": "string",
+            "status": "string",
+            "valor": 0,
+            "autorProcesso": "string",
+            "cidade": "string",
+            "tipoTribunal": "string",
+            "documento": "string"
+          }
+        ],
+        "chequesSemFundo": [
+          {
+            "entidade": "string",
+            "documento": "string",
+            "codigoBanco": "string",
+            "nomeAgencia": "string",
+            "numeroAgencia": "string",
+            "dataUltimaOcorrencia": "string",
+            "quantidadeOcorrencia": 0
+          }
+        ]
+      },
+      "indicadores": {
+        "quantidadeIndicadores": 0,
+        "indicacoes": [
+          {
+            "conceito": "string",
+            "indicadoresNegocio": [
+              {
+                "faixa": "string",
+                "risco": "string"
+              }
+            ]
+          }
+        ],
+        "observacao": "string"
+      },
+      "consulta": {
+        "cnpj": "string",
+        "ultimos30Dias": 0,
+        "ultimos60Dias": 0,
+        "ultimos90Dias": 0,
+        "mais90Dias": 0,
+        "detalhesConsulta": [
+          {
+            "data": "string",
+            "quantidadeConsultada": 0,
+            "segmentoEmpresa": "string"
+          }
+        ]
+      },
+      "conglomerado": {
+        "consultas": [
+          {
+            "cnpj": "string",
+            "ultimos30Dias": 0,
+            "ultimos60Dias": 0,
+            "ultimos90Dias": 0,
+            "mais90Dias": 0,
+            "detalhesConsulta": [
+              {
+                "data": "string",
+                "quantidadeConsultada": 0,
+                "segmentoEmpresa": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "dadosEmpresariais": [
+        {
+          "entidade": "string",
+          "documento": "string",
+          "nomeEmpresa": "string",
+          "status": "string",
+          "percentualParticipacao": 0,
+          "valorFinanceiro": 0,
+          "funcaoSocio": "string",
+          "dataInicioSociedade": "string",
+          "dataInicioEntrada": "string",
+          "dataSaida": "string",
+          "socioAdministrador": true
+        }
+      ]
+    },
+    "entidadeFisica": {
+      "statusCadastroPositivo": "string",
+      "segmentoCadastroPositivo": "string",
+      "dadosCadastrais": {
+        "status": "string",
+        "nome": "string",
+        "nomeMae": "string",
+        "dataNascimento": "string",
+        "idade": 0,
+        "sexo": "string",
+        "possuiObito": true,
+        "dataObito": "string",
+        "dadosAtuais": {
+          "endereco": {
+            "logradouro": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cidade": "string",
+            "uf": "string",
+            "cep": "string"
+          },
+          "email": "string",
+          "telefoneFixo": "string",
+          "celular": "string"
+        },
+        "outrosNomes": [
+          "string"
+        ],
+        "outrosEnderecos": [
+          {
+            "logradouro": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cidade": "string",
+            "uf": "string",
+            "cep": "string"
+          }
+        ],
+        "outrosEmails": [
+          "string"
+        ],
+        "outrosTelefonesFixos": [
+          "string"
+        ],
+        "outrosCelulares": [
+          "string"
+        ]
+      },
+      "dadosEmpresariais": [
+        {
+          "entidade": "string",
+          "documento": "string",
+          "nomeEmpresa": "string",
+          "status": "string",
+          "percentualParticipacao": 0,
+          "valorFinanceiro": 0,
+          "funcaoSocio": "string",
+          "dataInicioSociedade": "string",
+          "dataInicioEntrada": "string",
+          "dataSaida": "string",
+          "socioAdministrador": true
+        }
+      ],
+      "scoreEntidade": {
+        "entidadeFisica": {
+          "score": 0,
+          "scoreCompromissoPagamento": 0,
+          "descricaoCompromissoPagamento": "string",
+          "scorePerfil": 0,
+          "descricaoPerfil": "string"
+        },
+        "entidadeJuridica": {
+          "score": 0,
+          "motivos": [
+            "string"
+          ],
+          "indicadoresNegocio": [
+            {
+              "indicador": "string",
+              "status": "string",
+              "risco": "string",
+              "observacao": "string"
+            }
+          ]
+        },
+        "observacao": "string"
+      },
+      "pendenciaFinanceira": {
+        "status": "string",
+        "totalPendencia": 0,
+        "protestos": [
+          {
+            "situacao": "string",
+            "valorTotal": 0,
+            "cartorios": [
+              {
+                "codigoCidade": "string",
+                "codigoCartorio": "string",
+                "nome": "string",
+                "telefone": "string",
+                "endereco": "string",
+                "cidade": "string",
+                "quantidadeProtestos": 0,
+                "valorProtestado": 0
+              }
+            ],
+            "observacao": "string"
+          }
+        ],
+        "acoesJudiciais": [
+          {
+            "numeroProcessoPrincipal": "string",
+            "numeroProcessoAntigo": "string",
+            "comarca": "string",
+            "forum": "string",
+            "vara": "string",
+            "parteAcusada": "string",
+            "dataAjuizamento": "string",
+            "tipoProcesso": "string",
+            "status": "string",
+            "valor": 0,
+            "autorProcesso": "string",
+            "cidade": "string",
+            "tipoTribunal": "string",
+            "documento": "string"
+          }
+        ],
+        "negativacoes": [
+          {
+            "documento": "string",
+            "nomeEmpresa": "string",
+            "motivo": "string",
+            "valor": 0,
+            "numeroContrato": "string",
+            "tipoParticipacao": "string",
+            "status": "string",
+            "dataOcorrencia": "string",
+            "dataInclusao": "string",
+            "dataModificacao": "string",
+            "endereco": {
+              "logradouro": "string",
+              "numero": "string",
+              "complemento": "string",
+              "bairro": "string",
+              "cidade": "string",
+              "uf": "string",
+              "cep": "string"
+            }
+          }
+        ],
+        "recuperacoesJudiciaisFalencia": [
+          {
+            "numeroProcessoPrincipal": "string",
+            "numeroProcessoAntigo": "string",
+            "comarca": "string",
+            "forum": "string",
+            "vara": "string",
+            "parteAcusada": "string",
+            "dataAjuizamento": "string",
+            "tipoProcesso": "string",
+            "status": "string",
+            "valor": 0,
+            "autorProcesso": "string",
+            "cidade": "string",
+            "tipoTribunal": "string",
+            "documento": "string"
+          }
+        ],
+        "chequesSemFundo": [
+          {
+            "entidade": "string",
+            "documento": "string",
+            "codigoBanco": "string",
+            "nomeAgencia": "string",
+            "numeroAgencia": "string",
+            "dataUltimaOcorrencia": "string",
+            "quantidadeOcorrencia": 0
+          }
+        ]
+      },
+      "consulta": {
+        "cnpj": "string",
+        "ultimos30Dias": 0,
+        "ultimos60Dias": 0,
+        "ultimos90Dias": 0,
+        "mais90Dias": 0,
+        "detalhesConsulta": [
+          {
+            "data": "string",
+            "quantidadeConsultada": 0,
+            "segmentoEmpresa": "string"
+          }
+        ]
+      },
+      "frequenciaPagamentos": [
+        {
+          "emprestimos": [
+            {
+              "tipoRelacionamento": "string",
+              "numeroContrato": "string",
+              "dataContratacao": "string",
+              "tipoContratacao": "string",
+              "dataAtualizacao": "string",
+              "detalheEmprestimo": {
+                "total": 0,
+                "vencimentoExpirado": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                },
+                "vencimentoDevedor": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                }
+              },
+              "dataVencimento": "string",
+              "valorTotal": 0,
+              "quantidadeParcelas": 0,
+              "parcelasAnteriores": [
+                {
+                  "dataVencimento": "string",
+                  "periodicidadeParcela": "string",
+                  "saldoTotal": 0,
+                  "statusPagamento": "string",
+                  "pagamentos": [
+                    {
+                      "data": "string",
+                      "valorTotal": 0
+                    }
+                  ],
+                  "dataEncerramento": "string",
+                  "valorUtilizado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ],
+              "pagamentosDesanexados": [
+                {
+                  "data": "string",
+                  "totalPago": 0,
+                  "tipoPagamento": "string"
+                }
+              ],
+              "parcelasFuturas": [
+                {
+                  "dataParcelaAnterior": "string",
+                  "periodicidade": "string",
+                  "totalParcelaFutura": 0,
+                  "quantidadeParcelasRemanescentes": 0,
+                  "quantidadeParcelasNaoPagas": 0,
+                  "dataEncerramento": "string",
+                  "valorUsado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ]
+            }
+          ],
+          "rotativos": [
+            {
+              "tipoRelacionamento": "string",
+              "numeroContrato": "string",
+              "dataContratacao": "string",
+              "tipoContratacao": "string",
+              "dataReferencia": "string",
+              "dataFechamento": "string",
+              "valorUsado": 0,
+              "parcelasAnteriores": [
+                {
+                  "dataVencimento": "string",
+                  "periodicidadeParcela": "string",
+                  "saldoTotal": 0,
+                  "statusPagamento": "string",
+                  "pagamentos": [
+                    {
+                      "data": "string",
+                      "valorTotal": 0
+                    }
+                  ],
+                  "dataEncerramento": "string",
+                  "valorUtilizado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ],
+              "parcelaFutura": {
+                "dataParcelaAnterior": "string",
+                "periodicidade": "string",
+                "totalParcelaFutura": 0,
+                "quantidadeParcelasRemanescentes": 0,
+                "quantidadeParcelasNaoPagas": 0,
+                "dataEncerramento": "string",
+                "valorUsado": 0,
+                "pagamentoMinimo": 0
+              }
+            }
+          ],
+          "cartoesCredito": [
+            {
+              "tipoRelacionamento": "string",
+              "numeroContrato": "string",
+              "dataContratacao": "string",
+              "tipoContrato": "string",
+              "dataReferencia": "string",
+              "detalheEmprestimo": {
+                "total": 0,
+                "vencimentoExpirado": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                },
+                "vencimentoDevedor": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                }
+              },
+              "numeroCartao": "string",
+              "saldoTotal": 0,
+              "parcelasAnteriores": [
+                {
+                  "dataVencimento": "string",
+                  "periodicidadeParcela": "string",
+                  "saldoTotal": 0,
+                  "statusPagamento": "string",
+                  "pagamentos": [
+                    {
+                      "data": "string",
+                      "valorTotal": 0
+                    }
+                  ],
+                  "dataEncerramento": "string",
+                  "valorUtilizado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ],
+              "parcelaFutura": {
+                "dataParcelaAnterior": "string",
+                "periodicidade": "string",
+                "totalParcelaFutura": 0,
+                "quantidadeParcelasRemanescentes": 0,
+                "quantidadeParcelasNaoPagas": 0,
+                "dataEncerramento": "string",
+                "valorUsado": 0,
+                "pagamentoMinimo": 0
+              }
+            }
+          ],
+          "consorcios": [
+            {
+              "tipoRelacionamento": "string",
+              "numeroContrato": "string",
+              "dataContratacao": "string",
+              "tipoContrato": "string",
+              "dataReferencia": "string",
+              "detalheEmprestimo": {
+                "total": 0,
+                "vencimentoExpirado": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                },
+                "vencimentoDevedor": {
+                  "vencido15Dias": "string",
+                  "vencido16A30Dias": "string",
+                  "vencido31A60Dias": "string",
+                  "vencido61A90Dias": "string",
+                  "vencidoMais91Dias": "string"
+                }
+              },
+              "numeroGrupo": "string",
+              "codigoCota": "string",
+              "sequenciaCota": "string",
+              "statusCota": "string",
+              "valorContrato": 0,
+              "dataVencimento": "string",
+              "quantidadeTotalParcela": 0,
+              "totalDevedor": 0,
+              "dataContemplacao": "string",
+              "parcelasAnteriores": [
+                {
+                  "dataVencimento": "string",
+                  "periodicidadeParcela": "string",
+                  "saldoTotal": 0,
+                  "statusPagamento": "string",
+                  "pagamentos": [
+                    {
+                      "data": "string",
+                      "valorTotal": 0
+                    }
+                  ],
+                  "dataEncerramento": "string",
+                  "valorUtilizado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ],
+              "pagamentosDesanexados": [
+                {
+                  "data": "string",
+                  "totalPago": 0,
+                  "tipoPagamento": "string"
+                }
+              ],
+              "parcelasFuturas": [
+                {
+                  "dataParcelaAnterior": "string",
+                  "periodicidade": "string",
+                  "totalParcelaFutura": 0,
+                  "quantidadeParcelasRemanescentes": 0,
+                  "quantidadeParcelasNaoPagas": 0,
+                  "dataEncerramento": "string",
+                  "valorUsado": 0,
+                  "pagamentoMinimo": 0
+                }
+              ]
+            }
+          ],
+          "unicoCNPJEmprestimos": 0,
+          "unicoCNPJRotativo": 0,
+          "unicoCNPJCartoesCredito": 0,
+          "unicoCNPJConsorcios": 0,
+          "unicoCNPJTotal": 0
+        }
+      ]
+    },
+    "observacao": "string"
+  }
+}

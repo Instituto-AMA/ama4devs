@@ -37,7 +37,7 @@ It also does two jobs of a mock:
 
 ## Direct Data
 
-The Direct Data simulation answers the provider's credit routes (`/api/Score`, `/api/BoaVistaAcertaMaisPositivoPF`, `/api/Historico/ObterRetornoConsultaAsync`), its webhook routes (`/api/Webhook/CreateUrlCallBack`, `/api/Webhook/ConfirmUrlCallBack`), its account routes (`/api/Marketplace/GetBalance`, `/api/Billing/GetConsumptionApiV3`) and the Hub's credit check points at it.
+The Direct Data simulation answers the provider's credit routes (`/api/Score`, `/api/BoaVistaAcertaMaisPositivoPF`, `/api/BoaVistaAcertaCompletoPositivoPF`, `/api/DossieCreditoCompleto`, `/api/Historico/ObterRetornoConsultaAsync`), its webhook routes (`/api/Webhook/CreateUrlCallBack`, `/api/Webhook/ConfirmUrlCallBack`), its account routes (`/api/Marketplace/GetBalance`, `/api/Billing/GetConsumptionApiV3`) and the Hub's credit check points at it.
 
 ### The source of truth is the provider's documentation
 

@@ -274,13 +274,19 @@ curl 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4
 # The Boa Vista report of the same CPF (200).
 curl 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
 
+# The Boa Vista "Acerta Completo" report of the same CPF (200).
+curl 'http://localhost:45450/api/BoaVistaAcertaCompletoPositivoPF?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The QUOD credit dossier of the same CPF (200).
+curl 'http://localhost:45450/api/DossieCreditoCompleto?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
 # The consultation is created in the background (201) and its id is kept.
 CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1&amp;Async=habilitar' \
   | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)
 
 # The first read answers 202 (still running), the next one the full envelope (200).
 curl -s "http://localhost:45450/api/Historico/ObterRetornoConsultaAsync?ConsultaUid=$CONSULTA_UID&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1"</code></pre></div>
-                <p>The score and the Boa Vista report answer <code>200</code>. The asynchronous creation answers <code>201</code> with the <code>consultaUid</code> in it; the read answers <code>202</code> (<code>HTTP/1.1 202 Accepted</code>) while the consultation runs, then <code>200</code> (<code>HTTP/1.1 200 OK</code>) with the full envelope when it is over. A call without the token answers <code>401</code>.</p>
+                <p>The score, the Boa Vista reports and the dossier answer <code>200</code>. The asynchronous creation answers <code>201</code> with the <code>consultaUid</code> in it; the read answers <code>202</code> (<code>HTTP/1.1 202 Accepted</code>) while the consultation runs, then <code>200</code> (<code>HTTP/1.1 200 OK</code>) with the full envelope when it is over. A call without the token answers <code>401</code>.</p>
                 <p>The balance of the account, the way the Hub reads it:</p>
                 <div class="code" data-local-only="only on your container"><pre><code>curl -s 'http://localhost:45450/api/Marketplace/GetBalance' \
   -H 'Token: 00000000-0000-4000-8000-00000000d1d1'</code></pre></div>

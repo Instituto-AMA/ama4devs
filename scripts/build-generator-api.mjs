@@ -26,6 +26,8 @@
 //
 //   <out>/../Score/<cpf>                          = GET /api/Score?CPF=<cpf>&TOKEN=<token>
 //   <out>/../BoaVistaAcertaMaisPositivoPF/<cpf>   = GET /api/BoaVistaAcertaMaisPositivoPF?CPF=<cpf>&TOKEN=<token>
+//   <out>/../BoaVistaAcertaCompletoPositivoPF/<cpf> = GET /api/BoaVistaAcertaCompletoPositivoPF?CPF=<cpf>&TOKEN=<token>
+//   <out>/../DossieCreditoCompleto/<cpf>          = GET /api/DossieCreditoCompleto?CPF=<cpf>&TOKEN=<token>
 //   <out>/../directd.json                         the test CPFs, their outcome and the status the container answers
 //
 // The body is the provider's, byte for byte as the container builds it (the
@@ -43,6 +45,8 @@ import {
   KINDS,
   OUTCOMES,
   ROUTE_BOA_VISTA,
+  ROUTE_BOA_VISTA_COMPLETO,
+  ROUTE_DOSSIE,
   ROUTE_SCORE,
   answerFor,
   createRng,
@@ -145,7 +149,7 @@ const stableUid = (seed) => {
 }
 const creditNow = new Date(`${NOW}T12:00:00-03:00`)
 const creditIndex = []
-for (const route of [ROUTE_SCORE, ROUTE_BOA_VISTA]) {
+for (const route of [ROUTE_SCORE, ROUTE_BOA_VISTA, ROUTE_BOA_VISTA_COMPLETO, ROUTE_DOSSIE]) {
   mkdirSync(join(creditOut, route), { recursive: true })
   for (const { cpf, outcome } of DEFAULT_TEST_CPFS) {
     const answer = answerFor(route, { CPF: cpf }, { now: creditNow, startedAt: creditNow, uid: stableUid(`directd:${route}:${cpf}`), ip: '127.0.0.1' })
@@ -159,7 +163,7 @@ write(join(creditOut, 'directd'), {
   description: 'Static answers of the Direct Data credit check simulated by the ama4devs generator: the body its container gives, for every test CPF. Pages answers HTTP 200; `status` is what the container answers.',
   token: DIRECTD_TOKEN,
   now: NOW,
-  routes: [ROUTE_SCORE, ROUTE_BOA_VISTA],
+  routes: [ROUTE_SCORE, ROUTE_BOA_VISTA, ROUTE_BOA_VISTA_COMPLETO, ROUTE_DOSSIE],
   urls: { answer: '<route>/<cpf>', json: '<route>/<cpf>.json' },
   sameAs: 'GET /api/<route>?CPF=<cpf>&TOKEN=<token> on the container (synchronous; async, the token check and other CPFs live in the container and the playground)',
   cpfs: creditIndex,

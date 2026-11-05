@@ -47,7 +47,7 @@ In this repository, running `make up` boots the generator along with the Asaas m
 
 ## API Endpoints
 
-The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`). The `/api/*` Direct Data routes are the provider's own paths; they send the same CORS header, so the [playground](https://instituto-ama.github.io/ama4devs/generator/playground/?route=credit) on Pages can call your container. Online, with no container, every test CPF also has a static answer: `curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143` (also `BoaVistaAcertaMaisPositivoPF/<cpf>`; the list and the status each one answers in `generator/api/directd.json`).
+The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow CORS (`Access-Control-Allow-Origin: *`). The `/api/*` Direct Data routes are the provider's own paths; they send the same CORS header, so the [playground](https://instituto-ama.github.io/ama4devs/generator/playground/?route=credit) on Pages can call your container. Online, with no container, every test CPF also has a static answer: `curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143` (also `BoaVistaAcertaMaisPositivoPF/<cpf>`, `BoaVistaAcertaCompletoPositivoPF/<cpf>` and `DossieCreditoCompleto/<cpf>`; the list and the status each one answers in `generator/api/directd.json`).
 
 | Method & Route | Description |
 |---|---|
@@ -61,6 +61,8 @@ The HTTP service listens on port `45450` by default. All `/v1/*` endpoints allow
 | `POST /_mock/asaas/populate` | Populate the Asaas mock with realistic customers and charges |
 | `GET /api/Score` | Direct Data credit score of a CPF (the QUOD report) |
 | `GET /api/BoaVistaAcertaMaisPositivoPF` | Direct Data Boa Vista report of a CPF ("Acerta Mais Positivo") |
+| `GET /api/BoaVistaAcertaCompletoPositivoPF` | Direct Data Boa Vista report of a CPF ("Acerta Completo Positivo") |
+| `GET /api/DossieCreditoCompleto` | Direct Data QUOD credit dossier of a CPF ("Dossiê QUOD - Completo") |
 | `GET /api/Historico/ObterRetornoConsultaAsync` | Direct Data async result, read by `ConsultaUid` |
 | `GET /_mock/directd/test-cpfs` | The Direct Data test CPF table, the outcomes and the policy of the unlisted CPFs |
 | `POST /_mock/directd/test-cpfs` | Adds or replaces a test CPF: `{ cpf, outcome, profile? }` |
@@ -160,6 +162,8 @@ The generator also answers the **Direct Data API v3** credit routes the Hub uses
 |---|---|
 | `GET /api/Score` | The QUOD credit score of a CPF |
 | `GET /api/BoaVistaAcertaMaisPositivoPF` | The Boa Vista "Acerta Mais Positivo" report of a CPF |
+| `GET /api/BoaVistaAcertaCompletoPositivoPF` | The Boa Vista "Acerta Completo Positivo" report of a CPF |
+| `GET /api/DossieCreditoCompleto` | The "Dossiê QUOD - Completo" credit dossier of a CPF |
 | `GET /api/Historico/ObterRetornoConsultaAsync` | The result of an async consultation, by `ConsultaUid` |
 | `POST /api/Webhook/CreateUrlCallBack` | Registers the URL the provider posts the callbacks to |
 | `POST /api/Webhook/ConfirmUrlCallBack` | Confirms the code the provider sent to that URL |
@@ -328,7 +332,8 @@ The control routes drive the webhook from a script:
 ### The balance and the consumption
 
 The mock keeps a balance — it starts at `DIRECTD_BALANCE` (500 by default) and every consultation the provider
-charges subtracts the cost of its product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18). A balance shorter
+charges subtracts the cost of its product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18,
+`BoaVistaAcertaCompletoPositivoPF` 14.03, `DossieCreditoCompleto` 6.99). A balance shorter
 than the cost answers the `403` of the `Saldo insuficiente` outcome, and nothing is charged.
 
 ```bash
@@ -471,6 +476,12 @@ curl 'http://localhost:45450/api/Score?CPF=111.000.001-43&TOKEN=00000000-0000-40
 
 # The Boa Vista report of the same CPF (200).
 curl 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The Boa Vista "Acerta Completo" report of the same CPF (200).
+curl 'http://localhost:45450/api/BoaVistaAcertaCompletoPositivoPF?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+# The QUOD credit dossier of the same CPF (200).
+curl 'http://localhost:45450/api/DossieCreditoCompleto?CPF=11100000143&TOKEN=00000000-0000-4000-8000-00000000d1d1'
 
 # A failure: the CPF with the invalid check digits (400).
 curl 'http://localhost:45450/api/Score?CPF=11111111112&TOKEN=00000000-0000-4000-8000-00000000d1d1'

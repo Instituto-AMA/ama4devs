@@ -296,11 +296,12 @@
               <p class="note"><strong>Simulated data.</strong> Everything the credit check answers is generated automatically for tests: the score, the band, the restrictions and the situation of the CPF are not real and must never be used as a source of truth about any person. Not affiliated with Direct Data, Quod or Boa Vista.</p>
               <p>Online, with no container: every test CPF has its answer on Pages, the body the container gives for the synchronous call, at the provider's route names. <code>generator/api/directd.json</code> lists the CPFs and the status the container answers (Pages itself always answers HTTP 200).</p>
               <div class="code"><pre><code>curl https://instituto-ama.github.io/ama4devs/generator/api/Score/11100000143
-curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPositivoPF/11100333460</code></pre></div>
+curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPositivoPF/11100333460
+curl https://instituto-ama.github.io/ama4devs/generator/api/DossieCreditoCompleto/11100333460</code></pre></div>
               <p>Try every route in the <a href="../playground/?route=credit">playground</a>, answered by the public endpoint, by the page itself (any CPF, token and async, with the same core) or by your container (its <code>/api</code> routes send CORS).</p>
 
               <h3>Routes and parameters</h3>
-              <p>Three routes, every parameter in the query string, the way the provider takes them:</p>
+              <p>Five routes, every parameter in the query string, the way the provider takes them:</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -317,6 +318,14 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/BoaVistaAcertaMaisPo
                     <tr>
                       <td><code>GET /api/BoaVistaAcertaMaisPositivoPF</code></td>
                       <td>The Boa Vista "Acerta Mais Positivo" report of a CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/BoaVistaAcertaCompletoPositivoPF</code></td>
+                      <td>The Boa Vista "Acerta Completo Positivo" report of a CPF</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET /api/DossieCreditoCompleto</code></td>
+                      <td>The "Dossiê QUOD - Completo" credit dossier of a CPF</td>
                     </tr>
                     <tr>
                       <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
@@ -854,7 +863,7 @@ curl -s -X POST 'http://localhost:45450/api/Webhook/ConfirmUrlCallBack' \
               </div>
 
               <h3 id="directd-account">The balance and the consumption</h3>
-              <p>The mock keeps a balance: it starts at <code>DIRECTD_BALANCE</code> (500 by default) and every consultation the provider charges subtracts the cost of its product — <code>Score</code> 1.98 and <code>BoaVistaAcertaMaisPositivoPF</code> 11.18. A balance shorter than the cost answers the <code>403</code> of the <code>Saldo insuficiente</code> outcome, and nothing is charged. Both routes take the token in the <code>Token</code> header.</p>
+              <p>The mock keeps a balance: it starts at <code>DIRECTD_BALANCE</code> (500 by default) and every consultation the provider charges subtracts the cost of its product — <code>Score</code> 1.98, <code>BoaVistaAcertaMaisPositivoPF</code> 11.18, <code>BoaVistaAcertaCompletoPositivoPF</code> 14.03 and <code>DossieCreditoCompleto</code> 6.99. A balance shorter than the cost answers the <code>403</code> of the <code>Saldo insuficiente</code> outcome, and nothing is charged. Both routes take the token in the <code>Token</code> header.</p>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -1004,7 +1013,7 @@ curl -s 'http://localhost:45450/api/Billing/GetConsumptionApiV3' \
                     <tr>
                       <td><code>DIRECTD_BALANCE</code></td>
                       <td><code>500</code></td>
-                      <td>The balance the Direct Data mock starts with. Every charged consultation subtracts the cost of its product (<code>Score</code> 1.98, <code>BoaVistaAcertaMaisPositivoPF</code> 11.18).</td>
+                      <td>The balance the Direct Data mock starts with. Every charged consultation subtracts the cost of its product (<code>Score</code> 1.98, <code>BoaVistaAcertaMaisPositivoPF</code> 11.18, <code>BoaVistaAcertaCompletoPositivoPF</code> 14.03, <code>DossieCreditoCompleto</code> 6.99).</td>
                     </tr>
                     <tr>
                       <td><code>WEBHOOK_LOCALHOST_REWRITE</code></td>

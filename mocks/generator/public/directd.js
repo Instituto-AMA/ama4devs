@@ -16,6 +16,8 @@ import {
   OUTCOMES,
   ROUTE_ASYNC_READ,
   ROUTE_BOA_VISTA,
+  ROUTE_BOA_VISTA_COMPLETO,
+  ROUTE_DOSSIE,
   ROUTE_SCORE,
   answerFor,
   asyncCreated,
@@ -218,6 +220,8 @@ function checkValue(name, value) {
 const COST_BY_ROUTE = {
   [ROUTE_SCORE]: 1.98,
   [ROUTE_BOA_VISTA]: 11.18,
+  [ROUTE_BOA_VISTA_COMPLETO]: 14.03,
+  [ROUTE_DOSSIE]: 6.99,
 }
 
 // ───────── DOM Elements ─────────
@@ -450,12 +454,14 @@ function renderSummary(body) {
     return
   }
 
-  const score = retorno.pessoaFisica?.score ?? retorno.scores?.ocorrencias?.[0]?.score
+  // The dossier carries its score under the entity of the person.
+  const dossie = retorno.entidadeFisica
+  const score = retorno.pessoaFisica?.score ?? retorno.scores?.ocorrencias?.[0]?.score ?? dossie?.scoreEntidade?.entidadeFisica?.score
   const faixa = retorno.pessoaFisica?.faixaScore ?? retorno.scores?.ocorrencias?.[0]?.classificacaoABC
   const probabilidade = retorno.scores?.ocorrencias?.[0]?.probabilidadeInadimplencia
   const restricoes = retorno.restricoes?.quantidadeOcorrencias
-  const obito = retorno.indicacaoObito
-  const situacao = retorno.cpfSituacao
+  const obito = retorno.indicacaoObito ?? (dossie?.dadosCadastrais?.possuiObito ? 'SIM' : undefined)
+  const situacao = retorno.cpfSituacao ?? dossie?.dadosCadastrais?.status
 
   const items = [
     ['Score', score],
@@ -775,7 +781,13 @@ function renderCounters(counters) {
   const notCharged = counters?.notCharged ?? { total: 0, byStatus: {} }
   const scoreCount = charged.byRoute?.[ROUTE_SCORE] ?? 0
   const boaVistaCount = charged.byRoute?.[ROUTE_BOA_VISTA] ?? 0
-  const cost = scoreCount * COST_BY_ROUTE[ROUTE_SCORE] + boaVistaCount * COST_BY_ROUTE[ROUTE_BOA_VISTA]
+  const boaVistaCompletoCount = charged.byRoute?.[ROUTE_BOA_VISTA_COMPLETO] ?? 0
+  const dossieCount = charged.byRoute?.[ROUTE_DOSSIE] ?? 0
+  const cost =
+    scoreCount * COST_BY_ROUTE[ROUTE_SCORE] +
+    boaVistaCount * COST_BY_ROUTE[ROUTE_BOA_VISTA] +
+    boaVistaCompletoCount * COST_BY_ROUTE[ROUTE_BOA_VISTA_COMPLETO] +
+    dossieCount * COST_BY_ROUTE[ROUTE_DOSSIE]
 
   const statuses = Object.entries(notCharged.byStatus ?? {}).sort(([a], [b]) => a.localeCompare(b))
 
@@ -798,6 +810,10 @@ function renderCounters(counters) {
         <dd>${esc(scoreCount)} · ${esc(money(COST_BY_ROUTE[ROUTE_SCORE]))} cada</dd>
         <dt>Boa Vista</dt>
         <dd>${esc(boaVistaCount)} · ${esc(money(COST_BY_ROUTE[ROUTE_BOA_VISTA]))} cada</dd>
+        <dt>Boa Vista Completo</dt>
+        <dd>${esc(boaVistaCompletoCount)} · ${esc(money(COST_BY_ROUTE[ROUTE_BOA_VISTA_COMPLETO]))} cada</dd>
+        <dt>Dossiê</dt>
+        <dd>${esc(dossieCount)} · ${esc(money(COST_BY_ROUTE[ROUTE_DOSSIE]))} cada</dd>
         <dt>Custo estimado</dt>
         <dd>${esc(money(cost))}</dd>
       </dl>
@@ -1037,6 +1053,8 @@ function stateOfQuery(query) {
 function productLabel(route) {
   if (route === ROUTE_SCORE) return 'Score'
   if (route === ROUTE_BOA_VISTA) return 'Boa Vista'
+  if (route === ROUTE_BOA_VISTA_COMPLETO) return 'Boa Vista Completo'
+  if (route === ROUTE_DOSSIE) return 'Dossiê'
   return String(route ?? '')
 }
 

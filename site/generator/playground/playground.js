@@ -29,6 +29,8 @@ import {
   OUTCOMES,
   ROUTE_ASYNC_READ,
   ROUTE_BOA_VISTA,
+  ROUTE_BOA_VISTA_COMPLETO,
+  ROUTE_DOSSIE,
   ROUTE_SCORE,
   STATES,
   answerFor,
@@ -152,7 +154,13 @@ export async function receita(cnpj) {
 }
 
 /** The Direct Data routes the credit check answers (directd.ts, routeOf). */
-const CREDIT_ROUTES = [ROUTE_SCORE, ROUTE_BOA_VISTA, ROUTE_ASYNC_READ]
+const CREDIT_ROUTES = [
+  ROUTE_SCORE,
+  ROUTE_BOA_VISTA,
+  ROUTE_BOA_VISTA_COMPLETO,
+  ROUTE_DOSSIE,
+  ROUTE_ASYNC_READ,
+]
 
 /**
  * The async consultations this page created, by `consultaUid`: read like the

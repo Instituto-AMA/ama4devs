@@ -310,6 +310,11 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
                 <p>O relatório Boa Vista, no mesmo caminho:</p>
                 <div class="code" data-local-only="só no seu container"><pre><code>curl -s -i 'http://localhost:45450/api/BoaVistaAcertaMaisPositivoPF?CPF=11100333460&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
                 <p>A resposta é <code>HTTP/1.1 200 OK</code>: o relatório completo do CPF, com situação, faixa de renda, pendências financeiras, protesto e restrições.</p>
+                <p>O relatório Boa Vista "Acerta Completo" e o dossiê de crédito QUOD, nos mesmos caminhos:</p>
+                <div class="code" data-local-only="só no seu container"><pre><code>curl -s -i 'http://localhost:45450/api/BoaVistaAcertaCompletoPositivoPF?CPF=11100333460&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'
+
+curl -s -i 'http://localhost:45450/api/DossieCreditoCompleto?CPF=11100333460&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1'</code></pre></div>
+                <p>As duas respostas são <code>HTTP/1.1 200 OK</code>: o relatório completo com o telefone e o endereço em listas, e o dossiê com o score, as negativações, os protests e o total da pendência.</p>
                 <p>Para uma consulta assíncrona, crie a consulta e leia o resultado pelo <code>ConsultaUid</code>:</p>
                 <div class="code" data-local-only="só no seu container"><pre><code>CONSULTA_UID=$(curl -s 'http://localhost:45450/api/Score?CPF=11100000143&amp;TOKEN=00000000-0000-4000-8000-00000000d1d1&amp;Async=habilitar' \
   | grep -o '"consultaUid": "[^"]*"' | head -1 | cut -d'"' -f4)

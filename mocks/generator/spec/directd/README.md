@@ -1,14 +1,18 @@
 # The Direct Data contract the generator follows
 
 The provider publishes no OpenAPI for these routes. The files here are its public documentation, kept
-byte for byte (Portuguese included) so the mock can be checked against it. Read on 2026-10-31.
+byte for byte (Portuguese included) so the mock can be checked against it. Read on 2026-11-04.
 
 | File | Source |
 |---|---|
 | `score.response.json` | Response example of https://www.directd.com.br/central-de-ajuda/apis/catalogo/Score |
 | `boavista-acerta-mais-positivo-pf.response.json` | Response example of https://www.directd.com.br/central-de-ajuda/apis/catalogo/BoaVistaAcertaMaisPositivoPF |
+| `dossie-credito-completo.response.json` | Response example of https://www.directd.com.br/central-de-ajuda/apis/catalogo/DossieCreditoCompleto |
+| `boavista-acerta-completo-positivo-pf.response.json` | Response example of https://www.directd.com.br/central-de-ajuda/apis/catalogo/BoaVistaAcertaCompletoPositivoPF |
 | `score.mcp.json` | `directdata_detalhar_api` (`Score`) on the public MCP `https://mcp.directd.com.br` (no token) |
 | `boavista-acerta-mais-positivo-pf.mcp.json` | `directdata_detalhar_api` (`/api/BoaVistaAcertaMaisPositivoPF`) on the same MCP |
+| `dossie-credito-completo.mcp.json` | `directdata_detalhar_api` (`Dossiê QUOD - Completo`) on the same MCP |
+| `boavista-acerta-completo-positivo-pf.mcp.json` | `directdata_detalhar_api` (`/api/BoaVistaAcertaCompletoPositivoPF`) on the same MCP |
 | `integration-guide.md` | `directdata_guia_integracao`, topics envelope, async, auth, statuscodes, ratelimit, callback |
 | `webhook.md` | The `WEBHOOK` paths of https://api.app.directd.com.br/swagger/v1/swagger.json, byte for byte (read on 2026-11-04) |
 | `marketplace-get-balance.response.json` | The real answer of `GET /api/Marketplace/GetBalance`, captured on 2026-11-04 |
@@ -24,7 +28,7 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - `consultaUid` is `direct-{guid}`; `chave` is `CPF=00000000000;`; `apiVersao` is `v3`; `data` is
   `dd/MM/yyyy HH:mm:ss`.
 - `consultaNome` is the display name: `Score de Crédito - QUOD`, `Boa Vista - Acerta Mais Positivo
-  Pessoa Física`.
+  Pessoa Física`, `Boa Vista - Acerta Completo Positivo Pessoa Física`, `Dossiê QUOD - Completo`.
 - Async: `Async=habilitar` → `201` with `consultaUid`; the example of the 201 is `resultadoId: 1`,
   `resultado: "Sucesso"`, `mensagem: "Requisição async criada com sucesso. Utilize o ConsultaUid para
   consultar o resultado."`, `retorno: null`. `GET /api/Historico/ObterRetornoConsultaAsync?ConsultaUid=
@@ -45,6 +49,27 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   `cidade`, `uf`, `cep` and `somenteTelefone.dados[]` / `somenteEndereco.dados[]`; the MCP field list has
   `telefones[] { ddd, numero, telefoneComDDD }` and `enderecos[] { logradouro, numero, complemento,
   bairro, cidade, uf, cep }`. The mock sends both shapes, filled with the same data.
+- **Acerta Mais and Acerta Completo do not carry the same key list.** The catalog page documents 49 keys
+  for Acerta Mais (the flat phone and address fields, plus `somenteTelefone` and `somenteEndereco`) and 43
+  for Acerta Completo (`telefones[]` and `enderecos[]`, without the two `somente*` blocks, and with
+  `decisao.resultado` where Acerta Mais has `decisao.observacoes`). The MCP field list, on the other
+  hand, gives **both** products the same 43 fields — it disagrees with the catalog page about Acerta
+  Mais. The mock follows the catalog page for each route: Acerta Mais sends the union of both shapes
+  (so a reader of either documentation finds its keys), and Acerta Completo sends exactly the 43 keys
+  of its own page.
+- Acerta Completo `retorno`: every leaf is a string, like Acerta Mais; the full key list is in
+  `boavista-acerta-completo-positivo-pf.response.json`. The phone and the address come as the
+  `telefones[]` and `enderecos[]` arrays, and the two `somente*` blocks are absent.
+- Dossiê QUOD `retorno`: four keys — `documentoConsultado`, `entidadeJuridica`, `entidadeFisica`,
+  `observacao`. For a person `entidadeJuridica` is `null`, and so is
+  `entidadeFisica.scoreEntidade.entidadeJuridica`. The leaves the Hub reads are **numbers**, not
+  strings: `entidadeFisica.scoreEntidade.entidadeFisica.score`,
+  `entidadeFisica.pendenciaFinanceira.totalPendencia`,
+  `entidadeFisica.pendenciaFinanceira.negativacoes[].valor` and
+  `entidadeFisica.pendenciaFinanceira.protestos[].valorTotal`;
+  `entidadeFisica.dadosCadastrais.possuiObito` is a boolean and
+  `entidadeFisica.dadosCadastrais.status` is `REGULAR` (or `SUSPENSA`). The route takes a `CPF` and a
+  `CNPJ`; it has no PDF receipt.
 - Observed (an unauthenticated call, 2026-10-30): `401`, `resultadoId: 3`, `resultado: "Não Autorizado"`,
   `mensagem: "IP ou Token inválido. Verifique."`.
 - The provider charges a consultation whose `resultado` is `Sucesso` or `Sucesso com Ressalvas`.
@@ -112,7 +137,8 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - The destination guard: the mock posts only to a loopback host (`127.0.0.1`, `::1`, `localhost`) or to a
   single-label host (a service of a compose network); any other host answers `400` and nothing is posted. A
   redirect from the receiver is not followed.
-- The cost of each product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18): the prices of the
+- The cost of each product (`Score` 1.98, `BoaVistaAcertaMaisPositivoPF` 11.18,
+  `BoaVistaAcertaCompletoPositivoPF` 14.03, `DossieCreditoCompleto` 6.99): the prices of the
   provider's catalog, as the mock reads them; the provider does not document them on the API.
 - The balance starts at `DIRECTD_BALANCE` (500 by default); a charged consultation subtracts the cost of its
   product, a top-up adds to it, and `addedLast30Days` and `consumedLast30Days` are the running sums since the

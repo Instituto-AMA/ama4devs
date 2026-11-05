@@ -166,7 +166,7 @@
     <!-- Sheet 4: Crédito por CPF · Direct Data -->
     <section class="sheet" id="sheet-directd" data-tool="credito">
       <h2>Crédito por CPF · Direct Data</h2>
-      <p>Simula a API v3 da Direct Data nos caminhos reais (<code>/api/Score</code>, <code>/api/BoaVistaAcertaMaisPositivoPF</code>). O Hub consulta aqui em vez do provedor.</p>
+      <p>Simula a API v3 da Direct Data nos caminhos reais (<code>/api/Score</code>, <code>/api/BoaVistaAcertaMaisPositivoPF</code>, <code>/api/BoaVistaAcertaCompletoPositivoPF</code>, <code>/api/DossieCreditoCompleto</code>). O Hub consulta aqui em vez do provedor.</p>
 
       <p class="directd-disclaimer" role="note"><strong>Dados simulados.</strong> Tudo nesta folha é gerado automaticamente para testes: score, faixa, restrições e situação do CPF não são reais e não devem ser usados como base de verdade sobre nenhuma pessoa.</p>
 
@@ -199,6 +199,14 @@
                 <label class="directd-option">
                   <input type="radio" name="directd-product" value="BoaVistaAcertaMaisPositivoPF">
                   <span class="directd-option-face"><strong>Boa Vista</strong><small>Acerta Mais</small></span>
+                </label>
+                <label class="directd-option">
+                  <input type="radio" name="directd-product" value="BoaVistaAcertaCompletoPositivoPF">
+                  <span class="directd-option-face"><strong>Boa Vista</strong><small>Acerta Completo</small></span>
+                </label>
+                <label class="directd-option">
+                  <input type="radio" name="directd-product" value="DossieCreditoCompleto">
+                  <span class="directd-option-face"><strong>Dossiê</strong><small>Quod Completo</small></span>
                 </label>
               </div>
             </fieldset>

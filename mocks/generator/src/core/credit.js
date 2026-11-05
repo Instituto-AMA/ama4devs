@@ -15,6 +15,8 @@ export const DIRECTD_TOKEN = '00000000-0000-4000-8000-00000000d1d1'
 
 export const ROUTE_SCORE = 'Score'
 export const ROUTE_BOA_VISTA = 'BoaVistaAcertaMaisPositivoPF'
+export const ROUTE_BOA_VISTA_COMPLETO = 'BoaVistaAcertaCompletoPositivoPF'
+export const ROUTE_DOSSIE = 'DossieCreditoCompleto'
 export const ROUTE_ASYNC_READ = 'Historico/ObterRetornoConsultaAsync'
 
 /**
@@ -24,6 +26,8 @@ export const ROUTE_ASYNC_READ = 'Historico/ObterRetornoConsultaAsync'
 export const CONSULTA_NAMES = {
   Score: 'Score de Crédito - QUOD',
   BoaVistaAcertaMaisPositivoPF: 'Boa Vista - Acerta Mais Positivo Pessoa Física',
+  BoaVistaAcertaCompletoPositivoPF: 'Boa Vista - Acerta Completo Positivo Pessoa Física',
+  DossieCreditoCompleto: 'Dossiê QUOD - Completo',
   'Historico/ObterRetornoConsultaAsync': 'Obter Retorno Consulta Async',
 }
 
@@ -417,6 +421,129 @@ export function quodReturn(cpf, profile, now) {
   }
 }
 
+/**
+ * A money string read back as a number: `'4.230,50'` → `4230.5`.
+ * @param {string} text
+ * @returns {number}
+ */
+function moneyNumber(text) {
+  return Math.round(Number(String(text).replace(/\./g, '').replace(',', '.')) * 100) / 100
+}
+
+/**
+ * The `pendenciaFinanceira` block of the dossier: the debts as
+ * `negativacoes`, the protests with their `valorTotal`, the bounced cheques,
+ * the civil actions and the judicial recoveries. The leaves are numbers, the
+ * way the documented example carries them.
+ * @param {CreditProfile} profile
+ */
+function dossiePendenciaBlock(profile) {
+  const debtCount = profile.debts.count
+  const debtParts = splitCents(moneyCents(profile.debts.total), debtCount)
+  const protestCount = profile.protests.count
+
+  return {
+    status: debtCount > 0 || protestCount > 0 ? 'COM_PENDENCIA' : 'SEM_PENDENCIA',
+    totalPendencia: moneyNumber(profile.debts.total) + moneyNumber(profile.protests.total),
+    protestos: protestCount > 0 ? [{
+      situacao: 'PROTESTADO',
+      valorTotal: moneyNumber(profile.protests.total),
+      cartorios: [{
+        codigoCidade: '3550308',
+        codigoCartorio: 'CARTORIO EXEMPLO',
+        nome: 'CARTORIO EXEMPLO',
+        telefone: '',
+        endereco: '',
+        cidade: 'SAO PAULO',
+        quantidadeProtestos: protestCount,
+        valorProtestado: moneyNumber(profile.protests.total),
+      }],
+      observacao: '',
+    }] : [],
+    acoesJudiciais: [],
+    negativacoes: occurrenceList(debtCount, (i) => ({
+      documento: '',
+      nomeEmpresa: CREDITORS[i % CREDITORS.length] ?? '',
+      motivo: 'NAO PAGO',
+      valor: moneyNumber(formatMoney(debtParts[i] ?? 0)),
+      numeroContrato: '',
+      tipoParticipacao: '',
+      status: '',
+      dataOcorrencia: DEBT_DATES.inclusion,
+      dataInclusao: DEBT_DATES.inclusion,
+      dataModificacao: DEBT_DATES.inclusion,
+      endereco: { ...ADDRESS },
+    })),
+    recuperacoesJudiciaisFalencia: [],
+    chequesSemFundo: [],
+  }
+}
+
+/**
+ * The `retorno` of the Dossiê QUOD route: the four keys of the documented
+ * example — `documentoConsultado`, `entidadeJuridica` (null for a person),
+ * `entidadeFisica` and `observacao` — with the score, the debts, the protests
+ * and the civil actions of the profile.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ * @param {Date} now
+ */
+export function dossieReturn(cpf, profile, now) {
+  const civilActions = profile.restrictions > 0 ? 1 : 0
+  return {
+    documentoConsultado: formatCpf(cpf),
+    entidadeJuridica: null,
+    entidadeFisica: {
+      statusCadastroPositivo: 'POSITIVO',
+      segmentoCadastroPositivo: 'PF',
+      dadosCadastrais: {
+        status: profile.cpfSituacao,
+        nome: profile.name,
+        nomeMae: '',
+        dataNascimento: '',
+        idade: 0,
+        sexo: '',
+        possuiObito: profile.deceased,
+        dataObito: '',
+        dadosAtuais: {
+          endereco: { ...ADDRESS },
+          email: '',
+          telefoneFixo: '',
+          celular: PHONE.ddd + PHONE.numero,
+        },
+        outrosNomes: [],
+        outrosEnderecos: [],
+        outrosEmails: [],
+        outrosTelefonesFixos: [],
+        outrosCelulares: [],
+      },
+      dadosEmpresariais: [],
+      scoreEntidade: {
+        entidadeFisica: {
+          score: profile.score,
+          scoreCompromissoPagamento: profile.score,
+          descricaoCompromissoPagamento: profile.capacidadePagamento,
+          scorePerfil: profile.score,
+          descricaoPerfil: profile.perfil,
+        },
+        entidadeJuridica: null,
+        observacao: '',
+      },
+      pendenciaFinanceira: dossiePendenciaBlock(profile),
+      consulta: {
+        cnpj: '',
+        ultimos30Dias: 0,
+        ultimos60Dias: 0,
+        ultimos90Dias: 0,
+        mais90Dias: 0,
+        detalhesConsulta: [],
+      },
+      frequenciaPagamentos: [],
+    },
+    observacao: '',
+  }
+}
+
 /** The `restricoes` block: one occurrence per restriction, empty when clean. */
 /** @param {CreditProfile} profile */
 function restricoesBlock(profile) {
@@ -638,6 +765,106 @@ export function boaVistaReturn(cpf, profile, now) {
 }
 
 /**
+ * The `retorno` of the Acerta Completo route: the 43 keys of the documented
+ * example, in that order, every leaf a string. The route carries the phone
+ * and the address as the `telefones` and `enderecos` arrays — not the flat
+ * fields and the `somenteTelefone`/`somenteEndereco` blocks of Acerta Mais.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ */
+export function boaVistaCompletoReturn(cpf, profile) {
+  const phoneFull = PHONE.ddd + PHONE.numero
+  return {
+    cpf: formatCpf(cpf),
+    cpfSituacao: profile.cpfSituacao,
+    cpfOrigem: '',
+    cpfDataAtualizacaoReceita: '',
+    rg: '',
+    rguf: '',
+    rgDataEmissao: '',
+    nome: profile.name,
+    nomeSocial: '',
+    nomePai: '',
+    mae: '',
+    nascimento: '',
+    sexo: '',
+    nacionalidade: '',
+    naturalidade: '',
+    grauInstrucao: '',
+    estadoCivil: '',
+    numeroDependentes: '',
+    indicacaoObito: profile.deceased ? 'SIM' : 'NAO',
+    tituloEleitor: '',
+    numeroPIS: '',
+    cartaoNacionalSaude: '',
+    email: '',
+    faixaRenda: profile.rendaFaixa,
+    classeSocial: '',
+    poderAquisitivo: '',
+    ultimoImpostoRenda: '',
+    qtdDependentesBolsaFamilia: '',
+    telefones: [{ ddd: PHONE.ddd, numero: PHONE.numero, telefoneComDDD: phoneFull }],
+    enderecos: [{ ...ADDRESS }],
+    restricoes: restricoesBlock(profile),
+    participacaoEmEmpresas: { quantidadeOcorrencias: '0', ocorrencias: [] },
+    pendenciasFinanceiras: pendenciasBlock(profile),
+    protestos: protestosBlock(profile),
+    chequeSemFundoVarejo: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
+    chequeSemFundoBacen: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
+    falenciasAcoesRecuperacoes: { quantidadeOcorrencia: '0', valorTotal: '0,00', ultimoRegistro: '', ocorrencias: [] },
+    scores: scoresBlock(profile),
+    passagensComerciais: { quantidadeOcorrencias: '0', ocorrencias: [] },
+    acoesCiveis: acoesCiveisBlock(profile),
+    decisao: { codigoSituacao: '', descricao: '', resultado: '', layout: '' },
+    rendaPresumida: {
+      descricao: '',
+      faixa: profile.rendaFaixa,
+      rendaAnual: '',
+      mensagem: '',
+      dataReferencia: '',
+      valorPresumido: '',
+      dadosCadastroPositivo: '',
+    },
+    controlePositivo: {
+      ocorrenciasFaturasEmAtraso: [],
+      ocorrenciasNotaComportamentosContratosRecentes: [],
+    },
+  }
+}
+
+/** The `acoesCiveis` block of the Acerta Completo route, filled by the profile. */
+/** @param {CreditProfile} profile */
+function acoesCiveisBlock(profile) {
+  const count = profile.restrictions > 0 ? 1 : 0
+  const value = profile.debts.count > 0 ? profile.debts.total : '0,00'
+  return {
+    quantidadeOcorrencia: String(count),
+    valorTotal: value,
+    valorPrimeiro: count > 0 ? value : '',
+    valorUltimo: count > 0 ? value : '',
+    dataPrimeiro: count > 0 ? DEBT_DATES.inclusion : '',
+    dataUltimo: count > 0 ? DEBT_DATES.due : '',
+    valorMaior: count > 0 ? value : '',
+    valorMenor: count > 0 ? value : '',
+    dataMaior: count > 0 ? DEBT_DATES.due : '',
+    dataMenor: count > 0 ? DEBT_DATES.inclusion : '',
+    ocorrencias: count > 0 ? [{
+      requerido: profile.name,
+      valor: value,
+      acao: 'ACAO DE EXEMPLO',
+      documento: '',
+      foro: 'FORO EXEMPLO',
+      origem: '',
+      vara: '1',
+      comarca: 'SAO PAULO',
+      autor: CREDITORS[0] ?? '',
+      processo: '0000000-00.0000.0.00.0000',
+      dataDistribuicao: DEBT_DATES.inclusion,
+    }] : [],
+  }
+}
+
+/**
  * The `retorno` a route carries for a profile; the async read keeps the shape
  * of the consultation it returns, the Score one by default.
  * @param {string} route
@@ -647,6 +874,8 @@ export function boaVistaReturn(cpf, profile, now) {
  */
 export function returnFor(route, cpf, profile, now) {
   if (route === ROUTE_BOA_VISTA) return boaVistaReturn(cpf, profile, now)
+  if (route === ROUTE_BOA_VISTA_COMPLETO) return boaVistaCompletoReturn(cpf, profile)
+  if (route === ROUTE_DOSSIE) return dossieReturn(cpf, profile, now)
   return quodReturn(cpf, profile, now)
 }
 

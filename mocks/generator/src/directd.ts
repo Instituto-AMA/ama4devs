@@ -6,6 +6,8 @@ import {
   OUTCOMES,
   ROUTE_ASYNC_READ,
   ROUTE_BOA_VISTA,
+  ROUTE_BOA_VISTA_COMPLETO,
+  ROUTE_DOSSIE,
   ROUTE_SCORE,
   SLOW_DELAY_MS,
   UNLISTED_POLICIES,
@@ -134,6 +136,8 @@ const ROUTE_CONSUMPTION = 'Billing/GetConsumptionApiV3'
 const PRODUCT_COSTS: Record<string, number> = {
   [ROUTE_SCORE]: 1.98,
   [ROUTE_BOA_VISTA]: 11.18,
+  [ROUTE_BOA_VISTA_COMPLETO]: 14.03,
+  [ROUTE_DOSSIE]: 6.99,
 }
 
 /** The description of the balance, the way the provider writes it. */
@@ -1208,7 +1212,15 @@ function routeOf(pathname: string): string | null {
   if (!pathname.startsWith('/api/')) return null
 
   const name = pathname.slice('/api/'.length)
-  if (name === ROUTE_SCORE || name === ROUTE_BOA_VISTA || name === ROUTE_ASYNC_READ) return name
+  if (
+    name === ROUTE_SCORE ||
+    name === ROUTE_BOA_VISTA ||
+    name === ROUTE_BOA_VISTA_COMPLETO ||
+    name === ROUTE_DOSSIE ||
+    name === ROUTE_ASYNC_READ
+  ) {
+    return name
+  }
   return null
 }
 

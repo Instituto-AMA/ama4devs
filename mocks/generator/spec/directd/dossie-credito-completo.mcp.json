@@ -1,0 +1,57 @@
+{
+  "nome": "Dossiê QUOD - Completo",
+  "metodo": "GET",
+  "rota": "/api/DossieCreditoCompleto",
+  "urlCompleta": "https://apiv3.directd.com.br/api/DossieCreditoCompleto",
+  "resumo": "Endpoint para realizar a consulta Dossiê QUOD - Completo. Obs: esta consulta não possui comprovante.",
+  "descricao": "Informe apenas um único documento por requisição.",
+  "emManutencao": false,
+  "requerToken": true,
+  "parametros": [
+    {
+      "nome": "CPF",
+      "local": "query",
+      "obrigatorio": false,
+      "tipo": "string",
+      "descricao": "O parâmetro CPF pode ser enviado com ou sem formatação."
+    },
+    {
+      "nome": "CNPJ",
+      "local": "query",
+      "obrigatorio": false,
+      "tipo": "string",
+      "descricao": "O parâmetro CNPJ pode ser enviado com ou sem formatação."
+    }
+  ],
+  "statusCodes": {
+    "200": "Sucesso: retorna um JSON com os dados da consulta.",
+    "201": "Sucesso: a requisição async foi criada com sucesso e está em processamento.",
+    "202": "Em Processamento: a requisição async ainda está em processamento.",
+    "400": "Requisição Inválida: a requisição está incorreta ou os parâmetros são inválidos.",
+    "401": "Não Autenticado: o usuário não forneceu as credenciais corretas para acessar o recurso.",
+    "403": "Não Autorizado: o servidor recebeu a requisição, mas se negou a autorizá-la por conta de saldo indisponível.",
+    "404": "Não Encontrado: o servidor não encontrou uma representação atual do recurso solicitado.",
+    "408": "Tempo Esgotado: o servidor não conseguiu retornar a requisição no prazo estabelecido.",
+    "500": "Falha ao Realizar Consulta: o servidor não conseguiu processar a requisição com sucesso. Por favor, entre em contato com o nosso suporte.",
+    "503": "Consulta em Manutenção: a consulta requisitada está em manutenção. Por favor, entre em contato com o nosso suporte."
+  },
+  "exemploResposta": "{\r\n  \"MetaDados\": {\r\n    \"ConsultaNome\": \"Nome da Consulta\",\r\n    \"ConsultaUid\": \"direct-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\",\r\n    \"Chave\": \"CPF=00000000000;\",\r\n    \"Usuario\": \"usuario@empresa.com.br\",\r\n    \"Mensagem\": \"Requisi\\u00E7\\u00E3o async criada com sucesso. Utilize o ConsultaUid para consultar o resultado.\",\r\n    \"ResultadoId\": 1,\r\n    \"Resultado\": \"Sucesso\",\r\n    \"ApiVersao\": \"v3\",\r\n    \"Data\": \"28/03/2026 10:00:00\",\r\n    \"TempoExecucaoMs\": 1500\r\n  },\r\n  \"Retorno\": null\r\n}",
+  "camposRetorno": [
+    {
+      "nome": "documentoConsultado",
+      "tipo": "string"
+    },
+    {
+      "nome": "entidadeJuridica",
+      "tipo": "objeto EntidadeJuridica"
+    },
+    {
+      "nome": "entidadeFisica",
+      "tipo": "objeto EntidadeFisica"
+    },
+    {
+      "nome": "observacao",
+      "tipo": "string"
+    }
+  ]
+}

@@ -279,6 +279,16 @@ curl https://instituto-ama.github.io/ama4devs/generator/api/v1/cnpj</code></pre>
                     <td><code>{"metaDados": {...}, "retorno": {"cpfSituacao": "REGULAR", ...}}</code></td>
                   </tr>
                   <tr>
+                    <td><code>GET /api/BoaVistaAcertaCompletoPositivoPF</code></td>
+                    <td>Relatório Boa Vista "Acerta Completo Positivo" de um CPF</td>
+                    <td><code>{"metaDados": {...}, "retorno": {"cpfSituacao": "REGULAR", ...}}</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/DossieCreditoCompleto</code></td>
+                    <td>Dossiê de crédito "Dossiê QUOD - Completo" de um CPF</td>
+                    <td><code>{"metaDados": {...}, "retorno": {"entidadeFisica": {"scoreEntidade": ...}}}</code></td>
+                  </tr>
+                  <tr>
                     <td><code>GET /api/Historico/ObterRetornoConsultaAsync</code></td>
                     <td>Resultado de uma consulta de crédito assíncrona, pelo <code>ConsultaUid</code></td>
                     <td><code>{"metaDados": {"resultado": "Processando"}, "retorno": null}</code></td>

@@ -211,7 +211,8 @@ fills the Asaas mock. See [mocks/generator/README.md](mocks/generator/README.md)
   creates customers and charges through the Asaas API and confirms part of them;
   `GENERATOR_ASAAS_SEED_ON_BOOT=people=10,companies=3,charges=2,confirm=0.5` in `.env` does it once on boot,
   while the Asaas mock has no customer.
-- **Direct Data credit check:** `GET /api/Score?CPF=…&TOKEN=…`, `GET /api/BoaVistaAcertaMaisPositivoPF?…` and
+- **Direct Data credit check:** `GET /api/Score?CPF=…&TOKEN=…`, `GET /api/BoaVistaAcertaMaisPositivoPF?…`,
+  `GET /api/BoaVistaAcertaCompletoPositivoPF?…`, `GET /api/DossieCreditoCompleto?…` and
   `GET /api/Historico/ObterRetornoConsultaAsync?ConsultaUid=…` answer the provider's own routes, synchronous and
   asynchronous, with the public token `00000000-0000-4000-8000-00000000d1d1` and 17 test CPFs (`11100000143` low
   risk, `11100111212` medium risk, …). The table is configurable like the Asaas test cards, under `/_mock/directd/*`.

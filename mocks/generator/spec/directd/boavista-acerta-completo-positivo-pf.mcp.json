@@ -1,0 +1,217 @@
+{
+  "nome": "Boa Vista - Acerta Completo Positivo Pessoa Física",
+  "metodo": "GET",
+  "rota": "/api/BoaVistaAcertaCompletoPositivoPF",
+  "urlCompleta": "https://apiv3.directd.com.br/api/BoaVistaAcertaCompletoPositivoPF",
+  "resumo": "Endpoint para realizar a consulta Boa Vista - Acerta Completo Positivo Pessoa Física.",
+  "descricao": "🌐 Fornecedor Externo",
+  "emManutencao": false,
+  "requerToken": true,
+  "parametros": [
+    {
+      "nome": "CPF",
+      "local": "query",
+      "obrigatorio": false,
+      "tipo": "string",
+      "descricao": "O parâmetro CPF pode ser enviado com ou sem formatação."
+    },
+    {
+      "nome": "GERARCOMPROVANTE",
+      "local": "query",
+      "obrigatorio": false,
+      "tipo": "string",
+      "descricao": "Este parâmetro possibilita gerar o comprovante em PDF desta consulta.",
+      "valoresPermitidos": [
+        "Desabilitar",
+        "Habilitar"
+      ]
+    }
+  ],
+  "statusCodes": {
+    "200": "Sucesso: retorna um JSON com os dados da consulta.",
+    "201": "Sucesso: a requisição async foi criada com sucesso e está em processamento.",
+    "202": "Em Processamento: a requisição async ainda está em processamento.",
+    "400": "Requisição Inválida: a requisição está incorreta ou os parâmetros são inválidos.",
+    "401": "Não Autenticado: o usuário não forneceu as credenciais corretas para acessar o recurso.",
+    "403": "Não Autorizado: o servidor recebeu a requisição, mas se negou a autorizá-la por conta de saldo indisponível.",
+    "404": "Não Encontrado: o servidor não encontrou uma representação atual do recurso solicitado.",
+    "408": "Tempo Esgotado: o servidor não conseguiu retornar a requisição no prazo estabelecido.",
+    "500": "Falha ao Realizar Consulta: o servidor não conseguiu processar a requisição com sucesso. Por favor, entre em contato com o nosso suporte.",
+    "503": "Consulta em Manutenção: a consulta requisitada está em manutenção. Por favor, entre em contato com o nosso suporte."
+  },
+  "exemploResposta": "{\r\n  \"MetaDados\": {\r\n    \"ConsultaNome\": \"Nome da Consulta\",\r\n    \"ConsultaUid\": \"direct-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\",\r\n    \"Chave\": \"CPF=00000000000;\",\r\n    \"Usuario\": \"usuario@empresa.com.br\",\r\n    \"Mensagem\": \"Requisi\\u00E7\\u00E3o async criada com sucesso. Utilize o ConsultaUid para consultar o resultado.\",\r\n    \"ResultadoId\": 1,\r\n    \"Resultado\": \"Sucesso\",\r\n    \"ApiVersao\": \"v3\",\r\n    \"Data\": \"28/03/2026 10:00:00\",\r\n    \"TempoExecucaoMs\": 1500\r\n  },\r\n  \"Retorno\": null\r\n}",
+  "camposRetorno": [
+    {
+      "nome": "cpf",
+      "tipo": "string"
+    },
+    {
+      "nome": "cpfSituacao",
+      "tipo": "string"
+    },
+    {
+      "nome": "cpfOrigem",
+      "tipo": "string"
+    },
+    {
+      "nome": "cpfDataAtualizacaoReceita",
+      "tipo": "string"
+    },
+    {
+      "nome": "rg",
+      "tipo": "string"
+    },
+    {
+      "nome": "rguf",
+      "tipo": "string"
+    },
+    {
+      "nome": "rgDataEmissao",
+      "tipo": "string"
+    },
+    {
+      "nome": "nome",
+      "tipo": "string"
+    },
+    {
+      "nome": "nomeSocial",
+      "tipo": "string"
+    },
+    {
+      "nome": "nomePai",
+      "tipo": "string"
+    },
+    {
+      "nome": "mae",
+      "tipo": "string"
+    },
+    {
+      "nome": "nascimento",
+      "tipo": "string"
+    },
+    {
+      "nome": "sexo",
+      "tipo": "string"
+    },
+    {
+      "nome": "nacionalidade",
+      "tipo": "string"
+    },
+    {
+      "nome": "naturalidade",
+      "tipo": "string"
+    },
+    {
+      "nome": "grauInstrucao",
+      "tipo": "string"
+    },
+    {
+      "nome": "estadoCivil",
+      "tipo": "string"
+    },
+    {
+      "nome": "numeroDependentes",
+      "tipo": "string"
+    },
+    {
+      "nome": "indicacaoObito",
+      "tipo": "string"
+    },
+    {
+      "nome": "tituloEleitor",
+      "tipo": "string"
+    },
+    {
+      "nome": "numeroPIS",
+      "tipo": "string"
+    },
+    {
+      "nome": "cartaoNacionalSaude",
+      "tipo": "string"
+    },
+    {
+      "nome": "email",
+      "tipo": "string"
+    },
+    {
+      "nome": "faixaRenda",
+      "tipo": "string"
+    },
+    {
+      "nome": "classeSocial",
+      "tipo": "string"
+    },
+    {
+      "nome": "poderAquisitivo",
+      "tipo": "string"
+    },
+    {
+      "nome": "ultimoImpostoRenda",
+      "tipo": "string"
+    },
+    {
+      "nome": "qtdDependentesBolsaFamilia",
+      "tipo": "string"
+    },
+    {
+      "nome": "telefones",
+      "tipo": "array de TelefoneBase"
+    },
+    {
+      "nome": "enderecos",
+      "tipo": "array de Endereco"
+    },
+    {
+      "nome": "restricoes",
+      "tipo": "objeto RestricoesAcertaCompletoPF"
+    },
+    {
+      "nome": "participacaoEmEmpresas",
+      "tipo": "objeto ParticipacaoEmpresasAcertaCompletoPF"
+    },
+    {
+      "nome": "pendenciasFinanceiras",
+      "tipo": "objeto PendenciasFinanceirasAcertaCompletoPF"
+    },
+    {
+      "nome": "protestos",
+      "tipo": "objeto ProtestosAcertaCompletoPF"
+    },
+    {
+      "nome": "chequeSemFundoVarejo",
+      "tipo": "objeto ChequesSemFundosAcertaCompletoPF"
+    },
+    {
+      "nome": "chequeSemFundoBacen",
+      "tipo": "objeto ChequesSemFundosAcertaCompletoPF"
+    },
+    {
+      "nome": "falenciasAcoesRecuperacoes",
+      "tipo": "objeto FalenciasAcoesRecuperacoesAcertaCompletoPF"
+    },
+    {
+      "nome": "scores",
+      "tipo": "objeto ScoresAcertaCompletoPF"
+    },
+    {
+      "nome": "passagensComerciais",
+      "tipo": "objeto PassagensComerciaisAcertaCompletoPF"
+    },
+    {
+      "nome": "acoesCiveis",
+      "tipo": "objeto AcoesCiveisAcertaCompletoPF"
+    },
+    {
+      "nome": "decisao",
+      "tipo": "objeto DecisaoAcertaCompletoPF"
+    },
+    {
+      "nome": "rendaPresumida",
+      "tipo": "objeto RendaPresumidaAcertaCompletoPF"
+    },
+    {
+      "nome": "controlePositivo",
+      "tipo": "objeto ControlePositivoAcertaCompletoPF"
+    }
+  ]
+}
