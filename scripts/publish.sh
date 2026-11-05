@@ -42,11 +42,35 @@ builder_args() {
   platforms="$(docker buildx inspect --bootstrap "$LOCAL_BUILDER" | sed -n 's/^Platforms:[[:space:]]*//p' | head -1)"
   local wanted
   for wanted in ${PLATFORMS//,/ }; do
-    if ! grep -q "$wanted" <<<"$platforms"; then
+    # The advertised list is not the truth: a builder that emulates a platform
+    # under qemu does not always name it (Docker Desktop on an ARM Mac builds
+    # linux/amd64 with the emulator and omits it from the list). So the
+    # capability is probed with a build of the platform itself.
+    if ! grep -q "$wanted" <<<"$platforms" && ! builder_builds "$LOCAL_BUILDER" "$wanted"; then
       die "builder '${LOCAL_BUILDER}' cannot build ${wanted} (it builds: ${platforms}). Install the emulator once: docker run --privileged --rm tonistiigi/binfmt --install all"
     fi
   done
   printf '%s\n' "--builder" "$LOCAL_BUILDER"
+}
+
+# builder_builds BUILDER PLATFORM — whether the builder really builds for PLATFORM.
+# A throwaway build of a one-line Dockerfile answers it: the RUN under
+# emulation prints the architecture it ran as.
+builder_builds() {
+  local builder="$1" platform="$2" work
+  work="$(mktemp -d)"
+  printf 'FROM alpine:latest\nRUN uname -m\n' > "${work}/Dockerfile"
+  local out
+  out="$(docker buildx build --builder "$builder" --platform "$platform" --output type=cacheonly "$work" 2>&1)" && {
+    rm -rf "$work"
+    return 0
+  }
+  rm -rf "$work"
+  # The build failed: the platform is not buildable, unless the failure was the
+  # network (the image could not be pulled), which says nothing about the
+  # platform itself.
+  grep -qiE 'no matching manifest|not found|failed to resolve|network|timeout' <<<"$out" && return 0
+  return 1
 }
 
 # package_version DIR — the "version" of DIR/package.json.
