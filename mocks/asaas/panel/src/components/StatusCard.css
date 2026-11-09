@@ -1,13 +1,19 @@
+/**
+ * The four sums of the home sheet.
+ *
+ * They are NOT cards: four white boxes inside another white box is the reason
+ * the old panel read as a pile of containers. Here each sum is a column of the
+ * ledger: a rule above it, the number in the data face, and a bar of the same
+ * hue under it.
+ */
 .stat {
   display: flex;
   flex-direction: column;
-  gap: var(--pad-md);
+  gap: var(--pad-sm);
   flex: 1;
   min-width: 240px;
-  padding: var(--pad-md);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-inner);
+  padding: var(--pad-md) 0 0;
+  border-top: 2px solid var(--t, var(--paper-rule));
 }
 
 /**
@@ -16,29 +22,33 @@
  * in one place, without hunting `.stat.danger .stat-value` spread across six
  * selectors.
  */
-.stat.success { --t: var(--success); --t-strong: var(--success-strong); --t-soft: var(--green-200); }
-.stat.primary { --t: var(--primary); --t-strong: var(--primary-strong); --t-soft: var(--blue-100); }
-.stat.warn    { --t: var(--warn);    --t-strong: var(--warn-strong);    --t-soft: var(--amber-200); }
-.stat.danger  { --t: var(--danger);  --t-strong: var(--danger-strong);  --t-soft: var(--red-200); }
+.stat.success { --t: var(--success); --t-strong: var(--success-strong); --t-soft: var(--green-50); }
+.stat.primary { --t: var(--ink); --t-strong: var(--ink); --t-soft: var(--primary-soft); }
+.stat.warn    { --t: var(--warn);    --t-strong: var(--warn-strong);    --t-soft: var(--amber-50); }
+.stat.danger  { --t: var(--danger);  --t-strong: var(--danger-strong);  --t-soft: var(--red-50); }
 
-.stat-hdr h3 { font-size: 16px; color: var(--text); }
+.stat-hdr h3 {
+  font: 800 14px/1.2 var(--display);
+  letter-spacing: 0.03em;
+  color: var(--ink);
+}
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 500;
-  color: var(--t);
+  font: 700 24px/1.1 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
   font-variant-numeric: tabular-nums;
+  color: var(--t-strong);
 }
 .stat-net {
-  margin-top: -12px;
-  font-size: 12px;
+  font: 400 12px var(--mono);
+  font-variation-settings: 'wdth' 87.5;
   color: var(--text-medium);
 }
 
 .stat-bar {
   display: flex;
-  height: 16px;
-  border-radius: 4px;
+  height: 10px;
+  border-radius: 2px;
   overflow: hidden;
   background: var(--t-soft);
 }

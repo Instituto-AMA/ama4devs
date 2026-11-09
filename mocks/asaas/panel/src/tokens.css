@@ -1,48 +1,113 @@
 /**
- * The design system of Asaas (Atlas), reduced to what this panel uses.
+ * The world of the panel: a thermal receipt on a deep printer body.
  *
- * The rule: the rest of the sheet consumes ONLY the semantic names (--primary,
- * --surface, --border…). Never a primitive (--blue-500). It is what makes the
- * dark theme thirty lines of override instead of a hunt for scattered hexes.
+ * The ground (the rail, the slot, the surround) is the Asaas ultramarine; what the
+ * simulator prints — the ledger of charges, the statement, the webhook deliveries —
+ * lands on cool thermal paper. The controls are the keys of a card machine: green
+ * confirms, yellow repeats, white is a plain key, and a key is pressed with four
+ * pixels of depth that drops to one when it goes down.
+ *
+ * ONE rule for the whole panel: a screen consumes the SEMANTIC names at the bottom
+ * of this file and never a primitive. The primitives exist for the dark theme to
+ * override and for the few places that need one step of a ramp. A screen that
+ * writes `background: #0038e5` on its own is a screen that will diverge the next
+ * time the theme changes — and nobody notices until a screenshot becomes
+ * unreadable.
  */
 :root {
-  /* primitives — Persian Blue is the blue of Asaas */
-  --blue-50: #d6eaff;  --blue-100: #c7e0ff; --blue-400: #1f61ff;
-  --blue-500: #0038e5; --blue-600: #0036b8; --blue-700: #002f8a;
-  --blue-900: #1e3a8a;
+  /* Grounds — the printer body. */
+  --ground: #0f2160;
+  --ground-raise: #18307e;
+  --ground-line: #2a44a0;
+  --on-ground: #e8ecfb;
+  --on-ground-soft: #aebbec;
 
-  --sky-10: #fcfcfd;   --sky-20: #f8f9fa;   --sky-30: #f7f8fa;
-  --sky-50: #f2f4f7;
-  --sky-100: #e5e8ec;  --sky-200: #d1d6dc;  --sky-400: #9aa4b3;
-  --sky-600: #5e6877;  --sky-700: #4a5461;  --sky-800: #2f363f;
-  --sky-900: #1d2125;
+  /* Paper and its print. */
+  --paper: #f3f5f1;
+  --paper-band: #e6e9e2;
+  --paper-rule: #c9cdc4;
+  --paper-edge: #dde1d8;
+  --ink: #23212b;
+  --ink-soft: #4b4857;
+  --fade: #5f5880;
+  --print-red: #b8262f;
 
-  --green-50: #e8f3ee; --green-200: #a3cfbb; --green-400: #479f76;
-  --green-500: #198754; --green-600: #146c43;
+  /* The keypad. */
+  --key-confirm: #17804a;
+  --key-confirm-deep: #0f5f35;
+  --key-confirm-label: #ffffff;
+  --key-correct: #f2c232;
+  --key-correct-deep: #c99b14;
+  --key-correct-label: #23212b;
 
-  --red-50: #fcebec;   --red-200: #f1aeb5;  --red-500: #dc3545;
-  --red-600: #b02a37;
+  /* A KEY of the machine. It lives on the ground, so it keeps its white face in
+     both themes — the machine does not repaint its keys when the paper changes. */
+  --key-face: #f7f7f4;
+  --key-face-deep: #b9bab3;
+  --key-face-hover: #ffffff;
+  --key-label: #23212b;
+  --key-label-soft: #4b4857;
 
-  --amber-50: #fff7e6; --amber-200: #fed49a; --amber-400: #fdb246;
-  --amber-500: #f59e0b; --amber-600: #b45309; --amber-700: #92400e;
+  /* A SLOT of the paper: the search, the input, the chip. It is cut IN the sheet,
+     so the dark receipt cuts it in violet too — and the ink that lands on it is
+     the ink of that sheet. */
+  --slot-face: #f7f7f4;
+  --slot-deep: #b9bab3;
+  --slot-hover: #ffffff;
 
-  /* semantic — this is what the components use */
-  --page: var(--sky-20);
-  --surface: var(--sky-10);
-  --surface-soft: var(--sky-50);
-  --surface-hover: var(--sky-100);
-  --border: var(--sky-200);
-  --border-soft: var(--sky-100);
-  --text: var(--sky-900);
-  --text-medium: var(--sky-600);
-  --text-soft: var(--sky-400);
+  /* The ink that sits on a colored ground. */
+  --on-ink: #ffffff;
+  --on-danger: #ffffff;
 
-  --primary: var(--blue-500);
-  --primary-hover: var(--blue-600);
-  --primary-pressed: var(--blue-700);
-  --primary-soft: var(--blue-50);
-  --primary-strong: var(--blue-600);
-  --focus: var(--blue-400);
+  /* The three voices: the print head, the prose, the data. */
+  --display: 'Doto', 'Martian Mono', ui-monospace, monospace;
+  --sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Martian Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* The teeth of the torn edge and the curve of the paper coming out. */
+  --tooth: 14px;
+  --feed: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── primitives (kept: the dark theme overrides them, nothing else may) ───── */
+
+  --blue-50: #e7ecf7;  --blue-100: #cdd8ee;  --blue-400: #2a44a0;
+  --blue-500: #0f2160; --blue-600: #0a1747; --blue-700: #08123a;
+  --blue-900: #23212b;
+
+  --sky-10: #f3f5f1;   --sky-20: #f3f5f1;   --sky-30: #eff1ec;
+  --sky-50: #e6e9e2;   --sky-100: #dde1d8;  --sky-200: #c9cdc4;
+  --sky-400: #5f5880;  --sky-600: #4b4857;  --sky-700: #4b4857;
+  --sky-800: #2e2c37;  --sky-900: #23212b;
+
+  --green-50: #e4efe8; --green-200: #a3cfbb; --green-400: #479f76;
+  --green-500: #17804a; --green-600: #0f5f35;
+
+  --red-50: #f7e7e7;   --red-200: #f1aeb5;  --red-500: #b8262f;
+  --red-600: #8e1d24;
+
+  --amber-50: #fbf1d6; --amber-200: #f2c232; --amber-400: #d9a520;
+  --amber-500: #b07d12; --amber-600: #8a6a00; --amber-700: #6f5600;
+
+  /* ── semantic: this is what the screens consume ─────────────────────────── */
+
+  --page: var(--paper);
+  --surface: var(--paper);
+  --surface-soft: var(--paper-band);
+  --surface-hover: #e0e4da;
+  --border: var(--paper-rule);
+  --border-soft: var(--paper-edge);
+  --text: var(--ink);
+  --text-medium: var(--ink-soft);
+  --text-soft: var(--fade);
+
+  /* The primary is the print itself: the strongest ink on the paper. The keys that
+     carry an action have their own color (green confirms, red refuses). */
+  --primary: var(--ink);
+  --primary-hover: var(--ink-soft);
+  --primary-pressed: #14131b;
+  --primary-soft: #e7e9e2;
+  --primary-strong: var(--ink);
+  --focus: var(--ink);
 
   --success: var(--green-500);
   --success-strong: var(--green-600);
@@ -54,92 +119,124 @@
   --warn-strong: var(--amber-700);
   --warn-soft: var(--amber-50);
 
-  /* spacing, radius, typography */
-  --pad-xs: 8px;  --pad-sm: 12px; --pad-md: 16px;
-  --pad-lg: 20px; --pad-xl: 24px; --pad-2xl: 32px;
+  /* The name the screens already use for the body face. */
+  --font: var(--sans);
 
-  --radius-card: 24px;   /* container-md — cards and panels */
-  --radius-inner: 16px;  /* cards inside cards          */
-  --radius-input: 12px;
-  --radius-sm: 8px;
-  --radius-pill: 999px;  /* the Atlas button is a pill   */
+  /* spacing — one scale, tighter than the old panel: this is a working screen. */
+  --pad-xs: 6px;  --pad-sm: 10px; --pad-md: 14px;
+  --pad-lg: 20px; --pad-xl: 28px; --pad-2xl: 40px;
 
-  --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* The paper has corners, but small ones: a receipt is not a card. */
+  --radius-card: 10px;
+  --radius-inner: 8px;
+  --radius-input: 8px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
 
-  --sidebar-w: 280px;
-  --shadow-card: 0 2px 8px rgb(0 0 0 / 5%);
-  --shadow-sidebar: 4px 0 8px rgb(29 33 37 / 8%);
+  --sidebar-w: 264px;
+
+  /* The sheet floats over the ground; the key has a depth of its own. */
+  --shadow-card: 0 14px 18px #00000059;
+  --shadow-sidebar: 8px 0 24px #00000040;
+  --shadow-key: 0 4px 0 var(--key-face-deep), 0 8px 18px -6px #00000080;
 }
 
 /**
- * THE LIGHT ONE IS THE DEFAULT, and not `prefers-color-scheme`.
+ * The dark receipt.
  *
- * The Asaas panel is light only, and this screen exists to LOOK like it:
- * following the theme of the system meant that, on a machine configured in dark
- * mode, nobody would ever see the look the panel was made for. The dark one is
- * still available — but by explicit choice (`data-theme="dark"`, in the topbar
- * switch), and not by accident of the operating system configuration.
+ * The panel's theme is an explicit choice (the key in the strip), not the system's:
+ * a container in CI, or a developer whose machine is in dark mode, must still see
+ * the panel the way it was made. In the dark one the ground stays the ground and
+ * the paper becomes a deep violet stock — the same receipt, printed on the other
+ * side of the sheet.
  */
 :root[data-theme='dark'] {
+  --paper: #1b1a25;
+  --paper-band: #23222f;
+  --paper-rule: #3a3849;
+  --paper-edge: #2c2b38;
+  --ink: #ece9f7;
+  --ink-soft: #b9b2d9;
+  --fade: #8b84ad;
 
-  --page: #14181d;
-  --surface: #1a1f26;
-  --surface-soft: #20262e;
-  --surface-hover: #262d36;
-  --border: #313a45;
-  --border-soft: #262d36;
-  --text: #eef1f4;
-  --text-medium: #9aa4b3;
-  --text-soft: #6b7684;
+  --surface-hover: #2a2937;
+  --primary: var(--ink);
+  --primary-hover: var(--ink-soft);
+  --primary-pressed: #ffffff;
+  --primary-soft: #262535;
+  --primary-strong: var(--ink);
+  --focus: var(--on-ground);
 
-  --primary: #3d6dff;
-  --primary-hover: #5680ff;
-  --primary-pressed: #1f61ff;
-  --primary-soft: #1b2a52;
-  --primary-strong: #7ea0ff;
-  --focus: #5680ff;
+  /* The slots follow the paper; the keys of the machine keep their white face. */
+  --slot-face: #26253a;
+  --slot-deep: #141320;
+  --slot-hover: #33324a;
 
-  --success: #22a06b;
-  --success-strong: #4ade80;
-  --success-soft: #14301f;
-  --green-200: #1e5c3d;
-  --green-400: #22a06b;
+  /* The ink on an ink ground, and on a red one, is dark in the dark receipt. */
+  --on-ink: #16151f;
+  --on-danger: #2a0d10;
 
-  --danger: #e5484d;
-  --danger-strong: #f26d78;
-  --danger-soft: #3a1d20;
-  --red-200: #6b2b31;
+  --green-50: #14301f; --green-200: #1e5c3d; --green-400: #2f8a5e;
+  --green-600: #55c98c;
+  --red-50: #3a1d20;   --red-200: #6b2b31;  --red-500: #e5484d;
+  --red-600: #f26d78;
+  --amber-50: #3a2c12; --amber-200: #5c4517; --amber-400: #b8862c;
+  --amber-600: #e0b44a; --amber-700: #f2c232;
 
-  --warn: #d99b25;
-  --warn-strong: #f0b849;
-  --warn-soft: #3a2c12;
-  --amber-200: #5c4517;
-  --amber-400: #b8862c;
-
-  --blue-900: #1b2a52;
-  --shadow-card: 0 2px 8px rgb(0 0 0 / 30%);
-  --shadow-sidebar: 4px 0 8px rgb(0 0 0 / 25%);
+  --shadow-card: 0 14px 18px #00000073;
+  --shadow-sidebar: 8px 0 24px #00000059;
 }
 
 * { box-sizing: border-box; }
 
+html { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+
 body {
   margin: 0;
   font-family: var(--font);
-  background: var(--page);
+  background: var(--ground);
   color: var(--text);
   font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Atlas: titles at weight 500, never bold. */
-h1, h2, h3 { font-weight: 500; margin: 0; }
+/* The print head speaks for itself; the prose never shouts. */
+h1, h2, h3 { margin: 0; font-weight: 600; }
 
-a { color: var(--primary); }
-code, .mono { font-family: var(--mono); }
+a {
+  color: var(--primary);
+  text-decoration-color: var(--paper-rule);
+  text-underline-offset: 3px;
+}
+a:hover { text-decoration-color: currentColor; }
+
+code, .mono, kbd, samp {
+  font-family: var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+}
+
+::selection {
+  background: var(--ground);
+  color: var(--on-ground);
+}
 
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/* The scrollbar is part of the paper. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-rule) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--paper-rule);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--fade); background-clip: content-box; }

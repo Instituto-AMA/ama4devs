@@ -1,6 +1,6 @@
 ---
 name: The Running Receipt
-surface: site/ (GitHub Pages)
+surface: site/ (GitHub Pages), mocks/asaas/panel/ (the Asaas mock's operator panel)
 colors:
   ground-home: "#1d1838"
   ground-whatsapp: "#0e3a2f"
@@ -95,6 +95,32 @@ the visitor reads sits on paper with torn edges. Controls are card-machine keypa
 One authored moment per page: the printer. Keys step on press. No scroll-triggered
 entrances, no hover animations on cards.
 
+## The panel
+
+The Asaas mock's operator panel is this world at the size of a workbench: the same
+ground, the same paper, the same keys, the same three voices. It is a screen the
+developer works in, so the expression shrinks to precision and the ledger carries the
+personality.
+
+- **The machine**: the rail (left) and the strip (top) are the printer body — the
+  ground. The open section of the rail is a white key pressed into the body.
+- **The sheet**: the work sits on one paper sheet whose top edge is torn by the row of
+  teeth where the paper leaves the slot. The sheet has no rounded card in it: a
+  section is a heading and a rule.
+- **Keys and slots**: a key belongs to the machine and keeps its white face in both
+  themes, with a dark label on it. A slot belongs to the paper and follows it: in the
+  dark receipt the search, the input and the chip are cut in the sheet itself.
+- **The dark receipt**: the theme is an explicit choice, not the system's. The ground
+  stays the ground; the paper becomes a deep violet stock and the ink turns light.
+  Every slot, key, stamp and rule stays readable in both.
+- **The ledger**: the tables are the receipt's body — Martian Mono for ids, dates and
+  money, dashed perforations between the lines, the column heads in small caps.
+- **Stamps**: a state is a stamp, a small rectangle in the tone's hairline and ink,
+  never a pill that shouts over the number it belongs to.
+- **Print head**: Doto is for the small pieces (section labels, group names, stamps).
+  The page headline is Archivo 800 narrow; a dot matrix at title size turns into a
+  mosaic nobody reads.
+
 ## Do's and Don'ts
 
 - Do keep every claim and every printed line true to the mocks today; planned providers
@@ -103,3 +129,6 @@ entrances, no hover animations on cards.
 - Don't add cards with icons, eyebrow labels, gradient text or glass.
 - Don't use Doto for prose or Martian Mono for labels.
 - Don't hand-edit `site/data/`; run `node scripts/site-api-data.mjs`.
+- Don't paint a screen with a primitive: the panel's screens consume the semantic
+  names (`--paper`, `--ink`, `--slot-face`, `--key-face`), so the dark receipt can
+  change the sheet without hunting a hex in six files.

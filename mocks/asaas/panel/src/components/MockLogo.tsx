@@ -7,8 +7,9 @@
  * identical to the real product would be the first lie of a screen whose entire
  * value depends on being honest about what it is.
  *
- * `currentColor` instead of the hex: that way it follows the dark theme instead
- * of becoming a blue that disappears in the background.
+ * `currentColor` instead of the hex: that way it follows the theme instead of
+ * becoming a blue that disappears in the background. It is printed in the
+ * paper's own white, because the rail it sits on is the body of the printer.
  */
 export const MockLogo = () => (
   <svg
@@ -19,7 +20,7 @@ export const MockLogo = () => (
     xmlns="http://www.w3.org/2000/svg"
     role="img"
     aria-label="Asaas Mock Server"
-    style={{ color: 'var(--primary)' }}
+    style={{ color: 'var(--on-ground)' }}
   >
     <path
       fillRule="evenodd"

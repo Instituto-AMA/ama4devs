@@ -1,11 +1,12 @@
 /* ── Webhooks ─────────────────────────────────────────────────────────────── */
+/* A webhook is a section of the sheet, not a box inside a box: a rule above it
+   and the print below. */
 .webhook-card {
   display: flex;
   flex-direction: column;
   gap: var(--pad-md);
-  padding: var(--pad-lg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-inner);
+  padding: var(--pad-lg) 0 0;
+  border-top: 1px solid var(--paper-rule);
 }
 .webhook-card-hdr {
   display: flex;
@@ -15,10 +16,10 @@
   flex-wrap: wrap;
 }
 .webhook-card-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.webhook-card-title h3 { font-size: 16px; }
+.webhook-card-title h3 { font: 800 15px/1.2 var(--display); letter-spacing: 0.02em; }
 .webhook-card-title .mono { overflow-wrap: anywhere; }
 
-.form-section { font-size: 16px; }
+.form-section { font: 800 15px/1.2 var(--display); letter-spacing: 0.02em; }
 .webhook-form { gap: var(--pad-lg); }
 
 .events-hdr { display: flex; align-items: baseline; gap: var(--pad-md); flex-wrap: wrap; }
@@ -28,7 +29,7 @@
   flex-direction: column;
   gap: var(--pad-sm);
   padding-top: var(--pad-md);
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px dashed var(--border-soft);
 }
 .event-group-hdr {
   display: flex;
@@ -43,7 +44,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font: 500 15px var(--font);
+  font: 600 14px var(--font);
   cursor: pointer;
   padding: 4px 0;
 }
@@ -65,7 +66,7 @@
   cursor: pointer;
   min-width: 0;
 }
-.check input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary); cursor: pointer; }
+.check input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--ink); cursor: pointer; }
 .check .mono { overflow-wrap: anywhere; }
 
 /* ── Logs de Webhooks ─────────────────────────────────────────────────────── */
@@ -96,7 +97,8 @@
   width: 100%;
   padding: var(--pad-sm);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-bottom: 1px dashed var(--border-soft);
+  border-radius: 0;
   background: transparent;
   color: var(--text);
   font: 400 13px var(--font);
@@ -104,12 +106,12 @@
   cursor: pointer;
 }
 .log-item:hover { background: var(--surface-hover); }
-.log-item.active { background: var(--primary-soft); }
+.log-item.active { background: var(--surface-soft); font-weight: 600; }
 .log-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .log-item-main .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .log-item-side { display: flex; align-items: center; gap: var(--pad-xs); flex-shrink: 0; }
 
-.http-method { font-weight: 600; color: var(--primary); }
+.http-method { font-weight: 700; color: var(--ink); }
 
 .payload {
   margin: 0;
@@ -117,6 +119,8 @@
   max-height: 480px;
   overflow: auto;
   background: var(--surface-soft);
-  border-radius: var(--radius-input);
+  border: 1px dashed var(--paper-rule);
+  border-radius: var(--radius-sm);
   font: 12px/1.5 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
 }

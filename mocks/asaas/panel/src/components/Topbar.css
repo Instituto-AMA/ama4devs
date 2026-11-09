@@ -1,41 +1,51 @@
+/**
+ * The strip: the head of the machine, on the ground.
+ *
+ * The balance, the clock's neighbour and the account are read at a glance, so
+ * they sit on the body of the printer and not on the paper. The controls here are
+ * keys: the account is a white key with an ink label, the theme is a smaller one.
+ */
 .topbar {
   display: flex;
   align-items: center;
-  gap: var(--pad-2xl);
-  height: 80px;
+  gap: var(--pad-xl);
+  min-height: 72px;
   flex-shrink: 0;
-  padding: 0 var(--pad-md);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  padding: var(--pad-md) var(--pad-xl);
+  background: var(--ground);
+  color: var(--on-ground);
 }
 
-.balance { display: flex; flex-direction: column; gap: 4px; }
+.balance { display: flex; flex-direction: column; gap: 2px; }
 .balance-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-medium);
+  font: 600 10px var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-ground-soft);
 }
 .balance-value {
-  font-size: 20px;
-  font-weight: 500;
-  color: var(--success-strong);
+  font: 700 22px/1.1 var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-ground);
 }
-.balance-value.neg { color: var(--danger-strong); }
+.balance-value.neg { color: #ff9aa0; }
 
 .refresh {
   display: inline-flex;
   align-items: center;
   gap: var(--pad-xs);
-  height: 40px;
+  height: 36px;
   padding: 0 var(--pad-md);
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-medium);
-  font: 600 14px var(--font);
+  color: var(--on-ground-soft);
+  font: 600 13px var(--font);
   cursor: pointer;
+  transition: background 120ms, color 120ms;
 }
-.refresh:hover:not(:disabled) { background: var(--surface-hover); }
+.refresh:hover:not(:disabled) { background: var(--ground-raise); color: var(--on-ground); }
 .refresh:disabled { cursor: default; }
 
 .spin { display: inline-block; animation: spin 700ms linear infinite; }
@@ -48,17 +58,19 @@
   display: flex;
   align-items: center;
   gap: var(--pad-xs);
-  min-width: 250px;
-  padding: var(--pad-xs) var(--pad-sm);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  color: var(--text);
-  font: 600 14px var(--font);
+  min-width: 230px;
+  padding: 6px var(--pad-sm);
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius-sm);
+  background: var(--key-face);
+  box-shadow: 0 3px 0 var(--key-face-deep);
+  color: var(--key-label);
+  font: 600 13px var(--font);
   cursor: pointer;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2);
 }
-.acct-trigger:hover { background: var(--surface-soft); }
+.acct-trigger:hover { background: var(--key-face-hover); }
+.acct-trigger:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--key-face-deep); }
 
 .acct-avatar {
   display: flex;
@@ -67,11 +79,10 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
-  border-radius: 6px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 12px var(--sans);
 }
 .acct-name {
   flex: 1;
@@ -80,7 +91,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.acct-caret { color: var(--text-medium); font-size: 14px; line-height: 1; }
+.acct-caret { color: var(--key-label-soft); font-size: 14px; line-height: 1; }
 
 .acct-scrim { position: fixed; inset: 0; z-index: 10; }
 
@@ -93,19 +104,18 @@
   max-height: 420px;
   overflow-y: auto;
   padding: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-rule);
   border-radius: var(--radius-input);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 30%);
 }
 
 .acct-group {
   padding: var(--pad-xs) var(--pad-xs) 4px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--text-soft);
+  font: 800 10px var(--display);
+  letter-spacing: 0.08em;
+  color: var(--fade);
 }
 
 .acct-option {
@@ -117,23 +127,28 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text);
+  color: var(--ink);
   font: 400 13px var(--font);
   text-align: left;
   cursor: pointer;
 }
 .acct-option:hover { background: var(--surface-hover); }
-.acct-option.active { background: var(--primary-soft); color: var(--primary-strong); }
+.acct-option.active { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
 .acct-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.acct-option-bal { font-variant-numeric: tabular-nums; color: var(--text-medium); }
+.acct-option-bal {
+  font: 400 12.5px var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-medium);
+}
 .acct-option-bal.neg { color: var(--danger-strong); }
 
-/* The way out of the list: separated, and in the primary colour like a link. */
+/* The way out of the list: separated, and in the ink like a link. */
 .acct-option.acct-manage {
   margin-top: 4px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--paper-rule);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  color: var(--primary);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -141,13 +156,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--text-medium);
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius-sm);
+  background: var(--key-face);
+  color: var(--key-label);
   font-size: 15px;
   cursor: pointer;
+  box-shadow: 0 3px 0 var(--key-face-deep);
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2);
 }
-.theme-toggle:hover { background: var(--surface-hover); color: var(--text); }
+.theme-toggle:hover { background: var(--key-face-hover); }
+.theme-toggle:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--key-face-deep); }
