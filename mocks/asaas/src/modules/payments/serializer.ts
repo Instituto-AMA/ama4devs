@@ -10,8 +10,30 @@ import { centsToBrl, cents } from '../../domain/money.ts'
 
 export type PaymentRow = typeof payments.$inferSelect
 export type SplitRow = typeof paymentSplits.$inferSelect
+export type RefundRow = typeof paymentRefunds.$inferSelect
 
 const money = (v: number | null): number | null => (v === null ? null : centsToBrl(cents(v)))
+
+/**
+ * A refund in the shape of Asaas's `PaymentRefundGetResponse`.
+ *
+ * The status is the Asaas vocabulary of the refund's OWN life: `PENDING` (the
+ * provider accepted the request, the money did not move), `DONE` (the money went
+ * back) and `CANCELLED` (the provider refused it).
+ */
+export function serializeRefund(r: RefundRow) {
+  return {
+    dateCreated: r.dateCreated,
+    status: r.status,
+    value: money(r.valueCents),
+    endToEndIdentifier: null,
+    description: r.description,
+    effectiveDate: r.effectiveDate,
+    transactionReceiptUrl: r.transactionReceiptUrl,
+    refundedSplits: [],
+    paymentId: r.paymentId,
+  }
+}
 
 function serializeSplit(s: SplitRow) {
   return {
@@ -153,19 +175,7 @@ export async function serializePayment(
     // `null`, not `[]` — even when there is no refund. Confirmed in the sandbox.
     // With refunds, the list of them (same shape as the installment's), so a
     // client that reads `payment.refunds` sees the refund it asked for.
-    refunds: refunds.length
-      ? refunds.map((r) => ({
-          dateCreated: r.dateCreated,
-          status: r.status,
-          value: money(r.valueCents),
-          endToEndIdentifier: null,
-          description: r.description,
-          effectiveDate: r.effectiveDate,
-          transactionReceiptUrl: r.transactionReceiptUrl,
-          refundedSplits: [],
-          paymentId: r.paymentId,
-        }))
-      : null,
+    refunds: refunds.length ? refunds.map(serializeRefund) : null,
   }
 
   // ── Rule 2: fields per payment method ──

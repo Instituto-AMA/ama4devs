@@ -58,6 +58,18 @@ This is not a mock of static responses.
   unpaid charge passes through `OVERDUE` first.
 - **Real money.** `netValue = value − fee`, the fee is debited in the ledger,
   and the statement reconciles with the balance (a tested invariant).
+- **A refund is a lifecycle, not a step.** The refund has its own row
+  (`PENDING` → `DONE`/`CANCELLED`) and the charge follows the money: it only
+  becomes `REFUNDED` when the refund reaches `DONE`.
+  `POST /v3/payments/{id}/refund` (card and Pix) registers the request
+  (`PAYMENT_REFUND_IN_PROGRESS`) and it **settles on the next tick**, with the
+  reversal in the statement. `POST /v3/payments/{id}/bankSlip/refund` (boleto)
+  is a **registration**: it answers the `requestUrl` the payer uses to ask for
+  the refund, changes nothing, and waits — the payer acts through
+  `POST /_mock/payments/{id}/refund/complete` (the money goes back,
+  `PAYMENT_REFUNDED`) or `POST /_mock/payments/{id}/refund/deny` (the provider
+  refuses, `PAYMENT_REFUND_DENIED`, and nothing moves).
+  `GET /v3/payments/{id}/refunds` lists them.
 - **Interest and late fees.** The fine once, on the first day overdue; interest
   pro rata die over a 30-day commercial month.
 - **Split across accounts.** Every API key is an account with its own
@@ -291,6 +303,9 @@ They do not exist in Asaas: outside `/v3`, no `access_token`, off with
 | `POST /_mock/invoices/:id/authorize` · `…/error` · `…/confirm-cancellation` · `…/deny-cancellation` | The city hall's answer to a note now, instead of on the next tick: authorize (fiscal information or not), refuse with `{"description": "…"}`, cancel or refuse to cancel |
 | `POST /_mock/checkouts/:id/pay` | Pay a hosted checkout as its payer: `chargeType`, `billingType`, `creditCard` (a test card that approves when empty), `customerData` (when the checkout has no payer), `eventOrder` (`CHECKOUT_FIRST` or `PAYMENT_FIRST`); answers the checkout, the subscription and the charge |
 | `POST /_mock/checkouts/:id/expire` | Expire an `ACTIVE` checkout now, with `CHECKOUT_EXPIRED`, instead of waiting for its `minutesToExpire` |
+| `POST /_mock/payments/:id/refund` | Ask for the refund of a charge: the refund row is born `PENDING` and the charge does not move. The automatic ones (card and Pix) settle on the next tick |
+| `POST /_mock/payments/:id/refund/complete` | The payer/refund completes: the row becomes `DONE`, the charge becomes `REFUNDED` (the whole money) or stays paid (a partial refund), `PAYMENT_REFUNDED` goes out and the money comes back in the statement |
+| `POST /_mock/payments/:id/refund/deny` | The provider refuses the refund: the row becomes `CANCELLED`, the charge keeps its status, `PAYMENT_REFUND_DENIED` goes out and nothing moves |
 
 ## Fidelity: proven, not promised
 

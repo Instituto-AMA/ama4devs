@@ -6,7 +6,6 @@ import { accounts, payments, paymentRefunds } from '../../db/schema/index.ts'
 import { addMonths } from '../../domain/calendar.ts'
 import type { BillingType } from '../../domain/fees.ts'
 import { calcOverdueTotals } from '../../domain/interest.ts'
-import * as ids from '../../domain/ids.ts'
 import { brlToCents, cents, centsToBrl } from '../../domain/money.ts'
 import { brCodePayload } from '../../domain/pix-brcode.ts'
 import { qrPng } from '../../domain/qrcode.ts'
@@ -15,7 +14,8 @@ import type { HandlerMap } from '../../http/register.ts'
 import { createPaymentWithCard, hasCreditCard } from '../credit-cards/service.ts'
 import { createInstallmentFlow, installmentInputFromPaymentBody } from '../installments/service.ts'
 import { applyTransition } from './apply.ts'
-import { serializePayment, type PaymentRow } from './serializer.ts'
+import { requestRefund } from './refunds.ts'
+import { serializePayment, serializeRefund, type PaymentRow } from './serializer.ts'
 import { createPayment, parseCreateBody } from './service.ts'
 
 async function findOwned(ctx: AppContext, auth: AuthContext, id: string): Promise<PaymentRow> {
@@ -307,6 +307,14 @@ export const paymentHandlers: HandlerMap = {
     return serializePayment(ctx.db, r.payment)
   },
 
+  /**
+   * `POST /v3/payments/{id}/refund` — the AUTOMATIC refund (card and Pix).
+   *
+   * A refund is a REQUEST, not a step: the row is born `PENDING`, the charge
+   * does NOT move and the money stays where it is. The provider accepts the
+   * request (`PAYMENT_REFUND_IN_PROGRESS`) and the refund settles on the next
+   * tick — the same mechanism that moves a charge's credit date.
+   */
   'refund-payment': async ({ ctx, auth, params, body }) => {
     const p = await findOwned(ctx, auth, params.id!)
     const b = (body ?? {}) as Record<string, any>
@@ -316,36 +324,51 @@ export const paymentHandlers: HandlerMap = {
       throw invalid('value', 'O valor do estorno não pode ser maior que o valor da cobrança.')
     }
 
-    const r = await applyTransition(ctx, p.id, {
-      kind: 'REFUND',
-      on: ctx.clock.today(),
-      value,
-    })
-
-    await ctx.db.insert(paymentRefunds).values({
-      id: ids.genericId(ctx.rng),
-      paymentId: p.id,
-      status: 'DONE',
+    await requestRefund(ctx, {
+      payment: p,
       valueCents: value,
       description: b.description ?? null,
-      // The fees are NOT refunded — Asaas keeps them.
-      refundedFeeCents: 0,
-      effectiveDate: ctx.clock.today(),
-      transactionReceiptUrl: null,
-      dateCreated: ctx.clock.timestamp(),
     })
 
-    return serializePayment(ctx.db, r.payment)
+    return serializePayment(ctx.db, await findOwned(ctx, auth, p.id))
+  },
+
+  /**
+   * `GET /v3/payments/{id}/refunds` — the refunds of a charge, the same shape
+   * the Asaas documents: the status of each one, its value and the date it was
+   * created.
+   */
+  'retrieve-refunds-of-a-single-payment': async ({ ctx, auth, params, query }) => {
+    const p = await findOwned(ctx, auth, params.id!)
+    const { limit, offset } = paginationParams(query)
+
+    const where = eq(paymentRefunds.paymentId, p.id)
+    const [total] = await ctx.db.select({ n: count() }).from(paymentRefunds).where(where)
+
+    const rows = await ctx.db
+      .select()
+      .from(paymentRefunds)
+      .where(where)
+      .orderBy(desc(paymentRefunds.dateCreated))
+      .limit(limit)
+      .offset(offset)
+
+    return listEnvelope(rows.map(serializeRefund), total?.n ?? 0, limit, offset)
   },
 
   /**
    * `POST /v3/payments/{id}/bankSlip/refund` — the refund of a PAID bank slip
    * (`refund-bank-slip`). The Hub calls it to give a paid boleto's money back.
    *
+   * THIS IS A REGISTRATION, not a refund: the payer fills in a form, sends the
+   * documents, and the provider decides later — it can even refuse it
+   * (`PAYMENT_REFUND_DENIED`). So the row is born `PENDING`, the charge KEEPS
+   * its status (the money is still received; only the refund is in flight) and
+   * no refund event is sent. The payer acts through the control plane
+   * (`/_mock/payments/:id/refund/complete` and `.../deny`).
+   *
    * The spec's 200 response is NOT the payment: it is a single `requestUrl`
-   * field, the "solicitar estorno" link the real Asaas returns. The payment
-   * state still moves the same way — through `applyTransition`, which emits the
-   * webhook and (when the money had already credited) reverses the ledger.
+   * field, the "solicitar estorno" link the real Asaas returns.
    */
   'refund-bank-slip': async ({ ctx, auth, params }) => {
     const p = await findOwned(ctx, auth, params.id!)
@@ -361,7 +384,7 @@ export const paymentHandlers: HandlerMap = {
     // A status the machine cannot refund (PENDING, RECEIVED_IN_CASH, …) already
     // leaves here as 400 invalid_action: `plan()` rejects and `applyTransition`
     // converts that into the error — no need to duplicate the PAID list here.
-    await applyTransition(ctx, p.id, { kind: 'REFUND', on: ctx.clock.today() })
+    await requestRefund(ctx, { payment: p, valueCents: p.valueCents, kind: 'REGISTRATION' })
 
     // Same shape as the transactionReceiptUrl built in apply.ts: the id
     // without the `pay_` prefix, on the public base URL.
