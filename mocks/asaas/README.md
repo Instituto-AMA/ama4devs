@@ -191,6 +191,11 @@ Open **http://localhost:45445**. It is not the Asaas dashboard: it is the
   events no webhook took), the e-mail, WhatsApp and SMS channels, and the generator.
 - **Test cards**: the table the engine reads; accept any well-formed card or
   only the listed ones; add a card with the outcome it forces.
+- **Fees** (Simulator › Fees): the whole price list the mock charges, as a ledger
+  you can change and save — the receiving fees, the card brackets by number of
+  installments, the transfers, the credit bureau query, the notifications, the
+  services and the anticipation. The numbers are the ones
+  `GET /v3/myAccount/fees` answers and the engine charges.
 - **Invoices** (NFS-e, *notas fiscais*): schedule a note for a charge, issue it, cancel it,
   and register the account's fiscal information. The city hall answers on the
   next tick (`SYNCHRONIZED` → `AUTHORIZED`, or `ERROR` without fiscal

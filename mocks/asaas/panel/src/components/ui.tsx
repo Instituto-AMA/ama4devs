@@ -172,10 +172,10 @@ export function Copy({ value, children }: { value: string; children?: ComponentC
 // ── Banner ──────────────────────────────────────────────────────────────────
 
 /** The icon follows the TONE by default: a warning alerts, information informs. */
-const BANNER_ICON = { warn: I.ALERT, danger: I.ALERT, primary: I.INFO }
+const BANNER_ICON = { warn: I.ALERT, danger: I.ALERT, primary: I.INFO, success: I.CHECK }
 
 export function Banner(props: {
-  tone?: 'warn' | 'danger' | 'primary'
+  tone?: 'warn' | 'danger' | 'primary' | 'success'
   /** Overrides the icon of the tone — for when the cause is more specific than the severity. */
   icon?: IconData
   children: ComponentChildren

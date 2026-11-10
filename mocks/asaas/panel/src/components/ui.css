@@ -169,6 +169,7 @@
 .banner.warn    { --tone: var(--warn);    background: var(--warn-soft); }
 .banner.danger  { --tone: var(--danger);  background: var(--danger-soft); }
 .banner.primary { --tone: var(--ink);     background: var(--surface-soft); }
+.banner.success { --tone: var(--success); background: var(--success-soft); }
 .banner-icon { flex-shrink: 0; margin-top: 1px; color: var(--tone, var(--text-medium)); }
 .banner-text { flex: 1; }
 .banner-text b { font-weight: 700; }
