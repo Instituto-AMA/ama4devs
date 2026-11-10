@@ -10,3 +10,10 @@ video/out/
 !site/data/
 .DS_Store
 _site/
+
+# splinter (local config + token, sessions)
+.splinter/
+
+# impeccable live (session state and machine paths; the project config stays)
+.impeccable/live/*
+!.impeccable/live/config.json

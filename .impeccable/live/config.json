@@ -1,0 +1,11 @@
+{
+  "files": [
+    "site/**/*.html",
+    "mocks/generator/public/index.html",
+    "mocks/sms/public/index.html"
+  ],
+  "exclude": [],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

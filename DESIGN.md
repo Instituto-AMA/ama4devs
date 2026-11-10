@@ -5,6 +5,8 @@ colors:
   ground-home: "#1d1838"
   ground-whatsapp: "#0e3a2f"
   ground-asaas: "#0f2160"
+  ground-sms: "#1b1b4b"
+  ground-generator: "#3d1a12"
   on-ground: "#ece9f7"
   on-ground-soft: "#b9b2d9"
   paper: "#f3f5f1"
@@ -39,8 +41,9 @@ Asaas mock's virtual clock feeds paper. It refuses the developer-tool default (a
 with a terminal and a grid of feature cards).
 
 Each page stands on a deep printer-body ground: violet for the home, bottle green for the
-WhatsApp mock, ultramarine for the Asaas mock (`<body data-tool="whatsapp|asaas">`). What
-the visitor reads sits on paper with torn edges. Controls are card-machine keypad keys.
+WhatsApp mock, ultramarine for the Asaas mock, indigo for the SMS mock and rust for the
+generator (`<body data-tool="whatsapp|asaas|sms|generator">`). What the visitor reads sits
+on paper with torn edges. Controls are card-machine keypad keys.
 
 ## Colors
 
@@ -67,7 +70,7 @@ the visitor reads sits on paper with torn edges. Controls are card-machine keypa
 - **Hero**: copy left on the ground (headline, lead, the one command, keys); the printer
   right (paper window, machine body with slot and keypad). Stacks under 960px.
 - **Bands** separate sections on the ground with a 1px `ground-line` rule.
-- **Vias**: two receipt copies side by side, one per mock (stack under 900px).
+- **Vias**: one receipt per mock, two by two on the home (stack under 900px).
 - **Doc pages** (quick start, API, docs): index on the ground at 220px, sticky; content on
   one long paper sheet. Sections on paper are torn apart by a dotted perforation, not a rule.
 - **Planned mocks** are blank slots: dashed outlines on the ground, no link, no date.

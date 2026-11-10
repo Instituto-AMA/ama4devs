@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WhatsApp Cloud API mock and Asaas API mock, in Docker | ama4devs</title>
-  <meta name="description" content="Two local mock servers for development, tests and CI: the WhatsApp Cloud API (Meta Graph API v23.0: messages, templates, media, voice calls, webhooks) and the Asaas API v3 (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost, a virtual clock). Free Docker images on GHCR.">
-  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas sandbox localhost, asaas api simulator, pix mock, boleto mock, payment gateway mock, virtual clock, webhook testing, docker, ghcr">
+  <title>WhatsApp Cloud API, Asaas and SMS mocks, plus fake data | ama4devs</title>
+  <meta name="description" content="Local mock servers for development, tests and CI: the WhatsApp Cloud API (Meta Graph API v23.0: messages, templates, media, voice calls, webhooks), the Asaas API v3 (Pix, boleto, credit card, installments, subscriptions, webhooks to localhost, a virtual clock), an SMS gateway and a generator of valid fake Brazilian data. Free Docker images on GHCR.">
+  <meta name="keywords" content="whatsapp mock, whatsapp cloud api mock, whatsapp business api simulator, meta graph api mock, asaas mock, asaas sandbox, asaas sandbox localhost, asaas api simulator, pix mock, boleto mock, payment gateway mock, virtual clock, sms mock, twilio mock, sms gateway simulator, otp mock, fake brazilian data, cpf cnpj generator, credit check mock, webhook testing, docker, ghcr">
   <link rel="canonical" href="https://instituto-ama.github.io/ama4devs/">
   <link rel="alternate" hreflang="en" href="https://instituto-ama.github.io/ama4devs/">
   <link rel="alternate" hreflang="pt-BR" href="https://instituto-ama.github.io/ama4devs/portuguese/">
   <link rel="alternate" hreflang="x-default" href="https://instituto-ama.github.io/ama4devs/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ama4devs">
-  <meta property="og:title" content="WhatsApp Cloud API mock and Asaas API mock, in Docker">
-  <meta property="og:description" content="Run WhatsApp and Asaas on localhost: same paths, same bodies, same webhooks, and a clock you move by hand. No account, no credential, no bill.">
+  <meta property="og:title" content="WhatsApp Cloud API, Asaas and SMS mocks, plus fake data">
+  <meta property="og:description" content="Run WhatsApp, Asaas and SMS on localhost: same paths, same bodies, same webhooks, and a clock you move by hand. No account, no credential, no bill.">
   <meta property="og:url" content="https://instituto-ama.github.io/ama4devs/">
   <meta property="og:image" content="https://instituto-ama.github.io/ama4devs/assets/ama4devs.jpg">
   <meta property="og:image:width" content="2000">
@@ -58,6 +58,32 @@
         "license": "https://opensource.org/licenses/MIT",
         "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "SMS Mock Server",
+        "alternateName": "SMS gateway mock",
+        "description": "Local simulator of an SMS gateway: native, Twilio-compatible and simple APIs, the message lifecycle, status and inbound webhooks, deterministic magic numbers, segment counting, OTP extraction and a phone inbox panel.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+        "url": "https://instituto-ama.github.io/ama4devs/sms/",
+        "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock",
+        "license": "https://opensource.org/licenses/MIT",
+        "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Fake Brazilian Data Generator",
+        "alternateName": "Generator",
+        "description": "Local generator of valid fake Brazilian data: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses, credit cards, bank accounts, Pix keys and charges. Populates the Asaas mock and simulates the Direct Data credit check.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Docker (linux/amd64, linux/arm64)",
+        "url": "https://instituto-ama.github.io/ama4devs/generator/",
+        "downloadUrl": "https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock",
+        "license": "https://opensource.org/licenses/MIT",
+        "author": { "@type": "Organization", "name": "Instituto AMA", "url": "https://github.com/Instituto-AMA" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     ]
   }
@@ -86,8 +112,8 @@
   <main id="content">
     <div class="wrap hero">
       <div class="hero-copy">
-        <h1>WhatsApp and Asaas, running on your machine.</h1>
-        <p class="lead">Mock servers of the APIs your product depends on, for local development, tests and CI, starting with WhatsApp and Asaas. Point your application at <code>localhost</code>: same paths, same bodies, same webhooks. <strong>And time moves when you say so</strong>: a month of billing runs in a second, and you watch your own code react to it.</p>
+        <h1>WhatsApp, Asaas and SMS, running on your machine.</h1>
+        <p class="lead">Mock servers of the APIs your product depends on, for local development, tests and CI, plus a generator of valid fake Brazilian data. Point your application at <code>localhost</code>: same paths, same bodies, same webhooks. <strong>And time moves when you say so</strong>: a month of billing runs in a second, and you watch your own code react to it.</p>
         <div class="actions">
           <a class="key confirm" href="#run">Run it on your machine</a>
         </div>
@@ -98,7 +124,7 @@
           <div class="tape" aria-live="polite">
             <div class="tape-head">
               <div class="brand">AMA4DEVS</div>
-              <div class="sub">replay of a run of both mocks</div>
+              <div class="sub">a real run of the Asaas and WhatsApp mocks</div>
               <div class="swaps">
                 <span class="swapline from">graph.facebook.com/v23.0</span>
                 <span class="swapline to">localhost:3010/v23.0</span>
@@ -133,7 +159,7 @@
           </div>
           <div class="progress" aria-hidden="true"></div>
         </div>
-        <p class="machine-note">Every line is from a real run of the two images: the calls, the webhook events and the values. Only the paper is drawn.</p>
+        <p class="machine-note">Every line is from a real run of the Asaas and WhatsApp images: the calls, the webhook events and the values. Only the paper is drawn.</p>
       </div>
     </div>
 
@@ -147,35 +173,40 @@
             <section class="way" id="run-pull" aria-labelledby="run-pull-title">
               <h3 id="run-pull-title">Ready image</h3>
               <p class="way-why">The fastest way: the image straight from GHCR.</p>
-              <p class="way-label">WhatsApp</p>
+              <p class="way-label">WhatsApp mock</p>
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/whatsapp-mock:latest
 docker run -d -p 3010:3010 ghcr.io/instituto-ama/whatsapp-mock:latest</code></pre></div>
               <p class="way-out">Panel and API at <code>localhost:3010</code></p>
-              <p class="way-label">Mailpit, the payer e-mail inbox</p>
-              <div class="code"><pre><code>docker run -d -p 8025:8025 axllent/mailpit:v1.31.4</code></pre></div>
-              <p class="way-out">Inbox at <code>localhost:8025</code></p>
-              <p class="way-label">SMS, the payer SMS inbox</p>
-              <div class="code"><pre><code>docker run -d -p 8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
-              <p class="way-out">Inbox at <code>localhost:8899</code></p>
-              <p class="way-label">Asaas</p>
+              <p class="way-label">Asaas mock</p>
               <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/asaas-mock:latest
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
   ghcr.io/instituto-ama/asaas-mock:latest</code></pre></div>
-              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on. Asaas finds WhatsApp, Mailpit and the SMS mock by itself: every charge already tells the payer on all three.</p>
+              <p class="way-out">Panel and API at <code>localhost:45445</code>, with the virtual clock on. Asaas finds WhatsApp, Mailpit, the SMS mock and the generator by itself: every charge already tells the payer by e-mail, WhatsApp and SMS, each one when the customer has that contact.</p>
+              <p class="way-label">SMS mock</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/sms-mock:latest
+docker run -d -p 8899:8899 ghcr.io/instituto-ama/sms-mock:latest</code></pre></div>
+              <p class="way-out">Panel and API at <code>localhost:8899</code>: the payer's phone inbox.</p>
+              <p class="way-label">Generator</p>
+              <div class="code"><pre><code>docker pull ghcr.io/instituto-ama/generator-mock:latest
+docker run -d -p 45450:45450 ghcr.io/instituto-ama/generator-mock:latest</code></pre></div>
+              <p class="way-out">UI and API at <code>localhost:45450</code></p>
+              <p class="way-label">Mailpit, the payer e-mail inbox</p>
+              <div class="code"><pre><code>docker run -d -p 8025:8025 axllent/mailpit:v1.31.4</code></pre></div>
+              <p class="way-out">Inbox at <code>localhost:8025</code></p>
             </section>
 
             <section class="way" id="run-compose" aria-labelledby="run-compose-title">
               <h3 id="run-compose-title">In your docker-compose</h3>
-              <p class="way-why">To run next to your application, in its compose. Nothing to wire: Asaas finds WhatsApp, Mailpit and the SMS mock by service name.</p>
+              <p class="way-why">To run next to your application, in its compose. Nothing to wire: Asaas finds WhatsApp, Mailpit, the SMS mock and the generator by service name.</p>
               <div class="code"><pre><code>services:
   asaas:
-    image: ghcr.io/instituto-ama/asaas-mock:0.11.4
+    image: ghcr.io/instituto-ama/asaas-mock:0.13.0
     ports:
       - '45445:45445'
     environment:
       ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># `$$` is a literal `$` in compose</span>
       CLOCK_MODE: VIRTUAL_FLOWING
-    depends_on: [whatsapp, mailpit, sms]
+    depends_on: [whatsapp, mailpit, sms, generator]
     volumes:
       - asaas-data:/data
 
@@ -199,10 +230,17 @@ docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING \
     ports:
       - '8899:8899'
 
+  generator:
+    image: ghcr.io/instituto-ama/generator-mock:0.5.0
+    ports:
+      - '45450:45450'
+    environment:
+      ASAAS_API_KEY: '$$aact_hmlg_local'   <span class="c"># the same key, to fill the Asaas mock</span>
+
 volumes:
   asaas-data:
   whatsapp-data:</code></pre></div>
-              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. The payer e-mails at <code>localhost:8025</code> and the payer SMS at <code>localhost:8899</code>.</p>
+              <p class="way-out">From your application: <code>http://asaas:45445/v3</code> and <code>http://whatsapp:3010/v23.0</code>. The fake data at <code>http://generator:45450/v1</code>. The payer e-mails at <code>localhost:8025</code>, the payer WhatsApp at <code>localhost:3010</code> and the payer SMS at <code>localhost:8899</code>.</p>
             </section>
 
             <section class="way" id="run-build" aria-labelledby="run-build-title">
@@ -210,21 +248,24 @@ volumes:
               <p class="way-why">To run from the source, or after changing a mock.</p>
               <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs</code></pre></div>
-              <p class="way-label">WhatsApp</p>
+              <p class="way-label">WhatsApp mock</p>
               <div class="code"><pre><code>docker build -t whatsapp-mock mocks/whatsapp
 docker run -d -p 3010:3010 whatsapp-mock</code></pre></div>
-              <p class="way-label">Asaas</p>
+              <p class="way-label">Asaas mock</p>
               <div class="code"><pre><code>docker build -t asaas-mock mocks/asaas
 docker run -d -p 45445:45445 -e CLOCK_MODE=VIRTUAL_FLOWING asaas-mock</code></pre></div>
-              <p class="way-label">SMS</p>
+              <p class="way-label">SMS mock</p>
               <div class="code"><pre><code>docker build -t sms-mock mocks/sms
 docker run -d -p 8899:8899 sms-mock</code></pre></div>
-              <p class="way-out">With WhatsApp, Mailpit and the SMS mock up, Asaas finds them by itself, as with the ready image.</p>
+              <p class="way-label">Generator</p>
+              <div class="code"><pre><code>docker build -t generator-mock mocks/generator
+docker run -d -p 45450:45450 generator-mock</code></pre></div>
+              <p class="way-out">With WhatsApp, Mailpit and the SMS mock up, Asaas finds them by itself, as with the ready image, and the generator finds Asaas.</p>
             </section>
 
             <section class="way" id="run-all" aria-labelledby="run-all-title">
               <h3 id="run-all-title">Run everything</h3>
-              <p class="way-why">Both mocks and Mailpit, wired together. Every Asaas charge tells the payer three ways: an e-mail in Mailpit, a WhatsApp template through the WhatsApp mock and an SMS in the SMS mock.</p>
+              <p class="way-why">All four mocks and Mailpit, wired together. Every Asaas charge tells the payer three ways: an e-mail in Mailpit, a WhatsApp template through the WhatsApp mock and an SMS in the SMS mock, each one when the customer has that contact. The generator fills the account with test data on demand.</p>
               <div class="code"><pre><code>git clone https://github.com/Instituto-AMA/ama4devs.git
 cd ama4devs
 make setup        <span class="c"># starts everything and writes the addresses into .env</span></code></pre></div>
@@ -234,8 +275,9 @@ make setup        <span class="c"># starts everything and writes the addresses i
                   <tbody>
                     <tr><td>WhatsApp mock</td><td><code>localhost:3010</code></td><td>Chats, templates, numbers, calls; the API at <code>/v23.0</code></td></tr>
                     <tr><td>Asaas mock</td><td><code>localhost:45445</code></td><td>The simulator's panel and its clock; the API at <code>/v3</code></td></tr>
-                    <tr><td>Mailpit</td><td><code>localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
                     <tr><td>SMS mock</td><td><code>localhost:8899</code></td><td>The SMS sent to payers; the API at <code>/v1/messages</code></td></tr>
+                    <tr><td>Generator</td><td><code>localhost:45450</code></td><td>The fake data; the API at <code>/v1</code></td></tr>
+                    <tr><td>Mailpit</td><td><code>localhost:8025</code></td><td>The e-mails sent to payers</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -253,8 +295,8 @@ make setup        <span class="c"># starts everything and writes the addresses i
 
     <section class="band" aria-labelledby="mocks-title">
       <div class="wrap">
-        <h2 id="mocks-title">A pool of provider mocks.</h2>
-        <p class="intro">Each mock is one Docker image for <code>linux/amd64</code> and <code>linux/arm64</code>. It boots fully configured, keeps its state in a volume and comes with a panel that shows what the real API never lets you see. Two are ready today; more payment providers and banks are on the way.</p>
+        <h2 id="mocks-title">A pool of mocks.</h2>
+        <p class="intro">Each mock is one Docker image for <code>linux/amd64</code> and <code>linux/arm64</code>. It boots fully configured, keeps its state in a volume and comes with a panel that shows what the real API never lets you see. Three provider APIs and a data generator are ready today; more payment providers and banks are on the way.</p>
 
         <div class="vias">
           <article class="via">
@@ -301,6 +343,50 @@ make setup        <span class="c"># starts everything and writes the addresses i
               </div>
             </div>
           </article>
+
+          <article class="via">
+            <div class="sheet">
+              <h3>SMS mock</h3>
+              <p class="what">An SMS gateway that answers like a real one: a native API, the Twilio-compatible one and a simple GET/POST, with the message lifecycle running and the webhooks going out.</p>
+              <figure>
+                <a href="sms/"><img src="img/sms/chat.jpg" width="1568" height="763" alt="The panel of the SMS mock: the message the application sent with the code chip 482913, and the reply the handset sent, each with its segment count and its delivery state." loading="lazy"></a>
+              </figure>
+              <ul>
+                <li>Three API shapes: native, Twilio-compatible and a simple one, with a long poll for the tests.</li>
+                <li>The lifecycle runs: queued, sent, delivered — and magic numbers that fail on purpose.</li>
+                <li>GSM-7 and UCS-2 segments counted, and the OTP code pulled out for you.</li>
+                <li>Status and inbound webhooks signed with <code>x-sms-signature</code>.</li>
+              </ul>
+              <div class="links">
+                <a class="key confirm small" href="sms/quick-start/">Quick start</a>
+                <a class="key small" href="sms/#use-cases">Use cases</a>
+                <a class="key small" href="sms/api/">API</a>
+                <a class="key small" href="sms/docs/">Docs</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="via">
+            <div class="sheet">
+              <h3>Generator</h3>
+              <p class="what">Valid fake Brazilian data, the same for the same seed: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, cards, bank accounts and Pix keys. It fills the Asaas mock and answers the Direct Data credit check at the provider's own paths.</p>
+              <figure>
+                <a href="generator/"><img src="img/generator/data.jpg" width="1502" height="771" alt="The generator's panel: the JSON of a generated person, with the CPF, the RG, the address and the seed that reproduces it." loading="lazy"></a>
+              </figure>
+              <ul>
+                <li>Every Brazilian document, valid and masked: CPF, CNPJ, CNH, PIS, RG, CEP, cards, accounts, Pix keys.</li>
+                <li>One call populates the Asaas mock with customers and charges.</li>
+                <li>The Direct Data credit check, at the provider's own paths.</li>
+                <li>The same UI runs in the browser, with no container.</li>
+              </ul>
+              <div class="links">
+                <a class="key confirm small" href="generator/quick-start/">Quick start</a>
+                <a class="key small" href="generator/#use-cases">Use cases</a>
+                <a class="key small" href="generator/app/">Open the generator</a>
+                <a class="key small" href="generator/docs/">Docs</a>
+              </div>
+            </div>
+          </article>
         </div>
 
         <div class="planned" aria-labelledby="planned-title">
@@ -313,7 +399,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
             <li>Banco Inter</li>
             <li>More bank connections</li>
           </ul>
-          <p>Planned, not built yet. Each will keep the same promise as the two above: the real API's paths, bodies and webhooks, one image, nothing to configure by hand. The contract every mock follows is in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/README.md"><code>mocks/README.md</code></a>.</p>
+          <p>Planned, not built yet. Each will keep the same promise as the provider mocks above: the real API's paths, bodies and webhooks, one image, nothing to configure by hand. The contract every mock follows is in <a href="https://github.com/Instituto-AMA/ama4devs/blob/master/mocks/README.md"><code>mocks/README.md</code></a>.</p>
         </div>
       </div>
     </section>
@@ -328,8 +414,10 @@ make setup        <span class="c"># starts everything and writes the addresses i
               <table>
                 <thead><tr><th>Image</th><th>Tags</th></tr></thead>
                 <tbody>
-                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="2">One image per version. <code>&lt;version&gt;</code> is pushed once and never moves: pin it. <code>latest</code> is the newest version, the same image.</td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/whatsapp-mock"><code>ghcr.io/instituto-ama/whatsapp-mock</code></a></td><td rowspan="4">One image per version. <code>&lt;version&gt;</code> is pushed once and never moves: pin it. <code>latest</code> is the newest version, the same image.</td></tr>
                   <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/asaas-mock"><code>ghcr.io/instituto-ama/asaas-mock</code></a></td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/sms-mock"><code>ghcr.io/instituto-ama/sms-mock</code></a></td></tr>
+                  <tr><td><a href="https://github.com/Instituto-AMA/ama4devs/pkgs/container/generator-mock"><code>ghcr.io/instituto-ama/generator-mock</code></a></td></tr>
                 </tbody>
               </table>
             </div>
@@ -343,7 +431,7 @@ make setup        <span class="c"># starts everything and writes the addresses i
   <footer class="site-footer">
     <div class="bar">
       <p class="made">ama4devs</p>
-      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The WhatsApp mock is Apache-2.0, the Asaas mock is MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="llms.txt">llms.txt</a>.</p>
+      <p>Maintained by <a href="https://github.com/Instituto-AMA">Instituto AMA</a>. The WhatsApp mock is Apache-2.0; the Asaas, SMS and generator mocks are MIT. Source on <a href="https://github.com/Instituto-AMA/ama4devs">GitHub</a>. For language models: <a href="llms.txt">llms.txt</a>.</p>
       <p>Independent simulators of public APIs, not affiliated with Meta, WhatsApp or Asaas. Their names are trademarks of their owners. No payment made here is real.</p>
     </div>
   </footer>
