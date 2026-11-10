@@ -35,7 +35,13 @@ fi
 
 picked=()
 for mock in $(all_mocks); do
-  if grep -q "^mocks/${mock}/" <<<"$changed"; then
+  # The documentation of a mock belongs to the SITE: the screenshots and the
+  # pages under `docs/` are shown by the published pages and are not part of the
+  # image. A change there is not a change to the mock — republishing it would
+  # rebuild an identical image and move a published tag, and a published tag
+  # never moves.
+  changed_mock="$(grep "^mocks/${mock}/" <<<"$changed" || true)"
+  if [[ -n "$(grep -v "^mocks/${mock}/docs/" <<<"$changed_mock" || true)" ]]; then
     picked+=("$mock")
   fi
 done
