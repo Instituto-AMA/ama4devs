@@ -100,6 +100,16 @@ Routing, authentication derivation, request validation, and error shaping are wi
 
 Inside Docker containers, `localhost` points at the container itself. `WEBHOOK_LOCALHOST_REWRITE` (default: `host.docker.internal`) rewrites the host in webhook URLs so events reach services running on the host machine.
 
+## The Panel (`panel/`)
+
+The operator panel: the screen the developer drives the mock from (home, charges, customers, statement, integrations, simulator). Preact + Vite, served by the mock at `/` as one self-contained HTML file.
+
+- **It is generated.** `bun run panel:build` writes `src/admin/ui.html` (the single file the mock serves). Never edit that file by hand; edit `panel/src/**` and rebuild.
+- **It lives in the repository's world** (The Running Receipt — see the root `DESIGN.md`): the printer body is the ground, the work sits on thermal paper, the controls are card-machine keys, Doto is the print head of the small pieces, Archivo the prose, Martian Mono the data.
+- **A screen consumes the semantic tokens only** (`--paper`, `--ink`, `--slot-face`, `--key-face`, `--ground`), never a primitive. A raw hex in a screen is a screen that breaks in the dark receipt.
+- **The theme is an explicit choice** (`asaas-mock:theme` in localStorage), not the system's: a container in CI sees the panel the way it was made.
+- **The panel changes no behavior**: the routes, the flows and the data belong to the mock; the panel only shows and drives them.
+
 ## Business Rules
 
 Rules fall into two categories:

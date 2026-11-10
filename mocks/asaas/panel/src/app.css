@@ -1,36 +1,90 @@
-.shell { display: flex; min-height: 100vh; }
+/**
+ * The shell: the printer body and the sheet it prints.
+ *
+ * The ground (the rail on the left, the strip on top) is the machine. The paper
+ * comes out of the slot below the strip, torn at its top edge, and everything the
+ * developer reads lands on it.
+ */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--ground);
+}
 
 main {
   flex: 1;
   min-width: 0; /* without this, a wide table pushes the sidebar out of the screen */
   display: flex;
   flex-direction: column;
-  background: var(--page);
 }
 
+/**
+ * The sheet. Its top edge is torn: the ground bites into the paper in a row of
+ * teeth, the way a receipt leaves the slot. The teeth are painted, not masked —
+ * a mask would eat the content; a row of ground-colored triangles only cuts the
+ * edge.
+ */
 .content {
+  position: relative;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--pad-xl);
-  padding: var(--pad-2xl);
+  padding: var(--pad-2xl) var(--pad-2xl) var(--pad-2xl);
+  background: var(--paper);
+  color: var(--ink);
 }
 
+.content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  background-color: var(--ground);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='7'%3E%3Cpath d='M0 0h18L9 7z' fill='black'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='7'%3E%3Cpath d='M0 0h18L9 7z' fill='black'/%3E%3C/svg%3E");
+  -webkit-mask-size: 18px 7px;
+  mask-size: 18px 7px;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  pointer-events: none;
+}
+
+/* The path of the receipt: where this sheet came from. */
 .crumbs {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
-  color: var(--text-medium);
+  font: 400 12px var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--fade);
 }
-.crumb-current { color: var(--primary); }
+.crumb-current { color: var(--ink); }
 
-.content > h1 { font-size: 24px; margin-top: -12px; }
+/**
+ * The head of the receipt: what this sheet is.
+ *
+ * The title speaks in the prose face, heavy and narrow — the same voice the site's
+ * title has. The print head (Doto) is a dot matrix: it is the world's voice for
+ * the SMALL pieces (a section, a stamp), and at the size of a title it turns into
+ * a mosaic nobody reads.
+ */
+.content > h1 {
+  font: 800 27px/1.1 var(--sans);
+  font-variation-settings: 'wdth' 75;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-top: calc(var(--pad-xs) * -1);
+}
 
 /* The grid of the four status cards. */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--pad-md);
+  gap: var(--pad-xl);
 }
 
 /* Two columns side by side (test cards + account detail). */

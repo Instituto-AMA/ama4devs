@@ -13,9 +13,10 @@ import { Elysia, t } from 'elysia'
 import type { AppContext } from '../core/context.ts'
 import { notFoundMessage } from '../core/errors.ts'
 import { invoices, payments } from '../db/schema/index.ts'
-import { brlToCents } from '../domain/money.ts'
+import { brlToCents, cents } from '../domain/money.ts'
 import type { Trigger } from '../domain/payment-machine.ts'
 import { applyTransition, type TransitionResult } from '../modules/payments/apply.ts'
+import { denyRefund, pendingRefundOf, requestRefund, settleRefund } from '../modules/payments/refunds.ts'
 import { recordWhatsappWebhook } from '../notify/inbound.ts'
 import { serializePayment, type PaymentRow } from '../modules/payments/serializer.ts'
 import { serializeInvoice, type InvoiceRow } from '../modules/invoices/serializer.ts'
@@ -238,13 +239,62 @@ export function mockRoutes(ctx: AppContext) {
     )
     .post('/payments/:id/overdue', overdue, { params })
     .post('/payments/:id/fail', overdue, { params })
+    /**
+     * ASKS FOR THE REFUND. It writes the refund row (`PENDING`) and does NOT
+     * move the charge: the money only comes back when the refund is settled —
+     * by `complete` (or by the tick, for the automatic refunds).
+     */
     .post(
       '/payments/:id/refund',
-      withPayment((body) => ({
-        kind: 'REFUND',
-        on: today(),
-        ...(body?.value !== undefined ? { value: brlToCents(body.value) } : {}),
-      })),
+      async ({ params, body }) => {
+        await assertExists(params.id)
+        const [row] = await ctx.db.select().from(payments).where(eq(payments.id, params.id)).limit(1)
+        if (!row) throw notFoundMessage('Charge not found.')
+
+        const value = body?.value !== undefined ? brlToCents(body.value) : cents(row.valueCents)
+        if (value > row.valueCents) {
+          throw badRequest('invalid_value', 'The refund value cannot be greater than the charge value.')
+        }
+
+        const { transition } = await requestRefund(ctx, {
+          payment: row as PaymentRow,
+          valueCents: value,
+        })
+        return shape([transition])
+      },
       { params, body: t.Optional(t.Object({ value: t.Optional(t.Number()) })) },
+    )
+    /**
+     * THE PAYER ACTS: the refund is accepted and the money goes back. The charge
+     * becomes REFUNDED (the whole money) or stays paid (a partial refund), and
+     * the statement carries the reversal.
+     */
+    .post(
+      '/payments/:id/refund/complete',
+      async ({ params }) => {
+        await assertExists(params.id)
+        const refund = await pendingRefundOf(ctx, params.id)
+        if (!refund) {
+          throw badRequest('invalid_action', 'This charge has no pending refund.')
+        }
+        return shape([await settleRefund(ctx, refund.id)])
+      },
+      { params },
+    )
+    /**
+     * THE PROVIDER REFUSES: nothing goes back. The row becomes CANCELLED, the
+     * charge keeps its status and the statement is untouched.
+     */
+    .post(
+      '/payments/:id/refund/deny',
+      async ({ params }) => {
+        await assertExists(params.id)
+        const refund = await pendingRefundOf(ctx, params.id)
+        if (!refund) {
+          throw badRequest('invalid_action', 'This charge has no pending refund.')
+        }
+        return shape([await denyRefund(ctx, refund.id)])
+      },
+      { params },
     )
 }

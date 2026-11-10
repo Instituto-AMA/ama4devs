@@ -1,3 +1,6 @@
+/**
+ * The ledger's head: the search slot, the count and the sortable column heads.
+ */
 .dt-bar {
   display: flex;
   align-items: center;
@@ -12,14 +15,19 @@
   gap: var(--pad-xs);
   flex: 1;
   max-width: 340px;
-  height: 40px;
+  height: 38px;
   padding: 0 var(--pad-sm);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--slot-face);
+  border: 1px solid var(--paper-rule);
   border-radius: var(--radius-input);
   color: var(--text-soft);
+  transition: border-color 120ms, box-shadow 120ms;
 }
-.dt-search:focus-within { border-color: var(--focus); color: var(--primary); }
+.dt-search:focus-within {
+  border-color: var(--ink);
+  color: var(--ink);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
 
 .dt-search input {
   flex: 1;
@@ -27,7 +35,7 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--ink);
   font: 400 14px var(--font);
 }
 /* The native × of type=search is fixed dark gray and disappears in the dark theme. */
@@ -42,7 +50,8 @@
 }
 
 .dt-count {
-  font-size: 12px;
+  font: 400 12px var(--mono);
+  font-variation-settings: 'wdth' 87.5;
   color: var(--text-medium);
   white-space: nowrap;
 }
@@ -60,8 +69,8 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-.dt-sort:hover { color: var(--text); }
-.dt-sort.active { color: var(--primary); }
+.dt-sort:hover { color: var(--ink); }
+.dt-sort.active { color: var(--ink); }
 
 /* The arrow only shows up on the active column (or on hover, as an invitation). */
 .dt-arrow { opacity: 0; transition: opacity 120ms; }

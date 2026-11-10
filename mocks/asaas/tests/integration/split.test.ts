@@ -392,6 +392,8 @@ describe('reversal — the split that already credited goes back', () => {
       params: { id: created.body.id },
       body: { value: 100 },
     })
+    // The refund is a request: it settles on the next tick.
+    await h.tick()
 
     // Without this, the recipient would PROFIT from the reversal: they would keep the R$ 29.40
     // of a charge that no longer exists.

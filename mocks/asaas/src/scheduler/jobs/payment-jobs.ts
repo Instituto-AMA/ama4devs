@@ -7,9 +7,10 @@
  * sandbox action.
  */
 import { and, eq, isNull, lt, lte, ne, or } from 'drizzle-orm'
-import { payments } from '../../db/schema/index.ts'
+import { paymentRefunds, payments } from '../../db/schema/index.ts'
 import { captureDue } from '../../modules/credit-cards/capture.ts'
 import { applyTransition } from '../../modules/payments/apply.ts'
+import { settleRefund } from '../../modules/payments/refunds.ts'
 import type { Job } from '../scheduler.ts'
 
 /**
@@ -110,6 +111,60 @@ export const creditSettlement: Job = {
         report.ledgerEntries += 2 // PAYMENT_RECEIVED + PAYMENT_FEE
       } catch (err) {
         ctx.log('debug', `credit-settlement: ${id} did not transition`, { error: String(err) })
+      }
+    }
+  },
+}
+
+/**
+ * The pending refunds settle here: the row becomes DONE, the charge becomes
+ * REFUNDED (the whole money) or stays paid (a partial refund), and the money
+ * goes back in the statement.
+ *
+ * IT IS HERE, ON THE TICK, because a refund is not a step of the charge's
+ * life: the provider accepts the request first (`PAYMENT_REFUND_IN_PROGRESS`)
+ * and the money comes back later — the same mechanism that moves a charge's
+ * credit date.
+ *
+ * The boleto is NOT in this job: its refund is a REGISTRATION — the payer acts
+ * and the provider answers later (`/_mock/payments/:id/refund/complete` or
+ * `.../deny`). Only the automatic refunds (card and Pix) settle by themselves.
+ *
+ * TODO(rule): the real Asaas does not say WHEN an automatic refund settles —
+ * the card issuer confirms it, and that is not a date the API publishes. The
+ * next tick is the mock's answer, and nobody should read a date into it.
+ */
+export const refundSettlement: Job = {
+  name: 'refund-settlement',
+  async run({ ctx, report }) {
+    const pending = await ctx.db
+      .select({ id: paymentRefunds.id, paymentId: paymentRefunds.paymentId })
+      .from(paymentRefunds)
+      .where(eq(paymentRefunds.status, 'PENDING'))
+
+    for (const { id, paymentId } of pending) {
+      const [payment] = await ctx.db
+        .select({ billingType: payments.billingType })
+        .from(payments)
+        .where(eq(payments.id, paymentId))
+        .limit(1)
+
+      // A registration waits for the payer: only the automatic one settles here.
+      if (!payment || payment.billingType === 'BOLETO') continue
+
+      try {
+        const r = await settleRefund(ctx, id)
+        report.transitions.push({
+          resource: 'payment',
+          id: paymentId,
+          from: r.from,
+          to: r.to,
+          job: 'refund-settlement',
+        })
+      } catch (err) {
+        // The CAS fails if the refund was resolved in the middle — it is not an
+        // error, it is the protection working. We only log it.
+        ctx.log('debug', `refund-settlement: ${id} did not settle`, { error: String(err) })
       }
     }
   },

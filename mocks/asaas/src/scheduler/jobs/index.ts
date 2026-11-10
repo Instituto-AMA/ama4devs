@@ -10,7 +10,7 @@ import { anticipationSettlement } from './anticipation-jobs.ts'
 import { checkoutExpiry } from './checkout-jobs.ts'
 import { invoiceIssuing } from './invoice-jobs.ts'
 import { paymentNotices } from './notice-jobs.ts'
-import { cardCapture, creditSettlement, overdue } from './payment-jobs.ts'
+import { cardCapture, creditSettlement, overdue, refundSettlement } from './payment-jobs.ts'
 import { retentionPurge } from './retention-purge.ts'
 import { splitDivergenceExpiry, splitRelease } from './split-jobs.ts'
 import { subscriptionGeneration } from './subscription-jobs.ts'
@@ -49,6 +49,15 @@ export { paymentNotices }
  *    → Track A — src/scheduler/jobs/payment-jobs.ts
  */
 export { creditSettlement }
+
+/**
+ * 3b. The pending refunds of the automatic ones (card and Pix) settle here:
+ *     the row becomes DONE, the charge becomes REFUNDED (or stays paid, on a
+ *     partial refund) and the money goes back in the statement. The boleto is
+ *     NOT in this job — its refund is a registration, and the payer acts.
+ *     → src/scheduler/jobs/payment-jobs.ts
+ */
+export { refundSettlement }
 
 /**
  * 4. AWAITING_CREDIT splits of credited charges → DONE. Moves the money between
@@ -119,6 +128,7 @@ export const JOBS: Job[] = [
   overdue,
   paymentNotices,
   creditSettlement,
+  refundSettlement,
   splitRelease,
   splitDivergenceExpiry,
   anticipationSettlement,

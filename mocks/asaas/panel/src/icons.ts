@@ -32,6 +32,7 @@ export {
   Search01Icon as SEARCH,
   Building03Icon as SUBACCOUNT,
   Cancel01Icon as CLOSE,
+  CheckIcon as CHECK,
   Clock01Icon as CLOCK,
   Copy01Icon as COPY,
   CreditCardIcon as CARD,

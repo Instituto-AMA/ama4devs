@@ -21,6 +21,7 @@ import type { IsoDate } from './calendar.ts'
 import { calcFee, calcInstallmentFee, type BillingType } from './fees.ts'
 import { calcDiscount, calcOverdueTotals } from './interest.ts'
 import { cents, type Cents } from './money.ts'
+import { requestEventFor, settlementEventFor, type RefundKind } from './refund.ts'
 import { creditDateFor, skipsConfirmed, type SettlementRules } from './settlement.ts'
 
 export type PaymentStatus =
@@ -95,6 +96,13 @@ export type Trigger =
   | { kind: 'RECEIVE_IN_CASH'; on: IsoDate; value: Cents }
   | { kind: 'UNDO_RECEIVE_IN_CASH' }
   | { kind: 'REFUND'; on: IsoDate; value?: Cents }
+  /**
+   * The provider ACCEPTED a refund request. The money has NOT moved yet: the
+   * charge keeps its status and the statement is untouched.
+   */
+  | { kind: 'REFUND_REQUEST'; on: IsoDate; value?: Cents; refund: RefundKind }
+  /** The provider REFUSED the refund. Nothing goes back. */
+  | { kind: 'REFUND_DENY'; on: IsoDate }
   | { kind: 'CHARGEBACK' }
   | { kind: 'DELETE' }
   | { kind: 'RESTORE' }
@@ -389,6 +397,11 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
 
     // ─────────────────────────────────────────────────────────
     case 'REFUND': {
+      /**
+       * THE SETTLEMENT. The refund was accepted before (the REFUND_REQUEST
+       * trigger) and the money goes back now: the charge becomes REFUNDED (the
+       * whole money), or stays paid when only a part is refunded.
+       */
       if (!PAID.includes(p.status)) reject('estornar')
 
       const value = trigger.value ?? p.valueCents
@@ -416,7 +429,7 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
           to: p.status, // continua RECEIVED/CONFIRMED
           patch: {},
           effects: [
-            { t: 'WEBHOOK', event: 'PAYMENT_PARTIALLY_REFUNDED' },
+            { t: 'WEBHOOK', event: settlementEventFor(false) },
             ...(entries.length ? [{ t: 'LEDGER' as const, entries }] : []),
           ],
         }
@@ -426,10 +439,51 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
         to: 'REFUNDED',
         patch: {},
         effects: [
-          { t: 'WEBHOOK', event: 'PAYMENT_REFUNDED' },
+          { t: 'WEBHOOK', event: settlementEventFor(true) },
           ...(entries.length ? [{ t: 'LEDGER' as const, entries }] : []),
           { t: 'SPLIT', to: 'REFUNDED', reason: 'PAYMENT_REFUNDED' },
         ],
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    case 'REFUND_REQUEST': {
+      if (!PAID.includes(p.status)) reject('estornar')
+
+      const value = trigger.value ?? p.valueCents
+      if (value > p.valueCents) {
+        throw new TransitionError(
+          'invalid_value',
+          'O valor do estorno não pode ser maior que o valor da cobrança.',
+        )
+      }
+
+      /**
+       * THE MONEY DID NOT MOVE. The charge keeps its status, the statement is
+       * untouched and no entry is posted: the refund only becomes money when it
+       * settles (the REFUND trigger below).
+       *
+       * The automatic refund announces itself; the boleto registration does not
+       * — there the payer is the one acting.
+       */
+      const event = requestEventFor(trigger.refund)
+      return {
+        to: p.status,
+        patch: {},
+        effects: event ? [{ t: 'WEBHOOK', event }] : [],
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    case 'REFUND_DENY': {
+      /**
+       * The refusal concerns the REFUND, not the charge: the charge keeps its
+       * status and the statement is untouched. Nothing goes back.
+       */
+      return {
+        to: p.status,
+        patch: {},
+        effects: [{ t: 'WEBHOOK', event: 'PAYMENT_REFUND_DENIED' }],
       }
     }
 

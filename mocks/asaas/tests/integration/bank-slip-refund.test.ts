@@ -1,11 +1,11 @@
 /**
  * POST /v3/payments/{id}/bankSlip/refund — the refund of a PAID bank slip.
  *
- * What matters here: the status goes through the SAME state machine as every
- * other transition (webhook emitted, ledger reversed when the money had
- * already credited), the 200 body is the spec's `{ requestUrl }` shape and NOT
- * the payment, and a non-bank-slip payment is refused instead of silently
- * refunded by the wrong gateway path.
+ * What matters here: the refund of a boleto is a REGISTRATION and not a refund.
+ * The row is born PENDING, the charge keeps its status (the money is still
+ * received), no PAYMENT_REFUNDED is sent and the 200 body is the spec's
+ * `{ requestUrl }` shape — the link the payer uses to ask for the refund. The
+ * provider answers later, through the control plane.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createHarness, type Harness } from '../helpers/harness.ts'
@@ -30,7 +30,7 @@ async function paidBoleto() {
 }
 
 describe('refund-bank-slip', () => {
-  it('refunds a CONFIRMED bank slip: REFUNDED and PAYMENT_REFUNDED queued', async () => {
+  it('registers the refund of a CONFIRMED bank slip and changes no status', async () => {
     await h.subscribeWebhook(['PAYMENT_REFUNDED'])
     const id = await paidBoleto()
 
@@ -39,16 +39,19 @@ describe('refund-bank-slip', () => {
     // The spec's 200 schema — a link, not the payment object.
     expect(res.body.requestUrl).toBeString()
 
+    // The money has not moved: only the refund is in flight.
     const after = await h.api.call('retrieve-a-single-payment', { params: { id } })
-    expect(after.body.status).toBe('REFUNDED')
+    expect(after.body.status).toBe('CONFIRMED')
+    expect(after.body.refunds[0]).toMatchObject({ status: 'PENDING', value: 100 })
 
     await h.tick()
-    expect(h.sink.eventsOf('PAYMENT_REFUNDED')).toHaveLength(1)
+    // A registration does not refund anything by itself.
+    expect(h.sink.eventsOf('PAYMENT_REFUNDED')).toHaveLength(0)
 
     await h.assertLedgerBalances()
   })
 
-  it('refunds a RECEIVED bank slip and reverses the credited balance', async () => {
+  it('registers the refund of a RECEIVED bank slip without touching the balance', async () => {
     const id = await paidBoleto()
 
     // The bank slip credits in D+1 business day. Monday 05/01 → Tuesday 06/01.
@@ -60,9 +63,10 @@ describe('refund-bank-slip', () => {
     expect(res.status).toBe(200)
 
     const after = await h.api.call('retrieve-a-single-payment', { params: { id } })
-    expect(after.body.status).toBe('REFUNDED')
+    expect(after.body.status).toBe('RECEIVED')
+    expect(after.body.refunds[0]).toMatchObject({ status: 'PENDING' })
 
-    // The machine debits the credited value back — the ledger must close.
+    // The money is still in the balance: the ledger does not close by itself.
     await h.assertLedgerBalances()
   })
 

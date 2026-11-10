@@ -96,7 +96,7 @@ describe('/_mock/payments/:id', () => {
     }
   })
 
-  it('refund on a received Pix emits PAYMENT_REFUNDED', async () => {
+  it('refund on a received Pix registers a pending refund that the tick settles', async () => {
     const id = await newPayment('PIX')
     await post(`/payments/${id}/receive`)
 
@@ -104,9 +104,15 @@ describe('/_mock/payments/:id', () => {
     const body: any = await res.json()
 
     expect(res.status).toBe(200)
+    // The money has not moved yet: the charge keeps its status.
     expect(body.from).toBe('RECEIVED')
-    expect(body.to).toBe('REFUNDED')
-    expect(body.events).toContain('PAYMENT_REFUNDED')
+    expect(body.to).toBe('RECEIVED')
+    expect(body.events).toContain('PAYMENT_REFUND_IN_PROGRESS')
+
+    // The tick settles it: the charge becomes REFUNDED.
+    await h.tick()
+    const payment = await h.api.call('retrieve-a-single-payment', { params: { id } })
+    expect(payment.body.status).toBe('REFUNDED')
     await h.assertLedgerBalances()
   })
 
@@ -118,6 +124,7 @@ describe('/_mock/payments/:id', () => {
     const id = await newPayment('PIX')
     await post(`/payments/${id}/receive`)
     await post(`/payments/${id}/refund`)
+    await h.tick() // the refund settles: the charge is REFUNDED
 
     const res = await post(`/payments/${id}/confirm`)
     expect(res.status).toBe(400)

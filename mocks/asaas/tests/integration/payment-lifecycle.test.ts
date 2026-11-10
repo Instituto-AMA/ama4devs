@@ -255,7 +255,15 @@ describe('Refund', () => {
       params: { id: created.body.id },
       body: { value: 100, description: 'Customer gave up' },
     })
-    expect(refunded.body.status).toBe('REFUNDED')
+    // THE REFUND IS A REQUEST: the money has not moved yet.
+    expect(refunded.body.status).toBe('RECEIVED')
+    expect(refunded.body.refunds[0]).toMatchObject({ status: 'PENDING' })
+
+    // It settles on the next tick.
+    await h.tick()
+
+    const after = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
+    expect(after.body.status).toBe('REFUNDED')
 
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual([
@@ -286,8 +294,18 @@ describe('Refund', () => {
       body: { value: 100, description: 'Cancelled plan' },
     })
 
+    const pending = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
+    expect(pending.body.refunds).toHaveLength(1)
+    expect(pending.body.refunds[0]).toMatchObject({
+      status: 'PENDING',
+      value: 100,
+      description: 'Cancelled plan',
+      paymentId: created.body.id,
+    })
+
+    // Once it settles, the row says DONE.
+    await h.tick()
     const after = await h.api.call('retrieve-a-single-payment', { params: { id: created.body.id } })
-    expect(after.body.refunds).toHaveLength(1)
     expect(after.body.refunds[0]).toMatchObject({
       status: 'DONE',
       value: 100,

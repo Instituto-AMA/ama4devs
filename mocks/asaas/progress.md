@@ -6,13 +6,13 @@ The agents' progress log. Read `AGENTS.md` before picking up a track.
 > reads the manifest ∩ handler map. Paste the result here when you close a track.
 
 ```
-implemented: 119/208 (57%)
-stubbed:     89  (they answer 501)
+implemented: 132/208 (63%)
+stubbed:     76  (they answer 501)
 variants:    5  (they share a route with the canonical operation)
 total spec:  213
 ```
 
-**411 tests · 0 failures · `tsc --noEmit` clean · parity 7/7 against the real sandbox ·
+**673 tests · 0 failures · `tsc --noEmit` clean · parity 7/7 against the real sandbox ·
 26/26 calls of the real client (PartiuRole) answered in Asaas's format.**
 
 *(208 = the 213 operations of the spec − 5 variants that share a route with the canonical one.)*
@@ -289,3 +289,4 @@ We picked a behaviour; it may be wrong.
 | **(F)** Does the reversal of a charge give back the money the split already credited to the destination? | not documented | **yes.** `applyTransition` posts `INTERNAL_TRANSFER_REVERSAL` in both statements (−on the destination, +on the origin). Without it the recipient would PROFIT from the reversal: they would keep the split of a charge that no longer exists |
 | **(F)** An API key's `projectedExpirationDateByLackOfUse` — what is the inactivity window? | it only exists as a field in the spec, without a definition | we return **null**. Guessing a window (30 days? 180?) in a field nobody can check would be false confidence |
 | **(F)** The subaccount's `city` is a numeric id from Asaas's registry, but the creation request **has no city field** | not documented | `city: null`. Without Asaas's city table, inventing a number would be a lie (the same decision as G1 in `commercialInfo`) |
+| **(H)** The refund is a lifecycle: when does the money come back, and can the provider refuse it? | the docs describe the **boleto** refund as a REGISTRATION (the payer fills a form, sends the documents, and the provider decides later) and the card/Pix refund as automatic — but they do not say **when** it settles | the refund has its OWN row (`payment_refunds`) with `PENDING` → `DONE`/`CANCELLED`, and the charge follows the money: it becomes `REFUNDED` only when the refund is `DONE`. `POST /v3/payments/{id}/refund` (card and Pix) registers `PENDING` + `PAYMENT_REFUND_IN_PROGRESS` and **settles on the next tick**; `POST /v3/payments/{id}/bankSlip/refund` (boleto) registers `PENDING` + the `requestUrl` and **waits for the payer** (`/_mock/payments/{id}/refund/complete` → `DONE` + `PAYMENT_REFUNDED`; `.../deny` → `CANCELLED` + `PAYMENT_REFUND_DENIED`). `GET /v3/payments/{id}/refunds` lists them. **TODO(rule)**: the moment the automatic refund settles is not documented — the card issuer confirms it — and the next tick is the mock's answer, not a promise about a date |

@@ -1,0 +1,132 @@
+/**
+ * The fee sheet: a ledger of what the mock charges.
+ *
+ * A receipt prints one line per chargeable item — the word on the left, the number
+ * on the right, a perforation between the lines. The fees are exactly that, so the
+ * row IS a receipt line, and the number is cut in the paper like every other slot
+ * of the panel.
+ *
+ * The sheet holds two columns of groups on a wide screen: a fee table is a table,
+ * and a column that runs for two thousand pixels is a column nobody reads.
+ */
+
+/**
+ * The groups: two columns of sections on a wide sheet, one on a narrow one.
+ *
+ * The columns are two containers and not CSS columns: a CSS column re-balances
+ * itself when the content changes, and the sheet would move its groups from one
+ * side to the other the moment a field reports a mistake. Here each side keeps
+ * its groups, and the reading order — down the left, then down the right — is
+ * the order of the fee table.
+ */
+.fees-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pad-2xl);
+  align-items: start;
+}
+.fees-column {
+  min-width: 0;
+  /* The column is the container of the rows: the row answers to the width it
+     actually has, not to the width of the window — the rail of the machine
+     takes a third of a narrow screen before the sheet even starts. */
+  container-type: inline-size;
+}
+.fees-group { margin-bottom: var(--pad-xl); }
+@media (max-width: 1100px) {
+  .fees-groups { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A line of the ledger. */
+.fee-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px var(--pad-md);
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.fee-row:last-child { border-bottom: 0; }
+
+.fee-label {
+  color: var(--text-medium);
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The slot: the number, cut in the paper, with its unit in front of it. */
+.fee-slot {
+  --unit-w: 0px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 112px;
+  max-width: 100%;
+}
+.fee-slot.brl { --unit-w: 26px; }
+.fee-slot.pct { --unit-w: 16px; }
+
+.fee-unit {
+  position: absolute;
+  left: var(--pad-sm);
+  font: 600 11px var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  color: var(--text-soft);
+  pointer-events: none;
+}
+
+/* The number is data: the data voice of the world, aligned on the decimal. */
+.fee-input {
+  width: 100%;
+  min-width: 0;
+  text-align: right;
+  padding-left: calc(var(--pad-sm) + var(--unit-w));
+  font-family: var(--mono);
+  font-variation-settings: 'wdth' 87.5;
+  font-variant-numeric: tabular-nums;
+}
+.fee-input:disabled { cursor: not-allowed; }
+
+/* What is wrong with the number, said next to the number. */
+.fee-error {
+  grid-column: 1 / -1;
+  color: var(--danger-strong);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* A column too narrow for a line and a number side by side: the word goes over
+   the slot, and the slot takes the whole width of the column. */
+@container (max-width: 260px) {
+  .fee-row { grid-template-columns: minmax(0, 1fr); }
+  .fee-slot { width: 100%; max-width: 160px; }
+}
+
+/**
+ * The bar that holds the one action of the sheet.
+ *
+ * It sticks to the bottom of the paper: the table is long, and the key that saves
+ * it must not be something the developer has to scroll to find. The paper has no
+ * shadow — it has rules, and a rule is what separates the bar from the sheet.
+ */
+.fees-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-md);
+  padding: var(--pad-md) 0;
+  background: var(--paper);
+  border-top: 1px solid var(--paper-rule);
+}
+.fees-state { font-size: 13px; color: var(--text-medium); }
+
+@media (max-width: 560px) {
+  .fees-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fees-actions .row { justify-content: flex-end; }
+}
