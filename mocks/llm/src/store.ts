@@ -77,6 +77,7 @@ const MATCH_RULES: Record<string, (value: unknown) => boolean> = {
   hasTools: (value) => typeof value === 'boolean',
   afterTool: (value) => typeof value === 'boolean',
   toolOffered: (value) => typeof value === 'string',
+  lastToolName: (value) => typeof value === 'string',
 }
 
 /**

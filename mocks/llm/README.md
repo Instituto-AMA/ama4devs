@@ -199,6 +199,7 @@ Scripted rules allow deterministic matching and custom mocking of tool calls, er
   - `hasTools`: Boolean; whether tools are provided in `req.tools`.
   - `afterTool`: Boolean; whether the last message in the thread has `role: 'tool'`.
   - `toolOffered`: Exact tool name that must be present in `req.tools`.
+  - `lastToolName`: Exact name of the tool whose result is the last message of the request: the tool call whose id is the `tool_call_id` of that message. It is what tells a rule which tool has just answered.
 - `reply`: What the rule returns:
   - `{ kind: 'text', text: string }`
   - `{ kind: 'tool_calls', calls: [{ name: string, arguments: object }], text?: string }`
@@ -260,6 +261,49 @@ curl -X POST 'http://localhost:45470/_mock/llm/rules' \
   }'
 ```
 
+### Templates
+
+The arguments of a tool call and the text of an answer accept placeholders. They are filled with what the request carries:
+
+| Placeholder | Value |
+|---|---|
+| `{{question}}` | The text of the last user message, without the markers. |
+| `{{today}}` | The day of the answer, as `YYYY-MM-DD`. |
+| `{{date:+N}}` / `{{date:-N}}` | The day of the answer moved by `N` days, as `YYYY-MM-DD`. |
+| `{{tool.<path>}}` | A value of the result of the last tool, `path` being dot-separated keys or array indexes (`{{tool.dataset_id}}`, `{{tool.columns.1.key}}`). |
+
+A string that is one placeholder and nothing else keeps the type of its value (a number stays a number); a placeholder inside a longer string becomes its text. A placeholder the mock cannot resolve is empty. It never fails.
+
+The rules below script a whole agent loop: the user asks, the mock calls the tool of the data, the result comes back with a `dataset_id` and the mock calls the render tool with that id, then answers with the text.
+
+```json
+[
+  {"match":{"lastUser":"faturamos","afterTool":false},"reply":{"kind":"tool_calls","calls":[{"name":"read_data","arguments":{"source":"billing_report","params":{"from":"{{date:-30}}","to":"{{date:+1}}"}}}]}},
+  {"match":{"lastToolName":"read_data"},"reply":{"kind":"tool_calls","calls":[{"name":"show_kpis","arguments":{"dataset_id":"{{tool.dataset_id}}","items":[{"label":"Faturamento","column":"{{tool.columns.1.key}}","aggregate":"sum"}]}}]}},
+  {"match":{"lastToolName":"show_kpis"},"reply":{"kind":"text","text":"Aqui está o faturamento dos últimos 30 dias."}}
+]
+```
+
+Post them in one call:
+
+```bash
+curl -X POST 'http://localhost:45470/_mock/llm/rules' \
+  -H 'Content-Type: application/json' \
+  -d '[
+    {"match":{"lastUser":"faturamos","afterTool":false},"reply":{"kind":"tool_calls","calls":[{"name":"read_data","arguments":{"source":"billing_report","params":{"from":"{{date:-30}}","to":"{{date:+1}}"}}}]}},
+    {"match":{"lastToolName":"read_data"},"reply":{"kind":"tool_calls","calls":[{"name":"show_kpis","arguments":{"dataset_id":"{{tool.dataset_id}}","items":[{"label":"Faturamento","column":"{{tool.columns.1.key}}","aggregate":"sum"}]}}]}},
+    {"match":{"lastToolName":"show_kpis"},"reply":{"kind":"text","text":"Aqui está o faturamento dos últimos 30 dias."}}
+  ]'
+```
+
+The second request of the loop carries the result of the first call:
+
+```json
+{"role":"tool","tool_call_id":"call_0","content":"{\"dataset_id\":\"ds-1\",\"columns\":[{\"key\":\"issued\"},{\"key\":\"billed\"}]}"}
+```
+
+and the mock answers with the call that renders the dataset of that result.
+
 ## Models Catalog
 
 ### Default Models
@@ -306,6 +350,8 @@ When `reportCost` is enabled (`true`), the cost is placed according to the gatew
 - **Vercel AI Gateway (`/v1`):** Placed in top-level `provider_metadata.gateway.cost` as a string (`costUsd`).
 
 If `reportCost` is disabled (`false`), or the model is not found in the catalog, or the reply is an error, no cost is reported.
+
+A request with `max_tokens` (or `max_completion_tokens`) cuts the reply's text at four characters per token, once, before the usage is computed: the non-streamed body and the streamed chunks carry the same cut text, finish with `length`, and `completion_tokens` and the cost count only what was sent.
 
 ## Streaming
 

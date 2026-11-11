@@ -8,7 +8,10 @@ import {
   decide,
   errorBody,
   estimateTokens,
+  fillTemplates,
   formatUsd,
+  lastToolName,
+  lastToolResult,
   lastUserText,
   matches,
   markersOf,
@@ -28,6 +31,7 @@ import type {
   Settings,
   ToolSpec,
 } from '../src/types.ts'
+import type { TemplateContext } from '../src/engine.ts'
 
 const TODAY = '2026-01-01'
 const NOW = new Date('2026-01-01T12:00:00.000Z')
@@ -196,6 +200,146 @@ describe('matches', () => {
     expect(matches(rule({ afterTool: true }), afterTool, 'vercel')).toBe(true)
     expect(matches(rule({ afterTool: false }), afterTool, 'vercel')).toBe(false)
     expect(matches(rule({ afterTool: true }), request('oi'), 'vercel')).toBe(false)
+  })
+
+  test('matches the name of the tool whose result is the last message', () => {
+    const withTool: ChatRequest = {
+      model: 'openai/gpt-6.1-mini',
+      messages: [
+        { role: 'user', content: 'oi' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+          ],
+        },
+        { role: 'tool', content: '{"dataset_id":"ds-1"}', tool_call_id: 'call_0' },
+      ],
+    }
+    expect(matches(rule({ lastToolName: 'read_data' }), withTool, 'vercel')).toBe(true)
+    expect(matches(rule({ lastToolName: 'show_kpis' }), withTool, 'vercel')).toBe(false)
+    expect(matches(rule({ lastToolName: 'read_data' }), request('oi'), 'vercel')).toBe(false)
+  })
+})
+
+describe('lastToolName', () => {
+  test('finds the name of the tool through the tool_call_id', () => {
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'oi' },
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+        ],
+      },
+      { role: 'tool', content: '{"dataset_id":"ds-1"}', tool_call_id: 'call_0' },
+    ]
+    expect(lastToolName(messages)).toBe('read_data')
+  })
+
+  test('is empty when the last message is not a tool result', () => {
+    expect(lastToolName([])).toBe('')
+    expect(lastToolName([{ role: 'user', content: 'oi' }])).toBe('')
+  })
+
+  test('is empty when no call answers the tool_call_id', () => {
+    const messages: ChatMessage[] = [
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+        ],
+      },
+      { role: 'tool', content: '{}', tool_call_id: 'other' },
+    ]
+    expect(lastToolName(messages)).toBe('')
+  })
+})
+
+describe('lastToolResult', () => {
+  test('parses the content of the last tool message', () => {
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'oi' },
+      { role: 'tool', content: '{"dataset_id":"ds-1"}', tool_call_id: 'call_0' },
+    ]
+    expect(lastToolResult(messages)).toEqual({ dataset_id: 'ds-1' })
+  })
+
+  test('is undefined when there is no tool message or it is not JSON', () => {
+    expect(lastToolResult([{ role: 'user', content: 'oi' }])).toBeUndefined()
+    expect(lastToolResult([{ role: 'tool', content: 'not json', tool_call_id: 'c' }])).toBeUndefined()
+    expect(lastToolResult([{ role: 'tool', content: '', tool_call_id: 'c' }])).toBeUndefined()
+  })
+})
+
+describe('fillTemplates', () => {
+  const context: TemplateContext = {
+    question: 'How much did we bill?',
+    today: '2026-01-01',
+    toolResult: {
+      dataset_id: 'ds-1',
+      count: 42,
+      columns: [{ key: 'issued' }, { key: 'billed' }],
+      sample: [['a', 'b']],
+    },
+  }
+
+  test('fills the question and the day', () => {
+    expect(fillTemplates('{{question}}', context)).toBe('How much did we bill?')
+    expect(fillTemplates('{{today}}', context)).toBe('2026-01-01')
+  })
+
+  test('fills the day moved by some days', () => {
+    expect(fillTemplates('{{date:-30}}', context)).toBe('2025-12-02')
+    expect(fillTemplates('{{date:+1}}', context)).toBe('2026-01-02')
+  })
+
+  test('fills the result of the tool through its path', () => {
+    expect(fillTemplates('{{tool.dataset_id}}', context)).toBe('ds-1')
+    expect(fillTemplates('{{tool.columns.1.key}}', context)).toBe('billed')
+    expect(fillTemplates('{{tool.sample.0.0}}', context)).toBe('a')
+  })
+
+  test('keeps the type of the value when the string is one placeholder', () => {
+    expect(fillTemplates('{{tool.count}}', context)).toBe(42)
+    expect(fillTemplates({ total: '{{tool.count}}' }, context)).toEqual({ total: 42 })
+  })
+
+  test('writes the text of the value inside a longer string', () => {
+    expect(fillTemplates('id: {{tool.dataset_id}}!', context)).toBe('id: ds-1!')
+    expect(fillTemplates('count: {{tool.count}}', context)).toBe('count: 42')
+  })
+
+  test('walks the objects and the arrays', () => {
+    const filled = fillTemplates(
+      {
+        calls: [{ name: 'show_kpis', arguments: { dataset_id: '{{tool.dataset_id}}' } }],
+        labels: ['{{tool.columns.0.key}}', '{{question}}'],
+      },
+      context,
+    )
+    expect(filled).toEqual({
+      calls: [{ name: 'show_kpis', arguments: { dataset_id: 'ds-1' } }],
+      labels: ['issued', 'How much did we bill?'],
+    })
+  })
+
+  test('empties a placeholder it cannot resolve', () => {
+    expect(fillTemplates('{{tool.missing}}', context)).toBe('')
+    expect(fillTemplates('id: {{tool.missing}}!', context)).toBe('id: !')
+    expect(fillTemplates('{{unknown}}', context)).toBe('')
+    expect(fillTemplates('{{tool.columns.9.key}}', context)).toBe('')
+  })
+
+  test('never throws and leaves the other values alone', () => {
+    expect(() => fillTemplates('{{tool}}', context)).not.toThrow()
+    expect(fillTemplates('{{tool}}', context)).toBe('')
+    expect(fillTemplates(7, context)).toBe(7)
+    expect(fillTemplates(true, context)).toBe(true)
+    expect(fillTemplates(null, context)).toBe(null)
   })
 })
 
@@ -447,6 +591,83 @@ describe('decide', () => {
     decide(request('oi'), 'vercel', current, NOW)
     expect(JSON.stringify(current)).toBe(before)
   })
+
+  test('fills the templates of the scripted answer', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r',
+        match: { lastToolName: 'read_data' },
+        reply: {
+          kind: 'tool_calls',
+          calls: [
+            {
+              name: 'show_kpis',
+              arguments: {
+                dataset_id: '{{tool.dataset_id}}',
+                column: '{{tool.columns.1.key}}',
+                from: '{{date:-30}}',
+              },
+            },
+          ],
+        },
+      },
+    ]
+    const req: ChatRequest = {
+      model: 'openai/gpt-6.1-mini',
+      messages: [
+        { role: 'user', content: 'faturamos' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+          ],
+        },
+        {
+          role: 'tool',
+          content: '{"dataset_id":"ds-1","columns":[{"key":"issued"},{"key":"billed"}]}',
+          tool_call_id: 'call_0',
+        },
+      ],
+    }
+
+    const decision = decide(req, 'vercel', state(rules), NOW)
+    expect(decision.ruleId).toBe('r')
+    expect(decision.reply.kind).toBe('tool_calls')
+    if (decision.reply.kind !== 'tool_calls') return
+    expect(decision.reply.calls[0]?.arguments).toEqual({
+      dataset_id: 'ds-1',
+      column: 'billed',
+      from: '2025-12-02',
+    })
+  })
+
+  test('fills the templates of the scripted text', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r',
+        match: { lastToolName: 'read_data' },
+        reply: { kind: 'text', text: 'O dataset {{tool.dataset_id}} de {{question}}' },
+      },
+    ]
+    const req: ChatRequest = {
+      model: 'openai/gpt-6.1-mini',
+      messages: [
+        { role: 'user', content: 'faturamos' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+          ],
+        },
+        { role: 'tool', content: '{"dataset_id":"ds-1"}', tool_call_id: 'call_0' },
+      ],
+    }
+
+    const decision = decide(req, 'vercel', state(rules), NOW)
+    expect(decision.reply).toEqual({ kind: 'text', text: 'O dataset ds-1 de faturamos' })
+  })
 })
 
 describe('completionBody', () => {
@@ -484,6 +705,32 @@ describe('completionBody', () => {
     const choices = body.choices as Array<Record<string, unknown>>
     expect(choices[0]!.finish_reason).toBe('length')
     expect((choices[0]!.message as Record<string, unknown>).content).toBe('01234567')
+    // The usage counts only the text that was sent: two tokens, not three.
+    expect(decision.usage.outputTokens).toBe(2)
+    expect((body.usage as Record<string, unknown>).completion_tokens).toBe(2)
+  })
+
+  test('cuts the streamed text the same way and finishes it with length', () => {
+    const req: ChatRequest = {
+      model: 'openai/gpt-6.1-mini',
+      messages: [{ role: 'user', content: 'oi' }],
+      max_tokens: 2,
+      stream: true,
+    }
+    const decision = decide(req, 'openrouter', state(rule), NOW)
+    const chunks = streamChunks(req, 'openrouter', decision, IDS, 100)
+    const text = chunks
+      .flatMap((chunk) => chunk.choices as Array<Record<string, unknown>>)
+      .map((choice) => ((choice.delta as Record<string, unknown> | undefined)?.content as string | undefined) ?? '')
+      .join('')
+    expect(text).toBe('01234567')
+    const finishes = chunks
+      .flatMap((chunk) => chunk.choices as Array<Record<string, unknown>>)
+      .map((choice) => choice.finish_reason)
+      .filter((reason) => reason !== null && reason !== undefined)
+    expect(finishes).toEqual(['length'])
+    const usage = chunks.at(-1)!.usage as Record<string, unknown>
+    expect(usage.completion_tokens).toBe(2)
   })
 
   test('puts the cost where the gateway wants it', () => {

@@ -40,6 +40,16 @@ function chat(content: string, extra: Record<string, unknown> = {}): Record<stri
   }
 }
 
+/** The answer of a chat completion, as the tests read it. */
+interface CompletionBody {
+  choices: {
+    message: {
+      content: string | null
+      tool_calls?: { function: { name: string; arguments: string } }[]
+    }
+  }[]
+}
+
 describe('the health check', () => {
   test('answers without a key', async () => {
     const { app } = makeApp()
@@ -199,6 +209,141 @@ describe('the rules', () => {
     const response = await post(app, '/_mock/llm/rules', {
       match: { lastUser: 'faturamento' },
       reply: { kind: 'text', text: 42 },
+    })
+
+    expect(response.status).toBe(400)
+    expect(app.store.rules().length).toBe(0)
+  })
+
+  test('a rule that matches the last tool walks the whole loop', async () => {
+    const { app } = makeApp()
+
+    const created = await post(app, '/_mock/llm/rules', [
+      {
+        match: { lastUser: 'faturamos', afterTool: false },
+        reply: {
+          kind: 'tool_calls',
+          calls: [
+            {
+              name: 'read_data',
+              arguments: {
+                source: 'billing_report',
+                params: { from: '{{date:-30}}', to: '{{date:+1}}' },
+              },
+            },
+          ],
+        },
+      },
+      {
+        match: { lastToolName: 'read_data' },
+        reply: {
+          kind: 'tool_calls',
+          calls: [
+            {
+              name: 'show_kpis',
+              arguments: {
+                dataset_id: '{{tool.dataset_id}}',
+                items: [
+                  { label: 'Faturamento', column: '{{tool.columns.1.key}}', aggregate: 'sum' },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        match: { lastToolName: 'show_kpis' },
+        reply: { kind: 'text', text: 'Aqui está o faturamento dos últimos 30 dias.' },
+      },
+    ])
+    expect(created.status).toBe(201)
+    expect(app.store.rules().length).toBe(3)
+
+    // 1. The question: the mock calls the tool of the data.
+    const first = await post(app, '/v1/chat/completions', chat('faturamos'))
+    expect(first.status).toBe(200)
+    const firstBody = (await first.json()) as CompletionBody
+    const firstCall = firstBody.choices[0]?.message.tool_calls?.[0]
+    expect(firstCall?.function.name).toBe('read_data')
+    expect(JSON.parse(firstCall?.function.arguments ?? '{}')).toEqual({
+      source: 'billing_report',
+      params: { from: '2025-12-02', to: '2026-01-02' },
+    })
+
+    // 2. The result of the tool: the mock calls the render tool with the id.
+    const second = await post(app, '/v1/chat/completions', {
+      model: 'mock-model',
+      messages: [
+        { role: 'user', content: 'faturamos' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+          ],
+        },
+        {
+          role: 'tool',
+          content: JSON.stringify({
+            dataset_id: 'ds-1',
+            columns: [{ key: 'issued' }, { key: 'billed' }],
+          }),
+          tool_call_id: 'call_0',
+        },
+      ],
+    })
+    expect(second.status).toBe(200)
+    const secondBody = (await second.json()) as CompletionBody
+    const secondCall = secondBody.choices[0]?.message.tool_calls?.[0]
+    expect(secondCall?.function.name).toBe('show_kpis')
+    expect(JSON.parse(secondCall?.function.arguments ?? '{}')).toEqual({
+      dataset_id: 'ds-1',
+      items: [{ label: 'Faturamento', column: 'billed', aggregate: 'sum' }],
+    })
+
+    // 3. The result of the render tool: the mock answers with the text.
+    const third = await post(app, '/v1/chat/completions', {
+      model: 'mock-model',
+      messages: [
+        { role: 'user', content: 'faturamos' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_0', type: 'function', function: { name: 'read_data', arguments: '{}' } },
+          ],
+        },
+        {
+          role: 'tool',
+          content: JSON.stringify({
+            dataset_id: 'ds-1',
+            columns: [{ key: 'issued' }, { key: 'billed' }],
+          }),
+          tool_call_id: 'call_0',
+        },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'call_1', type: 'function', function: { name: 'show_kpis', arguments: '{}' } },
+          ],
+        },
+        { role: 'tool', content: '{"total":1234.56}', tool_call_id: 'call_1' },
+      ],
+    })
+    expect(third.status).toBe(200)
+    const thirdBody = (await third.json()) as CompletionBody
+    expect(thirdBody.choices[0]?.message.tool_calls).toBeUndefined()
+    expect(thirdBody.choices[0]?.message.content).toBe(
+      'Aqui está o faturamento dos últimos 30 dias.',
+    )
+  })
+
+  test('a rule whose last tool name is not a string is refused', async () => {
+    const { app } = makeApp()
+    const response = await post(app, '/_mock/llm/rules', {
+      match: { lastToolName: 42 },
+      reply: { kind: 'text', text: 'ok' },
     })
 
     expect(response.status).toBe(400)

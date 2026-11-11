@@ -88,6 +88,11 @@ export interface RuleMatch {
   afterTool?: boolean
   /** The request offers a tool with this exact name. */
   toolOffered?: string
+  /**
+   * The exact name of the tool whose result is the last message of the request:
+   * the tool call whose id is the `tool_call_id` of that message.
+   */
+  lastToolName?: string
 }
 
 /** A tool call a scripted reply makes; `arguments` is serialized to a JSON string on the wire. */
@@ -172,6 +177,12 @@ export interface Decision {
   usage: Usage
   /** The model id the answer names. */
   model: string
+  /**
+   * Whether the reply's text was cut at the request's `max_tokens`: the
+   * answer then finishes with `length`, streamed or not, and the usage counts
+   * only the text that was sent.
+   */
+  truncated?: boolean
 }
 
 /** The ids an answer carries; injected so tests are deterministic. */

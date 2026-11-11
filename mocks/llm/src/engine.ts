@@ -19,6 +19,7 @@ import type {
   JsonSchema,
   ResolvedReply,
   Rule,
+  ScriptedCall,
   Settings,
   ToolSpec,
   ToolStrategy,
@@ -119,6 +120,179 @@ function regexHolds(pattern: string, text: string): boolean {
   }
 }
 
+/**
+ * The name of the tool whose result is the last message: the assistant tool
+ * call whose id equals the last message's tool_call_id; '' when the last
+ * message is not a tool result or no call matches.
+ * @param messages The messages of the request.
+ */
+export function lastToolName(messages: ChatMessage[]): string {
+  const list = messages ?? []
+  const last = list[list.length - 1]
+  if (!last || last.role !== 'tool') return ''
+  const id = last.tool_call_id
+  if (typeof id !== 'string' || id === '') return ''
+
+  for (const message of list) {
+    if (message.role !== 'assistant') continue
+    for (const call of message.tool_calls ?? []) {
+      if (call.id === id) return call.function.name
+    }
+  }
+  return ''
+}
+
+/**
+ * The last tool message's content parsed as JSON; undefined when it is not
+ * JSON or there is none.
+ * @param messages The messages of the request.
+ */
+export function lastToolResult(messages: ChatMessage[]): unknown {
+  const list = messages ?? []
+  const last = list[list.length - 1]
+  if (!last || last.role !== 'tool') return undefined
+
+  const content = last.content
+  const text = typeof content === 'string' ? content : textOf(content)
+  if (text.trim() === '') return undefined
+
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+/** What the placeholders of a scripted reply are filled with. */
+export interface TemplateContext {
+  /** The text of the last user message, without the markers. */
+  question: string
+  /** The day of the answer, as `YYYY-MM-DD`. */
+  today: string
+  /** The result of the last tool, parsed as JSON. */
+  toolResult: unknown
+}
+
+/** A placeholder and its value; `ok` is false when the placeholder is unknown. */
+interface Resolved {
+  ok: boolean
+  value?: unknown
+}
+
+/** The value of a path inside a JSON value: keys and array indexes. */
+function resolvePath(root: unknown, path: string[]): Resolved {
+  let current: unknown = root
+  for (const key of path) {
+    if (current === null || current === undefined) return { ok: false }
+    if (Array.isArray(current)) {
+      const index = Number(key)
+      if (!Number.isInteger(index) || index < 0 || index >= current.length) return { ok: false }
+      current = current[index]
+      continue
+    }
+    if (typeof current !== 'object') return { ok: false }
+    if (!Object.prototype.hasOwnProperty.call(current, key)) return { ok: false }
+    current = (current as Record<string, unknown>)[key]
+  }
+  return { ok: true, value: current }
+}
+
+/** A day of the calendar, as `YYYY-MM-DD`, moved by some days. */
+function shiftDate(today: string, days: number): string {
+  const base = Date.parse(`${today}T00:00:00Z`)
+  if (Number.isNaN(base)) return today
+  return new Date(base + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** The value of one placeholder. */
+function resolvePlaceholder(name: string, ctx: TemplateContext): Resolved {
+  const key = name.trim()
+  if (key === 'question') return { ok: true, value: ctx.question }
+  if (key === 'today') return { ok: true, value: ctx.today }
+
+  const date = /^date:([+-])(\d+)$/.exec(key)
+  if (date) {
+    const sign = date[1] === '-' ? -1 : 1
+    return { ok: true, value: shiftDate(ctx.today, sign * Number.parseInt(date[2] as string, 10)) }
+  }
+
+  if (key.startsWith('tool.')) {
+    const path = key
+      .slice('tool.'.length)
+      .split('.')
+      .filter((part) => part !== '')
+    if (path.length === 0) return { ok: false }
+    return resolvePath(ctx.toolResult, path)
+  }
+
+  return { ok: false }
+}
+
+/** A string that is one placeholder and nothing else. */
+const WHOLE_PLACEHOLDER = /^\{\{([^}]*)\}\}$/
+
+/** A placeholder inside a longer string. */
+const INNER_PLACEHOLDER = /\{\{([^}]*)\}\}/g
+
+/** One string of a value, with its placeholders filled. */
+function fillString(text: string, ctx: TemplateContext): unknown {
+  const whole = WHOLE_PLACEHOLDER.exec(text)
+  if (whole) {
+    const resolved = resolvePlaceholder(whole[1] as string, ctx)
+    if (!resolved.ok) return ''
+    return resolved.value
+  }
+
+  return text.replace(INNER_PLACEHOLDER, (_match, name: string) => {
+    const resolved = resolvePlaceholder(name, ctx)
+    if (!resolved.ok) return ''
+    const value = resolved.value
+    if (value === null || value === undefined) return ''
+    return typeof value === 'string' ? value : String(value)
+  })
+}
+
+/**
+ * Fills placeholders in every string of a JSON value: the objects and the
+ * arrays are walked deeply. A string that is one placeholder keeps the type of
+ * its value; a placeholder inside a longer string becomes its text. An unknown
+ * placeholder is empty. It never throws.
+ * @param value The value to fill.
+ * @param ctx What the placeholders are filled with.
+ */
+export function fillTemplates(value: unknown, ctx: TemplateContext): unknown {
+  if (typeof value === 'string') return fillString(value, ctx)
+  if (Array.isArray(value)) return value.map((item) => fillTemplates(item, ctx))
+  if (typeof value === 'object' && value !== null) {
+    const filled: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value)) {
+      filled[key] = fillTemplates(item, ctx)
+    }
+    return filled
+  }
+  return value
+}
+
+/** A text with its placeholders filled, always a string. */
+function fillText(text: string, ctx: TemplateContext): string {
+  const filled = fillTemplates(text, ctx)
+  return typeof filled === 'string' ? filled : String(filled)
+}
+
+/** A reply with its placeholders filled. */
+function fillReply(reply: ResolvedReply, ctx: TemplateContext): ResolvedReply {
+  if (reply.kind === 'tool_calls') {
+    const calls: ScriptedCall[] = reply.calls.map((call) => ({
+      name: call.name,
+      arguments: fillTemplates(call.arguments, ctx) as Record<string, unknown>,
+    }))
+    if (reply.text === undefined) return { kind: 'tool_calls', calls }
+    return { kind: 'tool_calls', calls, text: fillText(reply.text, ctx) }
+  }
+  if (reply.kind === 'text') return { kind: 'text', text: fillText(reply.text, ctx) }
+  return reply
+}
+
 /** Whether the rule matches the request: every field the rule sets must hold. */
 export function matches(rule: Rule, req: ChatRequest, gateway: Gateway): boolean {
   const match = rule.match
@@ -141,6 +315,9 @@ export function matches(rule: Rule, req: ChatRequest, gateway: Gateway): boolean
   if (match.toolOffered !== undefined) {
     const offered = (req.tools ?? []).some((tool) => tool.function.name === match.toolOffered)
     if (!offered) return false
+  }
+  if (match.lastToolName !== undefined && match.lastToolName !== lastToolName(req.messages ?? [])) {
+    return false
   }
   return true
 }
@@ -475,8 +652,40 @@ export function decide(
     reply = textAnswer(req, settings)
   }
 
-  const usage = usageFor(req, reply, model, settings, rule?.usage)
-  return { reply, ruleId, latencyMs, usage, model: req.model }
+  const context: TemplateContext = {
+    question: stripMarkers(lastUserText(req.messages ?? [])),
+    today,
+    toolResult: lastToolResult(req.messages ?? []),
+  }
+  reply = fillReply(reply, context)
+
+  const limited = limitReply(req, reply)
+  const usage = usageFor(req, limited.reply, model, settings, rule?.usage)
+  return { reply: limited.reply, ruleId, latencyMs, usage, model: req.model, truncated: limited.truncated }
+}
+
+/**
+ * The reply cut at the request's `max_tokens` (four characters per token):
+ * the cut happens once, here, so the non-streamed body, the streamed chunks,
+ * the token counts and the cost all describe the same text.
+ */
+function limitReply(req: ChatRequest, reply: ResolvedReply): { reply: ResolvedReply; truncated: boolean } {
+  const limit = req.max_tokens ?? req.max_completion_tokens
+  if (typeof limit !== 'number' || limit <= 0 || reply.kind === 'error') {
+    return { reply, truncated: false }
+  }
+  const maxChars = limit * 4
+  const text = reply.text
+  if (typeof text !== 'string' || text.length <= maxChars) {
+    return { reply, truncated: false }
+  }
+  return { reply: { ...reply, text: text.slice(0, maxChars) }, truncated: true }
+}
+
+/** How an answer finishes: `length` when it was cut, else by its kind. */
+function finishReasonOf(decision: Decision): 'stop' | 'tool_calls' | 'length' {
+  if (decision.truncated === true) return 'length'
+  return decision.reply.kind === 'tool_calls' ? 'tool_calls' : 'stop'
 }
 
 /** The body of a non-streamed answer, in the OpenAI shape. */
@@ -491,16 +700,8 @@ export function completionBody(
     return errorBody(reply.status, reply.message, reply.code)
   }
 
-  const limit = req.max_tokens ?? req.max_completion_tokens
-  const maxChars = typeof limit === 'number' && limit > 0 ? limit * 4 : undefined
-  const source = reply.kind === 'text' ? reply.text : (reply.text ?? null)
-  let content: string | null = source
-  let finishReason: 'stop' | 'tool_calls' | 'length' =
-    reply.kind === 'tool_calls' ? 'tool_calls' : 'stop'
-  if (typeof source === 'string' && maxChars !== undefined && source.length > maxChars) {
-    content = source.slice(0, maxChars)
-    finishReason = 'length'
-  }
+  const content: string | null = reply.kind === 'text' ? reply.text : (reply.text ?? null)
+  const finishReason = finishReasonOf(decision)
 
   const message: Record<string, unknown> = { role: 'assistant', content }
   if (reply.kind === 'tool_calls') {
@@ -590,7 +791,7 @@ export function streamChunks(
     })
   }
 
-  push([{ index: 0, delta: {}, finish_reason: reply.kind === 'tool_calls' ? 'tool_calls' : 'stop' }])
+  push([{ index: 0, delta: {}, finish_reason: finishReasonOf(decision) }])
 
   if (req.stream_options?.include_usage || gateway === 'openrouter') {
     const usage: Record<string, unknown> = {
