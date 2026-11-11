@@ -8,6 +8,7 @@ import { completionBody, decide, errorBody, lastUserText, streamChunks } from '.
 import { json, noContent, readJsonBody } from './http.ts'
 import { guardLocal } from './local-guard.ts'
 import { createStore, type Store } from './store.ts'
+import { createVercelKeys, type VercelKeys } from './vercel-keys.ts'
 import type {
   AnswerIds,
   CatalogModel,
@@ -35,6 +36,8 @@ export interface App {
   fetch(request: Request): Promise<Response>
   /** The state of the mock: the settings, the rules, the catalog and the log. */
   store: Store
+  /** The AI Gateway keys the Vercel management routes created. */
+  vercelKeys: VercelKeys
 }
 
 /** The files of the public directory: `/app.js`, `/style.css`, `/favicon.svg`. */
@@ -49,7 +52,7 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 /** The methods a preflight asks for. */
-const ALLOWED_METHODS = 'GET,POST,PUT,DELETE,OPTIONS'
+const ALLOWED_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
 
 /** The headers a preflight asks for when it names none. */
 const DEFAULT_ALLOWED_HEADERS = 'authorization,content-type'
@@ -88,6 +91,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
   const logLine = deps.log ?? ((line: string) => console.log(line))
 
   const store = createStore(config, { now, newId })
+  const vercelKeys = createVercelKeys({ newId })
 
   /** The state the panel reads. */
   const state = (): Record<string, unknown> => ({
@@ -95,6 +99,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     rules: store.rules(),
     catalog: store.catalog(),
     requestCount: store.requestCount(),
+    vercelKeys: vercelKeys.list(),
     version: config.version,
     bootErrors: config.bootErrors,
   })
@@ -192,6 +197,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
 
     if (pathname === '/_mock/llm/reset' && method === 'POST') {
       store.reset()
+      vercelKeys.reset()
       return json(state())
     }
 
@@ -333,6 +339,29 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
       return json(errorBody(404, `model not found: ${model}`, 'model_not_found'), 404)
     }
 
+    // A key the Vercel management routes created spends its own budget: past
+    // it the gateway refuses, as the AI Gateway does.
+    const vercelKey = vercelKeys.find(token)
+    if (vercelKey && vercelKeys.overBudget(vercelKey)) {
+      const status = 402
+      logRequest({
+        gateway,
+        model,
+        stream: Boolean(req.stream),
+        messageCount: messages.length,
+        toolNames: tools,
+        lastUser: lastUserText(messages as ChatMessage[]).slice(0, 500),
+        status,
+        replyKind: 'error',
+        calledTools: [],
+        latencyMs: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: null,
+      })
+      return json(errorBody(status, 'API key budget exceeded', 'quota_for_entity_exceeded'), status)
+    }
+
     const decision = decide(req, gateway, store.engineState(), now())
     store.consume(decision.ruleId)
     await wait(decision.latencyMs)
@@ -363,6 +392,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
       return json(errorBody(status, decision.reply.message, decision.reply.code), status, headers)
     }
 
+    if (vercelKey) vercelKeys.charge(vercelKey, decision.usage.costUsd)
     const ids = answerIds(newId, now())
 
     if (req.stream) {
@@ -439,6 +469,9 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
       return response ?? json(errorBody(404, 'not found', 'not_found'), 404)
     }
 
+    const vercel = await vercelKeys.route(request, url)
+    if (vercel) return withCors(vercel)
+
     if (method === 'GET' && (pathname === '/v1/models' || pathname === '/models')) {
       return withCors(json(vercelModels(store.catalog())))
     }
@@ -484,7 +517,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     return response
   }
 
-  return { fetch: fetchHandler, store }
+  return { fetch: fetchHandler, store, vercelKeys }
 }
 
 /**

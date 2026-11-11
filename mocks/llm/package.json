@@ -1,6 +1,6 @@
 {
   "name": "llm-mock",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenAI-compatible chat-completions stub for development and tests: Vercel AI Gateway and OpenRouter paths, models catalog, tool calls, streaming, scripted rules, latency and error injection, request log.",
   "keywords": [
     "llm",
