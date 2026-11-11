@@ -606,7 +606,7 @@ function renderModels() {
       <td class="col-mono">${(model.maxOutputTokens || 0).toLocaleString()}</td>
       <td class="col-mono">${formatPricePerMillion(model.inputPrice)}</td>
       <td class="col-mono">${formatPricePerMillion(model.outputPrice)}</td>
-      <td>${model.tools ? '✓ Yes' : '— No'}</td>
+      <td>${model.tools ? '<span class="badge-kind badge-text">tools</span>' : '<span class="col-mono">no</span>'}</td>
       <td>
         <button type="button" class="btn btn-danger btn-delete-model" data-id="${escapeHtml(model.id)}">Delete</button>
       </td>
@@ -665,6 +665,27 @@ function setupModelsForm() {
       }
     })
   }
+}
+
+// Theme: the dark receipt is an explicit choice, kept per browser.
+function setupTheme() {
+  const button = document.getElementById('btn-theme')
+  if (!button) return
+  const label = () => {
+    const dark = document.documentElement.dataset.theme === 'dark'
+    button.setAttribute('aria-label', dark ? 'Switch to the light receipt' : 'Switch to the dark receipt')
+  }
+  label()
+  button.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+    document.documentElement.dataset.theme = next
+    try {
+      localStorage.setItem('llm-mock:theme', next)
+    } catch {
+      // storage blocked: the choice lasts for this page only
+    }
+    label()
+  })
 }
 
 // Global actions
@@ -741,6 +762,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupSettingsForm()
   setupModelsForm()
   setupGlobalActions()
+  setupTheme()
 
   loadState()
   loadRequests()

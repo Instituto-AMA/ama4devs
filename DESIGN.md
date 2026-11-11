@@ -1,12 +1,13 @@
 ---
 name: The Running Receipt
-surface: site/ (GitHub Pages), mocks/asaas/panel/ (the Asaas mock's operator panel)
+surface: site/ (GitHub Pages), mocks/asaas/panel/ (the Asaas mock's operator panel), mocks/llm/public/ (the LLM mock's operator panel)
 colors:
   ground-home: "#1d1838"
   ground-whatsapp: "#0e3a2f"
   ground-asaas: "#0f2160"
   ground-sms: "#1b1b4b"
   ground-generator: "#3d1a12"
+  ground-llm: "#2a1233"
   on-ground: "#ece9f7"
   on-ground-soft: "#b9b2d9"
   paper: "#f3f5f1"
@@ -41,8 +42,9 @@ Asaas mock's virtual clock feeds paper. It refuses the developer-tool default (a
 with a terminal and a grid of feature cards).
 
 Each page stands on a deep printer-body ground: violet for the home, bottle green for the
-WhatsApp mock, ultramarine for the Asaas mock, indigo for the SMS mock and rust for the
-generator (`<body data-tool="whatsapp|asaas|sms|generator">`). What the visitor reads sits
+WhatsApp mock, ultramarine for the Asaas mock, indigo for the SMS mock, rust for the
+generator and aubergine for the LLM mock
+(`<body data-tool="whatsapp|asaas|sms|generator|llm">`). What the visitor reads sits
 on paper with torn edges. Controls are card-machine keypad keys.
 
 ## Colors
@@ -104,6 +106,12 @@ The Asaas mock's operator panel is this world at the size of a workbench: the sa
 ground, the same paper, the same keys, the same three voices. It is a screen the
 developer works in, so the expression shrinks to precision and the ledger carries the
 personality.
+
+The LLM mock's panel (`mocks/llm/public/`, plain HTML, CSS and JavaScript) is the same
+workbench with no rail: the strip carries the wordmark, the two base URLs and the keys
+(theme, a yellow Reset), the tabs below it are the sections (the open one a white key),
+and one torn sheet holds the request log as a ledger, the scripted rules, the settings
+as slots and toggles, and the model catalog.
 
 - **The machine**: the rail (left) and the strip (top) are the printer body — the
   ground. The open section of the rail is a white key pressed into the body.
