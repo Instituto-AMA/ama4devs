@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-MOCKS      ?= asaas whatsapp generator sms
+MOCKS      ?= asaas whatsapp generator sms llm
 PROFILE    ?= generic
 TARGET_ENV ?=
 FORCE      ?=
@@ -45,7 +45,8 @@ status: env ## Health of each mock, one line each
 	whatsapp_port=$$(sed -n 's/^WHATSAPP_PORT=//p' .env | tail -n1); whatsapp_port=$${whatsapp_port:-3010}; \
 	generator_port=$$(sed -n 's/^GENERATOR_PORT=//p' .env | tail -n1); generator_port=$${generator_port:-45450}; \
 	sms_port=$$(sed -n 's/^SMS_PORT=//p' .env | tail -n1); sms_port=$${sms_port:-8899}; \
-	for entry in asaas:$$asaas_port whatsapp:$$whatsapp_port generator:$$generator_port sms:$$sms_port; do \
+	llm_port=$$(sed -n 's/^LLM_PORT=//p' .env | tail -n1); llm_port=$${llm_port:-45470}; \
+	for entry in asaas:$$asaas_port whatsapp:$$whatsapp_port generator:$$generator_port sms:$$sms_port llm:$$llm_port; do \
 		name=$${entry%%:*}; port=$${entry##*:}; \
 		if curl --fail --silent --max-time 3 "http://localhost:$$port/health" >/dev/null; then \
 			echo "$$name: up (http://localhost:$$port)"; \
@@ -71,6 +72,7 @@ test: ## Run the tests of the mocks, one after the other
 	@cd mocks/whatsapp && bun run test
 	@cd mocks/generator && bun test
 	@cd mocks/sms && bun test
+	@cd mocks/llm && bun test
 
 video: video-voice ## Render the film and ask where to save it (default: the Desktop)
 	@if [ -n "$(out)" ]; then dest="$(out)"; \

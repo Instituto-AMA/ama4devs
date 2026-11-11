@@ -137,6 +137,35 @@ services:
       start_period: 3s
     restart: unless-stopped
 
+  # The LLM gateway stub: the base URL every LLM client of a project points at. It answers the
+  # chat completions itself (no real model is called), from its own catalog, rules and markers.
+  llm:
+    build: ./mocks/llm
+    image: ama4devs/llm:local
+    profiles: [llm]
+    ports:
+      - '127.0.0.1:${LLM_PORT:-45470}:45470'
+    environment:
+      PORT: 45470
+      LLM_LATENCY_MS: ${LLM_LATENCY_MS:-0}
+      LLM_REQUIRE_AUTH: ${LLM_REQUIRE_AUTH:-1}
+      LLM_UNKNOWN_MODELS: ${LLM_UNKNOWN_MODELS:-accept}
+      LLM_TOOL_STRATEGY: ${LLM_TOOL_STRATEGY:-match}
+      LLM_CONFIG_JSON: ${LLM_CONFIG_JSON:-}
+      MOCK_ALLOWED_HOSTS: llm,llm-mock
+    # The store is in memory: nothing survives a restart, so there is no volume.
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "await fetch('http://localhost:45470/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
+    restart: unless-stopped
+
   # The mailbox of the payer e-mails the Asaas mock sends (UI on :8025). Starts with
   # the asaas profile; `MAILPIT_PORT` moves it when another Mailpit holds 8025.
   mailpit:

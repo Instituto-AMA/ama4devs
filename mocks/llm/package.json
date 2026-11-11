@@ -1,0 +1,33 @@
+{
+  "name": "llm-mock",
+  "version": "0.1.0",
+  "description": "OpenAI-compatible chat-completions stub for development and tests: Vercel AI Gateway and OpenRouter paths, models catalog, tool calls, streaming, scripted rules, latency and error injection, request log.",
+  "keywords": [
+    "llm",
+    "openai",
+    "chat-completions",
+    "vercel-ai-gateway",
+    "openrouter",
+    "mock-server",
+    "testing",
+    "docker"
+  ],
+  "homepage": "https://github.com/Instituto-AMA/ama4devs/tree/master/mocks/llm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Instituto-AMA/ama4devs.git",
+    "directory": "mocks/llm"
+  },
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.17",
+    "typescript": "^5.8.3"
+  }
+}

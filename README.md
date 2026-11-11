@@ -13,6 +13,7 @@ fake Brazilian data, for development, automated tests and CI, as Docker images o
 | [Asaas mock](mocks/asaas/) | **Asaas API v3** (sandbox simulator of the Brazilian payment gateway): customers, charges with Pix, boleto and credit card, installments, subscriptions, webhooks delivered to `localhost`, payer e-mail, WhatsApp and SMS notifications | `docker pull ghcr.io/instituto-ama/asaas-mock:latest` |
 | [Generator](mocks/generator/) | **Fake Brazilian data** for tests: people, companies, CPF, CNPJ, CNH, PIS, RG, addresses with real CEP ranges, credit cards, bank accounts, Pix keys and charges, the same for the same seed; populates the Asaas mock with customers and charges in one call; simulates the Direct Data credit check at the provider's own paths, with test CPFs and a public token. Its UI also runs in the browser at [instituto-ama.github.io/ama4devs/generator/app](https://instituto-ama.github.io/ama4devs/generator/app/) | `docker pull ghcr.io/instituto-ama/generator-mock:latest` |
 | [SMS mock](mocks/sms/) | **SMS gateway** (native API, Twilio-compatible, simple GET/POST): messages, status and inbound webhooks, deterministic magic numbers, segment counting, OTP extraction, and a phone inbox panel | `docker pull ghcr.io/instituto-ama/sms-mock:latest` |
+| [LLM mock](mocks/llm/) | **LLM gateway** — OpenAI-compatible chat completions on the Vercel AI Gateway and OpenRouter paths: models catalog, tool calls, streaming, scripted rules, latency and error injection, request log | `docker pull ghcr.io/instituto-ama/llm-mock:latest` |
 
 **Documentation site:** [instituto-ama.github.io/ama4devs](https://instituto-ama.github.io/ama4devs/)
 (English; [Português](https://instituto-ama.github.io/ama4devs/portuguese/)). Each mock has an
@@ -28,7 +29,7 @@ Start all mocks and create your local `.env`:
 make setup
 ```
 
-`MOCKS` picks which ones (default `asaas whatsapp generator sms`), e.g. `make up MOCKS=sms`.
+`MOCKS` picks which ones (default `asaas whatsapp generator sms llm`), e.g. `make up MOCKS=sms`.
 The `asaas` profile also brings Mailpit, the generator and the SMS mock.
 
 To configure another application to point to the running mocks, pass `TARGET_ENV`:
@@ -114,6 +115,7 @@ without cloning this repository:
 | WhatsApp | `ghcr.io/instituto-ama/whatsapp-mock` |
 | Generator | `ghcr.io/instituto-ama/generator-mock` |
 | SMS | `ghcr.io/instituto-ama/sms-mock` |
+| LLM | `ghcr.io/instituto-ama/llm-mock` |
 
 One image per version, with two tags:
 
@@ -233,6 +235,18 @@ automated tests and CI. See [mocks/sms/README.md](mocks/sms/README.md).
 - **Control Routes:** Mounted under `/_mock/sms/` (`settings`, `inbound`, `messages/:id/status`, `reset`, `webhooks/deliveries`, `demo`).
 - **UI:** [http://localhost:8899](http://localhost:8899) — a real-time phone inbox panel over WebSocket (`/ws`) allowing you to inspect messages, view OTP chips, reply as the handset, and manually change message statuses.
 
+## The LLM Mock
+
+An OpenAI-compatible chat-completions stub with no dependencies (Bun, port 45470) for local
+development, automated tests and CI: the base URL every LLM client of a project points at, answering
+the completions itself (no real model is called). See [mocks/llm/README.md](mocks/llm/README.md).
+
+- **APIs:** Vercel AI Gateway paths under `/v1` and OpenRouter paths under `/api/v1`, both speaking the OpenAI chat-completions contract (`POST .../chat/completions`, `GET .../models`), with streaming and plain JSON answers.
+- **Models catalog & tool calls:** answers come from a catalog of known models and scripted rules; a completion can answer a tool call, and a model outside the catalog is accepted or rejected (`LLM_UNKNOWN_MODELS`). `LLM_LATENCY_MS` adds artificial latency.
+- **Magic Keys:** the API key of the request scripts the outcome — `mock-invalid-key` answers 401, `mock-no-credit` 402, `mock-rate-limited` 429 and `mock-down` 503; any other Bearer value passes.
+- **Markers:** a marker in a prompt scripts the answer — `[mock:error=N]` answers with the status N, `[mock:text]` with a fixed text, `[mock:tool=name]` with a tool call of `name`, `[mock:latency=ms]` delays the answer and `[mock:echo]` echoes the prompt back.
+- **Control Routes:** Mounted under `/_mock/llm/`; the panel is on `/`.
+
 ## The WhatsApp Mock
 
 The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
@@ -260,7 +274,7 @@ The WhatsApp mock simulates the Meta WhatsApp Business Cloud API.
 
 | Path | What it is |
 |---|---|
-| `mocks/` | The four mocks (`asaas`, `whatsapp`, `generator`, `sms`), each with its own `Dockerfile`, `GET /health`, port, tests and README; the contract is in [mocks/README.md](mocks/README.md) |
+| `mocks/` | The five mocks (`asaas`, `whatsapp`, `generator`, `sms`, `llm`), each with its own `Dockerfile`, `GET /health`, port, tests and README; the contract is in [mocks/README.md](mocks/README.md) |
 | `site/` | The documentation site (GitHub Pages), plain HTML: English at the root, Portuguese under `site/portuguese/` |
 | `video/` | The films, rendered from code with Remotion ([video/README.md](video/README.md)) |
 | `profiles/` | Env key profiles for `make setup PROFILE=...` ([profiles/README.md](profiles/README.md)) |
@@ -287,3 +301,4 @@ Ama-Hub integrates these mocks directly into its development lifecycle:
 - `mocks/whatsapp`: Apache License 2.0 (`mocks/whatsapp/LICENSE`).
 - `mocks/generator`: MIT License (`mocks/generator/LICENSE`).
 - `mocks/sms`: MIT License (`mocks/sms/LICENSE`).
+- `mocks/llm`: MIT License (`mocks/llm/LICENSE`).
