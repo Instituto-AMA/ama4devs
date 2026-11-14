@@ -72,6 +72,7 @@ The mock exposes the following provider routes and control endpoints:
 | `POST /v1/chat/completions` | Create chat completion (Vercel gateway format). |
 | `POST /chat/completions` | Alias for `POST /v1/chat/completions`. |
 | `POST /api/v1/chat/completions` | Create chat completion (OpenRouter gateway format). |
+| `POST /api/v1/embeddings` | Create deterministic embeddings (0.4.0, OpenRouter gateway format). |
 | `GET /_mock/llm/state` | Inspect current engine state: settings, rules, catalog, request count, version, boot errors. |
 | `GET /_mock/llm/settings` | Read runtime settings. |
 | `PUT /_mock/llm/settings` | Patch runtime settings. Returns `200` with updated settings or `400` with errors. |

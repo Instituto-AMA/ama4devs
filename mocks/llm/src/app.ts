@@ -5,6 +5,7 @@
 import { findModel, openRouterModels, vercelModels } from './catalog.ts'
 import type { Config } from './config.ts'
 import { completionBody, decide, errorBody, lastUserText, streamChunks } from './engine.ts'
+import { embedText } from './embeddings.ts'
 import { json, noContent, readJsonBody } from './http.ts'
 import { guardLocal } from './local-guard.ts'
 import { createStore, type Store } from './store.ts'
@@ -425,6 +426,60 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
   }
 
   /**
+   * The answer to an embeddings request.
+   * @param request The request to answer.
+   */
+  const embeddings = async (request: Request): Promise<Response> => {
+    const token = bearerOf(request.headers.get('authorization'))
+    if (!token) {
+      return json(errorBody(401, 'missing api key', 'invalid_api_key'), 401)
+    }
+
+    const body = await readJsonBody(request)
+    if (body.status === 'too-large') {
+      return json(errorBody(413, 'invalid request: body too large', 'invalid_request_error'), 413)
+    }
+    if (body.status === 'invalid' || !isPlainObject(body.value)) {
+      return json(errorBody(400, 'invalid request: body must be a JSON object', 'invalid_request_error'), 400)
+    }
+
+    const model = body.value.model
+    if (typeof model !== 'string' || model.trim() === '') {
+      return json(errorBody(400, 'invalid request: model must be a string', 'invalid_request_error'), 400)
+    }
+
+    const input = body.value.input
+    let texts: string[]
+    if (typeof input === 'string') {
+      texts = [input]
+    } else if (Array.isArray(input) && input.every((item) => typeof item === 'string')) {
+      texts = input
+    } else {
+      return json(
+        errorBody(400, 'invalid request: input must be a string or a list of strings', 'invalid_request_error'),
+        400,
+      )
+    }
+
+    const embedded = texts.map((text) => embedText(text, config.embeddingDimensions))
+    const promptTokens = embedded.reduce((sum, item) => sum + item.wordCount, 0)
+
+    return json({
+      object: 'list',
+      model,
+      data: embedded.map((item, index) => ({
+        object: 'embedding',
+        index,
+        embedding: item.embedding,
+      })),
+      usage: {
+        prompt_tokens: promptTokens,
+        total_tokens: promptTokens,
+      },
+    })
+  }
+
+  /**
    * Answers a request: the health check, the guard, the CORS, the routes and,
    * at the end, the static files of the panel.
    * @param request The request to answer.
@@ -487,6 +542,10 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
         return withCors(json(errorBody(404, `model not found: ${id}`, 'model_not_found'), 404))
       }
       return withCors(json(item))
+    }
+
+    if (method === 'POST' && pathname === '/api/v1/embeddings') {
+      return withCors(await embeddings(request))
     }
 
     if (

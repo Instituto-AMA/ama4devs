@@ -40,6 +40,8 @@ export interface Config {
   maxRequests: number
   /** Whether the request body is kept in the log. */
   logBodies: boolean
+  /** The number of dimensions in each deterministic embedding. */
+  embeddingDimensions: number
   allowedHosts: string[]
   publicDir: string
   /** What the boot files said that could not be read; the server logs them. */
@@ -96,6 +98,7 @@ export function loadConfig(
     catalog: boot.catalog ?? defaultCatalog(),
     maxRequests: positiveInt(env.LLM_MAX_REQUESTS, 1000),
     logBodies: env.LLM_LOG_BODIES?.trim() === '1',
+    embeddingDimensions: positiveInt(env.LLM_MOCK_EMBEDDING_DIMENSIONS, 1024),
     allowedHosts: allowedHostsOf(env.MOCK_ALLOWED_HOSTS),
     publicDir: new URL('../public', import.meta.url).pathname,
     bootErrors,
