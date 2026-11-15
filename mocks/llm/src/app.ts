@@ -9,6 +9,7 @@ import { embedText } from './embeddings.ts'
 import { json, noContent, readJsonBody } from './http.ts'
 import { guardLocal } from './local-guard.ts'
 import { createStore, type Store } from './store.ts'
+import { createOpenRouterKeys, type OpenRouterKeys } from './openrouter-keys.ts'
 import { createVercelKeys, type VercelKeys } from './vercel-keys.ts'
 import type {
   AnswerIds,
@@ -39,6 +40,8 @@ export interface App {
   store: Store
   /** The AI Gateway keys the Vercel management routes created. */
   vercelKeys: VercelKeys
+  /** The keys the OpenRouter management routes created. */
+  openRouterKeys: OpenRouterKeys
 }
 
 /** The files of the public directory: `/app.js`, `/style.css`, `/favicon.svg`. */
@@ -93,6 +96,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
 
   const store = createStore(config, { now, newId })
   const vercelKeys = createVercelKeys({ newId })
+  const openRouterKeys = createOpenRouterKeys({ newId, now })
 
   /** The state the panel reads. */
   const state = (): Record<string, unknown> => ({
@@ -101,6 +105,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     catalog: store.catalog(),
     requestCount: store.requestCount(),
     vercelKeys: vercelKeys.list(),
+    openRouterKeys: openRouterKeys.list(),
     version: config.version,
     bootErrors: config.bootErrors,
   })
@@ -199,6 +204,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     if (pathname === '/_mock/llm/reset' && method === 'POST') {
       store.reset()
       vercelKeys.reset()
+      openRouterKeys.reset()
       return json(state())
     }
 
@@ -527,6 +533,9 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     const vercel = await vercelKeys.route(request, url)
     if (vercel) return withCors(vercel)
 
+    const openRouter = await openRouterKeys.route(request, url)
+    if (openRouter) return withCors(openRouter)
+
     if (method === 'GET' && (pathname === '/v1/models' || pathname === '/models')) {
       return withCors(json(vercelModels(store.catalog())))
     }
@@ -576,7 +585,7 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
     return response
   }
 
-  return { fetch: fetchHandler, store, vercelKeys }
+  return { fetch: fetchHandler, store, vercelKeys, openRouterKeys }
 }
 
 /**

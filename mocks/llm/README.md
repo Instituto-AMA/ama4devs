@@ -87,13 +87,20 @@ The mock exposes the following provider routes and control endpoints:
 | `GET /_mock/llm/requests?limit=50` | List logged requests, newest first (up to `limit`, max 1000). |
 | `GET /_mock/llm/requests/:id` | Fetch a single logged request by ID. |
 | `DELETE /_mock/llm/requests` | Clear all logged requests (`204 No Content`). |
-| `POST /_mock/llm/reset` | Reset settings, rules, and catalog back to boot state, clear the request log and forget the Vercel keys. |
+| `POST /_mock/llm/reset` | Reset settings, rules, and catalog back to boot state, clear the request log and forget the Vercel and OpenRouter keys. |
 | `POST /_vercel/v1/api-keys?teamId=` | Vercel key management (0.3.0): create an AI Gateway key (`purpose: ai-gateway`, `aiGatewayQuota {limitAmount, refreshPeriod}`); answers `apiKeyString` once and `apiKey.id`. |
 | `GET /_vercel/v1/api-keys?teamId=&purpose=ai-gateway` | List the team's keys with their budget and `quota.currentSpend`, never a key's value. |
 | `PATCH /_vercel/v1/api-keys/:id/quota?teamId=` | Change a key's budget (`{archived: true}` removes it). |
 | `DELETE /_vercel/v1/api-keys/:id?teamId=` | Delete a key (`204`, `404` when gone). |
 | `GET /_vercel/v2/user` | The user read a management token answers. |
 | `GET /v1/credits` | The gateway's credits: `200` for a key the mock created, `401` otherwise (the check of a pasted key). |
+| `POST /api/v1/keys` | OpenRouter key management (0.5.0): create a key (`name`, `limit` USD, `limit_reset`, optional `workspace_id`); answers `key` once and `data.hash`. |
+| `GET /api/v1/keys?offset=&workspace_id=&include_disabled=` | One workspace's keys, newest first, 100 a page, never a key's value. |
+| `GET /api/v1/keys/:hash` | One key. |
+| `PATCH /api/v1/keys/:hash` | Change `limit`, `limit_reset`, `disabled` or `name`. |
+| `DELETE /api/v1/keys/:hash` | Delete a key (`204`, `404` when gone). |
+| `GET /api/v1/key` | The bearer reads itself: a key the mock created answers its limit and usage; any other bearer is a management key (`is_management_key: true`). |
+| `GET /api/v1/credits` | The account's credits (`total_credits` 100, `total_usage` 0) to any bearer. |
 
 ## Vercel Key Management
 
@@ -105,6 +112,16 @@ memory per team. A key the mock created (`vck_mock_...`) is taken by the
 gateway routes, its spend is added to `quota.currentSpend`, and past
 `quota.limitAmount` the gateway answers `402` with `quota_for_entity_exceeded`,
 as the AI Gateway does.
+
+## OpenRouter Key Management
+
+The `/api/v1/keys`, `/api/v1/key` and `/api/v1/credits` routes stand where
+`https://openrouter.ai/api/v1` would: the Hub's `ANALYST_OPENROUTER_BASE_URL`
+(`http://localhost:45470/api/v1` in development) is also the root of its
+OpenRouter key management. Any bearer that is not a key of the mock is the
+Provisioning Key (the seeded `mock-llm-openrouter-provisioning-0000`); keys
+live in memory per workspace. A key the mock created (`sk-or-v1-mock...`) is
+an ordinary bearer for the chat and embeddings routes.
 
 ## How It Answers
 

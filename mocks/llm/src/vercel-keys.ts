@@ -43,8 +43,8 @@ export interface VercelKeys {
   find(secret: string): VercelKey | undefined
   /** Whether the key spent its budget. */
   overBudget(key: VercelKey): boolean
-  /** Adds the cost of one answer to the key's spend. */
-  charge(key: VercelKey, costUsd: number | null): void
+  /** Adds the cost of one answer (the engine's decimal text) to the key's spend. */
+  charge(key: VercelKey, costUsd: string | null): void
   /** Every key, for the panel. */
   list(): VercelKey[]
   /** Forgets every key. */
@@ -184,8 +184,9 @@ export function createVercelKeys(deps: VercelKeysDeps): VercelKeys {
       return key.quota !== null && key.quota.currentSpend >= key.quota.limitAmount
     },
     charge(key, costUsd) {
-      if (key.quota === null || costUsd === null) return
-      key.quota.currentSpend = Math.round((key.quota.currentSpend + costUsd) * 1e6) / 1e6
+      const cost = costUsd === null ? Number.NaN : Number(costUsd)
+      if (key.quota === null || !Number.isFinite(cost)) return
+      key.quota.currentSpend = Math.round((key.quota.currentSpend + cost) * 1e6) / 1e6
     },
     list() {
       return [...byId.values()]
