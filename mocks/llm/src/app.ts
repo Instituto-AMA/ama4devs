@@ -6,6 +6,13 @@ import { findModel, openRouterModels, vercelModels } from './catalog.ts'
 import type { Config } from './config.ts'
 import { completionBody, decide, errorBody, lastUserText, streamChunks } from './engine.ts'
 import { embedText } from './embeddings.ts'
+import {
+  imageBody,
+  MAX_IMAGE_BODY_BYTES,
+  readOpenRouterImageRequest,
+  readVercelImageRequest,
+  type ImageRequest,
+} from './images.ts'
 import { json, noContent, readJsonBody } from './http.ts'
 import { guardLocal } from './local-guard.ts'
 import { createStore, type Store } from './store.ts'
@@ -486,6 +493,28 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
   }
 
   /**
+   * The answer to an image edit request of one gateway: the photo it
+   * received, in the gateway's answer shape.
+   * @param request The request to answer.
+   * @param gateway The gateway whose request shape is read.
+   */
+  const images = async (request: Request, gateway: Gateway): Promise<Response> => {
+    const token = bearerOf(request.headers.get('authorization'))
+    if (!token) {
+      return json(errorBody(401, 'missing api key', 'invalid_api_key'), 401)
+    }
+
+    const read = await readImageRequest(request, gateway)
+    if (read.status === 'too-large') {
+      return json(errorBody(413, 'invalid request: body too large', 'invalid_request_error'), 413)
+    }
+    if (read.status === 'invalid') {
+      return json(errorBody(400, read.message, 'invalid_request_error'), 400)
+    }
+    return json(imageBody(read.image, Math.floor(now().getTime() / 1000)))
+  }
+
+  /**
    * Answers a request: the health check, the guard, the CORS, the routes and,
    * at the end, the static files of the panel.
    * @param request The request to answer.
@@ -557,6 +586,14 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
       return withCors(await embeddings(request))
     }
 
+    if (method === 'POST' && (pathname === '/v1/images/edits' || pathname === '/images/edits')) {
+      return withCors(await images(request, 'vercel'))
+    }
+
+    if (method === 'POST' && pathname === '/api/v1/images') {
+      return withCors(await images(request, 'openrouter'))
+    }
+
     if (
       method === 'POST' &&
       (pathname === '/v1/chat/completions' ||
@@ -592,6 +629,21 @@ export function createApp(config: Config, deps: AppDeps = {}): App {
  * The token of an `Authorization: Bearer <token>` header.
  * @param authorization The raw header.
  */
+/**
+ * The image request of a gateway: the Vercel AI Gateway sends a multipart
+ * form, OpenRouter a JSON object.
+ * @param request The request to read.
+ * @param gateway The gateway whose request shape is read.
+ */
+async function readImageRequest(request: Request, gateway: Gateway): Promise<ImageRequest> {
+  if (gateway === 'vercel') return readVercelImageRequest(request)
+
+  const body = await readJsonBody(request, MAX_IMAGE_BODY_BYTES)
+  if (body.status === 'too-large') return { status: 'too-large' }
+  if (body.status === 'invalid') return { status: 'invalid', message: 'invalid request: body must be a JSON object' }
+  return readOpenRouterImageRequest(body.value)
+}
+
 function bearerOf(authorization: string | null): string {
   if (!authorization) return ''
   const match = /^Bearer\s+(.*)$/i.exec(authorization.trim())

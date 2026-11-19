@@ -73,6 +73,9 @@ The mock exposes the following provider routes and control endpoints:
 | `POST /chat/completions` | Alias for `POST /v1/chat/completions`. |
 | `POST /api/v1/chat/completions` | Create chat completion (OpenRouter gateway format). |
 | `POST /api/v1/embeddings` | Create deterministic embeddings (0.4.0, OpenRouter gateway format). |
+| `POST /v1/images/edits` | Edit an image (0.6.0, Vercel gateway format): multipart `model`, `prompt`, `image` (JPEG or PNG) and optional `mask`. Answers the photo it received as `data[0].b64_json` with `usage.cost`; nothing is edited. `401` without a bearer, `400` on a missing field or another media type, `413` past 32 MiB. |
+| `POST /images/edits` | Alias for `POST /v1/images/edits`. |
+| `POST /api/v1/images` | Edit an image (0.6.0, OpenRouter gateway format): JSON `model`, `prompt`, `input_references[0].image_url.url` (a JPEG or PNG data URL) and optional `markup`. Same answer and refusals. |
 | `GET /_mock/llm/state` | Inspect current engine state: settings, rules, catalog, request count, version, boot errors. |
 | `GET /_mock/llm/settings` | Read runtime settings. |
 | `PUT /_mock/llm/settings` | Patch runtime settings. Returns `200` with updated settings or `400` with errors. |
