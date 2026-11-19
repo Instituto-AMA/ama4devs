@@ -21,6 +21,7 @@ LABEL org.opencontainers.image.title="LLM Mock - OpenAI-compatible chat-completi
 COPY package.json ./
 COPY src ./src
 COPY public ./public
+COPY boot ./boot
 
 USER bun
 

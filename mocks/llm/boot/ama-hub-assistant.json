@@ -1,0 +1,333 @@
+{
+  "rules": [
+    {
+      "id": "ama-hub-cancel-first-today",
+      "match": {
+        "lastUser": "cancel[ea].{0,30}?consulta.{0,20}?hoje",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": {
+              "source": "agenda_appointments",
+              "params": { "from": "{{date:+0}}", "to": "{{date:+0}}" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-cancel-first-today-propose",
+      "match": {
+        "lastUser": "cancel[ea].{0,30}?consulta.{0,20}?hoje",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "propose_action",
+            "arguments": {
+              "action": "cancel_appointment",
+              "arguments": {
+                "appointment_id": "{{tool.sample.0.0}}",
+                "expected_version": "{{tool.sample.0.14}}",
+                "rebooking": "no_contact"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-cancel-first-today-answer",
+      "match": {
+        "lastUser": "cancel[ea].{0,30}?consulta.{0,20}?hoje",
+        "hasTools": true,
+        "lastToolName": "propose_action",
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Confirme o cancelamento da primeira consulta de hoje no cartão."
+      }
+    },
+    {
+      "id": "ama-hub-receive-in-cash",
+      "match": {
+        "lastUser": "receb[ae].{0,40}?dinheiro",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": { "source": "receivable_installments", "params": { "status": "overdue" } }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-receive-in-cash-propose",
+      "match": {
+        "lastUser": "receb[ae].{0,40}?dinheiro",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "propose_action",
+            "arguments": {
+              "action": "receive_installment_in_cash",
+              "arguments": {
+                "installment_id": "{{tool.sample.0.8}}",
+                "received_on": "{{date:+0}}",
+                "method": "cash"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-receive-in-cash-answer",
+      "match": {
+        "lastUser": "receb[ae].{0,40}?dinheiro",
+        "hasTools": true,
+        "lastToolName": "propose_action",
+        "toolOffered": "propose_action"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Confirme o recebimento em dinheiro da primeira parcela em atraso no cartão."
+      }
+    },
+    {
+      "id": "ama-hub-free-slots",
+      "match": {
+        "lastUser": "(hor[aá]rios?|vagas) (est[ãa]o )?(livres|vagos|dispon)",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": {
+              "source": "agenda_free_slots",
+              "params": { "date": "{{date:+1}}" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-free-slots-table",
+      "match": {
+        "lastUser": "(hor[aá]rios?|vagas) (est[ãa]o )?(livres|vagos|dispon)",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "show_table",
+            "arguments": {
+              "dataset_id": "{{tool.dataset_id}}",
+              "title": "Horários livres"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-free-slots-answer",
+      "match": {
+        "lastUser": "(hor[aá]rios?|vagas) (est[ãa]o )?(livres|vagos|dispon)",
+        "hasTools": true,
+        "lastToolName": "show_table",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Estes são os horários livres. Diga o paciente e o horário que eu proponho o agendamento."
+      }
+    },
+    {
+      "id": "ama-hub-today-appointments",
+      "match": {
+        "lastUser": "(consultas|agenda) (de )?hoje",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": {
+              "source": "agenda_appointments",
+              "params": { "from": "{{date:+0}}", "to": "{{date:+0}}" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-today-appointments-table",
+      "match": {
+        "lastUser": "(consultas|agenda) (de )?hoje",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "show_table",
+            "arguments": {
+              "dataset_id": "{{tool.dataset_id}}",
+              "title": "Consultas de hoje"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-today-appointments-answer",
+      "match": {
+        "lastUser": "(consultas|agenda) (de )?hoje",
+        "hasTools": true,
+        "lastToolName": "show_table",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Estas são as consultas de hoje. Diga qual consulta você quer remarcar ou cancelar."
+      }
+    },
+    {
+      "id": "ama-hub-professionals",
+      "match": {
+        "lastUser": "profissionais|doutores|dentistas",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": { "source": "professionals" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-professionals-table",
+      "match": {
+        "lastUser": "profissionais|doutores|dentistas",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "show_table",
+            "arguments": {
+              "dataset_id": "{{tool.dataset_id}}",
+              "title": "Profissionais"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-professionals-answer",
+      "match": {
+        "lastUser": "profissionais|doutores|dentistas",
+        "hasTools": true,
+        "lastToolName": "show_table",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Estes são os profissionais da equipe. Diga o profissional e o horário que eu proponho o agendamento."
+      }
+    },
+    {
+      "id": "ama-hub-overdue-receivables",
+      "match": {
+        "lastUser": "(parcelas|contas).{0,20}?(em atraso|atrasad)",
+        "hasTools": true,
+        "afterTool": false,
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "read_data",
+            "arguments": { "source": "receivable_installments" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-overdue-receivables-table",
+      "match": {
+        "lastUser": "(parcelas|contas).{0,20}?(em atraso|atrasad)",
+        "hasTools": true,
+        "lastToolName": "read_data",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "tool_calls",
+        "calls": [
+          {
+            "name": "show_table",
+            "arguments": {
+              "dataset_id": "{{tool.dataset_id}}",
+              "title": "Parcelas em atraso"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ama-hub-overdue-receivables-answer",
+      "match": {
+        "lastUser": "(parcelas|contas).{0,20}?(em atraso|atrasad)",
+        "hasTools": true,
+        "lastToolName": "show_table",
+        "toolOffered": "read_data"
+      },
+      "reply": {
+        "kind": "text",
+        "text": "Estas são as parcelas em atraso. Diga a parcela que você quer receber em dinheiro."
+      }
+    }
+  ]
+}

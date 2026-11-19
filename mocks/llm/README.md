@@ -453,6 +453,40 @@ You can pre-configure the mock on startup using `LLM_CONFIG_FILE` or `LLM_CONFIG
 
 If a configuration file fails to parse or fails validation, errors are logged to `bootErrors` (visible in `GET /_mock/llm/state`); the server logs the issues and starts with default configuration without crashing.
 
+## Respostas do assistente do Ama-Hub
+
+`boot/ama-hub-assistant.json` is the boot file of the Ama-Hub analyst: the rules the mock starts with inside the container. The compose service points at it by default (`LLM_CONFIG_FILE=/app/boot/ama-hub-assistant.json`), so `make up` answers the questions of the analyst with the tool calls of the real flow instead of the generic heuristic.
+
+Every rule of the file needs the tools of the assistant (`hasTools: true`) and `read_data` among them (`toolOffered: "read_data"`): a plain chat, without the catalog of the assistant, is never captured.
+
+Each question walks the same three steps:
+
+1. the assistant calls `read_data` with the source of the question;
+2. the result comes back with a `dataset_id` and the assistant calls `show_table` with it (`{{tool.dataset_id}}`);
+3. the answer is the text that closes the flow.
+
+| Rule | Question | Source of `read_data` |
+|---|---|---|
+| `ama-hub-free-slots` | "Quais horários estão livres amanhã?" | `agenda_free_slots` (`params.date` is tomorrow, `{{date:+1}}`) |
+| `ama-hub-today-appointments` | "Quais consultas de hoje?" | `agenda_appointments` (`params.from` is today, `params.to` is tomorrow) |
+| `ama-hub-professionals` | "Quais profissionais temos?" | `professionals` |
+| `ama-hub-overdue-receivables` | "Quais parcelas estão em atraso?" | `receivable_installments` |
+
+Each of them has two more rules: `ama-hub-<flow>-table`, the `show_table` call, and `ama-hub-<flow>-answer`, the text that closes it. The table of the free slots is titled "Horários livres" and the answer is "Estes são os horários livres. Diga o paciente e o horário que eu proponho o agendamento.".
+
+Two flows propose a write instead of drawing a table, and need `propose_action` among the tools (`toolOffered: "propose_action"`): after the read, the assistant calls `propose_action` with values of the first row of the read (`{{tool.sample.0.N}}`, column N of the source), and the answer asks the person to confirm the card.
+
+| Rule | Question | Read, then proposal |
+|---|---|---|
+| `ama-hub-cancel-first-today` | "Cancele a primeira consulta de hoje" | `agenda_appointments` of today, then `cancel_appointment` with the appointment id (column 0) and its version (column 14), `rebooking: no_contact` |
+| `ama-hub-receive-in-cash` | "Receba em dinheiro a parcela em atraso" | `receivable_installments` overdue, then `receive_installment_in_cash` with the installment id (column 8), today and `method: cash` |
+
+Each of them has `ama-hub-<flow>-propose`, the `propose_action` call, and `ama-hub-<flow>-answer`.
+
+The patterns of `lastUser` are plain regular expressions: the mock compiles every one of them with the case-insensitive flag, so `(?i)` is neither needed nor valid in JavaScript.
+
+The sources and the parameters follow the merged catalog of Ama-Hub (`api/assistant/sources/*.yaml`); they are aligned with it when the catalog changes.
+
 ## Request Log and Reset
 
 - **View Recent Requests:** `GET /_mock/llm/requests?limit=50` lists requests in reverse chronological order (newest first). Sensitive authorization headers are never logged.

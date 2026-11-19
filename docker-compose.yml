@@ -151,6 +151,7 @@ services:
       LLM_REQUIRE_AUTH: ${LLM_REQUIRE_AUTH:-1}
       LLM_UNKNOWN_MODELS: ${LLM_UNKNOWN_MODELS:-accept}
       LLM_TOOL_STRATEGY: ${LLM_TOOL_STRATEGY:-match}
+      LLM_CONFIG_FILE: ${LLM_CONFIG_FILE:-/app/boot/ama-hub-assistant.json}
       LLM_CONFIG_JSON: ${LLM_CONFIG_JSON:-}
       MOCK_ALLOWED_HOSTS: llm,llm-mock
     # The store is in memory: nothing survives a restart, so there is no volume.
