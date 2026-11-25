@@ -115,6 +115,21 @@ describe('boaVistaReturn', () => {
     expect(clean.restricoes.ocorrencias).toEqual([])
   })
 
+  test('the restrictions profile fills every list of the spec, so every documented path is sent', () => {
+    const row = DEFAULT_TEST_CPFS.find((item) => item.outcome === 'restrictions')!
+    const retorno = boaVistaReturn(row.cpf, profileOf('restrictions'), NOW)
+    const answerPaths = keysOf(retorno)
+    expect(specPaths.filter((path) => !answerPaths.includes(path))).toEqual([])
+  })
+
+  test('the keys its catalog page names differently from Acerta Completo', () => {
+    const row = DEFAULT_TEST_CPFS.find((item) => item.outcome === 'restrictions')!
+    const retorno = boaVistaReturn(row.cpf, profileOf('restrictions'), NOW)
+    expect(Object.keys(retorno.restricoes.ocorrencias[0]!)).toContain('observacoes')
+    expect(Object.keys(retorno.participacaoEmEmpresas.ocorrencias[0]!)).toContain('participanteRenda')
+    expect(Object.keys(retorno.decisao)).toContain('observacoes')
+  })
+
   test('the top-level key order is the spec order with the phones and the addresses inserted', () => {
     const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0]!.cpf, profileOf('lowRisk'), NOW)
     const specKeys = Object.keys(boaSpec.retorno)

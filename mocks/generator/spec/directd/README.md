@@ -60,6 +60,10 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - Acerta Completo `retorno`: every leaf is a string, like Acerta Mais; the full key list is in
   `boavista-acerta-completo-positivo-pf.response.json`. The phone and the address come as the
   `telefones[]` and `enderecos[]` arrays, and the two `somente*` blocks are absent.
+- Inside the blocks the two pages name three keys differently: `restricoes.ocorrencias[].observacoes`
+  (Acerta Mais) and `.observacao` (Acerta Completo); `participacaoEmEmpresas.ocorrencias[].participanteRenda`
+  and `.participanteEntrada`; `decisao.observacoes` and `decisao.resultado`. The mock sends each route the
+  names of its own page. Both pages were read again on 2026-11-25 and had not changed.
 - Dossiê QUOD `retorno`: four keys — `documentoConsultado`, `entidadeJuridica`, `entidadeFisica`,
   `observacao`. For a person `entidadeJuridica` is `null`, and so is
   `entidadeFisica.scoreEntidade.entidadeJuridica`. The leaves the Hub reads are **numbers**, not
@@ -97,6 +101,10 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
   (400, 401, 403), set when the consultation itself failed (404, 408, 500, 503).
 - The text of `faixaScore`, `perfil`, `capacidadePagamento`, `rendaPresumida.faixa` and every
   descriptive field: plausible values, documented per scenario in the generator's README.
+- The values of the Boa Vista lists, which the catalog shows only as `"string"`: one company participation and
+  one commercial lookup on every successful CPF, one civil action and one bankruptcy or recovery record on a CPF
+  with restrictions, the provider `BOA VISTA` when there are debts, and the ABC class of the score as the grade
+  of `controlePositivo`. No real answer of either route has been captured yet.
 - `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and, on an async consultation, posts the
   callback to the URL of a confirmed registration, and to nowhere else. A synchronous consultation posts nothing.
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.

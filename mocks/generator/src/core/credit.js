@@ -544,17 +544,110 @@ export function dossieReturn(cpf, profile, now) {
   }
 }
 
-/** The `restricoes` block: one occurrence per restriction, empty when clean. */
-/** @param {CreditProfile} profile */
-function restricoesBlock(profile) {
+/**
+ * The two Boa Vista routes name a few keys of the same blocks differently; each
+ * route follows its own catalog page.
+ * @typedef {{ restrictionNote: 'observacoes' | 'observacao', partnerDetail: 'participanteRenda' | 'participanteEntrada' }} BoaVistaKeys
+ */
+
+/** @type {BoaVistaKeys} */
+const ACERTA_MAIS_KEYS = { restrictionNote: 'observacoes', partnerDetail: 'participanteRenda' }
+/** @type {BoaVistaKeys} */
+const ACERTA_COMPLETO_KEYS = { restrictionNote: 'observacao', partnerDetail: 'participanteEntrada' }
+
+/** The company the person is a partner of, on every success profile. */
+const PARTNER_COMPANY = { cnpj: '11222333000181', razaoSocial: 'EMPRESA EXEMPLO LTDA.', since: '01/06/2019' }
+/** The store that looked the person up, on every success profile. */
+const COMMERCIAL_LOOKUP = {
+  date: '20/10/2025', time: '14:30', client: 'LOJA EXEMPLO LTDA.', phone: '1133330000', address: 'AV EXEMPLO 200 SAO PAULO SP',
+}
+
+/**
+ * The `restricoes` block: one occurrence per restriction, empty when clean.
+ * @param {CreditProfile} profile
+ * @param {BoaVistaKeys} keys
+ */
+function restricoesBlock(profile, keys) {
   return {
     quantidadeOcorrencias: String(profile.restrictions),
     ocorrencias: occurrenceList(profile.restrictions, () => ({
       codigoInformacao: '199',
       descricaoInformacao: 'RESTRICAO FINANCEIRA',
       titulo: 'RESTRICAO FINANCEIRA',
-      observacoes: '',
+      [keys.restrictionNote]: '',
     })),
+  }
+}
+
+/**
+ * The `participacaoEmEmpresas` block: the person is a partner of one company.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ * @param {BoaVistaKeys} keys
+ */
+function participacaoBlock(cpf, profile, keys) {
+  return {
+    quantidadeOcorrencias: '1',
+    ocorrencias: [{
+      cnpj: PARTNER_COMPANY.cnpj,
+      razaoSocial: PARTNER_COMPANY.razaoSocial,
+      participanteTipo: 'F',
+      participanteDocumento: onlyDigits(cpf),
+      participanteCargo: 'SOCIO',
+      [keys.partnerDetail]: keys.partnerDetail === 'participanteEntrada' ? PARTNER_COMPANY.since : profile.capacidadePagamento.replace(/^R\$\s*/, ''),
+      participacao: '50,00',
+      quantidadeOutrosSocios: '1',
+    }],
+  }
+}
+
+/** The `passagensComerciais` block: one store looked the person up. */
+function passagensBlock() {
+  return {
+    quantidadeOcorrencias: '1',
+    ocorrencias: [{
+      dataConsulta: COMMERCIAL_LOOKUP.date,
+      horaConsulta: COMMERCIAL_LOOKUP.time,
+      clienteConsulta: COMMERCIAL_LOOKUP.client,
+      telefoneCliente: COMMERCIAL_LOOKUP.phone,
+      enderecoCliente: COMMERCIAL_LOOKUP.address,
+    }],
+  }
+}
+
+/**
+ * The `falenciasAcoesRecuperacoes` block: one record on a restricted profile.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ */
+function falenciasBlock(cpf, profile) {
+  const count = profile.restrictions > 0 ? 1 : 0
+  const value = profile.debts.count > 0 ? profile.debts.total : '0,00'
+  return {
+    quantidadeOcorrencia: String(count),
+    valorTotal: value,
+    ultimoRegistro: count > 0 ? DEBT_DATES.inclusion : '',
+    ocorrencias: occurrenceList(count, () => ({
+      tipo: 'ACAO JUDICIAL',
+      quantidade: '1',
+      cartorio: 'FORO EXEMPLO',
+      data: DEBT_DATES.inclusion,
+      origem: 'SAO PAULO/SP',
+      valor: value,
+      documento: onlyDigits(cpf),
+      razaoSocial: profile.name,
+    })),
+  }
+}
+
+/**
+ * The `controlePositivo` block: one grade of each kind, the ABC class of the score.
+ * @param {CreditProfile} profile
+ */
+function controlePositivoBlock(profile) {
+  return {
+    ocorrenciasFaturasEmAtraso: [{ notaComportamentoFaturaEmAtraso: profile.classificacaoABC }],
+    ocorrenciasNotaComportamentosContratosRecentes: [{ nota: profile.classificacaoABC }],
   }
 }
 
@@ -575,7 +668,7 @@ function pendenciasBlock(profile) {
     periodoInicial: count > 0 ? DEBT_DATES.inclusion : '',
     periodoFinal: count > 0 ? DEBT_DATES.due : '',
     dataMaior: count > 0 ? DEBT_DATES.due : '',
-    provedores: [],
+    provedores: count > 0 ? [{ provedor: 'BOA VISTA' }] : [],
     ocorrencias: occurrenceList(count, (i) => ({
       dataVencimento: DEBT_DATES.due,
       dataInclusao: DEBT_DATES.inclusion,
@@ -695,13 +788,13 @@ export function boaVistaReturn(cpf, profile, now) {
     cidade: ADDRESS.cidade,
     uf: ADDRESS.uf,
     cep: ADDRESS.cep,
-    restricoes: restricoesBlock(profile),
-    participacaoEmEmpresas: { quantidadeOcorrencias: '0', ocorrencias: [] },
+    restricoes: restricoesBlock(profile, ACERTA_MAIS_KEYS),
+    participacaoEmEmpresas: participacaoBlock(cpf, profile, ACERTA_MAIS_KEYS),
     pendenciasFinanceiras: pendenciasBlock(profile),
     protestos: protestosBlock(profile),
     chequeSemFundoVarejo: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
     chequeSemFundoBacen: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
-    falenciasAcoesRecuperacoes: { quantidadeOcorrencia: '0', valorTotal: '0,00', ultimoRegistro: '', ocorrencias: [] },
+    falenciasAcoesRecuperacoes: falenciasBlock(cpf, profile),
     scores: scoresBlock(profile),
     somenteTelefone: {
       registroLocalizado: '1',
@@ -733,20 +826,8 @@ export function boaVistaReturn(cpf, profile, now) {
         longitude: '',
       }],
     },
-    passagensComerciais: { quantidadeOcorrencias: '0', ocorrencias: [] },
-    acoesCiveis: {
-      quantidadeOcorrencia: '0',
-      valorTotal: '0,00',
-      valorPrimeiro: '',
-      valorUltimo: '',
-      dataPrimeiro: '',
-      dataUltimo: '',
-      valorMaior: '',
-      valorMenor: '',
-      dataMaior: '',
-      dataMenor: '',
-      ocorrencias: [],
-    },
+    passagensComerciais: passagensBlock(),
+    acoesCiveis: acoesCiveisBlock(profile),
     decisao: { codigoSituacao: '', descricao: '', observacoes: '', layout: '' },
     rendaPresumida: {
       descricao: '',
@@ -757,10 +838,7 @@ export function boaVistaReturn(cpf, profile, now) {
       valorPresumido: '',
       dadosCadastroPositivo: '',
     },
-    controlePositivo: {
-      ocorrenciasFaturasEmAtraso: [],
-      ocorrenciasNotaComportamentosContratosRecentes: [],
-    },
+    controlePositivo: controlePositivoBlock(profile),
   }
 }
 
@@ -805,15 +883,15 @@ export function boaVistaCompletoReturn(cpf, profile) {
     qtdDependentesBolsaFamilia: '',
     telefones: [{ ddd: PHONE.ddd, numero: PHONE.numero, telefoneComDDD: phoneFull }],
     enderecos: [{ ...ADDRESS }],
-    restricoes: restricoesBlock(profile),
-    participacaoEmEmpresas: { quantidadeOcorrencias: '0', ocorrencias: [] },
+    restricoes: restricoesBlock(profile, ACERTA_COMPLETO_KEYS),
+    participacaoEmEmpresas: participacaoBlock(cpf, profile, ACERTA_COMPLETO_KEYS),
     pendenciasFinanceiras: pendenciasBlock(profile),
     protestos: protestosBlock(profile),
     chequeSemFundoVarejo: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
     chequeSemFundoBacen: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
-    falenciasAcoesRecuperacoes: { quantidadeOcorrencia: '0', valorTotal: '0,00', ultimoRegistro: '', ocorrencias: [] },
+    falenciasAcoesRecuperacoes: falenciasBlock(cpf, profile),
     scores: scoresBlock(profile),
-    passagensComerciais: { quantidadeOcorrencias: '0', ocorrencias: [] },
+    passagensComerciais: passagensBlock(),
     acoesCiveis: acoesCiveisBlock(profile),
     decisao: { codigoSituacao: '', descricao: '', resultado: '', layout: '' },
     rendaPresumida: {
@@ -825,10 +903,7 @@ export function boaVistaCompletoReturn(cpf, profile) {
       valorPresumido: '',
       dadosCadastroPositivo: '',
     },
-    controlePositivo: {
-      ocorrenciasFaturasEmAtraso: [],
-      ocorrenciasNotaComportamentosContratosRecentes: [],
-    },
+    controlePositivo: controlePositivoBlock(profile),
   }
 }
 

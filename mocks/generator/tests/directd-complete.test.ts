@@ -24,6 +24,18 @@ const completoMcp = JSON.parse(readFileSync(join(SPEC_DIR, 'boavista-acerta-comp
 const NOW = new Date(Date.UTC(2026, 9, 31, 12, 0, 0))
 const CALL = { now: NOW, uid: '9f8b1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d', ip: '10.0.0.1', startedAt: NOW }
 
+/** Every key path of a value, arrays through their first element as `a[].b`. */
+function pathsOf(value: unknown, prefix = ''): string[] {
+  if (Array.isArray(value)) return [`${prefix}[]`, ...(value.length > 0 ? pathsOf(value[0], `${prefix}[]`).filter((path) => path !== `${prefix}[]`) : [])]
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value).flatMap(([key, child]) => {
+      const path = prefix ? `${prefix}.${key}` : key
+      return child !== null && typeof child === 'object' ? [path, ...pathsOf(child, path).filter((inner) => inner !== path)] : [path]
+    })
+  }
+  return [prefix]
+}
+
 /** The harness: the clock, the ids and the wait are fakes, nothing sleeps. */
 interface Harness {
   app: ReturnType<typeof createApp>
@@ -250,6 +262,22 @@ describe('the Acerta Completo route', () => {
     expect(Object.keys(body.retorno)).toHaveLength(43)
   })
 
+  test('the restricted CPF sends exactly the key paths of the catalog, every list filled', () => {
+    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'))
+
+    expect(pathsOf(retorno)).toEqual(pathsOf(completoSpec.retorno))
+  })
+
+  test('the keys its catalog page names differently from Acerta Mais', () => {
+    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'))
+
+    expect(Object.keys(retorno.restricoes.ocorrencias[0]!)).toContain('observacao')
+    expect(Object.keys(retorno.restricoes.ocorrencias[0]!)).not.toContain('observacoes')
+    expect(Object.keys(retorno.participacaoEmEmpresas.ocorrencias[0]!)).toContain('participanteEntrada')
+    expect(Object.keys(retorno.participacaoEmEmpresas.ocorrencias[0]!)).not.toContain('participanteRenda')
+    expect(Object.keys(retorno.decisao)).toContain('resultado')
+  })
+
   test('every MCP field of the return is a top-level key', async () => {
     const h = harness()
 
@@ -327,6 +355,9 @@ describe('the profile behind the new routes', () => {
     expect(mais.pendenciasFinanceiras.quantidadeOcorrencia).toBe(completo.pendenciasFinanceiras.quantidadeOcorrencia)
     expect(mais.protestos.valorTotal).toBe(completo.protestos.valorTotal)
     expect(mais.restricoes.quantidadeOcorrencias).toBe(completo.restricoes.quantidadeOcorrencias)
+    expect(mais.acoesCiveis).toEqual(completo.acoesCiveis)
+    expect(mais.falenciasAcoesRecuperacoes).toEqual(completo.falenciasAcoesRecuperacoes)
+    expect(mais.passagensComerciais).toEqual(completo.passagensComerciais)
     expect(dossie.pendenciaFinanceira.negativacoes).toHaveLength(3)
     expect(dossie.pendenciaFinanceira.protestos[0].valorTotal).toBe(800)
   })

@@ -403,6 +403,12 @@ Each CPF below is known by the mock and forces one outcome, the way the Asaas te
 | `11101444401` | `slow` | 200 | 200, after a 25 s wait |
 | `11101555572` | `neverSettles` | 200 | 200, the async read stays 202 |
 
+The two Boa Vista routes carry the same blocks, each with the key names of its own catalog page: a
+restriction has `observacoes` on Acerta Mais and `observacao` on Acerta Completo, a company participation has
+`participanteRenda` and `participanteEntrada`, and the decision has `observacoes` and `resultado`. Every list of
+the catalog has at least one item on `11100333460`: one company participation and one commercial lookup on every
+successful CPF, and one civil action and one bankruptcy or recovery record on a CPF with restrictions.
+
 ### Configuring them
 
 Like the Asaas test cards, the table is data: the Direct Data sheet of the panel edits it, and the control routes do it from a script.
