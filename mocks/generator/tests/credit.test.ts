@@ -130,6 +130,21 @@ describe('boaVistaReturn', () => {
     expect(Object.keys(retorno.decisao)).toContain('observacoes')
   })
 
+  test('every field outside a zero-count block carries a value', () => {
+    const retorno = boaVistaReturn('38514137800', profileOf('restrictions'), NOW)
+    expect(leavesOf(retorno).filter(([, leaf]) => leaf === '').map(([path]) => path)).toEqual([])
+    const clean = boaVistaReturn('38514137800', profileOf('lowRisk'), NOW)
+    const zeroCount = ['pendenciasFinanceiras.', 'protestos.', 'acoesCiveis.', 'falenciasAcoesRecuperacoes.']
+    const empty = leavesOf(clean).filter(([path, leaf]) => leaf === '' && !zeroCount.some((block) => path.startsWith(block)))
+    expect(empty.map(([path]) => path)).toEqual([])
+  })
+
+  test('the registry data of a CPF is the same on every call', () => {
+    const first = boaVistaReturn('38514137800', profileOf('lowRisk'), NOW)
+    const again = boaVistaReturn('385.141.378-00', profileOf('lowRisk'), new Date(Date.UTC(2027, 0, 1)))
+    expect([again.nascimento, again.mae, again.rg, again.nomePai]).toEqual([first.nascimento, first.mae, first.rg, first.nomePai])
+  })
+
   test('the top-level key order is the spec order with the phones and the addresses inserted', () => {
     const retorno = boaVistaReturn(DEFAULT_TEST_CPFS[0]!.cpf, profileOf('lowRisk'), NOW)
     const specKeys = Object.keys(boaSpec.retorno)

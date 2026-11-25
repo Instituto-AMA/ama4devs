@@ -407,7 +407,9 @@ The two Boa Vista routes carry the same blocks, each with the key names of its o
 restriction has `observacoes` on Acerta Mais and `observacao` on Acerta Completo, a company participation has
 `participanteRenda` and `participanteEntrada`, and the decision has `observacoes` and `resultado`. Every list of
 the catalog has at least one item on `11100333460`: one company participation and one commercial lookup on every
-successful CPF, and one civil action and one bankruptcy or recovery record on a CPF with restrictions.
+successful CPF, and one civil action and one bankruptcy or recovery record on a CPF with restrictions. The registry data,
+the decision and the presumed income are always filled, the registry data drawn from a seed of the CPF; only the
+summary fields of a block whose count is zero stay empty.
 
 ### Configuring them
 

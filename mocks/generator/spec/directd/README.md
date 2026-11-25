@@ -104,7 +104,11 @@ byte for byte (Portuguese included) so the mock can be checked against it. Read 
 - The values of the Boa Vista lists, which the catalog shows only as `"string"`: one company participation and
   one commercial lookup on every successful CPF, one civil action and one bankruptcy or recovery record on a CPF
   with restrictions, the provider `BOA VISTA` when there are debts, and the ABC class of the score as the grade
-  of `controlePositivo`. No real answer of either route has been captured yet.
+  of `controlePositivo`. The registry data (birth, parents, RG, PIS, voter card, schooling, marital status) is
+  drawn from a seed of the CPF, so every call tells the same story; the decision follows the ABC class of the
+  score (a dead person or an irregular CPF is refused); the presumed income is a monthly value inside
+  `faixaRenda`. Only the summary fields of a block whose count is zero stay empty. No real answer of either
+  route has been captured yet.
 - `Callback=habilitar`: the mock records the flag (`enviarCallback: true`) and, on an async consultation, posts the
   callback to the URL of a confirmed registration, and to nowhere else. A synchronous consultation posts nothing.
 - `GERARCOMPROVANTE=Habilitar`: `gerarComprovante: true`, `urlComprovante: null`; no PDF is produced.

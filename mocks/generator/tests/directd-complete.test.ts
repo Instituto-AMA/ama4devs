@@ -263,13 +263,23 @@ describe('the Acerta Completo route', () => {
   })
 
   test('the restricted CPF sends exactly the key paths of the catalog, every list filled', () => {
-    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'))
+    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'), NOW)
 
     expect(pathsOf(retorno)).toEqual(pathsOf(completoSpec.retorno))
   })
 
+  test('the decision and the presumed income carry values', () => {
+    const retorno = boaVistaCompletoReturn('38514137800', profileOf('lowRisk'), NOW)
+
+    expect(retorno.decisao.resultado).toBe('APROVADO')
+    expect(retorno.rendaPresumida.valorPresumido).not.toBe('')
+    expect(retorno.nascimento).toMatch(/^\d{2}\/\d{2}\/\d{4}$/)
+    const refused = boaVistaCompletoReturn('11100444530', profileOf('deceased'), NOW)
+    expect(refused.decisao.resultado).toBe('REPROVADO')
+  })
+
   test('the keys its catalog page names differently from Acerta Mais', () => {
-    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'))
+    const retorno = boaVistaCompletoReturn('11100333460', profileOf('restrictions'), NOW)
 
     expect(Object.keys(retorno.restricoes.ocorrencias[0]!)).toContain('observacao')
     expect(Object.keys(retorno.restricoes.ocorrencias[0]!)).not.toContain('observacoes')
@@ -288,7 +298,7 @@ describe('the Acerta Completo route', () => {
 
   test('every leaf is a string', () => {
     for (const outcome of ['lowRisk', 'restrictions'] as const) {
-      const retorno = boaVistaCompletoReturn('11100000143', profileOf(outcome))
+      const retorno = boaVistaCompletoReturn('11100000143', profileOf(outcome), NOW)
       for (const [, leaf] of leavesOf(retorno)) expect(leaf).toBeTypeOf('string')
     }
   })

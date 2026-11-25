@@ -9,6 +9,7 @@
 
 import { createRng } from './rng.js'
 import { onlyDigits, isValidCpf, formatCpf } from './documents.js'
+import { person } from './people.js'
 
 /** The public token of the simulation: a GUID in the query string, never a secret. */
 export const DIRECTD_TOKEN = '00000000-0000-4000-8000-00000000d1d1'
@@ -217,12 +218,16 @@ const CAPACITY_CENTS_BY_ABC = {
  * repeated in every documented shape.
  */
 const PHONE = { ddd: '11', numero: '999990000' }
-const ADDRESS = { logradouro: 'RUA EXEMPLO', numero: '100', complemento: '', bairro: 'CENTRO', cidade: 'SAO PAULO', uf: 'SP', cep: '01001000' }
+const ADDRESS = { logradouro: 'RUA EXEMPLO', numero: '100', complemento: 'APTO 12', bairro: 'CENTRO', cidade: 'SAO PAULO', uf: 'SP', cep: '01001000' }
+/** Where the fake address sits on the map. */
+const ADDRESS_GEO = { latitude: '-23.5505', longitude: '-46.6333' }
 
 /** A debt occurrence pair the filled blocks repeat; dates stay dd/MM/yyyy. */
 const DEBT_DATES = { inclusion: '10/01/2025', due: '15/03/2026' }
 const PROTEST_DATE = '10/02/2025'
 const CREDITORS = ['BANCO EXEMPLO S.A.', 'TELECOM EXEMPLO LTDA.']
+const DEBT_CONTRACT_PREFIX = '00012345'
+const PROTEST_DUE = '10/12/2024'
 
 /**
  * A copy of a preset, deep enough that a caller cannot mutate the table.
@@ -544,6 +549,128 @@ export function dossieReturn(cpf, profile, now) {
   }
 }
 
+/** The fiscal region of a CPF, by its ninth digit. */
+const CPF_REGIONS = ['RS', 'DF, GO, MS, MT E TO', 'AC, AM, AP, PA, RO E RR', 'CE, MA E PI', 'AL, PB, PE E RN', 'BA E SE', 'MG', 'ES E RJ', 'SP', 'PR E SC']
+/** The risk words, the grade number and the decision of each ABC class. */
+const RISK_BY_ABC = {
+  A: { risco: 'BAIXO', nro: '1', decision: ['01', 'APROVAR', 'APROVADO'] },
+  B: { risco: 'MEDIO-BAIXO', nro: '2', decision: ['01', 'APROVAR', 'APROVADO'] },
+  C: { risco: 'MEDIO', nro: '3', decision: ['02', 'ANALISAR', 'EM ANALISE'] },
+  D: { risco: 'MEDIO-ALTO', nro: '4', decision: ['02', 'ANALISAR', 'EM ANALISE'] },
+  E: { risco: 'ALTO', nro: '5', decision: ['03', 'REPROVAR', 'REPROVADO'] },
+}
+/** The fixed day the identity draws ages from, so the same CPF always has the same birthday. */
+const IDENTITY_REFERENCE = new Date(Date.UTC(2026, 0, 1))
+const SCHOOLING = ['ENSINO MEDIO COMPLETO', 'SUPERIOR INCOMPLETO', 'SUPERIOR COMPLETO', 'POS-GRADUACAO']
+const MARITAL = { M: ['SOLTEIRO', 'CASADO', 'DIVORCIADO'], F: ['SOLTEIRA', 'CASADA', 'DIVORCIADA'] }
+const MALE_FATHER_NAMES = ['ANTONIO', 'FRANCISCO', 'JOSE', 'MANOEL', 'PEDRO', 'LUIZ', 'SEBASTIAO']
+const MODALITIES = ['CREDITO PESSOAL', 'TELEFONIA']
+
+/**
+ * Text the way the bureau writes it: upper case, no accents.
+ * @param {string} text
+ */
+function bureauText(text) {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+}
+
+/**
+ * `dd/MM/yyyy` of a UTC date.
+ * @param {Date} date
+ */
+function ddmmyyyy(date) {
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0')
+  return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`
+}
+
+/**
+ * The registry data of the person behind a CPF: drawn from a seed of the CPF,
+ * so every route and every call tells the same story. The name stays the
+ * profile's; the sex follows the first name.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ */
+function identityOf(cpf, profile) {
+  const digits = onlyDigits(cpf)
+  const rng = createRng(`directd:identity:${digits}`)
+  const firstName = profile.name.split(' ')[0] ?? ''
+  const sex = firstName.endsWith('A') ? 'F' : 'M'
+  const drawn = person(rng, { gender: sex, minAge: 25, maxAge: 70, now: IDENTITY_REFERENCE })
+  const birth = new Date(`${drawn.birthDate}T00:00:00Z`)
+  const rgIssued = new Date(birth)
+  rgIssued.setUTCFullYear(birth.getUTCFullYear() + 18)
+  const updated = new Date(Date.UTC(2026, rng.int(0, 8), rng.int(1, 28)))
+  const surname = profile.name.split(' ').at(-1) ?? ''
+  const monthly = rng.int(3001, 5000)
+  return {
+    cpfOrigem: CPF_REGIONS[Number(digits[8] ?? 0)] ?? '',
+    cpfDataAtualizacaoReceita: ddmmyyyy(updated),
+    rg: drawn.rg,
+    rguf: ADDRESS.uf,
+    rgDataEmissao: ddmmyyyy(rgIssued),
+    nomePai: `${rng.pick(MALE_FATHER_NAMES)} ${bureauText(drawn.lastName.split(' ')[0] ?? '')} ${surname}`,
+    mae: bureauText(drawn.motherName),
+    nascimento: ddmmyyyy(birth),
+    sexo: sex === 'F' ? 'FEMININO' : 'MASCULINO',
+    naturalidade: `${bureauText(drawn.address.city)}/${drawn.address.state}`,
+    grauInstrucao: rng.pick(SCHOOLING),
+    estadoCivil: rng.pick(MARITAL[sex]),
+    numeroDependentes: String(rng.int(0, 3)),
+    tituloEleitor: rng.digits(12),
+    numeroPIS: drawn.pis,
+    cartaoNacionalSaude: `7${rng.digits(14)}`,
+    email: `${firstName.toLowerCase()}.${surname.toLowerCase()}${rng.int(10, 99)}@email.com.br`,
+    monthlyCents: monthly * 100,
+    contract: rng.digits(10),
+  }
+}
+
+/**
+ * A bounced-cheque block: no cheque, the account holder named all the same.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ */
+function chequeBlock(cpf, profile) {
+  return { quantidadeOcorrencia: '0', correntista: profile.name, tipoPessoa: 'F', documento: onlyDigits(cpf) }
+}
+
+/**
+ * The `decisao` block: the recommendation of the class of the score; a dead
+ * person or an irregular CPF is always refused.
+ * @param {CreditProfile} profile
+ * @param {'observacoes' | 'resultado'} key
+ */
+function decisaoBlock(profile, key) {
+  const risk = RISK_BY_ABC[/** @type {keyof typeof RISK_BY_ABC} */ (profile.classificacaoABC)] ?? RISK_BY_ABC.E
+  const refused = profile.deceased || profile.cpfSituacao !== 'REGULAR'
+  const [code, description, result] = refused ? RISK_BY_ABC.E.decision : risk.decision
+  return {
+    codigoSituacao: code,
+    descricao: description,
+    [key]: key === 'resultado' ? result : `SCORE ${profile.score}, RISCO ${risk.risco}`,
+    layout: 'ACERTA POSITIVO PF',
+  }
+}
+
+/**
+ * The `rendaPresumida` block: a monthly value inside the profile's band.
+ * @param {CreditProfile} profile
+ * @param {number} monthlyCents
+ * @param {Date} now
+ */
+function rendaPresumidaBlock(profile, monthlyCents, now) {
+  const reference = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+  return {
+    descricao: 'RENDA PRESUMIDA MENSAL',
+    faixa: profile.rendaFaixa,
+    rendaAnual: formatMoney(monthlyCents * 12),
+    mensagem: 'RENDA ESTIMADA COM BASE NO CADASTRO POSITIVO',
+    dataReferencia: ddmmyyyy(reference),
+    valorPresumido: formatMoney(monthlyCents),
+    dadosCadastroPositivo: 'SIM',
+  }
+}
+
 /**
  * The two Boa Vista routes name a few keys of the same blocks differently; each
  * route follows its own catalog page.
@@ -574,7 +701,7 @@ function restricoesBlock(profile, keys) {
       codigoInformacao: '199',
       descricaoInformacao: 'RESTRICAO FINANCEIRA',
       titulo: 'RESTRICAO FINANCEIRA',
-      [keys.restrictionNote]: '',
+      [keys.restrictionNote]: 'REGISTRO INFORMADO PELO CREDOR',
     })),
   }
 }
@@ -677,11 +804,11 @@ function pendenciasBlock(profile) {
       credor: informante(i),
       moeda: 'R$',
       valor: formatMoney(parts[i] ?? 0),
-      contrato: '',
-      origem: '',
+      contrato: `${DEBT_CONTRACT_PREFIX}${i + 1}`,
+      origem: 'SAO PAULO/SP',
       subjudice: 'NAO',
-      modalidade: '',
-      entidade: '',
+      modalidade: MODALITIES[i % MODALITIES.length] ?? '',
+      entidade: 'BOA VISTA SCPC',
     })),
   }
 }
@@ -705,38 +832,42 @@ function protestosBlock(profile) {
       data: PROTEST_DATE,
       moeda: 'R$',
       valor: formatMoney(parts[i] ?? 0),
-      valorCustas: '',
+      valorCustas: '45,00',
       quantidade: '1',
       cartorio: 'CARTORIO EXEMPLO',
-      origem: '',
+      origem: 'SAO PAULO/SP',
       credor: CREDITORS[i % CREDITORS.length],
       anuencia: 'NAO',
       tipoAnotacao: 'PROTESTO',
       subjudice: 'NAO',
-      vencimento: '',
+      vencimento: PROTEST_DUE,
     })),
   }
 }
 
-/** The single `scores` occurrence, filling every documented key of the example. */
-/** @param {CreditProfile} profile */
-function scoresBlock(profile) {
+/**
+ * The single `scores` occurrence, filling every documented key of the example.
+ * @param {CreditProfile} profile
+ * @param {Date} now
+ */
+function scoresBlock(profile, now) {
+  const risk = RISK_BY_ABC[/** @type {keyof typeof RISK_BY_ABC} */ (profile.classificacaoABC)] ?? RISK_BY_ABC.E
   return {
     quantidadeOcorrencias: '1',
     ocorrencias: [{
-      layout: '',
-      tipoScore: '',
+      layout: 'ACERTA POSITIVO PF',
+      tipoScore: 'PF',
       score: String(profile.score),
-      execucao: '',
-      descricaoPlano: '',
-      descricaoScore: '',
-      classificacaoNro: '',
+      execucao: ddmmyyyy(now),
+      descricaoPlano: 'SCORE POSITIVO 12 MESES',
+      descricaoScore: 'PROBABILIDADE DE INADIMPLENCIA EM 12 MESES',
+      classificacaoNro: risk.nro,
       classificacaoABC: profile.classificacaoABC,
       probabilidadeInadimplencia: profile.probabilidade,
-      texto: '',
-      risco: '',
-      modeloScore: '',
-      informante: '',
+      texto: `A PROBABILIDADE DE INADIMPLENCIA NOS PROXIMOS 12 MESES E DE ${profile.probabilidade}`,
+      risco: risk.risco,
+      modeloScore: 'SCORE POSITIVO',
+      informante: 'BOA VISTA SCPC',
     }],
   }
 }
@@ -751,36 +882,37 @@ function scoresBlock(profile) {
  */
 export function boaVistaReturn(cpf, profile, now) {
   const phoneFull = PHONE.ddd + PHONE.numero
+  const who = identityOf(cpf, profile)
   return {
     cpf: formatCpf(cpf),
     cpfSituacao: profile.cpfSituacao,
-    cpfOrigem: '',
-    cpfDataAtualizacaoReceita: '',
-    rg: '',
-    rguf: '',
-    rgDataEmissao: '',
+    cpfOrigem: who.cpfOrigem,
+    cpfDataAtualizacaoReceita: who.cpfDataAtualizacaoReceita,
+    rg: who.rg,
+    rguf: who.rguf,
+    rgDataEmissao: who.rgDataEmissao,
     nome: profile.name,
-    nomeSocial: '',
-    nomePai: '',
-    mae: '',
-    nascimento: '',
-    sexo: '',
-    nacionalidade: '',
-    naturalidade: '',
-    grauInstrucao: '',
-    estadoCivil: '',
-    numeroDependentes: '',
+    nomeSocial: profile.name,
+    nomePai: who.nomePai,
+    mae: who.mae,
+    nascimento: who.nascimento,
+    sexo: who.sexo,
+    nacionalidade: 'BRASILEIRA',
+    naturalidade: who.naturalidade,
+    grauInstrucao: who.grauInstrucao,
+    estadoCivil: who.estadoCivil,
+    numeroDependentes: who.numeroDependentes,
     indicacaoObito: profile.deceased ? 'SIM' : 'NAO',
-    tituloEleitor: '',
-    numeroPIS: '',
-    cartaoNacionalSaude: '',
-    email: '',
+    tituloEleitor: who.tituloEleitor,
+    numeroPIS: who.numeroPIS,
+    cartaoNacionalSaude: who.cartaoNacionalSaude,
+    email: who.email,
     telefone: phoneFull,
     faixaRenda: profile.rendaFaixa,
-    classeSocial: '',
-    poderAquisitivo: '',
-    ultimoImpostoRenda: '',
-    qtdDependentesBolsaFamilia: '',
+    classeSocial: 'C',
+    poderAquisitivo: 'MEDIO',
+    ultimoImpostoRenda: '2026 - DECLARACAO PROCESSADA',
+    qtdDependentesBolsaFamilia: '0',
     telefones: [{ ddd: PHONE.ddd, numero: PHONE.numero, telefoneComDDD: phoneFull }],
     enderecos: [{ ...ADDRESS }],
     rua: `${ADDRESS.logradouro} ${ADDRESS.numero}`,
@@ -792,28 +924,28 @@ export function boaVistaReturn(cpf, profile, now) {
     participacaoEmEmpresas: participacaoBlock(cpf, profile, ACERTA_MAIS_KEYS),
     pendenciasFinanceiras: pendenciasBlock(profile),
     protestos: protestosBlock(profile),
-    chequeSemFundoVarejo: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
-    chequeSemFundoBacen: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
+    chequeSemFundoVarejo: chequeBlock(cpf, profile),
+    chequeSemFundoBacen: chequeBlock(cpf, profile),
     falenciasAcoesRecuperacoes: falenciasBlock(cpf, profile),
-    scores: scoresBlock(profile),
+    scores: scoresBlock(profile, now),
     somenteTelefone: {
       registroLocalizado: '1',
       dados: [{
-        codigoIdentificacaoTelefone: '',
-        tipoPessoa: '',
-        documento: '',
+        codigoIdentificacaoTelefone: '1',
+        tipoPessoa: 'F',
+        documento: onlyDigits(cpf),
         ddd: PHONE.ddd,
         numeroTelefone: PHONE.numero,
-        tipoTelefone: '',
-        pontuacao: '',
+        tipoTelefone: 'CELULAR',
+        pontuacao: '95',
       }],
     },
     somenteEndereco: {
       registroLocalizado: '1',
       dados: [{
-        codigoIdentificacaoEndereco: '',
-        tipoPessoa: '',
-        documento: '',
+        codigoIdentificacaoEndereco: '1',
+        tipoPessoa: 'F',
+        documento: onlyDigits(cpf),
         endereco: ADDRESS.logradouro,
         numero: ADDRESS.numero,
         complemento: ADDRESS.complemento,
@@ -821,23 +953,15 @@ export function boaVistaReturn(cpf, profile, now) {
         cidade: ADDRESS.cidade,
         uf: ADDRESS.uf,
         cep: ADDRESS.cep,
-        pontuacao: '',
-        latitude: '',
-        longitude: '',
+        pontuacao: '90',
+        latitude: ADDRESS_GEO.latitude,
+        longitude: ADDRESS_GEO.longitude,
       }],
     },
     passagensComerciais: passagensBlock(),
-    acoesCiveis: acoesCiveisBlock(profile),
-    decisao: { codigoSituacao: '', descricao: '', observacoes: '', layout: '' },
-    rendaPresumida: {
-      descricao: '',
-      faixa: profile.rendaFaixa,
-      rendaAnual: '',
-      mensagem: '',
-      dataReferencia: '',
-      valorPresumido: '',
-      dadosCadastroPositivo: '',
-    },
+    acoesCiveis: acoesCiveisBlock(cpf, profile),
+    decisao: decisaoBlock(profile, 'observacoes'),
+    rendaPresumida: rendaPresumidaBlock(profile, who.monthlyCents, now),
     controlePositivo: controlePositivoBlock(profile),
   }
 }
@@ -849,67 +973,64 @@ export function boaVistaReturn(cpf, profile, now) {
  * fields and the `somenteTelefone`/`somenteEndereco` blocks of Acerta Mais.
  * @param {string} cpf
  * @param {CreditProfile} profile
+ * @param {Date} now
  */
-export function boaVistaCompletoReturn(cpf, profile) {
+export function boaVistaCompletoReturn(cpf, profile, now) {
   const phoneFull = PHONE.ddd + PHONE.numero
+  const who = identityOf(cpf, profile)
   return {
     cpf: formatCpf(cpf),
     cpfSituacao: profile.cpfSituacao,
-    cpfOrigem: '',
-    cpfDataAtualizacaoReceita: '',
-    rg: '',
-    rguf: '',
-    rgDataEmissao: '',
+    cpfOrigem: who.cpfOrigem,
+    cpfDataAtualizacaoReceita: who.cpfDataAtualizacaoReceita,
+    rg: who.rg,
+    rguf: who.rguf,
+    rgDataEmissao: who.rgDataEmissao,
     nome: profile.name,
-    nomeSocial: '',
-    nomePai: '',
-    mae: '',
-    nascimento: '',
-    sexo: '',
-    nacionalidade: '',
-    naturalidade: '',
-    grauInstrucao: '',
-    estadoCivil: '',
-    numeroDependentes: '',
+    nomeSocial: profile.name,
+    nomePai: who.nomePai,
+    mae: who.mae,
+    nascimento: who.nascimento,
+    sexo: who.sexo,
+    nacionalidade: 'BRASILEIRA',
+    naturalidade: who.naturalidade,
+    grauInstrucao: who.grauInstrucao,
+    estadoCivil: who.estadoCivil,
+    numeroDependentes: who.numeroDependentes,
     indicacaoObito: profile.deceased ? 'SIM' : 'NAO',
-    tituloEleitor: '',
-    numeroPIS: '',
-    cartaoNacionalSaude: '',
-    email: '',
+    tituloEleitor: who.tituloEleitor,
+    numeroPIS: who.numeroPIS,
+    cartaoNacionalSaude: who.cartaoNacionalSaude,
+    email: who.email,
     faixaRenda: profile.rendaFaixa,
-    classeSocial: '',
-    poderAquisitivo: '',
-    ultimoImpostoRenda: '',
-    qtdDependentesBolsaFamilia: '',
+    classeSocial: 'C',
+    poderAquisitivo: 'MEDIO',
+    ultimoImpostoRenda: '2026 - DECLARACAO PROCESSADA',
+    qtdDependentesBolsaFamilia: '0',
     telefones: [{ ddd: PHONE.ddd, numero: PHONE.numero, telefoneComDDD: phoneFull }],
     enderecos: [{ ...ADDRESS }],
     restricoes: restricoesBlock(profile, ACERTA_COMPLETO_KEYS),
     participacaoEmEmpresas: participacaoBlock(cpf, profile, ACERTA_COMPLETO_KEYS),
     pendenciasFinanceiras: pendenciasBlock(profile),
     protestos: protestosBlock(profile),
-    chequeSemFundoVarejo: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
-    chequeSemFundoBacen: { quantidadeOcorrencia: '0', correntista: '', tipoPessoa: '', documento: '' },
+    chequeSemFundoVarejo: chequeBlock(cpf, profile),
+    chequeSemFundoBacen: chequeBlock(cpf, profile),
     falenciasAcoesRecuperacoes: falenciasBlock(cpf, profile),
-    scores: scoresBlock(profile),
+    scores: scoresBlock(profile, now),
     passagensComerciais: passagensBlock(),
-    acoesCiveis: acoesCiveisBlock(profile),
-    decisao: { codigoSituacao: '', descricao: '', resultado: '', layout: '' },
-    rendaPresumida: {
-      descricao: '',
-      faixa: profile.rendaFaixa,
-      rendaAnual: '',
-      mensagem: '',
-      dataReferencia: '',
-      valorPresumido: '',
-      dadosCadastroPositivo: '',
-    },
+    acoesCiveis: acoesCiveisBlock(cpf, profile),
+    decisao: decisaoBlock(profile, 'resultado'),
+    rendaPresumida: rendaPresumidaBlock(profile, who.monthlyCents, now),
     controlePositivo: controlePositivoBlock(profile),
   }
 }
 
-/** The `acoesCiveis` block of the Acerta Completo route, filled by the profile. */
-/** @param {CreditProfile} profile */
-function acoesCiveisBlock(profile) {
+/**
+ * The `acoesCiveis` block of both Boa Vista routes, filled by the profile.
+ * @param {string} cpf
+ * @param {CreditProfile} profile
+ */
+function acoesCiveisBlock(cpf, profile) {
   const count = profile.restrictions > 0 ? 1 : 0
   const value = profile.debts.count > 0 ? profile.debts.total : '0,00'
   return {
@@ -927,9 +1048,9 @@ function acoesCiveisBlock(profile) {
       requerido: profile.name,
       valor: value,
       acao: 'ACAO DE EXEMPLO',
-      documento: '',
+      documento: onlyDigits(cpf),
       foro: 'FORO EXEMPLO',
-      origem: '',
+      origem: 'SAO PAULO/SP',
       vara: '1',
       comarca: 'SAO PAULO',
       autor: CREDITORS[0] ?? '',
@@ -949,7 +1070,7 @@ function acoesCiveisBlock(profile) {
  */
 export function returnFor(route, cpf, profile, now) {
   if (route === ROUTE_BOA_VISTA) return boaVistaReturn(cpf, profile, now)
-  if (route === ROUTE_BOA_VISTA_COMPLETO) return boaVistaCompletoReturn(cpf, profile)
+  if (route === ROUTE_BOA_VISTA_COMPLETO) return boaVistaCompletoReturn(cpf, profile, now)
   if (route === ROUTE_DOSSIE) return dossieReturn(cpf, profile, now)
   return quodReturn(cpf, profile, now)
 }
