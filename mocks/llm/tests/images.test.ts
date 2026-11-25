@@ -67,6 +67,26 @@ function openRouterBody(): Record<string, unknown> {
   }
 }
 
+test('the Vercel edit route takes several pictures as image[] and answers the first', async () => {
+  const { app } = makeApp()
+  const form = new FormData()
+  form.set('model', 'openai/gpt-image-2')
+  form.set('prompt', 'follow the reference smile')
+  form.append('image[]', new Blob([PHOTO], { type: 'image/jpeg' }), 'source.jpg')
+  form.append('image[]', new Blob(['reference-bytes'], { type: 'image/jpeg' }), 'reference.jpg')
+  const response = await app.fetch(
+    new Request('http://localhost/v1/images/edits', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-key' },
+      body: form,
+    }),
+  )
+
+  expect(response.status).toBe(200)
+  const body = (await response.json()) as ImageBody
+  expect(body.data[0]?.b64_json).toBe(PHOTO_BASE64)
+})
+
 test('the Vercel edit route answers the photo it received', async () => {
   const { app } = makeApp()
   const response = await requestVercelEdit(app, { model: 'openai/gpt-image-2', prompt: 'whiten the teeth' })

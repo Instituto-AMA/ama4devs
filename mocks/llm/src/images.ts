@@ -44,7 +44,8 @@ export function imageBody(image: ImageInput, created: number): Record<string, un
 
 /**
  * The image request of the Vercel AI Gateway: a multipart form with the
- * `model`, the `prompt`, the `image` file and an optional `mask` file.
+ * `model`, the `prompt`, the `image` file (or several `image[]` files, the
+ * photo first) and an optional `mask` file.
  * @param request The request to read.
  */
 export async function readVercelImageRequest(request: Request): Promise<ImageRequest> {
@@ -61,7 +62,9 @@ export async function readVercelImageRequest(request: Request): Promise<ImageReq
   if (typeof model !== 'string' || model.trim() === '') return invalid('model must be a string')
   const prompt = form.get('prompt')
   if (typeof prompt !== 'string' || prompt.trim() === '') return invalid('prompt must be a string')
-  const image = form.get('image')
+  // One input picture travels as `image`; several travel as repeated `image[]`
+  // parts, the photo first. The stub answers the photo and ignores the others.
+  const image = form.get('image') ?? form.getAll('image[]')[0]
   if (!(image instanceof Blob)) return invalid('image must be a file')
   if (!IMAGE_MEDIA_TYPES.has(image.type)) return invalid('image must be a JPEG or a PNG')
   if (image.size > MAX_IMAGE_BODY_BYTES) return { status: 'too-large' }
